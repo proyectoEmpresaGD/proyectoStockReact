@@ -1,0 +1,40 @@
+### Obtener todos los productos
+GET http://localhost:3000/products
+Accept: application/json
+
+### Crear un producto
+POST http://localhost:3000/products
+Content-Type: application/json
+Accept: application/json
+
+{
+  "CodProdu": "001",
+  "DesProdu": "Producto Nuevo",
+  "CodFamil": "Familia01",
+  "Comentario": "Descripción del producto nuevo"
+}
+
+### Obtener producto por ID
+GET http://localhost:3000/products/001
+Accept: application/json
+
+### Actualizar un producto
+PATCH http://localhost:3000/products/001
+Content-Type: application/json
+Accept: application/json
+
+{
+  "DesProdu": "Producto Actualizado",
+  "Comentario": "Descripción actualizada del producto"
+}
+
+### Eliminar un producto
+DELETE http://localhost:3000/products/001
+Accept: application/json
+
+### Buscar productos
+GET http://localhost:3000/products/search?query=teclado
+Accept: application/json
+
+### Buscar productos
+GET http://localhost:1234/products/search?query=al
