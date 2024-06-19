@@ -105,10 +105,10 @@ export class ProductModel {
   static async search({ query, limit = 4 }) {
     try {
       const searchQuery = `
-                SELECT * FROM productos
-                WHERE "desprodu" ILIKE $1
-                LIMIT $2;
-            `;
+            SELECT * FROM productos
+            WHERE "desprodu" ILIKE $1
+            LIMIT $2;
+        `;
       const values = [`%${query}%`, limit];
       const { rows } = await pool.query(searchQuery, values);
       return rows;

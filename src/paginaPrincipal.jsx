@@ -119,8 +119,18 @@ function Home() {
                 return response.json();
             })
             .then(data => {
-                setFilteredProducts(data);
-                setSingleProductView(data.length === 1);
+                const combined = data
+                    .filter(isValidProduct)
+                    .map(product => {
+                        const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+                        return {
+                            ...product,
+                            stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
+                            canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
+                        };
+                    });
+                setFilteredProducts(combined);
+                setSingleProductView(combined.length === 1);
             })
             .catch(error => console.error('Error performing search:', error));
     };
@@ -163,7 +173,7 @@ function Home() {
                     value={searchTerm}
                     onChange={handleSearchInputChange}
                     onKeyPress={handleSearchKeyPress}
-                    className="w-full p-2 border rounded text-center border-black text-white font-bold bg-black"
+                    className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 {suggestions.length > 0 && (
                     <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg">
@@ -183,12 +193,12 @@ function Home() {
             {lastSearch && (
                 <button
                     onClick={handleLastSearchClick}
-                    className="mb-4 px-4 py-2 bg-yellow-400 text-white rounded cursor-pointer hover:bg-yellow-500"
+                    className="mb-4 px-4 py-2 bg-yellow-400 text-white rounded cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600"
                 >
                     Última búsqueda: {lastSearch}
                 </button>
             )}
-            <table className="min-w-full bg-white border font-bold border-black text-sm">
+            <table className="min-w-full bg-white border font-bold border-gray-300 text-sm">
                 <thead className="bg-gray-200">
                     <tr>
                         <th className="px-4 py-2 border-b">Nombre</th>
@@ -211,13 +221,13 @@ function Home() {
                     <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className="px-4 py-2 bg-gray-300 rounded mr-2 disabled:opacity-50"
+                        className="px-4 py-2 bg-blue-500 text-white rounded mr-2 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
                     >
                         Anterior
                     </button>
                     <button
                         onClick={() => handlePageChange(currentPage + 1)}
-                        className="px-4 py-2 bg-gray-300 rounded"
+                        className="px-4 py-2 bg-blue-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
                     >
                         Siguiente
                     </button>
@@ -226,7 +236,7 @@ function Home() {
             {singleProductView && (
                 <button
                     onClick={handleShowAll}
-                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-300"
                 >
                     Mostrar todos
                 </button>

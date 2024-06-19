@@ -76,13 +76,14 @@ export class ProductController {
   }
 
 
+
   async search(req, res) {
     try {
       const { query, limit } = req.query;
       if (!query) {
         return res.status(400).json({ message: 'Query parameter is required' });
       }
-      const limitParsed = parseInt(limit, 10) || 4;
+      const limitParsed = parseInt(limit, 10) || 20;
       const products = await ProductModel.search({ query, limit: limitParsed });
       res.json(products);
     } catch (error) {
