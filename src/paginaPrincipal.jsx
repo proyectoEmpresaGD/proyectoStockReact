@@ -7,6 +7,20 @@ function Home() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
 
+    const isValidProduct = (product) => {
+        return (
+            !/^(LIBRO|PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
+            !/(PERCHAS Y LIBROS)/i.test(product.desprodu) &&
+            !/CUTTING/i.test(product.desprodu) &&
+            !/(LIBROS)/i.test(product.desprodu) &&
+            !/PERCHA/i.test(product.desprodu) &&
+            !/(PERCHAS)/i.test(product.desprodu) &&
+            !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
+            !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
+            ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
+        );
+    };
+
     // Obtener datos de productos
     useEffect(() => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/productos`)
@@ -42,14 +56,16 @@ function Home() {
     // Combinar datos de productos y stock
     useEffect(() => {
         if (products.length > 0 && stocks.length > 0) {
-            const combined = products.map(product => {
-                const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
-                return {
-                    ...product,
-                    stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
-                    canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
-                };
-            });
+            const combined = products
+                .filter(isValidProduct)
+                .map(product => {
+                    const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+                    return {
+                        ...product,
+                        stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
+                        canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
+                    };
+                });
             console.log('Combined data:', combined);
             setCombinedProducts(combined);
         }
