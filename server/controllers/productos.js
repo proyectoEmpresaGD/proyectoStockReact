@@ -14,6 +14,16 @@ export class ProductController {
     }
   }
 
+  async getAllProductos(req, res) {
+    try {
+      const { codfamil, codsubfamil } = req.query;
+      const productos = await ProductModel.getAllProductos(codfamil, codsubfamil);
+      res.json(productos);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async getById(req, res) {
     try {
       const { id } = req.params;
