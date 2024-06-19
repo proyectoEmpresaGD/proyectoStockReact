@@ -10,6 +10,7 @@ const ACCEPTED_ORIGINS = [
   'https://proyecto-react-cjmw-neon.vercel.app',
   'https://cjmw-worldwide.vercel.app',
   'https://proyecto-stock-react-backend.vercel.app',
+  'https://proyecto-stock-react.vercel.app',
   'https://proyecto-stock-react.vercel.app'
   // Agregado para permitir solicitudes desde Google Translate
 ];
