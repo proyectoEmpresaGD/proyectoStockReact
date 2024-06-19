@@ -1,53 +1,99 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function Home() {
     const [products, setProducts] = useState([]);
+    const [stocks, setStocks] = useState([]);
+    const [combinedProducts, setCombinedProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filteredProducts, setFilteredProducts] = useState([]);
 
+    // Obtener datos de productos
     useEffect(() => {
-        fetch('YOUR_API_ENDPOINT')
-            .then(response => response.json())
-            .then(data => setProducts(data))
-            .catch(error => console.error('Error fetching data:', error));
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/productos`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Product data:', data);
+                setProducts(data);
+            })
+            .catch(error => console.error('Error fetching product data:', error));
     }, []);
 
-    const handleSearch = event => {
+    // Obtener datos de stock
+    useEffect(() => {
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Stock data:', data);
+                setStocks(data);
+            })
+            .catch(error => console.error('Error fetching stock data:', error));
+    }, []);
+
+    // Combinar datos de productos y stock
+    useEffect(() => {
+        if (products.length > 0 && stocks.length > 0) {
+            const combined = products.map(product => {
+                const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+                return {
+                    ...product,
+                    stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
+                    canpenservir: stockData ? parseFloat(stockData.canpenservir).toFixed(2) : 'N/A',
+                };
+            });
+            console.log('Combined data:', combined);
+            setCombinedProducts(combined);
+        }
+    }, [products, stocks]);
+
+    // Filtrar productos según el término de búsqueda
+    useEffect(() => {
+        if (searchTerm) {
+            const filtered = combinedProducts.filter(product =>
+                product.desprodu.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredProducts(filtered);
+        } else {
+            setFilteredProducts(combinedProducts);
+        }
+    }, [searchTerm, combinedProducts]);
+
+    const handleSearchInputChange = (event) => {
         setSearchTerm(event.target.value);
     };
 
-    const filteredProducts = products.filter(product =>
-        product.descprodu.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
     return (
-        <div className="container mx-auto px-2 py-4">
+        <div className="container mx-auto justify-center text-center px-2 py-4">
             <input
                 type="text"
-                placeholder="Buscar por nombre"
+                placeholder="Buscar por Nombre"
                 value={searchTerm}
-                onChange={handleSearch}
-                className="mb-4 p-2 border rounded w-full text-center border-black text-white font-bold bg-black"
+                onChange={handleSearchInputChange}
+                className="mb-4 p-2 border rounded w-[70%] text-center border-black text-white font-bold bg-black"
             />
-            <table className="min-w-full bg-white border border-black text-[10px] 2xl:text-base xl:text-base lg:text-base md:text-base text">
+            <table className="min-w-full bg-white border font-bold border-black text-[14px] 2xl:text-base xl:text-base lg:text-base md:text-base text">
                 <thead>
                     <tr>
-                        
                         <th className="px-4 py-2 border-b">Nombre</th>
                         <th className="px-4 py-2 border-b">Stock actual</th>
-                        <th className="px-4 py-2 border-b">Stock vendido</th>
-                        <th className="px-4 py-2 border-b">Stock pendiente de recibir</th>
-                        <th className="px-4 py-2 border-b">Stock previsto</th>
+                        <th className="px-4 py-2 border-b">Stock pendiente recibir</th>
                     </tr>
                 </thead>
                 <tbody>
                     {filteredProducts.map(product => (
-                        <tr key={product.id} className="border-b">
-                            
-                            <td className="px-4 py-2">{product.descprodu}</td>
-                            <td className="px-4 py-2">{product.stockactual}</td>
-                            <td className="px-4 py-2">{product.canpenentra}</td>
-                            <td className="px-4 py-2">{product.canpenservir}</td>
-                            <td className="px-4 py-2">{product.stockprevisto}</td>
+                        <tr key={product.codprodu} className="border-b">
+                            <td className="px-4 py-2">{product.desprodu}</td>
+                            <td className="px-4 py-2">{product.stockactual} cm</td>
+                            <td className="px-4 py-2">{product.canpenservir} cm</td>
                         </tr>
                     ))}
                 </tbody>
