@@ -9,7 +9,7 @@ const pool = new pg.Pool({
 });
 
 export class ProductModel {
-  static async getAll({ CodFamil, CodSubFamil, limit = 10, offset = 0 }) {
+  static async getAll({ CodFamil, CodSubFamil, limit = 20, offset = 0 }) {
     let query = 'SELECT * FROM productos';
     let params = [];
 
@@ -102,24 +102,22 @@ export class ProductModel {
     return rows[0];
   }
 
-  static async search({ query, limit = 10, page = 1 }) {
-    const searchQuery = `
-      SELECT * FROM productos
-      WHERE "desprodu" ILIKE $1
-      ORDER BY "desprodu"
-      LIMIT $2 OFFSET $3;
-    `;
-
-    const offset = (page - 1) * limit;
-
+  static async search({ query, limit = 4 }) {
     try {
-      const { rows } = await pool.query(searchQuery, [`${query}%`, limit, offset]);
+      const searchQuery = `
+                SELECT * FROM productos
+                WHERE "desprodu" ILIKE $1
+                LIMIT $2;
+            `;
+      const values = [`%${query}%`, limit];
+      const { rows } = await pool.query(searchQuery, values);
       return rows;
     } catch (error) {
       console.error('Error searching products:', error);
       throw new Error('Error searching products');
     }
   }
+
   static async getByCodFamil(codfamil) {
     try {
       const { rows } = await pool.query('SELECT * FROM productos WHERE "codfamil" = $1;', [codfamil]);
