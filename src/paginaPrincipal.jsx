@@ -9,7 +9,7 @@ function Home() {
 
     // Obtener datos de productos
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/productos`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/productos`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -47,7 +47,7 @@ function Home() {
                 return {
                     ...product,
                     stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
-                    canpenservir: stockData ? parseFloat(stockData.canpenservir).toFixed(2) : 'N/A',
+                    canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
                 };
             });
             console.log('Combined data:', combined);
@@ -59,7 +59,7 @@ function Home() {
     useEffect(() => {
         if (searchTerm) {
             const filtered = combinedProducts.filter(product =>
-                product.desprodu.toLowerCase().includes(searchTerm.toLowerCase())
+                product.desprodu && product.desprodu.toLowerCase().includes(searchTerm.toLowerCase())
             );
             setFilteredProducts(filtered);
         } else {
@@ -92,8 +92,8 @@ function Home() {
                     {filteredProducts.map(product => (
                         <tr key={product.codprodu} className="border-b">
                             <td className="px-4 py-2">{product.desprodu}</td>
-                            <td className="px-4 py-2">{product.stockactual} cm</td>
-                            <td className="px-4 py-2">{product.canpenservir} cm</td>
+                            <td className="px-4 py-2">{product.stockactual} m</td>
+                            <td className="px-4 py-2">{product.canpenrecib} m</td>
                         </tr>
                     ))}
                 </tbody>
