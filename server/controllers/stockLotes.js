@@ -11,7 +11,7 @@ export class StockLotesController {
             res.status(500).json({ error: error.message });
         }
     }
-    
+
     async getById(req, res) {
         try {
             const { codProdu } = req.params;
