@@ -164,7 +164,7 @@ function Home() {
 
     const handleProductClick = async (codprodu) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/${codprodu}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${codprodu}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -269,14 +269,22 @@ function Home() {
                         <h2 className="text-xl font-bold mb-4">Lotes del Producto</h2>
                         <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 hover:text-gray-800">&times;</button>
                         {Array.isArray(selectedProductLots) && selectedProductLots.length > 0 ? (
-                            <ul>
-                                {selectedProductLots.map((lot, index) => (
-                                    <li key={index} className="mb-2">
-                                        <div><strong>Lote:</strong> {lot.codlote}</div>
-                                        <div><strong>Cantidad:</strong> {lot.stockactual}</div>
-                                    </li>
-                                ))}
-                            </ul>
+                            <table className="min-w-full bg-white border border-gray-300 text-sm">
+                                <thead className="bg-gray-200">
+                                    <tr>
+                                        <th className="px-4 py-2 border-b">Lote</th>
+                                        <th className="px-4 py-2 border-b">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {selectedProductLots.map((lot, index) => (
+                                        <tr key={index} className="border-b">
+                                            <td className="px-4 py-2">{lot.codlote}</td>
+                                            <td className="px-4 py-2">{lot.stockactual}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         ) : (
                             <div>No hay lotes disponibles.</div>
                         )}
