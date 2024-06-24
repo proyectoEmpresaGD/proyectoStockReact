@@ -11,6 +11,8 @@ function Home() {
     const [itemsPerPage] = useState(20);
     const [lastSearch, setLastSearch] = useState('');
     const [singleProductView, setSingleProductView] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedProductLots, setSelectedProductLots] = useState([]);
 
     const isValidProduct = (product) => {
         return (
@@ -26,7 +28,6 @@ function Home() {
         );
     };
 
-    // Obtener datos de productos con paginación
     useEffect(() => {
         const fetchProducts = async () => {
             try {
@@ -44,7 +45,6 @@ function Home() {
         fetchProducts();
     }, [currentPage, itemsPerPage]);
 
-    // Obtener datos de stock
     useEffect(() => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`)
             .then(response => {
@@ -60,7 +60,6 @@ function Home() {
             .catch(error => console.error('Error fetching stock data:', error));
     }, []);
 
-    // Combinar datos de productos y stock
     useEffect(() => {
         if (products.length > 0 && stocks.length > 0) {
             const combined = products
@@ -79,7 +78,6 @@ function Home() {
         }
     }, [products, stocks]);
 
-    // Obtener sugerencias de búsqueda
     useEffect(() => {
         if (searchTerm.length >= 3) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=4`)
@@ -164,6 +162,30 @@ function Home() {
         setSearchTerm('');
     };
 
+    const handleProductClick = async (codprodu) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/${codprodu}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log('Lotes del producto:', data);  // Verifica que los datos sean correctos
+            setSelectedProductLots(Array.isArray(data) ? data : []);
+            setModalVisible(true);
+        } catch (error) {
+            console.error('Error fetching product lots data:', error);
+        }
+    };
+
+    useEffect(() => {
+        console.log('Lotes seleccionados:', selectedProductLots);
+    }, [selectedProductLots]);
+
+    const closeModal = () => {
+        setModalVisible(false);
+        setSelectedProductLots([]);
+    };
+
     return (
         <div className="container mx-auto justify-center text-center px-2 py-4">
             <div className="relative mb-4">
@@ -208,7 +230,7 @@ function Home() {
                 </thead>
                 <tbody>
                     {filteredProducts.map(product => (
-                        <tr key={product.codprodu} className="border-b hover:bg-gray-100">
+                        <tr key={product.codprodu} className="border-b hover:bg-gray-100 cursor-pointer" onClick={() => handleProductClick(product.codprodu)}>
                             <td className="px-4 py-2">{product.desprodu}</td>
                             <td className="px-4 py-2">{product.stockactual} m</td>
                             <td className="px-4 py-2">{product.canpenrecib} m</td>
@@ -240,6 +262,26 @@ function Home() {
                 >
                     Mostrar todos
                 </button>
+            )}
+            {modalVisible && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+                    <div className="bg-white p-4 rounded shadow-lg max-w-md w-full relative">
+                        <h2 className="text-xl font-bold mb-4">Lotes del Producto</h2>
+                        <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 hover:text-gray-800">&times;</button>
+                        {Array.isArray(selectedProductLots) && selectedProductLots.length > 0 ? (
+                            <ul>
+                                {selectedProductLots.map((lot, index) => (
+                                    <li key={index} className="mb-2">
+                                        <div><strong>Lote:</strong> {lot.codlote}</div>
+                                        <div><strong>Cantidad:</strong> {lot.stockactual}</div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div>No hay lotes disponibles.</div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );
