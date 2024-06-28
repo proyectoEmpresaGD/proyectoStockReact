@@ -1,4 +1,3 @@
-
 function Admin() {
     return (
         <div className="container mx-auto justify-center text-center px-2 py-4">

@@ -1,10 +1,18 @@
-// src/ProtectedRoute.jsx
 import { Navigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 
-function ProtectedRoute({ children }) {
-    const isAuthenticated = localStorage.getItem('token'); // Comprobar si el usuario está autenticado
+const ProtectedRoute = ({ children, role }) => {
+    const { user } = useAuth();
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
-}
+    if (!user) {
+        return <Navigate to="/login" />;
+    }
+
+    if (role && user.role !== role) {
+        return <Navigate to="/" />;
+    }
+
+    return children;
+};
 
 export default ProtectedRoute;

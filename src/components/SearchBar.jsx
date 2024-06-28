@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-
 function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) {
     return (
         <div className="relative mb-4">
