@@ -11,3 +11,4 @@ bcrypt.hash(password, saltRounds, function (err, hash) {
     }
 });
 
+// buenas tardes
