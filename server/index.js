@@ -1,8 +1,10 @@
+// index.js (servidor principal)
 import express, { json } from 'express';
 import { createProductRouter } from './routes/productos.js';
 import { createImagenRouter } from './routes/imagenes.js';
-import { createStockRouter } from './routes/stock.js'
+import { createStockRouter } from './routes/stock.js';
 import { createStockLotesRouter } from './routes/stockLotes.js';
+import authRouter from './routes/auth.js'; // Importar las rutas de autenticación
 import { corsMiddleware } from './middlewares/cors.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -29,9 +31,11 @@ app.disable('x-powered-by');
 app.use(express.static(join(__dirname, 'web')));
 
 app.use('/api/products', createProductRouter({ pool }));
-app.use('/api/images', createImagenRouter({ pool })); // Nuevas rutas para las imágenes
-app.use('/api/stock', createStockRouter({ pool }))
-app.use('/api/stocklotes', createStockLotesRouter({ pool }))
+app.use('/api/images', createImagenRouter({ pool }));
+app.use('/api/stock', createStockRouter({ pool }));
+app.use('/api/stocklotes', createStockLotesRouter({ pool }));
+app.use('/api/auth', authRouter); // Usar las rutas de autenticación
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');

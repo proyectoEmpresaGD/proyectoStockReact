@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
+import SearchBar from '../components/SearchBar';
+import ProductTable from '../components/ProductTable';
+import PaginationControls from '../components/PaginationControls';
+import ProductModal from '../components/ProductModal';
 
-function Home() {
+function Stock() {
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
     const [combinedProducts, setCombinedProducts] = useState([]);
@@ -36,7 +40,6 @@ function Home() {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                console.log('Product data:', data);
                 setProducts(data);
             } catch (error) {
                 console.error('Error fetching product data:', error);
@@ -53,10 +56,7 @@ function Home() {
                 }
                 return response.json();
             })
-            .then(data => {
-                console.log('Stock data:', data);
-                setStocks(data);
-            })
+            .then(data => setStocks(data))
             .catch(error => console.error('Error fetching stock data:', error));
     }, []);
 
@@ -72,7 +72,6 @@ function Home() {
                         canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
                     };
                 });
-            console.log('Combined data:', combined);
             setCombinedProducts(combined);
             setFilteredProducts(combined); // Mostrar productos iniciales
         }
@@ -87,9 +86,7 @@ function Home() {
                     }
                     return response.json();
                 })
-                .then(data => {
-                    setSuggestions(data);
-                })
+                .then(data => setSuggestions(data))
                 .catch(error => console.error('Error fetching search suggestions:', error));
         } else {
             setSuggestions([]);
@@ -169,7 +166,6 @@ function Home() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            console.log('Lotes del producto:', data);  // Verifica que los datos sean correctos
             setSelectedProductLots(Array.isArray(data) ? data : []);
             setModalVisible(true);
         } catch (error) {
@@ -177,41 +173,21 @@ function Home() {
         }
     };
 
-    useEffect(() => {
-        console.log('Lotes seleccionados:', selectedProductLots);
-    }, [selectedProductLots]);
-
     const closeModal = () => {
         setModalVisible(false);
         setSelectedProductLots([]);
     };
 
     return (
-        <div className="container mx-auto justify-center text-center px-2 py-4">
-            <div className="relative mb-4">
-                <input
-                    type="text"
-                    placeholder="Buscar por Nombre"
-                    value={searchTerm}
-                    onChange={handleSearchInputChange}
-                    onKeyPress={handleSearchKeyPress}
-                    className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {suggestions.length > 0 && (
-                    <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg">
-                        {suggestions.map(product => (
-                            <li
-                                key={product.codprodu}
-                                className="p-2 hover:bg-gray-100 cursor-pointer"
-                                onClick={() => handleSuggestionClick(product)}
-                            >
-                                <div className="font-bold">{product.desprodu}</div>
-                                <div className="text-sm text-gray-600">{product.codprodu}</div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+        <div className="container mx-auto justify-center text-center py-4">
+            <SearchBar
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                suggestions={suggestions}
+                handleSearchInputChange={handleSearchInputChange}
+                handleSearchKeyPress={handleSearchKeyPress}
+                handleSuggestionClick={handleSuggestionClick}
+            />
             {lastSearch && (
                 <button
                     onClick={handleLastSearchClick}
@@ -220,40 +196,9 @@ function Home() {
                     Última búsqueda: {lastSearch}
                 </button>
             )}
-            <table className="min-w-full bg-white border font-bold border-gray-300 text-sm">
-                <thead className="bg-gray-200">
-                    <tr>
-                        <th className="px-4 py-2 border-b">Nombre</th>
-                        <th className="px-4 py-2 border-b">Stock actual</th>
-                        <th className="px-4 py-2 border-b">Stock pendiente recibir</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredProducts.map(product => (
-                        <tr key={product.codprodu} className="border-b hover:bg-gray-100 cursor-pointer" onClick={() => handleProductClick(product.codprodu)}>
-                            <td className="px-4 py-2">{product.desprodu}</td>
-                            <td className="px-4 py-2">{product.stockactual} m</td>
-                            <td className="px-4 py-2">{product.canpenrecib} m</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <ProductTable products={filteredProducts} handleProductClick={handleProductClick} />
             {!singleProductView && (
-                <div className="mt-4 flex justify-center">
-                    <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 bg-blue-500 text-white rounded mr-2 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    >
-                        Anterior
-                    </button>
-                    <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        className="px-4 py-2 bg-blue-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    >
-                        Siguiente
-                    </button>
-                </div>
+                <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} />
             )}
             {singleProductView && (
                 <button
@@ -263,38 +208,13 @@ function Home() {
                     Mostrar todos
                 </button>
             )}
-            {modalVisible && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-                    <div className="bg-white p-4 rounded shadow-lg max-w-4xl w-full relative">
-                        <h2 className="text-xl font-bold mb-4">Lotes del Producto</h2>
-                        <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 hover:text-gray-800">&times;</button>
-                        {Array.isArray(selectedProductLots) && selectedProductLots.length > 0 ? (
-                            <div className="max-h-96 overflow-y-auto">
-                                <table className="min-w-full bg-white border border-gray-300 text-sm">
-                                    <thead className="bg-gray-200">
-                                        <tr>
-                                            <th className="px-4 py-2 border-b">Lote</th>
-                                            <th className="px-4 py-2 border-b">Cantidad</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selectedProductLots.map((lot, index) => (
-                                            <tr key={index} className="border-b">
-                                                <td className="px-4 py-2">{lot.codlote}</td>
-                                                <td className="px-4 py-2">{lot.stockactual}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div>No hay lotes disponibles.</div>
-                        )}
-                    </div>
-                </div>
-            )}
+            <ProductModal
+                modalVisible={modalVisible}
+                selectedProductLots={selectedProductLots}
+                closeModal={closeModal}
+            />
         </div>
     );
 }
 
-export default Home;
+export default Stock;
