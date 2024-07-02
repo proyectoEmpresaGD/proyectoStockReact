@@ -10,26 +10,14 @@ const pool = new pg.Pool({
 
 export class ClienteModel {
 
-    static async getAll({ localidad, codpais }) {
-        let query = `
+    static async getAll({ offset, limit }) {
+        const query = `
             SELECT * 
             FROM clientes
+            ORDER BY codclien
+            LIMIT $1 OFFSET $2
         `;
-        let params = [];
-
-        if (localidad) {
-            query += ' WHERE localidad = $1';
-            params.push(localidad);
-        }
-
-        if (codpais) {
-            if (params.length > 0) {
-                query += ' AND codpais = $2';
-            } else {
-                query += ' WHERE codpais = $1';
-            }
-            params.push(codpais);
-        }
+        const params = [limit, offset];
 
         try {
             const { rows } = await pool.query(query, params);

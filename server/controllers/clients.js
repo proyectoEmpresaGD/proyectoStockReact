@@ -4,8 +4,9 @@ import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
 export class ClienteController {
     async getAll(req, res) {
         try {
-            const { localidad, codpais } = req.query;
-            const clientes = await ClienteModel.getAll({ localidad, codpais });
+            const { page = 1, limit = 20 } = req.query;
+            const offset = (page - 1) * limit;
+            const clientes = await ClienteModel.getAll({ offset, limit });
             res.json(clientes);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -23,6 +24,18 @@ export class ClienteController {
             }
         } catch (error) {
             res.status(500).json({ error: error.message });
+        }
+    }
+
+    async search(req, res) {
+        const { query, limit = 4 } = req.query;
+
+        try {
+            const results = await ClienteModel.search({ query, limit });
+            res.status(200).json(results);
+        } catch (error) {
+            console.error('Error searching clients:', error);
+            res.status(500).json({ error: 'Error searching clients' });
         }
     }
 

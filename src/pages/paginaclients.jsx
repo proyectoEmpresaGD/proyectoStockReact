@@ -48,19 +48,7 @@ function Clients() {
             setSuggestions([]);
         }
     }, [searchTerm]);
-
-    const handleSearchInputChange = (event) => {
-        setSearchTerm(event.target.value);
-    };
-
-    const handleSearchKeyPress = (event) => {
-        if (event.key === 'Enter') {
-            setLastSearch(searchTerm);
-            performSearch(searchTerm);
-            setSearchTerm('');
-        }
-    };
-
+    
     const performSearch = (query) => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${query}&limit=${itemsPerPage}`)
             .then(response => {
@@ -74,6 +62,18 @@ function Clients() {
                 setSingleClientView(data.length === 1);
             })
             .catch(error => console.error('Error performing search:', error));
+    };
+
+    const handleSearchInputChange = (event) => {
+        setSearchTerm(event.target.value);
+    };
+
+    const handleSearchKeyPress = (event) => {
+        if (event.key === 'Enter') {
+            setLastSearch(searchTerm);
+            performSearch(searchTerm);
+            setSearchTerm('');
+        }
     };
 
     const handleSuggestionClick = (client) => {

@@ -10,6 +10,7 @@ export const createClienteRouter = () => {
     clienteRouter.post('/', clienteController.create.bind(clienteController));
 
     // Rutas para operaciones específicas de clientes
+    clienteRouter.get('/search', clienteController.search.bind(clienteController));
     clienteRouter.get('/:codclien', clienteController.getById.bind(clienteController));
     clienteRouter.get('/cliente/:codclien', clienteController.getByCodclien.bind(clienteController)); // Ajusta si es necesario
     clienteRouter.patch('/:codclien', clienteController.update.bind(clienteController));
