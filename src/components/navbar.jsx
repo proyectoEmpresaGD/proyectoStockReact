@@ -37,12 +37,12 @@ function Sidebar() {
                 <ul className="mt-4 space-y-2">
                     <li>
                         <Link
-                            to="/users"
+                            to="/clients"
                             className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black w-full duration-200"
                             onClick={closeSidebar}
                         >
                             <FaUsers className="mr-3 text-lg" />
-                            Users
+                            Clients
                         </Link>
                     </li>
                     <li>
@@ -87,11 +87,11 @@ function Sidebar() {
                             <ul className="pl-8 mt-2 space-y-2">
                                 <li>
                                     <Link
-                                        to="/app1"
+                                        to="https://cjmw-worldwide.vercel.app/"
                                         className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
                                         onClick={closeSidebar}
                                     >
-                                        Aplicación 1
+                                        Pagina web
                                     </Link>
                                 </li>
                                 <li>
