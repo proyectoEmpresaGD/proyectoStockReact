@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaBars, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../AuthContext';
 
 function Sidebar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { user } = useAuth();
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
@@ -35,16 +37,30 @@ function Sidebar() {
                     <FaTimes />
                 </button>
                 <ul className="mt-4 space-y-2">
-                    <li>
-                        <Link
-                            to="/clients"
-                            className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black w-full duration-200"
-                            onClick={closeSidebar}
-                        >
-                            <FaUsers className="mr-3 text-lg" />
-                            Clients
-                        </Link>
-                    </li>
+                    {(user && (user.role === 'admin' || user.role === 'comercial')) && (
+                        <li>
+                            <Link
+                                to="/clients"
+                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black w-full duration-200"
+                                onClick={closeSidebar}
+                            >
+                                <FaUsers className="mr-3 text-lg" />
+                                Clients
+                            </Link>
+                        </li>
+                    )}
+                    {user && user.role === 'admin' && (
+                        <li>
+                            <Link
+                                to="/admin"
+                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black w-full duration-200"
+                                onClick={closeSidebar}
+                            >
+                                <FaUsers className="mr-3 text-lg" />
+                                Admin
+                            </Link>
+                        </li>
+                    )}
                     <li>
                         <Link
                             to="/settings"
