@@ -11,7 +11,25 @@ export class StockController {
             res.status(500).json({ error: error.message });
         }
     }
-    
+
+    static async search(req, res) {
+        const { query, limit = 4 } = req.query;
+
+        try {
+            const searchQuery = `
+            SELECT * FROM clientes
+            WHERE "razclien" ILIKE $1
+            LIMIT $2;
+          `;
+            const values = [`%${query}%`, limit];
+            const { rows } = await pool.query(searchQuery, values);
+            res.status(200).json(rows);
+        } catch (error) {
+            console.error('Error searching clients:', error);
+            res.status(500).json({ error: 'Error searching clients' });
+        }
+    }
+
     async getById(req, res) {
         try {
             const { codprodu } = req.params;

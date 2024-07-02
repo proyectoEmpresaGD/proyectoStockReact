@@ -12,7 +12,7 @@ function Stock() {
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20);
+    const [itemsPerPage] = useState(40);
     const [lastSearch, setLastSearch] = useState('');
     const [singleProductView, setSingleProductView] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -79,7 +79,7 @@ function Stock() {
 
     useEffect(() => {
         if (searchTerm.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=4`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=40`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
