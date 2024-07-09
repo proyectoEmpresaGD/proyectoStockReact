@@ -41,7 +41,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
                 <div className="bg-white p-4 rounded shadow-lg max-w-4xl w-full relative">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
-                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 hover:text-gray-800">&times;</button>
+                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800"><img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="" /></button>
                     {selectedClientDetails ? (
                         <div className="max-h-96 overflow-y-auto">
                             <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
