@@ -18,7 +18,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
 
     const fetchPurchasedProducts = async (codclien) => {
         try {
-            const response = await fetch(`http://localhost:1234/api/pedventa/client/${codclien}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
             if (response.ok) {
                 const data = await response.json();
                 setPurchasedProducts(data);
