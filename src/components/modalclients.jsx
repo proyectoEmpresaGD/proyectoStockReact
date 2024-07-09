@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tab } from '@headlessui/react';
 
 function classNames(...classes) {
@@ -7,6 +7,34 @@ function classNames(...classes) {
 
 function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+    const [purchasedProducts, setPurchasedProducts] = useState([]);
+    const [totalBilling, setTotalBilling] = useState(0);
+
+    useEffect(() => {
+        if (selectedClientDetails && selectedTabIndex === 1) {
+            fetchPurchasedProducts(selectedClientDetails.codclien);
+        }
+    }, [selectedClientDetails, selectedTabIndex]);
+
+    const fetchPurchasedProducts = async (codclien) => {
+        try {
+            const response = await fetch(`http://localhost:1234/api/pedventa/client/${codclien}`);
+            if (response.ok) {
+                const data = await response.json();
+                setPurchasedProducts(data);
+                calculateTotalBilling(data);
+            } else {
+                console.error('Failed to fetch purchased products');
+            }
+        } catch (error) {
+            console.error('Error fetching purchased products:', error);
+        }
+    };
+
+    const calculateTotalBilling = (products) => {
+        const total = products.reduce((sum, product) => sum + (parseFloat(product.importe) || 0), 0);
+        setTotalBilling(total);
+    };
 
     return (
         modalVisible && (
@@ -87,7 +115,40 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                         </table>
                                     </Tab.Panel>
                                     <Tab.Panel className="bg-white rounded-xl p-3">
-                                        <div>No hay productos disponibles.</div>
+                                        <table className="min-w-full bg-white border border-gray-300 text-sm">
+                                            <thead className="bg-gray-200">
+                                                <tr>
+                                                    <th className="px-4 py-2 border-b">Descripción del Producto</th>
+                                                    <th className="px-4 py-2 border-b">Cantidad</th>
+                                                    <th className="px-4 py-2 border-b">Precio</th>
+                                                    <th className="px-4 py-2 border-b">Importe</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {purchasedProducts.length > 0 ? (
+                                                    purchasedProducts.map((product, index) => (
+                                                        <tr key={index} className="border-b">
+                                                            <td className="px-4 py-2">{product.desprodu}</td>
+                                                            <td className="px-4 py-2">{product.cantidad}</td>
+                                                            <td className="px-4 py-2">{product.precio}</td>
+                                                            <td className="px-4 py-2">{product.importe}</td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="4" className="px-4 py-2 text-center">No hay productos disponibles.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                            {purchasedProducts.length > 0 && (
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colSpan="3" className="px-4 py-2 font-bold text-right">Facturación Total</td>
+                                                        <td className="px-4 py-2 font-bold">{totalBilling.toFixed(2)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
                                     </Tab.Panel>
                                 </Tab.Panels>
                             </Tab.Group>

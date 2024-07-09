@@ -10,7 +10,7 @@ function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
                 className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg">
+                <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg z-30">
                     {suggestions.map(client => (
                         <li
                             key={client.codclien}

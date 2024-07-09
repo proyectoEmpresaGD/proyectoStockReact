@@ -97,4 +97,14 @@ export class ClienteController {
             res.status(500).json({ error: error.message });
         }
     }
+    
+    async getByProvince(req, res) {
+        try {
+            const { codprovi } = req.params;
+            const clients = await ClienteModel.getByProvince({ codprovi });
+            res.json(clients);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 }
