@@ -98,4 +98,18 @@ export class ClienteModel {
 
         return rows[0];
     }
+
+    static async getByProvince({ codprovi }) {
+        try {
+            const { rows } = await pool.query(`
+                SELECT *
+                FROM clientes
+                WHERE codprovi = $1
+            `, [codprovi]);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching clients by province:', error);
+            throw new Error('Error fetching clients by province');
+        }
+    }
 }

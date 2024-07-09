@@ -14,6 +14,7 @@ export const createClienteRouter = () => {
     clienteRouter.get('/:codclien', clienteController.getById.bind(clienteController));
     clienteRouter.get('/cliente/:codclien', clienteController.getByCodclien.bind(clienteController)); // Ajusta si es necesario
     clienteRouter.patch('/:codclien', clienteController.update.bind(clienteController));
+    clienteRouter.get('/province/:codprovi', clienteController.getByProvince.bind(clienteController)); // Nueva ruta
     clienteRouter.delete('/:codclien', clienteController.delete.bind(clienteController));
 
     return clienteRouter;
