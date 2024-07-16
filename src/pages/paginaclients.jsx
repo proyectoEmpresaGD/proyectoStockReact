@@ -4,6 +4,7 @@ import Select from 'react-select';
 import ClientTable from '../components/clientstable';
 import PaginationControls from '../components/PaginationControls';
 import ClientModal from '../components/modalclients';
+import VisitModal from '../components/VisitModal';
 
 const provinces = [
     { value: '02', label: 'Albacete' },
@@ -72,6 +73,8 @@ function Clients() {
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
     const [selectedProvince, setSelectedProvince] = useState(null);
+    const [visitModalVisible, setVisitModalVisible] = useState(false);
+    const [selectedClientId, setSelectedClientId] = useState(null);
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -105,7 +108,7 @@ function Clients() {
             setSuggestions([]);
         }
     }, [searchTerm]);
-    
+
     const performSearch = (query) => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${query}&limit=${itemsPerPage}`)
             .then(response => {
@@ -191,9 +194,19 @@ function Clients() {
         }
     };
 
+    const handleVisitClick = (clientId) => {
+        setSelectedClientId(clientId);
+        setVisitModalVisible(true);
+    };
+
     const closeModal = () => {
         setModalVisible(false);
         setSelectedClientDetails(null);
+    };
+
+    const closeVisitModal = () => {
+        setVisitModalVisible(false);
+        setSelectedClientId(null);
     };
 
     const handleProvinceChange = (selectedOption) => {
@@ -242,8 +255,7 @@ function Clients() {
                     </button>
                 </div>
             </div>
-
-            <ClientTable clients={filteredClients} handleClientClick={handleClientClick} />
+            <ClientTable clients={filteredClients} handleClientClick={handleClientClick} handleVisitClick={handleVisitClick} />
             {!singleClientView && (
                 <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} />
             )}
@@ -259,6 +271,11 @@ function Clients() {
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}
                 closeModal={closeModal}
+            />
+            <VisitModal
+                modalVisible={visitModalVisible}
+                selectedClientId={selectedClientId}
+                closeModal={closeVisitModal}
             />
         </div>
     );
