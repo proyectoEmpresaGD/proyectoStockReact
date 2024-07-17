@@ -12,7 +12,7 @@ export class PedVentaModel {
 
     static async getByClient({ codclien }) {
         const { rows } = await pool.query(`
-            SELECT desprodu, cantidad, precio, importe 
+            SELECT desprodu, cantidad, precio, importe, dt1, dt2, dt3
             FROM pedventa 
             WHERE codclien = $1
         `, [codclien]);

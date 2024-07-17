@@ -21,8 +21,25 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
             if (response.ok) {
                 const data = await response.json();
-                setPurchasedProducts(data);
-                calculateTotalBilling(data);
+                const productsWithDiscounts = data.map(product => {
+                    let importe = parseFloat(product.importe) || 0;
+                    const dt1 = parseFloat(product.dt1) || 0;
+                    const dt2 = parseFloat(product.dt2) || 0;
+                    const dt3 = parseFloat(product.dt3) || 0;
+
+                    // Aplicar los descuentos truncando los decimales
+                    if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
+                    if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
+                    if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
+
+                    // Asegurarse de que el importe no sea negativo
+                    if (importe < 0) importe = 0;
+
+                    // Añadir el importe con descuento al producto
+                    return { ...product, importeDescuento: importe.toFixed(2), dt1: Math.floor(dt1) };
+                });
+                setPurchasedProducts(productsWithDiscounts);
+                calculateTotalBilling(productsWithDiscounts);
             } else {
                 console.error('Failed to fetch purchased products');
             }
@@ -32,7 +49,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
     };
 
     const calculateTotalBilling = (products) => {
-        const total = products.reduce((sum, product) => sum + (parseFloat(product.importe) || 0), 0);
+        const total = products.reduce((sum, product) => sum + parseFloat(product.importeDescuento), 0);
         setTotalBilling(total);
     };
 
@@ -41,7 +58,9 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
                 <div className="bg-white p-4 rounded shadow-lg max-w-4xl w-full relative">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
-                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800"><img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="" /></button>
+                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
+                        <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="Cerrar" />
+                    </button>
                     {selectedClientDetails ? (
                         <div className="max-h-96 overflow-y-auto">
                             <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
@@ -121,7 +140,8 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                     <th className="px-4 py-2 border-b">Descripción del Producto</th>
                                                     <th className="px-4 py-2 border-b">Cantidad</th>
                                                     <th className="px-4 py-2 border-b">Precio</th>
-                                                    <th className="px-4 py-2 border-b">Importe</th>
+                                                    <th className="px-4 py-2 border-b">Descuento 1</th>
+                                                    <th className="px-4 py-2 border-b">Importe con Descuento</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -131,19 +151,20 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                             <td className="px-4 py-2">{product.desprodu}</td>
                                                             <td className="px-4 py-2">{product.cantidad}</td>
                                                             <td className="px-4 py-2">{product.precio}</td>
-                                                            <td className="px-4 py-2">{product.importe}</td>
+                                                            <td className="px-4 py-2">{product.dt1}</td>
+                                                            <td className="px-4 py-2">{product.importeDescuento}</td>
                                                         </tr>
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="4" className="px-4 py-2 text-center">No hay productos disponibles.</td>
+                                                        <td colSpan="5" className="px-4 py-2 text-center">No hay productos disponibles.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
                                             {purchasedProducts.length > 0 && (
                                                 <tfoot>
                                                     <tr>
-                                                        <td colSpan="3" className="px-4 py-2 font-bold text-right">Facturación Total</td>
+                                                        <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
                                                         <td className="px-4 py-2 font-bold">{totalBilling.toFixed(2)}</td>
                                                     </tr>
                                                 </tfoot>
