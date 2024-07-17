@@ -15,23 +15,24 @@ export class StockModel {
             SELECT s.*, p.desprodu 
             FROM stock s
             LEFT JOIN productos p ON s.codprodu = p.codprodu
+            WHERE s.codalmac = '00'
         `;
         let params = [];
-
+    
         if (empresa) {
-            query += ' WHERE s.empresa = $1';
+            query += ' AND s.empresa = $1';
             params.push(empresa);
         }
-
+    
         if (ejercicio) {
             if (params.length > 0) {
                 query += ' AND s.ejercicio = $2';
             } else {
-                query += ' WHERE s.ejercicio = $1';
+                query += ' AND s.ejercicio = $1';
             }
             params.push(ejercicio);
         }
-
+    
         try {
             const { rows } = await pool.query(query, params);
             return rows;

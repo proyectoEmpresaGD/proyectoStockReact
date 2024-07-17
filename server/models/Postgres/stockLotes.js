@@ -10,42 +10,36 @@ const pool = new pg.Pool({
 
 export class StockLotesModel {
 
-    static async getAll({ canal, codAlmac }) {
-        let query = `
-            SELECT *
-            FROM stocklotes
-        `;
-        let params = [];
+    static async getAll({ canal }) {
+    let query = `
+        SELECT codprodu, SUM(stockactual) as stockactual
+        FROM stocklotes
+        WHERE codalmac = '0'
+    `;
+    let params = [];
 
-        if (canal) {
-            query += ' WHERE canal = $1';
-            params.push(canal);
-        }
-
-        if (codAlmac) {
-            if (params.length > 0) {
-                query += ' AND codAlmac = $2';
-            } else {
-                query += ' WHERE codAlmac = $1';
-            }
-            params.push(codAlmac);
-        }
-
-        try {
-            const { rows } = await pool.query(query, params);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching stock lots:', error);
-            throw new Error('Error fetching stock lots');
-        }
+    if (canal) {
+        query += ' AND canal = $1';
+        params.push(canal);
     }
+
+    query += ' GROUP BY codprodu';
+
+    try {
+        const { rows } = await pool.query(query, params);
+        return rows;
+    } catch (error) {
+        console.error('Error fetching stock lots:', error);
+        throw new Error('Error fetching stock lots');
+    }
+}
 
     static async getById({ codProdu }) {
         const { rows } = await pool.query(`
             SELECT *
             FROM stocklotes
             WHERE codProdu = $1
-        `, [codProdu]);
+        AND codalmac = '0'`, [codProdu]);
         return rows.length > 0 ? rows[0] : null;
     }
 
@@ -54,7 +48,7 @@ export class StockLotesModel {
             const { rows } = await pool.query(`
                 SELECT *
                 FROM stocklotes
-                WHERE codProdu = $1
+                WHERE codProdu = $1 AND codalmac = '0'
             `, [codProdu]);
             return rows;  // Devuelve todas las filas coincidentes
         } catch (error) {
