@@ -7,7 +7,7 @@ function ProductTable({ products, handleProductClick }) {
                         <th className="px-4 py-2 border-b">Nombre</th>
                         <th className="px-4 py-2 border-b">Stock actual</th>
                         <th className="px-4 py-2 border-b">Stock pendiente recibir</th>
-                        
+
                     </tr>
                 </thead>
                 <tbody>
@@ -16,7 +16,7 @@ function ProductTable({ products, handleProductClick }) {
                             <td className="px-4 py-2">{product.desprodu}</td>
                             <td className="px-4 py-2">{product.stockactual} m</td>
                             <td className="px-4 py-2">{product.canpenrecib} m</td>
-                            
+
 
                         </tr>
                     ))}
