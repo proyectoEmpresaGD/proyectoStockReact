@@ -7,6 +7,7 @@ import ProductModal from '../components/ProductModal';
 function Stock() {
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
+    const [stockLotes, setStockLotes] = useState([]);
     const [combinedProducts, setCombinedProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -49,33 +50,56 @@ function Stock() {
     }, [currentPage, itemsPerPage]);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`)
-            .then(response => {
+        const fetchStock = async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                return response.json();
-            })
-            .then(data => setStocks(data))
-            .catch(error => console.error('Error fetching stock data:', error));
+                const data = await response.json();
+                setStocks(data);
+            } catch (error) {
+                console.error('Error fetching stock data:', error);
+            }
+        };
+        fetchStock();
     }, []);
 
     useEffect(() => {
-        if (products.length > 0 && stocks.length > 0) {
+        const fetchStockLotes = async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                setStockLotes(data);
+            } catch (error) {
+                console.error('Error fetching stock lotes data:', error);
+            }
+        };
+        fetchStockLotes();
+    }, []);
+
+    // Combine stock with stocklotes
+    useEffect(() => {
+        if (products.length > 0 && stocks.length > 0 && stockLotes.length > 0) {
             const combined = products
                 .filter(isValidProduct)
                 .map(product => {
-                    const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+                    const stock = stocks.find(s => s.codprodu === product.codprodu);
+                    const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
+                    const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
                     return {
                         ...product,
-                        stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
-                        canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
+                        stockactual: totalStockActual.toFixed(2),
+                        canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
                     };
                 });
             setCombinedProducts(combined);
             setFilteredProducts(combined); // Mostrar productos iniciales
         }
-    }, [products, stocks]);
+    }, [products, stocks, stockLotes]);
 
     useEffect(() => {
         if (searchTerm.length >= 3) {
@@ -117,11 +141,13 @@ function Stock() {
                 const combined = data
                     .filter(isValidProduct)
                     .map(product => {
-                        const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+                        const stock = stocks.find(s => s.codprodu === product.codprodu);
+                        const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
+                        const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
                         return {
                             ...product,
-                            stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
-                            canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
+                            stockactual: totalStockActual.toFixed(2),
+                            canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
                         };
                     });
                 setFilteredProducts(combined);
@@ -131,11 +157,13 @@ function Stock() {
     };
 
     const handleSuggestionClick = (product) => {
-        const stockData = stocks.find(stock => stock.codprodu === product.codprodu);
+        const stock = stocks.find(s => s.codprodu === product.codprodu);
+        const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
+        const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
         const combinedProduct = {
             ...product,
-            stockactual: stockData ? parseFloat(stockData.stockactual).toFixed(2) : 'N/A',
-            canpenrecib: stockData ? parseFloat(stockData.canpenrecib).toFixed(2) : 'N/A',
+            stockactual: totalStockActual.toFixed(2),
+            canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
         };
         setFilteredProducts([combinedProduct]);
         setLastSearch(product.desprodu);

@@ -4,8 +4,8 @@ import { validateStockPorLotes, validatePartialStockPorLotes } from '../schemas/
 export class StockLotesController {
     async getAll(req, res) {
         try {
-            const { canal, codAlmac } = req.query;
-            const stocks = await StockLotesModel.getAll({ canal, codAlmac });
+            const { canal } = req.query;
+            const stocks = await StockLotesModel.getAll({ canal });
             res.json(stocks);
         } catch (error) {
             res.status(500).json({ error: error.message });
