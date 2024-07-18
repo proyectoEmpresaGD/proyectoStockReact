@@ -9,6 +9,8 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
+    const [selectedFilter, setSelectedFilter] = useState('');
+    const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
 
     useEffect(() => {
         if (selectedClientDetails && selectedTabIndex === 1) {
@@ -53,10 +55,28 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
         setTotalBilling(total);
     };
 
+    const applyFilter = (products, filter) => {
+        if (filter === "TELAS") {
+            return products.filter(product =>
+                product.desprodu &&
+                !["LIBRO", "PERCHA", "QUALITY"].some(word => product.desprodu.toUpperCase().includes(word))
+            );
+        }
+        return products.filter(product =>
+            product.desprodu && product.desprodu.toUpperCase().includes(filter)
+        );
+    };
+
+    const handleFilterChange = (filter) => {
+        setSelectedFilter(filter);
+    };
+
+    const filteredProducts = applyFilter(purchasedProducts, selectedFilter);
+
     return (
         modalVisible && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-                <div className="bg-white p-4 rounded shadow-lg max-w-4xl w-full relative">
+                <div className="bg-white p-4 rounded shadow-lg max-w-6xl w-full relative">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
                     <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
                         <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="Cerrar" />
@@ -134,6 +154,22 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                         </table>
                                     </Tab.Panel>
                                     <Tab.Panel className="bg-white rounded-xl p-3">
+                                        <div className="flex justify-end mb-4">
+                                            {filters.map(filter => (
+                                                <button
+                                                    key={filter}
+                                                    onClick={() => handleFilterChange(filter)}
+                                                    className={classNames(
+                                                        'px-4 py-2 mr-2 rounded',
+                                                        selectedFilter === filter
+                                                            ? 'bg-blue-600 text-white'
+                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                    )}
+                                                >
+                                                    {filter}
+                                                </button>
+                                            ))}
+                                        </div>
                                         <table className="min-w-full bg-white border border-gray-300 text-sm">
                                             <thead className="bg-gray-200">
                                                 <tr>
@@ -145,8 +181,8 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {purchasedProducts.length > 0 ? (
-                                                    purchasedProducts.map((product, index) => (
+                                                {filteredProducts.length > 0 ? (
+                                                    filteredProducts.map((product, index) => (
                                                         <tr key={index} className="border-b">
                                                             <td className="px-4 py-2">{product.desprodu}</td>
                                                             <td className="px-4 py-2">{product.cantidad}</td>
@@ -161,7 +197,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                     </tr>
                                                 )}
                                             </tbody>
-                                            {purchasedProducts.length > 0 && (
+                                            {filteredProducts.length > 0 && (
                                                 <tfoot>
                                                     <tr>
                                                         <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>

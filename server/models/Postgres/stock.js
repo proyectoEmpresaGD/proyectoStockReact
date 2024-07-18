@@ -18,12 +18,12 @@ export class StockModel {
             WHERE s.codalmac = '00'
         `;
         let params = [];
-    
+
         if (empresa) {
             query += ' AND s.empresa = $1';
             params.push(empresa);
         }
-    
+
         if (ejercicio) {
             if (params.length > 0) {
                 query += ' AND s.ejercicio = $2';
@@ -32,7 +32,7 @@ export class StockModel {
             }
             params.push(ejercicio);
         }
-    
+
         try {
             const { rows } = await pool.query(query, params);
             return rows;
