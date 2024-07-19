@@ -29,7 +29,7 @@ function Sidebar() {
                 <FaBars />
             </button>
             <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} onClick={closeSidebar}></div>
-            <nav className={`w-[292px] bg-gray-100 border-r-2 border-gray-300 shadow-lg h-screen fixed md:relative ${sidebarOpen ? 'z-50' : 'hidden'} md:block`}>
+            <nav className={` fixed w-[292px] bg-gray-100 border-r-2 border-gray-300 shadow-lg h-screen md:relative ${sidebarOpen ? 'z-50' : 'hidden'} md:block`}>
                 <button
                     onClick={closeSidebar}
                     className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-0 right-0"

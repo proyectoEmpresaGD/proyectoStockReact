@@ -93,6 +93,8 @@ function Clients() {
         fetchClients();
     }, [currentPage, itemsPerPage]);
 
+    
+
     useEffect(() => {
         if (searchTerm.length >= 3) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}&limit=4`)
