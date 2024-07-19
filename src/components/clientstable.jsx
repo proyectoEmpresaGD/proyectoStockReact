@@ -6,7 +6,7 @@ function ClientTable({ clients, handleClientClick, handleVisitClick, clientBilli
     const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0, clientId: null });
 
     const handleMouseEnter = (billing, clientId, event) => {
-        const content = `Facturación: ${billing} €`;
+        const content = `Facturación: ${billing.toFixed(2)} €`;
         const rect = event.target.getBoundingClientRect();
         setTooltip({
             show: true,
