@@ -1,6 +1,24 @@
+import React, { useRef, useEffect } from 'react';
+
 function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) {
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setSearchTerm(''); // Opcional: puedes establecer esto en otra acción si deseas que el término de búsqueda se borre
+                suggestions.length = 0; // Vacía las sugerencias para cerrar el menú
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [wrapperRef, setSearchTerm, suggestions]);
+
     return (
-        <div className="relative mb-4">
+        <div ref={wrapperRef} className="relative mb-4">
             <input
                 type="text"
                 placeholder="Buscar por Nombre"

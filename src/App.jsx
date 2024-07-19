@@ -19,9 +19,9 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex flex-col h-screen">
+                <div className="flex flex-col sticky top-0 h-screen">
                   <Header />
-                  <div className="flex flex-grow">
+                  <div className="flex flex-grow sticky top-0">
                     <Sidebar />
                     <div className="flex-grow p-4 overflow-auto">
                       <Routes>

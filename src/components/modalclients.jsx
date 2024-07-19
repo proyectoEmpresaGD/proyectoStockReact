@@ -10,6 +10,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
     const [selectedFilter, setSelectedFilter] = useState('');
+    const [sortOrder, setSortOrder] = useState('newest'); // Estado para controlar el orden
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
 
     useEffect(() => {
@@ -23,30 +24,55 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
             if (response.ok) {
                 const data = await response.json();
+                console.log('Raw Purchased Products:', data); // Verifica la estructura de los datos
+
                 const productsWithDiscounts = data.map(product => {
+                    console.log('Product from API:', product); // Verifica cada producto recibido
                     let importe = parseFloat(product.importe) || 0;
                     const dt1 = parseFloat(product.dt1) || 0;
                     const dt2 = parseFloat(product.dt2) || 0;
                     const dt3 = parseFloat(product.dt3) || 0;
 
-                    // Aplicar los descuentos truncando los decimales
                     if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
                     if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
                     if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
 
-                    // Asegurarse de que el importe no sea negativo
                     if (importe < 0) importe = 0;
 
-                    // Añadir el importe con descuento al producto
                     return { ...product, importeDescuento: importe.toFixed(2), dt1: Math.floor(dt1) };
                 });
+
                 setPurchasedProducts(productsWithDiscounts);
                 calculateTotalBilling(productsWithDiscounts);
+                fetchStockForProducts(productsWithDiscounts);
             } else {
                 console.error('Failed to fetch purchased products');
             }
         } catch (error) {
             console.error('Error fetching purchased products:', error);
+        }
+    };
+
+    const fetchStockForProducts = async (products) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const stockData = await response.json();
+
+            const productsWithStock = products.map(product => {
+                if (!product.codprodu) {
+                    return { ...product, stockactual: '0' };
+                }
+                const stock = stockData.find(item => item.codprodu === product.codprodu);
+                return { ...product, stockactual: stock ? stock.stockactual : '0' };
+            });
+
+            console.log('Products with Stock:', productsWithStock);
+            setPurchasedProducts(productsWithStock);
+        } catch (error) {
+            console.error('Error fetching stock data:', error);
         }
     };
 
@@ -71,7 +97,31 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
         setSelectedFilter(filter);
     };
 
+    const toggleSortOrder = () => {
+        setSortOrder(prevSortOrder => (prevSortOrder === 'newest' ? 'oldest' : 'newest'));
+    };
+
+    const sortProducts = (products, order) => {
+        if (order === 'newest') {
+            return products.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        }
+        return products.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    };
+
     const filteredProducts = applyFilter(purchasedProducts, selectedFilter);
+    const sortedFilteredProducts = sortProducts(filteredProducts, sortOrder);
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'No data';
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses comienzan en 0
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
 
     return (
         modalVisible && (
@@ -154,21 +204,31 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                         </table>
                                     </Tab.Panel>
                                     <Tab.Panel className="bg-white rounded-xl p-3">
-                                        <div className="flex justify-end mb-4">
-                                            {filters.map(filter => (
+                                        <div className="flex justify-between mb-4">
+                                            <div>
+                                                {filters.map(filter => (
+                                                    <button
+                                                        key={filter}
+                                                        onClick={() => handleFilterChange(filter)}
+                                                        className={classNames(
+                                                            'px-4 py-2 mr-2 rounded',
+                                                            selectedFilter === filter
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                        )}
+                                                    >
+                                                        {filter}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div>
                                                 <button
-                                                    key={filter}
-                                                    onClick={() => handleFilterChange(filter)}
-                                                    className={classNames(
-                                                        'px-4 py-2 mr-2 rounded',
-                                                        selectedFilter === filter
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                                    )}
+                                                    onClick={toggleSortOrder}
+                                                    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
                                                 >
-                                                    {filter}
+                                                    {sortOrder === 'newest' ? 'Mostrar antiguas' : 'Mostrar recientes'}
                                                 </button>
-                                            ))}
+                                            </div>
                                         </div>
                                         <table className="min-w-full bg-white border border-gray-300 text-sm">
                                             <thead className="bg-gray-200">
@@ -178,26 +238,30 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                     <th className="px-4 py-2 border-b">Precio</th>
                                                     <th className="px-4 py-2 border-b">Descuento 1</th>
                                                     <th className="px-4 py-2 border-b">Importe con Descuento</th>
+                                                    <th className="px-4 py-2 border-b">Stock producto</th>
+                                                    <th className="px-4 py-2 border-b">Fecha</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filteredProducts.length > 0 ? (
-                                                    filteredProducts.map((product, index) => (
+                                                {sortedFilteredProducts.length > 0 ? (
+                                                    sortedFilteredProducts.map((product, index) => (
                                                         <tr key={index} className="border-b">
                                                             <td className="px-4 py-2">{product.desprodu}</td>
                                                             <td className="px-4 py-2">{product.cantidad}</td>
                                                             <td className="px-4 py-2">{product.precio}</td>
                                                             <td className="px-4 py-2">{product.dt1}</td>
                                                             <td className="px-4 py-2">{product.importeDescuento}</td>
+                                                            <td className="px-4 py-2">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
+                                                            <td className="px-4 py-2">{formatDate(product.fecha)}</td>
                                                         </tr>
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="5" className="px-4 py-2 text-center">No hay productos disponibles.</td>
+                                                        <td colSpan="6" className="px-4 py-2 text-center">No hay productos disponibles.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
-                                            {filteredProducts.length > 0 && (
+                                            {sortedFilteredProducts.length > 0 && (
                                                 <tfoot>
                                                     <tr>
                                                         <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
