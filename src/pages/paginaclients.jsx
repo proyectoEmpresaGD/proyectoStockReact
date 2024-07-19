@@ -75,6 +75,7 @@ function Clients() {
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
+    const [clientBillings, setClientBillings] = useState({});
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -86,14 +87,46 @@ function Clients() {
                 const data = await response.json();
                 setClients(data);
                 setFilteredClients(data);
+                fetchClientBillings(data);
             } catch (error) {
                 console.error('Error fetching client data:', error);
             }
         };
+
+        const fetchClientBillings = async (clients) => {
+            try {
+                const billingPromises = clients.map(client =>
+                    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const totalBilling = data.reduce((sum, product) => {
+                                let importe = parseFloat(product.importe) || 0;
+                                const dt1 = parseFloat(product.dt1) || 0;
+                                const dt2 = parseFloat(product.dt2) || 0;
+                                const dt3 = parseFloat(product.dt3) || 0;
+                                if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
+                                if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
+                                if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
+                                if (importe < 0) importe = 0;
+                                return sum + importe;
+                            }, 0);
+                            return { clientId: client.codclien, totalBilling };
+                        })
+                );
+
+                const billings = await Promise.all(billingPromises);
+                const billingsMap = billings.reduce((map, billing) => {
+                    map[billing.clientId] = billing.totalBilling;
+                    return map;
+                }, {});
+                setClientBillings(billingsMap);
+            } catch (error) {
+                console.error('Error fetching client billings:', error);
+            }
+        };
+
         fetchClients();
     }, [currentPage, itemsPerPage]);
-
-    
 
     useEffect(() => {
         if (searchTerm.length >= 3) {
@@ -122,6 +155,7 @@ function Clients() {
             .then(data => {
                 setFilteredClients(data);
                 setSingleClientView(data.length === 1);
+                fetchClientBillings(data);
             })
             .catch(error => console.error('Error performing search:', error));
     };
@@ -140,7 +174,10 @@ function Clients() {
                     }
                     return response.json();
                 })
-                .then(data => setFilteredClients(data))
+                .then(data => {
+                    setFilteredClients(data);
+                    fetchClientBillings(data);
+                })
                 .catch(error => console.error('Error fetching clients:', error));
         } else {
             setFilteredClients(clients);
@@ -165,6 +202,7 @@ function Clients() {
         setSingleClientView(true);
         setSearchTerm('');
         setSuggestions([]);
+        fetchClientBillings([client]);
     };
 
     const handleShowAll = () => {
@@ -220,6 +258,20 @@ function Clients() {
         setFilteredClients(clients); // Reset filtered clients to the original clients list
     };
 
+    const getClientColor = (totalBilling) => {
+        if (totalBilling <= 1000) return 'bg-yellow-500';
+        if (totalBilling <= 3000) return 'bg-orange-500';
+        if (totalBilling <= 5000) return 'bg-green-500';
+        return 'bg-blue-500';
+    };
+
+    const updateClientBilling = (clientId, billing) => {
+        setClientBillings(prevBillings => ({
+            ...prevBillings,
+            [clientId]: billing
+        }));
+    };
+
     return (
         <div className="container mx-auto justify-center text-center py-4">
             <SearchBar
@@ -257,7 +309,13 @@ function Clients() {
                     </button>
                 </div>
             </div>
-            <ClientTable clients={filteredClients} handleClientClick={handleClientClick} handleVisitClick={handleVisitClick} />
+            <ClientTable
+                clients={filteredClients}
+                handleClientClick={handleClientClick}
+                handleVisitClick={handleVisitClick}
+                clientBillings={clientBillings}
+                getClientColor={getClientColor}
+            />
             {!singleClientView && (
                 <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} />
             )}
@@ -273,6 +331,7 @@ function Clients() {
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}
                 closeModal={closeModal}
+                updateClientBilling={updateClientBilling}
             />
             <VisitModal
                 modalVisible={visitModalVisible}

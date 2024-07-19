@@ -5,7 +5,7 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
 
-function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
+function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateClientBilling }) {
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
@@ -18,6 +18,12 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
             fetchPurchasedProducts(selectedClientDetails.codclien);
         }
     }, [selectedClientDetails, selectedTabIndex]);
+
+    useEffect(() => {
+        if (selectedClientDetails && totalBilling > 0) {
+            updateClientBilling(selectedClientDetails.codclien, totalBilling);
+        }
+    }, [selectedClientDetails, totalBilling]);
 
     const fetchPurchasedProducts = async (codclien) => {
         try {
@@ -239,7 +245,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal }) {
                                                     <th className="px-4 py-2 border-b">Descuento 1</th>
                                                     <th className="px-4 py-2 border-b">Importe con Descuento</th>
                                                     <th className="px-4 py-2 border-b">Stock producto</th>
-                                                    <th className="px-4 py-2 border-b">Fecha</th>
+                                                    <th className="px-4 py-2 border-b">Fecha Pedido</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
