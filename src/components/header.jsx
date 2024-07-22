@@ -10,7 +10,7 @@ function Header({ toggleSidebar }) {
             <button onClick={toggleSidebar} className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900">
                 <FaBars />
             </button>
-            <Link to="/" className="border-r-2 border-gray-300 h-full flex items-center">
+            <Link to="/" className="border-r-2 border-gray-300 h-full flex items-center w-[260px]">
                 <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/CJM-new-transparente.svg" alt="Logo" className="h-14 w-auto" />
             </Link>
             <button onClick={logout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700 duration-200 mr-4">
