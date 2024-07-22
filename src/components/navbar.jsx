@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaBars, FaTimes } from 'react-icons/fa';
+import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaBars, FaTimes, FaClock } from 'react-icons/fa';
 import { useAuth } from '../AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
@@ -71,6 +71,16 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         >
                             <FaBox className="mr-3 text-lg" />
                             Stock
+                        </Link>
+                    </li>
+                    <li>
+                        <Link
+                            to="/fichar"
+                            className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200"
+                            onClick={closeSidebar}
+                        >
+                            <FaClock className="mr-3 text-lg" />
+                            Fichar
                         </Link>
                     </li>
                     <li>

@@ -9,6 +9,7 @@ import Sidebar from './components/navbar.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import { AuthProvider } from './AuthContext';
 import { useState } from 'react';
+import Fichar from './pages/Fichar.jsx';
 
 function App() {
 
@@ -41,6 +42,7 @@ function App() {
                         <Route path="/admin" element={<ProtectedRoute role="admin"><Admin /></ProtectedRoute>} />
                         <Route path="/stock" element={<Stock />} />
                         <Route path="/clients" element={<ProtectedRoute role="comercial"><Clients /></ProtectedRoute>} />
+                        <Route path="/fichar" element={<Fichar />} /> {/* Nueva ruta para fichar */}
                         <Route path="/app1" element={<div>Aplicación 1</div>} />
                         <Route path="/app2" element={<div>Aplicación 2</div>} />
                         <Route path="/app3" element={<div>Aplicación 3</div>} />
