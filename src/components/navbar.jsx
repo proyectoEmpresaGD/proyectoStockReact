@@ -60,7 +60,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             onClick={closeSidebar}
                         >
                             <FaRocket className="mr-3 text-lg" />
-                            Deploy
+                            Analitic
                         </Link>
                     </li>
                     <li>
