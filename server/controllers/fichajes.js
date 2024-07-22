@@ -1,4 +1,4 @@
-import { FichajeModel } from '../models/fichaje.js';
+import { FichajeModel } from '../models/Postgres/fichajes.js';
 
 export class FichajeController {
     async getAll(req, res) {
@@ -17,6 +17,8 @@ export class FichajeController {
     async create(req, res) {
         try {
             const { userId, tipo, timestamp } = req.body;
+            console.log("Received data:", { userId, tipo, timestamp }); // Debugging log
+
             if (!userId || !tipo || !timestamp) {
                 return res.status(400).json({ error: 'All fields are required' });
             }

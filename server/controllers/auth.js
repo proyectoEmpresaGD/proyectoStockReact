@@ -20,7 +20,7 @@ export class AuthController {
             }
 
             console.log('Login successful');
-            return res.json({ message: 'Login successful', role: user.role });
+            return res.json({ message: 'Login successful', id: user.id, role: user.role });
         } catch (error) {
             console.error('Error during login:', error);
             res.status(500).json({ message: 'Internal server error' });

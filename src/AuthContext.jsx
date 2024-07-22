@@ -1,3 +1,4 @@
+// AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,20 +13,10 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         }
-
-        const handleLogout = () => {
-            localStorage.removeItem('user');
-            setUser(null);
-            navigate('/login');
-        };
-
-        window.addEventListener('beforeunload', handleLogout);
-        return () => {
-            window.removeEventListener('beforeunload', handleLogout);
-        };
-    }, [navigate]);
+    }, []);
 
     const login = (userData) => {
+        console.log("Logging in user:", userData);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         navigate('/');

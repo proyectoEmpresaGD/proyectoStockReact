@@ -32,7 +32,8 @@ function Login() {
             }
 
             const data = await response.json();
-            login(data);
+            console.log("Login data:", data); // Add debugging log
+            login(data); // Asegúrate de que data incluya { id, username, role }
             setSuccess(true);
             setError('');
         } catch (error) {

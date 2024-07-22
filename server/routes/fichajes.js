@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { FichajeController } from '../controllers/fichajes.js';
 
-const fichajeRouter = Router();
-const fichajeController = new FichajeController();
+export const createFichajeRouter = () => {
+    const fichajeRouter = Router();
+    const fichajeController = new FichajeController();
 
-fichajeRouter.get('/fichajes', fichajeController.getAll.bind(fichajeController));
-fichajeRouter.post('/fichajes', fichajeController.create.bind(fichajeController));
+    // Rutas para la gestión de fichajes
+    fichajeRouter.get('/', fichajeController.getAll.bind(fichajeController));
+    fichajeRouter.post('/', fichajeController.create.bind(fichajeController));
 
-export default fichajeRouter;
+    return fichajeRouter;
+};
