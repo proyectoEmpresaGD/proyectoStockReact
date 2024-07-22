@@ -3,37 +3,19 @@ import { Link } from 'react-router-dom';
 import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaBars, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../AuthContext';
 
-function Sidebar() {
+function Sidebar({ sidebarOpen, closeSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const { user } = useAuth();
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    const toggleSidebar = () => {
-        setSidebarOpen(!sidebarOpen);
-    };
-
-    const closeSidebar = () => {
-        setSidebarOpen(false);
-    };
-
     return (
         <>
-            <button
-                onClick={toggleSidebar}
-                className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 fixed top-0 left-0 z-50"
-            >
-                <FaBars />
-            </button>
             <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} onClick={closeSidebar}></div>
-            <nav className={` fixed w-[292px] bg-gray-100 border-r-2 border-gray-300 shadow-lg h-screen md:relative ${sidebarOpen ? 'z-50' : 'hidden'} md:block`}>
-                <button
-                    onClick={closeSidebar}
-                    className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-0 right-0"
-                >
+            <nav className={`fixed top-0 left-0 w-[292px] bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 md:sticky md:top-20`}>
+                <button onClick={closeSidebar} className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4">
                     <FaTimes />
                 </button>
                 <ul className="mt-4 space-y-2">
@@ -102,13 +84,15 @@ function Sidebar() {
                         {dropdownOpen && (
                             <ul className="pl-8 mt-2 space-y-2">
                                 <li>
-                                    <Link
-                                        to="https://cjmw-worldwide.vercel.app/"
+                                    <a
+                                        href="https://cjmw-worldwide.vercel.app/"
                                         className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         onClick={closeSidebar}
                                     >
                                         Pagina web
-                                    </Link>
+                                    </a>
                                 </li>
                                 <li>
                                     <Link

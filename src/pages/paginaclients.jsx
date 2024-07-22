@@ -273,7 +273,7 @@ function Clients() {
     };
 
     return (
-        <div className="container mx-auto justify-center text-center py-4">
+        <div className="container mx-auto justify-center text-center py-4 px-4 md:px-8">
             <SearchBar
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}

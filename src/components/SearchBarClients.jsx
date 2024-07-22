@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
 function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) {
     const wrapperRef = useRef(null);
@@ -16,6 +16,17 @@ function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [wrapperRef, setSearchTerm, suggestions]);
+
+    const escapeHtml = (text) => {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+    };
 
     return (
         <div ref={wrapperRef} className="relative mb-4">
@@ -35,7 +46,7 @@ function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
                             className="p-2 hover:bg-gray-100 cursor-pointer"
                             onClick={() => handleSuggestionClick(client)}
                         >
-                            <div className="font-bold">{client.razclien}</div>
+                            <div className="font-bold" dangerouslySetInnerHTML={{ __html: escapeHtml(client.razclien) }} />
                             <div className="text-sm text-gray-600">{client.codclien}</div>
                         </li>
                     ))}

@@ -8,8 +8,20 @@ import Header from './components/header.jsx';
 import Sidebar from './components/navbar.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import { AuthProvider } from './AuthContext';
+import { useState } from 'react';
 
 function App() {
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+  };
+
   return (
     <Router>
       <AuthProvider>
@@ -19,11 +31,11 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex flex-col sticky top-0 h-screen">
-                  <Header />
-                  <div className="flex flex-grow sticky top-0">
-                    <Sidebar />
-                    <div className="flex-grow p-4 overflow-auto">
+                <div className="flex flex-col h-screen overflow-hidden">
+                  <Header toggleSidebar={toggleSidebar} />
+                  <div className="flex flex-1 overflow-hidden">
+                    <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
+                    <div className="flex-1 p-4 overflow-auto">
                       <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/admin" element={<ProtectedRoute role="admin"><Admin /></ProtectedRoute>} />

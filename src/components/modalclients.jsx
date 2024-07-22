@@ -10,7 +10,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
     const [selectedFilter, setSelectedFilter] = useState('');
-    const [sortOrder, setSortOrder] = useState('newest'); // Estado para controlar el orden
+    const [sortOrder, setSortOrder] = useState('newest');
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
 
     useEffect(() => {
@@ -30,10 +30,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
             if (response.ok) {
                 const data = await response.json();
-                console.log('Raw Purchased Products:', data); // Verifica la estructura de los datos
-
                 const productsWithDiscounts = data.map(product => {
-                    console.log('Product from API:', product); // Verifica cada producto recibido
                     let importe = parseFloat(product.importe) || 0;
                     const dt1 = parseFloat(product.dt1) || 0;
                     const dt2 = parseFloat(product.dt2) || 0;
@@ -75,7 +72,6 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                 return { ...product, stockactual: stock ? stock.stockactual : '0' };
             });
 
-            console.log('Products with Stock:', productsWithStock);
             setPurchasedProducts(productsWithStock);
         } catch (error) {
             console.error('Error fetching stock data:', error);
@@ -121,7 +117,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         if (!dateString) return 'No data';
         const date = new Date(dateString);
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Los meses comienzan en 0
+        const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -131,8 +127,8 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
 
     return (
         modalVisible && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-                <div className="bg-white p-4 rounded shadow-lg max-w-6xl w-full relative">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                <div className="bg-white p-4 rounded shadow-lg max-w-6xl w-full relative mx-2">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
                     <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
                         <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="Cerrar" />
@@ -263,7 +259,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="6" className="px-4 py-2 text-center">No hay productos disponibles.</td>
+                                                        <td colSpan="7" className="px-4 py-2 text-center">No hay productos disponibles.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
