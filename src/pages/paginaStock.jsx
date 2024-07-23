@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import SearchBar from '../components/SearchBar';
 import ProductTable from '../components/ProductTable';
 import PaginationControls from '../components/PaginationControls';
@@ -18,15 +18,11 @@ function Stock() {
     const [singleProductView, setSingleProductView] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedProductLots, setSelectedProductLots] = useState([]);
+    const searchBarRef = useRef(null);
 
     const isValidProduct = (product) => {
         return (
             !/^(LIBRO|PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
-            !/(PERCHAS Y LIBROS)/i.test(product.desprodu) &&
-            !/CUTTING/i.test(product.desprodu) &&
-            !/(LIBROS)/i.test(product.desprodu) &&
-            !/PERCHA/i.test(product.desprodu) &&
-            !/(PERCHAS)/i.test(product.desprodu) &&
             !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
             !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
             ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
@@ -89,7 +85,14 @@ function Stock() {
                 .map(product => {
                     const stock = stocks.find(s => s.codprodu === product.codprodu);
                     const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
-                    const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+                    let totalStockActual = 0;
+
+                    if (lotes.length > 0) {
+                        totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+                    } else if (stock) {
+                        totalStockActual = parseFloat(stock.stockactual);
+                    }
+
                     return {
                         ...product,
                         stockactual: totalStockActual.toFixed(2),
@@ -117,6 +120,19 @@ function Stock() {
         }
     }, [searchTerm]);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
+                setSuggestions([]);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     const handleSearchInputChange = (event) => {
         setSearchTerm(event.target.value);
     };
@@ -143,7 +159,14 @@ function Stock() {
                     .map(product => {
                         const stock = stocks.find(s => s.codprodu === product.codprodu);
                         const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
-                        const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+
+                        let totalStockActual = 0;
+                        if (lotes.length > 0) {
+                            totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+                        } else if (stock) {
+                            totalStockActual = parseFloat(stock.stockactual);
+                        }
+
                         return {
                             ...product,
                             stockactual: totalStockActual.toFixed(2),
@@ -159,7 +182,14 @@ function Stock() {
     const handleSuggestionClick = (product) => {
         const stock = stocks.find(s => s.codprodu === product.codprodu);
         const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
-        const totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+
+        let totalStockActual = 0;
+        if (lotes.length > 0) {
+            totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+        } else if (stock) {
+            totalStockActual = parseFloat(stock.stockactual);
+        }
+
         const combinedProduct = {
             ...product,
             stockactual: totalStockActual.toFixed(2),
@@ -208,14 +238,16 @@ function Stock() {
 
     return (
         <div className="container mx-auto justify-center text-center py-4">
-            <SearchBar
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                suggestions={suggestions}
-                handleSearchInputChange={handleSearchInputChange}
-                handleSearchKeyPress={handleSearchKeyPress}
-                handleSuggestionClick={handleSuggestionClick}
-            />
+            <div ref={searchBarRef}>
+                <SearchBar
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    suggestions={suggestions}
+                    handleSearchInputChange={handleSearchInputChange}
+                    handleSearchKeyPress={handleSearchKeyPress}
+                    handleSuggestionClick={handleSuggestionClick}
+                />
+            </div>
             {lastSearch && (
                 <button
                     onClick={handleLastSearchClick}
