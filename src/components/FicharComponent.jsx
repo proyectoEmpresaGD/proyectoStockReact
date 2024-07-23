@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import jsPDF from 'jspdf';
 import moment from 'moment-timezone';
@@ -107,11 +107,13 @@ const FicharComponent = () => {
         const pageHeight = doc.internal.pageSize.height;
         const rowHeight = 10;
 
+        const columnWidth = 45;
+
         // Crear tabla manualmente
         doc.text('Día', 20, startY);
-        doc.text('Hora Entrada', 40, startY);
-        doc.text('Hora Salida', 90, startY);
-        doc.text('Firma', 140, startY);
+        doc.text('Hora Entrada', 20 + columnWidth, startY);
+        doc.text('Hora Salida', 20 + 2 * columnWidth, startY);
+        doc.text('Firma', 20 + 3 * columnWidth, startY);
 
         let rowY = startY + 10;
         for (let day = 1; day <= daysInMonth; day++) {
@@ -124,18 +126,18 @@ const FicharComponent = () => {
                 doc.addPage();
                 rowY = 20; // Reiniciar la posición Y en la nueva página
                 doc.text('Día', 20, rowY);
-                doc.text('Hora Entrada', 40, rowY);
-                doc.text('Hora Salida', 90, rowY);
-                doc.text('Firma', 140, rowY);
+                doc.text('Hora Entrada', 20 + columnWidth, rowY);
+                doc.text('Hora Salida', 20 + 2 * columnWidth, rowY);
+                doc.text('Firma', 20 + 3 * columnWidth, rowY);
                 rowY += 10;
             }
 
             doc.text(String(day), 20, rowY);
-            doc.text(entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 40, rowY);
-            doc.text(salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 90, rowY);
+            doc.text(entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + columnWidth, rowY);
+            doc.text(salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + 2 * columnWidth, rowY);
 
             if (salida && salida.firma) {
-                doc.addImage(salida.firma, 'PNG', 140, rowY - 5, 30, 15);
+                doc.addImage(salida.firma, 'PNG', 20 + 3 * columnWidth, rowY - 5, 30, 15);
             }
             rowY += rowHeight;
         }
@@ -155,25 +157,25 @@ const FicharComponent = () => {
             const salida = dayFichajes.find(fichaje => fichaje.tipo === 'salida');
             rows.push(
                 <tr key={day}>
-                    <td className="border px-4 py-2">{day}</td>
-                    <td className="border px-4 py-2">{entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2">{salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2">
-                        {salida && salida.firma ? <img src={salida.firma} alt="Firma" style={{ width: '100px', height: '50px' }} /> : ''}
+                    <td className="border px-4 py-2 text-center">{day}</td>
+                    <td className="border px-4 py-2 text-center">{entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">{salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">
+                        {salida && salida.firma ? <img src={salida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
                     </td>
                 </tr>
             );
         }
 
         return (
-            <div className="overflow-auto" style={{ maxHeight: '400px' }}>
+            <div className="overflow-auto max-h-screen lg:max-h-[400px]">
                 <table className="min-w-full bg-white border font-bold border-gray-300 text-sm">
                     <thead className="bg-gray-200">
                         <tr>
                             <th className="px-1 py-1 border-b text-center">Día</th>
-                            <th className="px-1 py-1 border-b">Hora Entrada</th>
-                            <th className="px-1 py-1 border-b">Hora Salida</th>
-                            <th className="px-1 py-1 border-b">Firma</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Entrada</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Salida</th>
+                            <th className="px-1 py-1 border-b text-center">Firma</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -186,12 +188,14 @@ const FicharComponent = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4">Registro de Horas</h1>
-            <button onClick={() => handleFichar('entrada')} className="bg-green-500 text-white px-4 py-2 rounded mr-2">Fichar Entrada</button>
-            <button onClick={() => handleFichar('salida')} className="bg-red-500 text-white px-4 py-2 rounded mr-2">Fichar Salida</button>
-            <button onClick={handlePrint} className="bg-blue-500 text-white px-4 py-2 rounded">Imprimir</button>
+            <h1 className="text-2xl font-bold mb-4 text-center">Registro de Horas</h1>
+            <div className="flex flex-col sm:flex-row justify-center mb-4">
+                <button onClick={() => handleFichar('entrada')} className="bg-green-500 text-white px-4 py-2 rounded mb-2 sm:mb-0 sm:mr-2">Fichar Entrada</button>
+                <button onClick={() => handleFichar('salida')} className="bg-red-500 text-white px-4 py-2 rounded mb-2 sm:mb-0 sm:mr-2">Fichar Salida</button>
+                <button onClick={handlePrint} className="bg-blue-500 text-white px-4 py-2 rounded">Imprimir</button>
+            </div>
             <div className="mt-4">
-                <h2 className="text-xl font-bold mb-2">Historial de Fichajes</h2>
+                <h2 className="text-xl font-bold mb-2 text-center">Historial de Fichajes</h2>
                 {renderFichajesTable()}
             </div>
             <FirmaModal
