@@ -1,4 +1,3 @@
-// AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,7 +15,6 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData) => {
-        console.log("Logging in user:", userData);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         navigate('/');
