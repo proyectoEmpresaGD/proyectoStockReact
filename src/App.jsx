@@ -10,6 +10,7 @@ import ProtectedRoute from './ProtectedRoute.jsx';
 import { AuthProvider } from './AuthContext';
 import { useState } from 'react';
 import FicharPage from './pages/Fichar.jsx'; // Importa FicharPage en lugar de Fichar
+import EquivalenciasTable from './components/EquivalenciasTable';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -42,6 +43,7 @@ function App() {
                         <Route path="/stock" element={<Stock />} />
                         <Route path="/clients" element={<ProtectedRoute role="comercial"><Clients /></ProtectedRoute>} />
                         <Route path="/fichar" element={<FicharPage />} /> {/* Ruta para FicharPage */}
+                        <Route path="/equivalencias" element={<EquivalenciasTable />} /> {/* Ruta para EquivalenciasTable */}
                         <Route path="/app1" element={<div>Aplicación 1</div>} />
                         <Route path="/app2" element={<div>Aplicación 2</div>} />
                         <Route path="/app3" element={<div>Aplicación 3</div>} />

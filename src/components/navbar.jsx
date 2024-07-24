@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock } from 'react-icons/fa';
+import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock, FaCubes, FaBalanceScale } from 'react-icons/fa';
 import { useAuth } from '../AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [productosDropdownOpen, setProductosDropdownOpen] = useState(false);
     const { user } = useAuth();
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
+    };
+
+    const toggleProductosDropdown = () => {
+        setProductosDropdownOpen(!productosDropdownOpen);
     };
 
     return (
@@ -65,14 +70,38 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             </NavLink>
                         </li>
                         <li>
-                            <NavLink
-                                to="/stock"
-                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                onClick={closeSidebar}
+                            <div
+                                onClick={toggleProductosDropdown}
+                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
                             >
-                                <FaBox className="mr-3 text-lg" />
-                                Stock
-                            </NavLink>
+                                <FaCubes className="mr-3 text-lg" />
+                                <span>Productos</span>
+                                <FaChevronDown className={`ml-auto transform ${productosDropdownOpen ? 'rotate-180' : ''}`} />
+                            </div>
+                            {productosDropdownOpen && (
+                                <ul className="pl-8 mt-2 space-y-2">
+                                    <li>
+                                        <NavLink
+                                            to="/stock"
+                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
+                                            onClick={closeSidebar}
+                                        >
+                                            <FaBox className="mr-3 text-lg" />
+                                            Stock
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink
+                                            to="/equivalencias"
+                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
+                                            onClick={closeSidebar}
+                                        >
+                                            <FaBalanceScale className="mr-3 text-lg" />
+                                            Equivalencias
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            )}
                         </li>
                         <li>
                             <NavLink

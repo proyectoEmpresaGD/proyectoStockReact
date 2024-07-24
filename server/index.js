@@ -6,7 +6,8 @@ import { createStockLotesRouter } from './routes/stockLotes.js';
 import { createClienteRouter } from './routes/clients.js';
 import { createFichajeRouter } from './routes/fichajes.js';
 import { createPedVentaRouter } from './routes/pedventa.js';
-import authRouter from './routes/auth.js'; // Importar las rutas de autenticación
+import { createEquivalenciasRouter } from './routes/equivproveRoutes.js';
+import authRouter from './routes/auth.js';
 import { corsMiddleware } from './middlewares/cors.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -29,7 +30,6 @@ app.use(json());
 app.use(corsMiddleware());
 app.disable('x-powered-by');
 
-// Sirve archivos estáticos desde el directorio 'web'
 app.use(express.static(join(__dirname, 'web')));
 
 app.use('/api/products', createProductRouter({ pool }));
@@ -39,7 +39,8 @@ app.use('/api/stocklotes', createStockLotesRouter({ pool }));
 app.use('/api/clients', createClienteRouter({ pool }));
 app.use('/api/fichajes', createFichajeRouter({ pool }));
 app.use('/api/pedventa', createPedVentaRouter());
-app.use('/api/auth', authRouter); // Usar las rutas de autenticación
+app.use('/api/equivalencias', createEquivalenciasRouter());
+app.use('/api/auth', authRouter);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

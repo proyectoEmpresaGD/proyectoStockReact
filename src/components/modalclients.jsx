@@ -127,7 +127,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
 
     return (
         modalVisible && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-y-auto">
                 <div className="bg-white p-4 rounded shadow-lg max-w-6xl w-full relative mx-2">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
                     <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
@@ -207,13 +207,13 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                     </Tab.Panel>
                                     <Tab.Panel className="bg-white rounded-xl p-3">
                                         <div className="flex justify-between mb-4">
-                                            <div>
+                                            <div className="flex flex-wrap">
                                                 {filters.map(filter => (
                                                     <button
                                                         key={filter}
                                                         onClick={() => handleFilterChange(filter)}
                                                         className={classNames(
-                                                            'px-4 py-2 mr-2 rounded',
+                                                            'px-4 py-2 mr-2 mb-2 rounded',
                                                             selectedFilter === filter
                                                                 ? 'bg-blue-600 text-white'
                                                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -232,46 +232,48 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                 </button>
                                             </div>
                                         </div>
-                                        <table className="min-w-full bg-white border border-gray-300 text-sm">
-                                            <thead className="bg-gray-200">
-                                                <tr>
-                                                    <th className="px-4 py-2 border-b">Descripción del Producto</th>
-                                                    <th className="px-4 py-2 border-b">Cantidad</th>
-                                                    <th className="px-4 py-2 border-b">Precio</th>
-                                                    <th className="px-4 py-2 border-b">Descuento 1</th>
-                                                    <th className="px-4 py-2 border-b">Importe con Descuento</th>
-                                                    <th className="px-4 py-2 border-b">Stock producto</th>
-                                                    <th className="px-4 py-2 border-b">Fecha Pedido</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {sortedFilteredProducts.length > 0 ? (
-                                                    sortedFilteredProducts.map((product, index) => (
-                                                        <tr key={index} className="border-b">
-                                                            <td className="px-4 py-2">{product.desprodu}</td>
-                                                            <td className="px-4 py-2">{product.cantidad}</td>
-                                                            <td className="px-4 py-2">{product.precio}</td>
-                                                            <td className="px-4 py-2">{product.dt1}</td>
-                                                            <td className="px-4 py-2">{product.importeDescuento}</td>
-                                                            <td className="px-4 py-2">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
-                                                            <td className="px-4 py-2">{formatDate(product.fecha)}</td>
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full bg-white border border-gray-300 text-sm">
+                                                <thead className="bg-gray-200">
+                                                    <tr>
+                                                        <th className="px-4 py-2 border-b">Descripción del Producto</th>
+                                                        <th className="px-4 py-2 border-b">Cantidad</th>
+                                                        <th className="px-4 py-2 border-b">Precio</th>
+                                                        <th className="px-4 py-2 border-b">Descuento 1</th>
+                                                        <th className="px-4 py-2 border-b">Importe con Descuento</th>
+                                                        <th className="px-4 py-2 border-b">Stock producto</th>
+                                                        <th className="px-4 py-2 border-b">Fecha Pedido</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sortedFilteredProducts.length > 0 ? (
+                                                        sortedFilteredProducts.map((product, index) => (
+                                                            <tr key={index} className="border-b">
+                                                                <td className="px-4 py-2">{product.desprodu}</td>
+                                                                <td className="px-4 py-2">{product.cantidad}</td>
+                                                                <td className="px-4 py-2">{product.precio}</td>
+                                                                <td className="px-4 py-2">{product.dt1}</td>
+                                                                <td className="px-4 py-2">{product.importeDescuento}</td>
+                                                                <td className="px-4 py-2">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
+                                                                <td className="px-4 py-2">{formatDate(product.fecha)}</td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-2 text-center">No hay productos disponibles.</td>
                                                         </tr>
-                                                    ))
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan="7" className="px-4 py-2 text-center">No hay productos disponibles.</td>
-                                                    </tr>
+                                                    )}
+                                                </tbody>
+                                                {sortedFilteredProducts.length > 0 && (
+                                                    <tfoot>
+                                                        <tr>
+                                                            <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
+                                                            <td className="px-4 py-2 font-bold">{totalBilling.toFixed(2)}</td>
+                                                        </tr>
+                                                    </tfoot>
                                                 )}
-                                            </tbody>
-                                            {sortedFilteredProducts.length > 0 && (
-                                                <tfoot>
-                                                    <tr>
-                                                        <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
-                                                        <td className="px-4 py-2 font-bold">{totalBilling.toFixed(2)}</td>
-                                                    </tr>
-                                                </tfoot>
-                                            )}
-                                        </table>
+                                            </table>
+                                        </div>
                                     </Tab.Panel>
                                 </Tab.Panels>
                             </Tab.Group>

@@ -1,6 +1,6 @@
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlane } from '@fortawesome/free-solid-svg-icons';
-import { useState } from 'react';
 
 function ClientTable({ clients, handleClientClick, handleVisitClick, clientBillings, getClientColor }) {
     const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0, clientId: null });
