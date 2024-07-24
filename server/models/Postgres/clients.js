@@ -14,7 +14,7 @@ export class ClienteModel {
         const query = `
             SELECT * 
             FROM clientes
-            ORDER BY codclien
+            ORDER BY localidad
             LIMIT $1 OFFSET $2
         `;
         const params = [limit, offset];
@@ -105,6 +105,7 @@ export class ClienteModel {
                 SELECT *
                 FROM clientes
                 WHERE codprovi = $1
+                ORDER BY localidad
             `, [codprovi]);
             return rows;
         } catch (error) {
