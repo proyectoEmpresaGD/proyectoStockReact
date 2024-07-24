@@ -10,7 +10,7 @@ import Sidebar from './components/navbar.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import { AuthProvider } from './AuthContext';
 import { useState } from 'react';
-import FicharPage from './pages/Fichar.jsx'; // Importa FicharPage en lugar de Fichar
+import FicharPage from './pages/Fichar.jsx';
 import EquivalenciasTable from './components/EquivalenciasTable';
 
 function App() {
@@ -40,14 +40,14 @@ function App() {
                     <div className="flex-1 p-4 overflow-auto">
                       <Routes>
                         <Route path="/" element={<Home />} />
-                        <Route path="/admin" element={<ProtectedRoute role="admin"><Admin /></ProtectedRoute>} />
-                        <Route path="/stock" element={<ProtectedRoute role="almacen"><Stock /></ProtectedRoute>} />
-                        <Route path="/clients" element={<ProtectedRoute role="comercial"><Clients /></ProtectedRoute>} />
-                        <Route path="/fichar" element={<ProtectedRoute role="almacen"><FicharPage /></ProtectedRoute>} /> {/* Ruta para FicharPage */}
-                        <Route path="/equivalencias" element={<ProtectedRoute role="almacen"><EquivalenciasTable /></ProtectedRoute>} /> {/* Ruta para EquivalenciasTable */}
-                        <Route path="/app1" element={<ProtectedRoute role="almacen"><div>Aplicación 1</div></ProtectedRoute>} />
-                        <Route path="/app2" element={<ProtectedRoute role="almacen"><div>Aplicación 2</div></ProtectedRoute>} />
-                        <Route path="/app3" element={<ProtectedRoute role="almacen"><div>Aplicación 3</div></ProtectedRoute>} />
+                        <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+                        <Route path="/stock" element={<Stock />} />
+                        <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
+                        <Route path="/fichar" element={<FicharPage />} />
+                        <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><EquivalenciasTable /></ProtectedRoute>} />
+                        <Route path="/app1" element={<div>Aplicación 1</div>} />
+                        <Route path="/app2" element={<div>Aplicación 2</div>} />
+                        <Route path="/app3" element={<div>Aplicación 3</div>} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </div>

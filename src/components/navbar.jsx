@@ -25,7 +25,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 </button>
                 <div className="h-full overflow-y-auto">
                     <ul className="mt-4 space-y-2">
-                        {(user && (user.role === 'admin' || user.role === 'comercial')) && (
+                        {user && (user.role === 'admin' || user.role === 'comercial') && (
                             <li>
                                 <NavLink
                                     to="/clients"
@@ -90,16 +90,18 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                             Stock
                                         </NavLink>
                                     </li>
-                                    <li>
-                                        <NavLink
-                                            to="/equivalencias"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            <FaBalanceScale className="mr-3 text-lg" />
-                                            Equivalencias
-                                        </NavLink>
-                                    </li>
+                                    {user && (user.role === 'admin' || user.role === 'almacen') && (
+                                        <li>
+                                            <NavLink
+                                                to="/equivalencias"
+                                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
+                                                onClick={closeSidebar}
+                                            >
+                                                <FaBalanceScale className="mr-3 text-lg" />
+                                                Equivalencias
+                                            </NavLink>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </li>
