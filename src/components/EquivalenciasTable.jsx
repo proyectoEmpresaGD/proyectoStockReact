@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import SearchBar from './SearchBarEquivalencias';
+
 
 const EquivalenciasTable = () => {
     const [equivalencias, setEquivalencias] = useState([]);

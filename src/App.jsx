@@ -1,3 +1,4 @@
+// App.jsx
 import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import Stock from './pages/paginaStock.jsx';
@@ -40,13 +41,13 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/admin" element={<ProtectedRoute role="admin"><Admin /></ProtectedRoute>} />
-                        <Route path="/stock" element={<Stock />} />
+                        <Route path="/stock" element={<ProtectedRoute role="almacen"><Stock /></ProtectedRoute>} />
                         <Route path="/clients" element={<ProtectedRoute role="comercial"><Clients /></ProtectedRoute>} />
-                        <Route path="/fichar" element={<FicharPage />} /> {/* Ruta para FicharPage */}
-                        <Route path="/equivalencias" element={<EquivalenciasTable />} /> {/* Ruta para EquivalenciasTable */}
-                        <Route path="/app1" element={<div>Aplicación 1</div>} />
-                        <Route path="/app2" element={<div>Aplicación 2</div>} />
-                        <Route path="/app3" element={<div>Aplicación 3</div>} />
+                        <Route path="/fichar" element={<ProtectedRoute role="almacen"><FicharPage /></ProtectedRoute>} /> {/* Ruta para FicharPage */}
+                        <Route path="/equivalencias" element={<ProtectedRoute role="almacen"><EquivalenciasTable /></ProtectedRoute>} /> {/* Ruta para EquivalenciasTable */}
+                        <Route path="/app1" element={<ProtectedRoute role="almacen"><div>Aplicación 1</div></ProtectedRoute>} />
+                        <Route path="/app2" element={<ProtectedRoute role="almacen"><div>Aplicación 2</div></ProtectedRoute>} />
+                        <Route path="/app3" element={<ProtectedRoute role="almacen"><div>Aplicación 3</div></ProtectedRoute>} />
                         <Route path="*" element={<Navigate to="/" />} />
                       </Routes>
                     </div>
