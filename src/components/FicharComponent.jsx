@@ -9,12 +9,17 @@ const FicharComponent = () => {
     const [fichajes, setFichajes] = useState([]);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
+    const [totalHoras, setTotalHoras] = useState(0);
 
     useEffect(() => {
         if (user?.id) {
             fetchFichajes(user.id);
         }
     }, [user]);
+
+    useEffect(() => {
+        calculateTotalHours();
+    }, [fichajes]);
 
     const fetchFichajes = async (userId) => {
         try {
@@ -88,6 +93,31 @@ const FicharComponent = () => {
         }
     };
 
+    const calculateTotalHours = () => {
+        let total = 0;
+        const fichajesByDate = fichajes.reduce((acc, curr) => {
+            const date = moment(curr.timestamp).format('YYYY-MM-DD');
+            if (!acc[date]) {
+                acc[date] = [];
+            }
+            acc[date].push(curr);
+            return acc;
+        }, {});
+
+        Object.values(fichajesByDate).forEach(fichajes => {
+            const entradas = fichajes.filter(f => f.tipo === 'entrada').map(f => moment(f.timestamp));
+            const salidas = fichajes.filter(f => f.tipo === 'salida').map(f => moment(f.timestamp));
+
+            for (let i = 0; i < entradas.length; i++) {
+                if (salidas[i]) {
+                    total += salidas[i].diff(entradas[i], 'hours', true);
+                }
+            }
+        });
+
+        setTotalHoras(total.toFixed(2));
+    };
+
     const handlePrint = () => {
         const doc = new jsPDF();
         doc.text('Registro de Horas Mensuales', 20, 20);
@@ -107,41 +137,58 @@ const FicharComponent = () => {
         const pageHeight = doc.internal.pageSize.height;
         const rowHeight = 10;
 
-        const columnWidth = 45;
+        const columnWidth = 30;
 
         // Crear tabla manualmente
         doc.text('Día', 20, startY);
-        doc.text('Hora Entrada', 20 + columnWidth, startY);
-        doc.text('Hora Salida', 20 + 2 * columnWidth, startY);
-        doc.text('Firma', 20 + 3 * columnWidth, startY);
+        doc.text('Hora Entrada Mañana', 20 + columnWidth, startY);
+        doc.text('Hora Salida Mañana', 20 + 2 * columnWidth, startY);
+        doc.text('Hora Entrada Tarde', 20 + 3 * columnWidth, startY);
+        doc.text('Hora Salida Tarde', 20 + 4 * columnWidth, startY);
+        doc.text('Firma', 20 + 5 * columnWidth, startY);
 
         let rowY = startY + 10;
         for (let day = 1; day <= daysInMonth; day++) {
             const dayFichajes = fichajes.filter(fichaje => new Date(fichaje.timestamp).getDate() === day);
-            const entrada = dayFichajes.find(fichaje => fichaje.tipo === 'entrada');
-            const salida = dayFichajes.find(fichaje => fichaje.tipo === 'salida');
+            const morningEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() < 12);
+            const morningSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() < 12);
+            const afternoonEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() >= 12);
+            const afternoonSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() >= 12);
+
+            const morningEntrada = morningEntradas[0];
+            const morningSalida = morningSalidas[0];
+            const afternoonEntrada = afternoonEntradas[0];
+            const afternoonSalida = afternoonSalidas[0];
 
             // Verificar si se necesita una nueva página
             if (rowY + rowHeight > pageHeight - 20) {
                 doc.addPage();
                 rowY = 20; // Reiniciar la posición Y en la nueva página
                 doc.text('Día', 20, rowY);
-                doc.text('Hora Entrada', 20 + columnWidth, rowY);
-                doc.text('Hora Salida', 20 + 2 * columnWidth, rowY);
-                doc.text('Firma', 20 + 3 * columnWidth, rowY);
+                doc.text('Hora Entrada Mañana', 20 + columnWidth, rowY);
+                doc.text('Hora Salida Mañana', 20 + 2 * columnWidth, rowY);
+                doc.text('Hora Entrada Tarde', 20 + 3 * columnWidth, rowY);
+                doc.text('Hora Salida Tarde', 20 + 4 * columnWidth, rowY);
+                doc.text('Firma', 20 + 5 * columnWidth, rowY);
                 rowY += 10;
             }
 
             doc.text(String(day), 20, rowY);
-            doc.text(entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + columnWidth, rowY);
-            doc.text(salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + 2 * columnWidth, rowY);
+            doc.text(morningEntrada ? moment(morningEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + columnWidth, rowY);
+            doc.text(morningSalida ? moment(morningSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + 2 * columnWidth, rowY);
+            doc.text(afternoonEntrada ? moment(afternoonEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + 3 * columnWidth, rowY);
+            doc.text(afternoonSalida ? moment(afternoonSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : '', 20 + 4 * columnWidth, rowY);
 
-            if (salida && salida.firma) {
-                doc.addImage(salida.firma, 'PNG', 20 + 3 * columnWidth, rowY - 5, 30, 15);
+            if (morningSalida && morningSalida.firma) {
+                doc.addImage(morningSalida.firma, 'PNG', 20 + 5 * columnWidth, rowY - 5, 30, 15);
+            }
+            if (afternoonSalida && afternoonSalida.firma) {
+                doc.addImage(afternoonSalida.firma, 'PNG', 20 + 5 * columnWidth, rowY - 5, 30, 15);
             }
             rowY += rowHeight;
         }
 
+        doc.text(`Total Horas Realizadas: ${totalHoras}`, 20, rowY + 10);
         doc.save('registro_horas.pdf');
     };
 
@@ -153,15 +200,26 @@ const FicharComponent = () => {
 
         for (let day = 1; day <= daysInMonth; day++) {
             const dayFichajes = fichajes.filter(fichaje => new Date(fichaje.timestamp).getDate() === day);
-            const entrada = dayFichajes.find(fichaje => fichaje.tipo === 'entrada');
-            const salida = dayFichajes.find(fichaje => fichaje.tipo === 'salida');
+            const morningEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() < 12);
+            const morningSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() < 12);
+            const afternoonEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() >= 12);
+            const afternoonSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() >= 12);
+
+            const morningEntrada = morningEntradas[0];
+            const morningSalida = morningSalidas[0];
+            const afternoonEntrada = afternoonEntradas[0];
+            const afternoonSalida = afternoonSalidas[0];
+
             rows.push(
                 <tr key={day}>
                     <td className="border px-4 py-2 text-center">{day}</td>
-                    <td className="border px-4 py-2 text-center">{entrada ? moment(entrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2 text-center">{salida ? moment(salida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">{morningEntrada ? moment(morningEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">{morningSalida ? moment(morningSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">{afternoonEntrada ? moment(afternoonEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
+                    <td className="border px-4 py-2 text-center">{afternoonSalida ? moment(afternoonSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
                     <td className="border px-4 py-2 text-center">
-                        {salida && salida.firma ? <img src={salida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
+                        {morningSalida && morningSalida.firma ? <img src={morningSalida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
+                        {afternoonSalida && afternoonSalida.firma ? <img src={afternoonSalida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
                     </td>
                 </tr>
             );
@@ -173,13 +231,19 @@ const FicharComponent = () => {
                     <thead className="bg-gray-200">
                         <tr>
                             <th className="px-1 py-1 border-b text-center">Día</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Entrada</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Salida</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Entrada Mañana</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Salida Mañana</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Entrada Tarde</th>
+                            <th className="px-1 py-1 border-b text-center">Hora Salida Tarde</th>
                             <th className="px-1 py-1 border-b text-center">Firma</th>
                         </tr>
                     </thead>
                     <tbody>
                         {rows}
+                        <tr>
+                            <td className="border px-4 py-2 text-center font-bold" colSpan="5">Total Horas Realizadas</td>
+                            <td className="border px-4 py-2 text-center font-bold">{totalHoras}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
