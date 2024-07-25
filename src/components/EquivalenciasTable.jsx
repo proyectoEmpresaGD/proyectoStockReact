@@ -1,12 +1,15 @@
+// components/EquivalenciasTable.jsx
 import { useEffect, useState, useRef } from 'react';
-import SearchBar from './SearchBarEquivalencias';
-
+import SearchBarEquivalencias from './SearchBarEquivalencias';
+import SearchBar from './SearchBar'; // Import the existing search bar
 
 const EquivalenciasTable = () => {
     const [equivalencias, setEquivalencias] = useState([]);
     const [filteredEquivalencias, setFilteredEquivalencias] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [suggestions, setSuggestions] = useState([]);
+    const [searchTermProveedor, setSearchTermProveedor] = useState('');
+    const [searchTermCJMW, setSearchTermCJMW] = useState('');
+    const [suggestionsProveedor, setSuggestionsProveedor] = useState([]);
+    const [suggestionsCJMW, setSuggestionsCJMW] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(20);
     const [isSearchActive, setIsSearchActive] = useState(false);
@@ -32,57 +35,103 @@ const EquivalenciasTable = () => {
     };
 
     useEffect(() => {
-        if (searchTerm.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTerm}`)
+        if (searchTermProveedor.length >= 3) {
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTermProveedor}`)
                 .then(response => response.json())
-                .then(data => setSuggestions(data))
+                .then(data => setSuggestionsProveedor(data))
                 .catch(error => console.error('Error fetching search suggestions:', error));
         } else {
-            setSuggestions([]);
+            setSuggestionsProveedor([]);
         }
-    }, [searchTerm]);
+    }, [searchTermProveedor]);
 
-    const handleSearchInputChange = (event) => {
-        setSearchTerm(event.target.value);
+    useEffect(() => {
+        if (searchTermCJMW.length >= 3) {
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${searchTermCJMW}`)
+                .then(response => response.json())
+                .then(data => setSuggestionsCJMW(data))
+                .catch(error => console.error('Error fetching search suggestions:', error));
+        } else {
+            setSuggestionsCJMW([]);
+        }
+    }, [searchTermCJMW]);
+
+    const handleSearchInputChangeProveedor = (event) => {
+        setSearchTermProveedor(event.target.value);
+        if (searchTermCJMW) setSearchTermCJMW(''); // Clear the other search term
     };
 
-    const handleSearchKeyPress = (event) => {
+    const handleSearchInputChangeCJMW = (event) => {
+        setSearchTermCJMW(event.target.value);
+        if (searchTermProveedor) setSearchTermProveedor(''); // Clear the other search term
+    };
+
+    const handleSearchKeyPressProveedor = (event) => {
         if (event.key === 'Enter') {
-            performSearch(searchTerm);
+            performSearchProveedor(searchTermProveedor);
         }
     };
 
-    const performSearch = (query) => {
+    const handleSearchKeyPressCJMW = (event) => {
+        if (event.key === 'Enter') {
+            performSearchCJMW(searchTermCJMW);
+        }
+    };
+
+    const performSearchProveedor = (query) => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${query}`)
             .then(response => response.json())
             .then(data => {
                 setFilteredEquivalencias(data);
                 setIsSearchActive(true); // Set search active
                 setLastSearch(query); // Save the last search term
-                setSearchTerm('');
-                setSuggestions([]);
+                setSearchTermProveedor('');
+                setSuggestionsProveedor([]);
                 setCurrentPage(1); // Reset to the first page after search
             })
             .catch(error => console.error('Error performing search:', error));
     };
 
-    const handleSuggestionClick = (item) => {
-        setSearchTerm(item.desequiv);
+    const performSearchCJMW = (query) => {
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                setFilteredEquivalencias(data);
+                setIsSearchActive(true); // Set search active
+                setLastSearch(query); // Save the last search term
+                setSearchTermCJMW('');
+                setSuggestionsCJMW([]);
+                setCurrentPage(1); // Reset to the first page after search
+            })
+            .catch(error => console.error('Error performing search:', error));
+    };
+
+    const handleSuggestionClickProveedor = (item) => {
+        setSearchTermProveedor(item.desequiv);
         setFilteredEquivalencias([item]);
         setIsSearchActive(true); // Set search active
         setLastSearch(item.desequiv); // Save the last search term
-        setSuggestions([]);
+        setSuggestionsProveedor([]);
+    };
+
+    const handleSuggestionClickCJMW = (item) => {
+        setSearchTermCJMW(item.desprodu);
+        setFilteredEquivalencias([item]);
+        setIsSearchActive(true); // Set search active
+        setLastSearch(item.desprodu); // Save the last search term
+        setSuggestionsCJMW([]);
     };
 
     const handleShowAll = () => {
-        setSearchTerm('');
+        setSearchTermProveedor('');
+        setSearchTermCJMW('');
         setFilteredEquivalencias(equivalencias);
         setIsSearchActive(false); // Set search inactive
         setCurrentPage(1); // Reset to the first page
     };
 
     const handleLastSearchClick = () => {
-        performSearch(lastSearch);
+        performSearchProveedor(lastSearch);
     };
 
     const handlePageChange = (newPage) => {
@@ -91,7 +140,8 @@ const EquivalenciasTable = () => {
 
     const handleClickOutside = (event) => {
         if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
-            setSuggestions([]);
+            setSuggestionsProveedor([]);
+            setSuggestionsCJMW([]);
         }
     };
 
@@ -106,13 +156,21 @@ const EquivalenciasTable = () => {
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4 text-center">Equivalencias</h1>
             <div ref={searchBarRef}>
+                <SearchBarEquivalencias
+                    searchTerm={searchTermProveedor}
+                    setSearchTerm={setSearchTermProveedor}
+                    suggestions={suggestionsProveedor}
+                    handleSearchInputChange={handleSearchInputChangeProveedor}
+                    handleSearchKeyPress={handleSearchKeyPressProveedor}
+                    handleSuggestionClick={handleSuggestionClickProveedor}
+                />
                 <SearchBar
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    suggestions={suggestions}
-                    handleSearchInputChange={handleSearchInputChange}
-                    handleSearchKeyPress={handleSearchKeyPress}
-                    handleSuggestionClick={handleSuggestionClick}
+                    searchTerm={searchTermCJMW}
+                    setSearchTerm={setSearchTermCJMW}
+                    suggestions={suggestionsCJMW}
+                    handleSearchInputChange={handleSearchInputChangeCJMW}
+                    handleSearchKeyPress={handleSearchKeyPressCJMW}
+                    handleSuggestionClick={handleSuggestionClickCJMW}
                 />
             </div>
             {isSearchActive && (

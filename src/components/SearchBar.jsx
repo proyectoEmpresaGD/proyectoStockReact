@@ -1,13 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
-function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) {
+const SearchBar = ({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) => {
     const wrapperRef = useRef(null);
 
     useEffect(() => {
         function handleClickOutside(event) {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setSearchTerm(''); // Opcional: puedes establecer esto en otra acción si deseas que el término de búsqueda se borre
-                suggestions.length = 0; // Vacía las sugerencias para cerrar el menú
+                setSearchTerm('');
+                suggestions.length = 0;
             }
         }
 
@@ -21,7 +21,7 @@ function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
         <div ref={wrapperRef} className="relative mb-4">
             <input
                 type="text"
-                placeholder="Buscar por Nombre"
+                placeholder="Buscar por Nombre CJMW"
                 value={searchTerm}
                 onChange={handleSearchInputChange}
                 onKeyPress={handleSearchKeyPress}
@@ -29,20 +29,20 @@ function SearchBar({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
             />
             {suggestions.length > 0 && (
                 <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg">
-                    {suggestions.map(product => (
+                    {suggestions.map((item, index) => (
                         <li
-                            key={product.codprodu}
+                            key={index}
                             className="p-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleSuggestionClick(product)}
+                            onClick={() => handleSuggestionClick(item)}
                         >
-                            <div className="font-bold">{product.desprodu}</div>
-                            <div className="text-sm text-gray-600">{product.codprodu}</div>
+                            <div className="font-bold">{item.desprodu}</div>
+                            <div className="text-sm text-gray-600">{item.codprodu}</div>
                         </li>
                     ))}
                 </ul>
             )}
         </div>
     );
-}
+};
 
 export default SearchBar;

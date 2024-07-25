@@ -1,7 +1,6 @@
-// components/SearchBar.jsx
 import { useRef, useEffect } from 'react';
 
-const SearchBar = ({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) => {
+const SearchBarEquivalencias = ({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) => {
     const wrapperRef = useRef(null);
 
     useEffect(() => {
@@ -46,4 +45,4 @@ const SearchBar = ({ searchTerm, setSearchTerm, suggestions, handleSearchInputCh
     );
 };
 
-export default SearchBar;
+export default SearchBarEquivalencias;
