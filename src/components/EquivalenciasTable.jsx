@@ -135,19 +135,20 @@ const EquivalenciasTable = () => {
                 <table className="min-w-full bg-white border border-gray-300 text-sm">
                     <thead className="bg-gray-200">
                         <tr>
-                            <th className="px-4 py-2 border-b">DesProdu</th>
+                            <th className="px-4 py-2 border-b">NOMBRE CJMW</th>
+                            <th className="px-4 py-2 border-b">NOMBRE Proveedor</th>
                             <th className="px-4 py-2 border-b">RazProve</th>
                             <th className="px-4 py-2 border-b">CodEquiv</th>
-                            <th className="px-4 py-2 border-b">DesEquiv</th>
+
                         </tr>
                     </thead>
                     <tbody>
                         {filteredEquivalencias.map((equiv, index) => (
                             <tr key={index}>
                                 <td className="px-4 py-2 border-b">{equiv.desprodu}</td>
+                                <td className="px-4 py-2 border-b">{equiv.desequiv}</td>
                                 <td className="px-4 py-2 border-b">{equiv.razprove}</td>
                                 <td className="px-4 py-2 border-b">{equiv.codequiv}</td>
-                                <td className="px-4 py-2 border-b">{equiv.desequiv}</td>
                             </tr>
                         ))}
                     </tbody>
