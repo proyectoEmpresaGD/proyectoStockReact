@@ -233,4 +233,54 @@ export class ProductModel {
     }
   }
 
+  static async getLibrosExcluyendoTapillaYAcc() {
+    try {
+      const query = `
+            SELECT *
+            FROM productos
+            WHERE desprodu ILIKE '%libro%'
+              AND desprodu NOT ILIKE '%tapilla%'
+              AND codmarca <> 'ACC'
+        `;
+      const { rows } = await pool.query(query);
+      return rows;
+    } catch (error) {
+      console.error('Error fetching filtered libros:', error);
+      throw new Error('Error fetching filtered libros');
+    }
+  }
+
+  static async getLibrosByMarca({ codmarca }) {
+    try {
+      const query = `
+            SELECT *
+            FROM productos
+            WHERE "desprodu" ILIKE '%LIBRO%'
+            AND "codmarca" = $1
+            AND "desprodu" NOT ILIKE '%TAPILLA%'
+        `;
+      const { rows } = await pool.query(query, [codmarca]);
+      return rows;
+    } catch (error) {
+      console.error('Error fetching libros by marca:', error);
+      throw new Error('Error fetching libros by marca');
+    }
+  }
+
+
+  static async filterByMarcaAndFilter({ codmarca, filter }) {
+    try {
+      const query = `
+            SELECT * FROM productos
+            WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
+            AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+        `;
+      const values = [codmarca, `%${filter}%`];
+      const { rows } = await pool.query(query, values);
+      return rows;
+    } catch (error) {
+      console.error('Error filtering products by marca and filter:', error);
+      throw new Error('Error filtering products by marca and filter');
+    }
+  }
 }

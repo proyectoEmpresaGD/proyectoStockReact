@@ -9,9 +9,12 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
-    const [selectedFilter, setSelectedFilter] = useState('');
+    const [selectedFilter, setSelectedFilter] = useState('LIBRO');
     const [sortOrder, setSortOrder] = useState('newest');
-    const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
+    const [filteredLibros, setFilteredLibros] = useState([]);
+    const [selectedMarca, setSelectedMarca] = useState('CJM');
+    const filters = ["LIBRO", "PERCHA", "QUALITY"];
+    const marcas = ["FLA", "CJM", "HAR", "ARE"];
 
     useEffect(() => {
         if (selectedClientDetails && selectedTabIndex === 1) {
@@ -110,6 +113,31 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         return products.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     };
 
+    const fetchLibrosByMarca = async (codmarca) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${selectedFilter}`);
+            if (response.ok) {
+                const libros = await response.json();
+                setFilteredLibros(libros);
+            } else {
+                console.error('Failed to fetch libros by marca');
+            }
+        } catch (error) {
+            console.error('Error fetching libros by marca:', error);
+        }
+    };
+
+    const handleMarcaClick = (codmarca) => {
+        setSelectedMarca(codmarca);
+        fetchLibrosByMarca(codmarca);
+    };
+
+    useEffect(() => {
+        if (selectedMarca) {
+            fetchLibrosByMarca(selectedMarca);
+        }
+    }, [selectedFilter]);
+
     const filteredProducts = applyFilter(purchasedProducts, selectedFilter);
     const sortedFilteredProducts = sortProducts(filteredProducts, sortOrder);
 
@@ -123,6 +151,73 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         const minutes = String(date.getMinutes()).padStart(2, '0');
         const seconds = String(date.getSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
+    const renderLibrosTab = () => {
+        return (
+            <div className="bg-white rounded-xl p-3">
+                <div className="flex mb-4">
+                    <div className="flex flex-col items-start">
+                        {marcas.map(marca => (
+                            <button
+                                key={marca}
+                                onClick={() => handleMarcaClick(marca)}
+                                className={classNames(
+                                    'px-4 py-2 mb-2 rounded',
+                                    selectedMarca === marca
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                )}
+                            >
+                                {marca}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap ml-4">
+                        {filters.map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => handleFilterChange(filter)}
+                                className={classNames(
+                                    'px-4 py-2 mb-2 mr-2 rounded',
+                                    selectedFilter === filter
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                )}
+                            >
+                                {filter}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-300 text-sm">
+                        <thead className="bg-gray-200">
+                            <tr>
+                                <th className="px-4 py-2 border-b">Descripción del Producto</th>
+                                <th className="px-4 py-2 border-b">Comprado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredLibros.length > 0 ? (
+                                filteredLibros.map((libro, index) => (
+                                    <tr key={index} className="border-b">
+                                        <td className="px-4 py-2">{libro.desprodu}</td>
+                                        <td className="px-4 py-2">
+                                            {purchasedProducts.some(p => p.codprodu === libro.codprodu) ? '✔️' : '❌'}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="2" className="px-4 py-2 text-center">No hay productos disponibles para esta marca.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -162,6 +257,19 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                         }
                                     >
                                         Productos Comprados
+                                    </Tab>
+                                    <Tab
+                                        className={({ selected }) =>
+                                            classNames(
+                                                'w-full py-2.5 text-sm leading-5 font-medium text-blue-700 rounded-lg',
+                                                'focus:outline-none focus:ring-2 ring-offset-2 ring-offset-blue-400 ring-white ring-opacity-60',
+                                                selected
+                                                    ? 'bg-white shadow'
+                                                    : 'text-blue-100 hover:bg-white/[0.12] hover:text-white'
+                                            )
+                                        }
+                                    >
+                                        Libros / Perchas / Quality
                                     </Tab>
                                 </Tab.List>
                                 <Tab.Panels className="mt-2">
@@ -275,6 +383,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                             </table>
                                         </div>
                                     </Tab.Panel>
+                                    <Tab.Panel>{renderLibrosTab()}</Tab.Panel>
                                 </Tab.Panels>
                             </Tab.Group>
                         </div>

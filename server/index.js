@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import pg from 'pg';
 import 'dotenv/config';
+import { createLibroRouter } from './routes/libros.js';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +42,7 @@ app.use('/api/fichajes', createFichajeRouter({ pool }));
 app.use('/api/pedventa', createPedVentaRouter());
 app.use('/api/equivalencias', createEquivalenciasRouter());
 app.use('/api/auth', authRouter);
+app.use('/api/libros', createLibroRouter());
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

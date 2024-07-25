@@ -158,5 +158,33 @@ export class ProductController {
     }
   }
 
+  async getFilteredLibros(req, res) {
+    try {
+      const productos = await ProductModel.getLibrosExcluyendoTapillaYAcc();
+      res.json(productos);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 
+  async getLibrosByMarca(req, res) {
+    try {
+      const { codmarca } = req.params;
+      const productos = await ProductModel.getLibrosByMarca({ codmarca });
+      res.json(productos);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async filterByMarcaAndFilter(req, res) {
+    try {
+      const { codmarca, filter } = req.query;
+      const products = await ProductModel.filterByMarcaAndFilter({ codmarca, filter });
+      res.json(products);
+    } catch (error) {
+      console.error('Error filtering products by marca and filter:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
