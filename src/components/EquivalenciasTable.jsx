@@ -137,9 +137,8 @@ const EquivalenciasTable = () => {
                         <tr>
                             <th className="px-4 py-2 border-b">NOMBRE CJMW</th>
                             <th className="px-4 py-2 border-b">NOMBRE Proveedor</th>
-                            <th className="px-4 py-2 border-b">RazProve</th>
                             <th className="px-4 py-2 border-b">CodEquiv</th>
-
+                            <th className="px-4 py-2 border-b">RazProve</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -147,8 +146,8 @@ const EquivalenciasTable = () => {
                             <tr key={index}>
                                 <td className="px-4 py-2 border-b">{equiv.desprodu}</td>
                                 <td className="px-4 py-2 border-b">{equiv.desequiv}</td>
-                                <td className="px-4 py-2 border-b">{equiv.razprove}</td>
                                 <td className="px-4 py-2 border-b">{equiv.codequiv}</td>
+                                <td className="px-4 py-2 border-b">{equiv.razprove}</td>
                             </tr>
                         ))}
                     </tbody>
