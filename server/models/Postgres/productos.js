@@ -76,8 +76,8 @@ export class ProductModel {
 
     const { rows } = await pool.query(
       `INSERT INTO productos ("codprodu", "desprodu", "codfamil", "comentario", "urlimagen")
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;`,
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *;`,
       [CodProdu, DesProdu, CodFamil, Comentario, UrlImagen]
     );
 
@@ -98,18 +98,16 @@ export class ProductModel {
 
   static async delete({ id }) {
     const { rows } = await pool.query('DELETE FROM productos WHERE "codprodu" = $1 RETURNING *;', [id]);
-
     return rows[0];
   }
 
-  static async search({ query, limit = 4 }) {
+  static async search({ query }) {
     try {
       const searchQuery = `
-            SELECT * FROM productos
-            WHERE "desprodu" ILIKE $1
-            LIMIT $2;
-        `;
-      const values = [`%${query}%`, limit];
+                SELECT * FROM productos
+                WHERE "desprodu" ILIKE $1
+            `;
+      const values = [`%${query}%`];
       const { rows } = await pool.query(searchQuery, values);
       return rows;
     } catch (error) {
@@ -130,37 +128,14 @@ export class ProductModel {
 
   static async getFilters() {
     try {
-      console.log('Fetching brands');
       const { rows: brands } = await pool.query('SELECT DISTINCT codmarca FROM productos');
-      console.log('Fetched brands:', brands);
-
-      console.log('Fetching collections');
       const { rows: collections } = await pool.query('SELECT DISTINCT coleccion, codmarca FROM productos');
-      console.log('Fetched collections:', collections);
-
-      console.log('Fetching fabric types');
       const { rows: fabricTypes } = await pool.query('SELECT DISTINCT tipo FROM productos');
-      console.log('Fetched fabric types:', fabricTypes);
-
-      console.log('Fetching fabric patterns');
       const { rows: fabricPatterns } = await pool.query('SELECT DISTINCT estilo FROM productos');
-      console.log('Fetched fabric patterns:', fabricPatterns);
-
-      console.log('Fetching martindale values');
       const { rows: martindaleValues } = await pool.query('SELECT DISTINCT martindale FROM productos');
-      console.log('Fetched martindale values:', martindaleValues);
-
-      console.log('Fetching uso values');
       const { rows: usoValues } = await pool.query('SELECT DISTINCT uso FROM productos');
-      console.log('Fetched uso values:', usoValues);
-
-      console.log('Fetching colors');
       const { rows: colors } = await pool.query('SELECT DISTINCT colorprincipal FROM productos');
-      console.log('Fetched colors:', colors);
-
-      console.log('Fetching tonalidades');
       const { rows: tonalidades } = await pool.query('SELECT DISTINCT tonalidad FROM productos');
-      console.log('Fetched tonalidades:', tonalidades);
 
       return {
         brands: brands.map(b => b.codmarca),
@@ -177,7 +152,6 @@ export class ProductModel {
       throw new Error('Error fetching filters');
     }
   }
-
 
   static async filter(filters) {
     let query = 'SELECT * FROM productos WHERE 1=1';
@@ -236,12 +210,12 @@ export class ProductModel {
   static async getLibrosExcluyendoTapillaYAcc() {
     try {
       const query = `
-            SELECT *
-            FROM productos
-            WHERE desprodu ILIKE '%libro%'
-              AND desprodu NOT ILIKE '%tapilla%'
-              AND codmarca <> 'ACC'
-        `;
+                SELECT *
+                FROM productos
+                WHERE desprodu ILIKE '%libro%'
+                  AND desprodu NOT ILIKE '%tapilla%'
+                  AND codmarca <> 'ACC'
+            `;
       const { rows } = await pool.query(query);
       return rows;
     } catch (error) {
@@ -253,12 +227,12 @@ export class ProductModel {
   static async getLibrosByMarca({ codmarca }) {
     try {
       const query = `
-            SELECT *
-            FROM productos
-            WHERE "desprodu" ILIKE '%LIBRO%'
-            AND "codmarca" = $1
-            AND "desprodu" NOT ILIKE '%TAPILLA%'
-        `;
+                SELECT *
+                FROM productos
+                WHERE "desprodu" ILIKE '%LIBRO%'
+                AND "codmarca" = $1
+                AND "desprodu" NOT ILIKE '%TAPILLA%'
+            `;
       const { rows } = await pool.query(query, [codmarca]);
       return rows;
     } catch (error) {
@@ -267,14 +241,13 @@ export class ProductModel {
     }
   }
 
-
   static async filterByMarcaAndFilter({ codmarca, filter }) {
     try {
       const query = `
-            SELECT * FROM productos
-            WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
-            AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
-        `;
+                SELECT * FROM productos
+                WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
+                AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+            `;
       const values = [codmarca, `%${filter}%`];
       const { rows } = await pool.query(query, values);
       return rows;

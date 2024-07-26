@@ -28,7 +28,7 @@ const SearchBarEquivalencias = ({ searchTerm, setSearchTerm, suggestions, handle
                 className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg">
+                <ul className="absolute left-0 right-0 mt-2 max-h-60 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg">
                     {suggestions.map((item, index) => (
                         <li
                             key={index}

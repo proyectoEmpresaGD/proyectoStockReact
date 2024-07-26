@@ -75,16 +75,13 @@ export class ProductController {
     }
   }
 
-
-
   async search(req, res) {
     try {
-      const { query, limit } = req.query;
+      const { query } = req.query;
       if (!query) {
         return res.status(400).json({ message: 'Query parameter is required' });
       }
-      const limitParsed = parseInt(limit, 10) || 20;
-      const products = await ProductModel.search({ query, limit: limitParsed });
+      const products = await ProductModel.search({ query });
       res.json(products);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -101,15 +98,11 @@ export class ProductController {
     }
   }
 
-
   async getFilters(req, res) {
     try {
-      console.log('Fetching filters');
       const filters = await ProductModel.getFilters();
-      console.log('Filters fetched:', filters);
       res.json(filters);
     } catch (error) {
-      console.error('Error fetching filters:', error);
       res.status(500).send({ error: 'Error fetching filters', details: error.message });
     }
   }
@@ -131,30 +124,7 @@ export class ProductController {
       ));
       res.json(validProducts);
     } catch (error) {
-      console.error('Error filtering products:', error);
       res.status(500).json({ error: 'Error filtering products' });
-    }
-  }
-
-  static async getByCodFamil(req, res) {
-    const { codfamil } = req.params;
-    try {
-      const products = await ProductModel.getByCodFamil(codfamil);
-      res.json(products);
-    } catch (error) {
-      console.error('Error fetching products by codfamil:', error);
-      res.status(500).send({ error: 'Error fetching products by codfamil' });
-    }
-  }
-
-  static async filter(req, res) {
-    const filters = req.body;
-    try {
-      const products = await ProductModel.getProductsWithFilters(filters);
-      res.json(products);
-    } catch (error) {
-      console.error('Error filtering products:', error);
-      res.status(500).send({ error: 'Error filtering products' });
     }
   }
 
@@ -183,7 +153,6 @@ export class ProductController {
       const products = await ProductModel.filterByMarcaAndFilter({ codmarca, filter });
       res.json(products);
     } catch (error) {
-      console.error('Error filtering products by marca and filter:', error);
       res.status(500).json({ error: error.message });
     }
   }

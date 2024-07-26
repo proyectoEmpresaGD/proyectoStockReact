@@ -1,4 +1,3 @@
-// controllers/equivproveController.js
 import { EquivproveModel } from '../models/Postgres/EquivProveModel.js';
 
 export class EquivproveController {
@@ -16,9 +15,8 @@ export class EquivproveController {
 
     static async search(req, res) {
         try {
-            const { query, limit } = req.query;
-            const limitParsed = parseInt(limit, 10) || 4;
-            const data = await EquivproveModel.search({ query, limit: limitParsed });
+            const { query } = req.query;
+            const data = await EquivproveModel.search({ query });
             res.json(data);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -27,9 +25,8 @@ export class EquivproveController {
 
     static async searchCJMW(req, res) {
         try {
-            const { query, limit } = req.query;
-            const limitParsed = parseInt(limit, 10) || 4;
-            const data = await EquivproveModel.searchCJMW({ query, limit: limitParsed });
+            const { query } = req.query;
+            const data = await EquivproveModel.searchCJMW({ query });
             res.json(data);
         } catch (error) {
             res.status(500).json({ error: error.message });

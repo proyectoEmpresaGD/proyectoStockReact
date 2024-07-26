@@ -32,7 +32,7 @@ function Login() {
             }
 
             const data = await response.json();
-            login(data);
+            login(data); // This will call the `login` function from AuthContext
             setSuccess(true);
             setError('');
         } catch (error) {
