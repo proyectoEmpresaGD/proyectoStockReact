@@ -16,11 +16,13 @@ export const createProductRouter = () => {
     productsRouter.get('/search', productController.search.bind(productController));
     productsRouter.get('/codfamil/:codfamil', productController.getByCodFamil.bind(productController)); // Nueva ruta
 
+
     productsRouter.get('/productos', productController.getAllProductos.bind(productController));
     // Rutas para operaciones específicas de un producto
     productsRouter.get('/:id', productController.getById.bind(productController));
     productsRouter.patch('/:id', productController.update.bind(productController));
     productsRouter.delete('/:id', productController.delete.bind(productController));
+
 
     return productsRouter;
 }

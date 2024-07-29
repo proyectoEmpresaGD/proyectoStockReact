@@ -147,6 +147,7 @@ export class ProductController {
     }
   }
 
+
   async filterByMarcaAndFilter(req, res) {
     try {
       const { codmarca, filter } = req.query;
@@ -156,4 +157,6 @@ export class ProductController {
       res.status(500).json({ error: error.message });
     }
   }
+
+
 }

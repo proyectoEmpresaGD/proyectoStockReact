@@ -226,13 +226,30 @@ export class ProductModel {
 
   static async getLibrosByMarca({ codmarca }) {
     try {
-      const query = `
-                SELECT *
-                FROM productos
-                WHERE "desprodu" ILIKE '%LIBRO%'
-                AND "codmarca" = $1
-                AND "desprodu" NOT ILIKE '%TAPILLA%'
-            `;
+      let query = `
+        SELECT *
+        FROM productos
+        WHERE "codmarca" = $1
+          AND (
+            "desprodu" ILIKE '%LIBRO%'
+            OR "desprodu" ILIKE '%carre game%'
+          )
+          AND "desprodu" NOT ILIKE '%TAPILLA%'
+      `;
+
+      if (codmarca === 'HAR') {
+        query = `
+          SELECT *
+          FROM productos
+          WHERE "codmarca" = $1
+            AND (
+              "desprodu" ILIKE '%LIBRO%'
+              OR "desprodu" ILIKE '%carre game%'
+            )
+            AND "desprodu" NOT ILIKE '%TAPILLA%'
+        `;
+      }
+
       const { rows } = await pool.query(query, [codmarca]);
       return rows;
     } catch (error) {
@@ -243,12 +260,24 @@ export class ProductModel {
 
   static async filterByMarcaAndFilter({ codmarca, filter }) {
     try {
-      const query = `
-                SELECT * FROM productos
-                WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
-                AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
-            `;
-      const values = [codmarca, `%${filter}%`];
+      let query;
+      const values = [codmarca];
+
+      if (filter === 'LIBRO' && codmarca === 'HAR') {
+        query = `
+          SELECT * FROM productos
+          WHERE "codmarca" = $1 AND ("desprodu" ILIKE '%LIBRO%' OR "desprodu" ILIKE '%CARRE GAME%')
+          AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+        `;
+      } else {
+        query = `
+          SELECT * FROM productos
+          WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
+          AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+        `;
+        values.push(`%${filter}%`);
+      }
+
       const { rows } = await pool.query(query, values);
       return rows;
     } catch (error) {
@@ -256,4 +285,6 @@ export class ProductModel {
       throw new Error('Error filtering products by marca and filter');
     }
   }
+
+
 }
