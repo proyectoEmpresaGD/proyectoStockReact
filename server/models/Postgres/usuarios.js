@@ -46,4 +46,30 @@ export class UserModel {
             throw new Error('Error logging user access');
         }
     }
+
+    static async setActiveSession(userId, active) {
+        const query = 'UPDATE usuarios SET active_session = $1 WHERE id = $2 RETURNING *';
+        const values = [active, userId];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows.length > 0 ? rows[0] : null;
+        } catch (error) {
+            console.error('Error setting active session:', error);
+            throw new Error('Error setting active session');
+        }
+    }
+
+    static async getActiveSession(userId) {
+        const query = 'SELECT active_session FROM usuarios WHERE id = $1';
+        const values = [userId];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows.length > 0 ? rows[0].active_session : null;
+        } catch (error) {
+            console.error('Error getting active session:', error);
+            throw new Error('Error getting active session');
+        }
+    }
 }

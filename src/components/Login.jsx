@@ -28,15 +28,16 @@ function Login() {
             });
 
             if (!response.ok) {
-                throw new Error('Login failed');
+                const responseData = await response.json();
+                throw new Error(responseData.message);
             }
 
             const data = await response.json();
-            login(data); // This will call the `login` function from AuthContext
+            login(data);
             setSuccess(true);
             setError('');
         } catch (error) {
-            setError('Invalid username or password');
+            setError(error.message);
             setSuccess(false);
         }
     };

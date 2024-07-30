@@ -20,7 +20,15 @@ export const AuthProvider = ({ children }) => {
         navigate('/');
     };
 
-    const logout = () => {
+    const logout = async () => {
+        const userId = user ? user.id : null;
+        if (userId) {
+            await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+            });
+        }
         localStorage.removeItem('user');
         setUser(null);
         navigate('/login');
