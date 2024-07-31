@@ -6,5 +6,6 @@ const authRouter = Router();
 authRouter.post('/login', AuthController.login);
 authRouter.post('/updateJornada', AuthController.updateJornada);
 authRouter.post('/logout', AuthController.logout);
+authRouter.post('/logoutAll', AuthController.logoutAll);
 
 export default authRouter;

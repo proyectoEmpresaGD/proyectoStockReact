@@ -12,7 +12,22 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         }
-    }, []);
+
+        const handleBeforeUnload = (e) => {
+            // Realiza el logout cuando la ventana se está cerrando
+            if (user) {
+                logout();
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [user]);
 
     const login = (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
@@ -21,14 +36,16 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        const userId = user ? user.id : null;
-        if (userId) {
+        try {
             await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
+                body: JSON.stringify({ userId: user.id }),
             });
+        } catch (error) {
+            console.error('Error during logout:', error);
         }
+
         localStorage.removeItem('user');
         setUser(null);
         navigate('/login');

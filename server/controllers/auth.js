@@ -14,16 +14,16 @@ export class AuthController {
                 return res.status(401).json({ message: 'Invalid username or password' });
             }
 
-            // Check for active session
-            const activeSession = await UserModel.getActiveSession(user.id);
-            if (activeSession) {
-                return res.status(403).json({ message: 'User already logged in' });
-            }
-
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
                 console.log('Password does not match');
                 return res.status(401).json({ message: 'Invalid username or password' });
+            }
+
+            const isActive = await UserModel.getActiveSession(user.id);
+            if (isActive) {
+                console.log('User already logged in');
+                return res.status(403).json({ message: 'User already logged in' });
             }
 
             // Log the access with the correct timezone
@@ -68,6 +68,19 @@ export class AuthController {
             return res.json({ message: 'Logout successful' });
         } catch (error) {
             console.error('Error during logout:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
+    static async logoutAll(req, res) {
+        try {
+            // Clear active session for all users
+            await UserModel.setActiveSessionForAll(false);
+
+            console.log('Logout all users successful');
+            return res.json({ message: 'Logout all users successful' });
+        } catch (error) {
+            console.error('Error during logout all users:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }

@@ -35,9 +35,9 @@ export class UserModel {
         }
     }
 
-    static async logAccess(userId, username) {
-        const query = 'INSERT INTO accesos (user_id, username) VALUES ($1, $2)';
-        const values = [userId, username];
+    static async logAccess(userId, accessTime) {
+        const query = 'INSERT INTO accesos (user_id, access_time) VALUES ($1, $2)';
+        const values = [userId, accessTime];
 
         try {
             await pool.query(query, values);
@@ -47,9 +47,9 @@ export class UserModel {
         }
     }
 
-    static async setActiveSession(userId, active) {
+    static async setActiveSession(userId, isActive) {
         const query = 'UPDATE usuarios SET active_session = $1 WHERE id = $2 RETURNING *';
-        const values = [active, userId];
+        const values = [isActive, userId];
 
         try {
             const { rows } = await pool.query(query, values);
@@ -60,13 +60,26 @@ export class UserModel {
         }
     }
 
+    static async setActiveSessionForAll(isActive) {
+        const query = 'UPDATE usuarios SET active_session = $1 RETURNING *';
+        const values = [isActive];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows.length > 0 ? rows : [];
+        } catch (error) {
+            console.error('Error setting active session for all users:', error);
+            throw new Error('Error setting active session for all users');
+        }
+    }
+
     static async getActiveSession(userId) {
         const query = 'SELECT active_session FROM usuarios WHERE id = $1';
         const values = [userId];
 
         try {
             const { rows } = await pool.query(query, values);
-            return rows.length > 0 ? rows[0].active_session : null;
+            return rows.length > 0 ? rows[0].active_session : false;
         } catch (error) {
             console.error('Error getting active session:', error);
             throw new Error('Error getting active session');
