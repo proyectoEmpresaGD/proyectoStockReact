@@ -24,6 +24,18 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden' && user) {
+                logout();
+            }
+        };
+
+        const handlePageHide = (e) => {
+            if (user) {
+                logout();
+            }
+        };
+
         const handlePopState = (e) => {
             if (user) {
                 setShowExitModal(true);
@@ -33,10 +45,14 @@ export const AuthProvider = ({ children }) => {
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('pagehide', handlePageHide);
         window.addEventListener('popstate', handlePopState);
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('pagehide', handlePageHide);
             window.removeEventListener('popstate', handlePopState);
             stopHeartbeat();
         };
