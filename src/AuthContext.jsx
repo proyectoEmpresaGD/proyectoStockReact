@@ -46,19 +46,33 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
+        const addPopStateListener = () => {
+            window.addEventListener('popstate', handlePopState);
+        };
+
+        const removePopStateListener = () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+
         window.addEventListener('beforeunload', handleBeforeUnload);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('pagehide', handlePageHide);
-        window.addEventListener('popstate', handlePopState);
+        addPopStateListener();
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('pagehide', handlePageHide);
-            window.removeEventListener('popstate', handlePopState);
+            removePopStateListener();
             stopHeartbeat();
         };
     }, [user]);
+
+    useEffect(() => {
+        if (showExitModal) {
+            window.history.pushState(null, document.title, window.location.href);
+        }
+    }, [showExitModal]);
 
     const startHeartbeat = (userId) => {
         heartbeatIntervalRef.current = setInterval(async () => {
@@ -112,7 +126,6 @@ export const AuthProvider = ({ children }) => {
 
     const handleCancelExit = () => {
         setShowExitModal(false);
-        window.history.back();
     };
 
     return (
