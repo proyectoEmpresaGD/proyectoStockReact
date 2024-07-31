@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         };
 
         const handlePopState = (e) => {
-            if (user) {
+            if (user && !exitingRef.current) {
                 setShowExitModal(true);
                 e.preventDefault();
                 window.history.pushState(null, document.title, window.location.href);
@@ -112,6 +112,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleCancelExit = () => {
         setShowExitModal(false);
+        window.history.back();
     };
 
     return (
