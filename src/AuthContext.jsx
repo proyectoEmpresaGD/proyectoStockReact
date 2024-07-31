@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }) => {
     const [showExitModal, setShowExitModal] = useState(false);
     const navigate = useNavigate();
     const heartbeatIntervalRef = useRef(null);
-    const exitingRef = useRef(false);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -27,52 +26,38 @@ export const AuthProvider = ({ children }) => {
         };
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden' && user && !exitingRef.current) {
+            if (document.visibilityState === 'hidden' && user) {
                 logout();
             }
         };
 
-        const handlePageHide = (e) => {
-            if (user && !exitingRef.current) {
+        const handlePageHide = () => {
+            if (user) {
                 logout();
             }
         };
 
         const handlePopState = (e) => {
-            if (user && !exitingRef.current) {
+            if (user) {
                 setShowExitModal(true);
                 e.preventDefault();
                 window.history.pushState(null, document.title, window.location.href);
             }
         };
 
-        const addPopStateListener = () => {
-            window.addEventListener('popstate', handlePopState);
-        };
-
-        const removePopStateListener = () => {
-            window.removeEventListener('popstate', handlePopState);
-        };
-
         window.addEventListener('beforeunload', handleBeforeUnload);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('pagehide', handlePageHide);
-        addPopStateListener();
+        window.addEventListener('popstate', handlePopState);
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('pagehide', handlePageHide);
-            removePopStateListener();
+            window.removeEventListener('popstate', handlePopState);
             stopHeartbeat();
         };
     }, [user]);
-
-    useEffect(() => {
-        if (showExitModal) {
-            window.history.pushState(null, document.title, window.location.href);
-        }
-    }, [showExitModal]);
 
     const startHeartbeat = (userId) => {
         heartbeatIntervalRef.current = setInterval(async () => {
@@ -120,7 +105,6 @@ export const AuthProvider = ({ children }) => {
 
     const handleConfirmExit = () => {
         setShowExitModal(false);
-        exitingRef.current = true;
         logout();
     };
 
