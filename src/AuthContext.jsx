@@ -8,12 +8,14 @@ export const AuthProvider = ({ children }) => {
     const [showExitModal, setShowExitModal] = useState(false);
     const navigate = useNavigate();
     const heartbeatIntervalRef = useRef(null);
+    const exitingRef = useRef(false);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
-            startHeartbeat(JSON.parse(storedUser).id);
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            startHeartbeat(parsedUser.id);
         }
 
         const handleBeforeUnload = (e) => {
@@ -25,13 +27,13 @@ export const AuthProvider = ({ children }) => {
         };
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden' && user) {
+            if (document.visibilityState === 'hidden' && user && !exitingRef.current) {
                 logout();
             }
         };
 
         const handlePageHide = (e) => {
-            if (user) {
+            if (user && !exitingRef.current) {
                 logout();
             }
         };
@@ -104,6 +106,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleConfirmExit = () => {
         setShowExitModal(false);
+        exitingRef.current = true;
         logout();
     };
 
