@@ -84,4 +84,19 @@ export class AuthController {
             res.status(500).json({ message: 'Internal server error' });
         }
     }
+
+    static async heartbeat(req, res) {
+        const { userId } = req.body;
+
+        try {
+            // Update last activity time
+            const lastActivityTime = moment().tz('Europe/Madrid').format('YYYY-MM-DD HH:mm:ss');
+            await UserModel.updateLastActivity(userId, lastActivityTime);
+
+            return res.json({ message: 'Heartbeat successful' });
+        } catch (error) {
+            console.error('Error during heartbeat:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
 }

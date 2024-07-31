@@ -85,4 +85,17 @@ export class UserModel {
             throw new Error('Error getting active session');
         }
     }
+
+    static async updateLastActivity(userId, lastActivityTime) {
+        const query = 'UPDATE usuarios SET last_activity = $1 WHERE id = $2 RETURNING *';
+        const values = [lastActivityTime, userId];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows.length > 0 ? rows[0] : null;
+        } catch (error) {
+            console.error('Error updating last activity:', error);
+            throw new Error('Error updating last activity');
+        }
+    }
 }
