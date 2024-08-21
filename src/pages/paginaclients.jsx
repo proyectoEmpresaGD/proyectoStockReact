@@ -264,31 +264,27 @@ const countryCodes = [
     { value: 'ZW', label: 'Zimbabue' },
     // Añadir más países si es necesario
 ];
+
 function Clients() {
     const [clients, setClients] = useState([]);
-    const [searchTerm, setSearchTerm] = useState(localStorage.getItem('searchTerm') || '');
+    const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10); // Número de clientes por página
+    const [itemsPerPage] = useState(20); // Número de clientes por página ahora es 20 por defecto
     const [totalClients, setTotalClients] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
-    const [selectedProvince, setSelectedProvince] = useState(JSON.parse(localStorage.getItem('selectedProvince')) || null);
-    const [selectedCountry, setSelectedCountry] = useState(localStorage.getItem('selectedCountry') || null);
+    const [selectedProvince, setSelectedProvince] = useState(null);
+    const [selectedCountry, setSelectedCountry] = useState(null);
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [clientBillings, setClientBillings] = useState({});
     const [singleClientView, setSingleClientView] = useState(false);
 
     useEffect(() => {
+        // Fetch initial set of clients on page load
         fetchClients();
     }, [currentPage, selectedCountry, selectedProvince]);
-
-    useEffect(() => {
-        localStorage.setItem('searchTerm', searchTerm);
-        localStorage.setItem('selectedProvince', JSON.stringify(selectedProvince));
-        localStorage.setItem('selectedCountry', selectedCountry);
-    }, [searchTerm, selectedProvince, selectedCountry]);
 
     const fetchClients = async () => {
         try {
@@ -439,8 +435,9 @@ function Clients() {
 
     const handleClearFilter = () => {
         setSelectedProvince(null);
-        setSelectedCountry(null);
+        setSelectedCountry(null); // Vaciar el filtro de país
         setSearchTerm('');
+        setSuggestions([]);
         setCurrentPage(1);
         fetchClients();
     };
@@ -474,6 +471,7 @@ function Clients() {
                             value={countryCodes.find(option => option.value === selectedCountry)}
                             onChange={handleCountryChange}
                             placeholder="Seleccione un país"
+                            isClearable={true} // Permite limpiar el campo manualmente si es necesario
                         />
                     </div>
                     <div className="w-48">
@@ -484,12 +482,13 @@ function Clients() {
                             value={selectedProvince}
                             onChange={handleProvinceChange}
                             placeholder="Seleccione una provincia"
+                            isClearable={true} // Permite limpiar el campo manualmente si es necesario
                         />
                     </div>
                 </div>
                 <button
                     onClick={handleClearFilter}
-                    className="ml-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
                 >
                     Limpiar Filtros
                 </button>
