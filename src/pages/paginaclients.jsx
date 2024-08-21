@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import SearchBar from '../components/SearchBarClients';
+import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
 import ClientTable from '../components/clientstable';
-import PaginationControls from '../components/PaginationControls';
 import ClientModal from '../components/modalclients';
 import VisitModal from '../components/VisitModal';
+import SearchBar from '../components/SearchBarClients';
+import PaginationControls from '../components/PaginationControls';
 
 const provinces = [
     { value: '02', label: 'Albacete' },
@@ -61,72 +61,301 @@ const provinces = [
     { value: '52', label: 'Melilla' }
 ];
 
+// Lista completa de códigos de países con sus nombres.
+const countryCodes = [
+    { value: 'AF', label: 'Afganistán' },
+    { value: 'AL', label: 'Albania' },
+    { value: 'DZ', label: 'Argelia' },
+    { value: 'AS', label: 'Samoa Americana' },
+    { value: 'AD', label: 'Andorra' },
+    { value: 'AO', label: 'Angola' },
+    { value: 'AI', label: 'Anguila' },
+    { value: 'AG', label: 'Antigua y Barbuda' },
+    { value: 'AR', label: 'Argentina' },
+    { value: 'AM', label: 'Armenia' },
+    { value: 'AW', label: 'Aruba' },
+    { value: 'AU', label: 'Australia' },
+    { value: 'AT', label: 'Austria' },
+    { value: 'AZ', label: 'Azerbaiyán' },
+    { value: 'BS', label: 'Bahamas' },
+    { value: 'BH', label: 'Baréin' },
+    { value: 'BD', label: 'Bangladesh' },
+    { value: 'BB', label: 'Barbados' },
+    { value: 'BY', label: 'Bielorrusia' },
+    { value: 'BE', label: 'Bélgica' },
+    { value: 'BZ', label: 'Belice' },
+    { value: 'BJ', label: 'Benín' },
+    { value: 'BM', label: 'Bermudas' },
+    { value: 'BT', label: 'Bután' },
+    { value: 'BO', label: 'Bolivia' },
+    { value: 'BA', label: 'Bosnia y Herzegovina' },
+    { value: 'BW', label: 'Botsuana' },
+    { value: 'BR', label: 'Brasil' },
+    { value: 'BN', label: 'Brunéi' },
+    { value: 'BG', label: 'Bulgaria' },
+    { value: 'BF', label: 'Burkina Faso' },
+    { value: 'BI', label: 'Burundi' },
+    { value: 'CV', label: 'Cabo Verde' },
+    { value: 'KH', label: 'Camboya' },
+    { value: 'CM', label: 'Camerún' },
+    { value: 'CA', label: 'Canadá' },
+    { value: 'KY', label: 'Islas Caimán' },
+    { value: 'CF', label: 'República Centroafricana' },
+    { value: 'TD', label: 'Chad' },
+    { value: 'CL', label: 'Chile' },
+    { value: 'CN', label: 'China' },
+    { value: 'CO', label: 'Colombia' },
+    { value: 'KM', label: 'Comoras' },
+    { value: 'CG', label: 'Congo' },
+    { value: 'CD', label: 'República Democrática del Congo' },
+    { value: 'CR', label: 'Costa Rica' },
+    { value: 'HR', label: 'Croacia' },
+    { value: 'CU', label: 'Cuba' },
+    { value: 'CY', label: 'Chipre' },
+    { value: 'CZ', label: 'Chequia' },
+    { value: 'DK', label: 'Dinamarca' },
+    { value: 'DJ', label: 'Yibuti' },
+    { value: 'DM', label: 'Dominica' },
+    { value: 'DO', label: 'República Dominicana' },
+    { value: 'EC', label: 'Ecuador' },
+    { value: 'EG', label: 'Egipto' },
+    { value: 'SV', label: 'El Salvador' },
+    { value: 'GQ', label: 'Guinea Ecuatorial' },
+    { value: 'ER', label: 'Eritrea' },
+    { value: 'EE', label: 'Estonia' },
+    { value: 'SZ', label: 'Esuatini' },
+    { value: 'ET', label: 'Etiopía' },
+    { value: 'FJ', label: 'Fiyi' },
+    { value: 'FI', label: 'Finlandia' },
+    { value: 'FR', label: 'Francia' },
+    { value: 'GA', label: 'Gabón' },
+    { value: 'GM', label: 'Gambia' },
+    { value: 'GE', label: 'Georgia' },
+    { value: 'DE', label: 'Alemania' },
+    { value: 'GH', label: 'Ghana' },
+    { value: 'GR', label: 'Grecia' },
+    { value: 'GD', label: 'Granada' },
+    { value: 'GT', label: 'Guatemala' },
+    { value: 'GN', label: 'Guinea' },
+    { value: 'GW', label: 'Guinea-Bisáu' },
+    { value: 'GY', label: 'Guyana' },
+    { value: 'HT', label: 'Haití' },
+    { value: 'HN', label: 'Honduras' },
+    { value: 'HK', label: 'Hong Kong' },
+    { value: 'HU', label: 'Hungría' },
+    { value: 'IS', label: 'Islandia' },
+    { value: 'IN', label: 'India' },
+    { value: 'ID', label: 'Indonesia' },
+    { value: 'IR', label: 'Irán' },
+    { value: 'IQ', label: 'Irak' },
+    { value: 'IE', label: 'Irlanda' },
+    { value: 'IL', label: 'Israel' },
+    { value: 'IT', label: 'Italia' },
+    { value: 'JM', label: 'Jamaica' },
+    { value: 'JP', label: 'Japón' },
+    { value: 'JO', label: 'Jordania' },
+    { value: 'KZ', label: 'Kazajistán' },
+    { value: 'KE', label: 'Kenia' },
+    { value: 'KI', label: 'Kiribati' },
+    { value: 'KP', label: 'Corea del Norte' },
+    { value: 'KR', label: 'Corea del Sur' },
+    { value: 'KW', label: 'Kuwait' },
+    { value: 'KG', label: 'Kirguistán' },
+    { value: 'LA', label: 'Laos' },
+    { value: 'LV', label: 'Letonia' },
+    { value: 'LB', label: 'Líbano' },
+    { value: 'LS', label: 'Lesoto' },
+    { value: 'LR', label: 'Liberia' },
+    { value: 'LY', label: 'Libia' },
+    { value: 'LI', label: 'Liechtenstein' },
+    { value: 'LT', label: 'Lituania' },
+    { value: 'LU', label: 'Luxemburgo' },
+    { value: 'MO', label: 'Macao' },
+    { value: 'MG', label: 'Madagascar' },
+    { value: 'MW', label: 'Malaui' },
+    { value: 'MY', label: 'Malasia' },
+    { value: 'MV', label: 'Maldivas' },
+    { value: 'ML', label: 'Malí' },
+    { value: 'MT', label: 'Malta' },
+    { value: 'MH', label: 'Islas Marshall' },
+    { value: 'MR', label: 'Mauritania' },
+    { value: 'MU', label: 'Mauricio' },
+    { value: 'MX', label: 'México' },
+    { value: 'FM', label: 'Micronesia' },
+    { value: 'MD', label: 'Moldavia' },
+    { value: 'MC', label: 'Mónaco' },
+    { value: 'MN', label: 'Mongolia' },
+    { value: 'ME', label: 'Montenegro' },
+    { value: 'MA', label: 'Marruecos' },
+    { value: 'MZ', label: 'Mozambique' },
+    { value: 'MM', label: 'Birmania' },
+    { value: 'NA', label: 'Namibia' },
+    { value: 'NR', label: 'Nauru' },
+    { value: 'NP', label: 'Nepal' },
+    { value: 'NL', label: 'Países Bajos' },
+    { value: 'NZ', label: 'Nueva Zelanda' },
+    { value: 'NI', label: 'Nicaragua' },
+    { value: 'NE', label: 'Níger' },
+    { value: 'NG', label: 'Nigeria' },
+    { value: 'NO', label: 'Noruega' },
+    { value: 'OM', label: 'Omán' },
+    { value: 'PK', label: 'Pakistán' },
+    { value: 'PW', label: 'Palaos' },
+    { value: 'PA', label: 'Panamá' },
+    { value: 'PG', label: 'Papúa Nueva Guinea' },
+    { value: 'PY', label: 'Paraguay' },
+    { value: 'PE', label: 'Perú' },
+    { value: 'PH', label: 'Filipinas' },
+    { value: 'PL', label: 'Polonia' },
+    { value: 'PT', label: 'Portugal' },
+    { value: 'QA', label: 'Catar' },
+    { value: 'RO', label: 'Rumania' },
+    { value: 'RU', label: 'Rusia' },
+    { value: 'RW', label: 'Ruanda' },
+    { value: 'KN', label: 'San Cristóbal y Nieves' },
+    { value: 'LC', label: 'Santa Lucía' },
+    { value: 'VC', label: 'San Vicente y las Granadinas' },
+    { value: 'WS', label: 'Samoa' },
+    { value: 'SM', label: 'San Marino' },
+    { value: 'ST', label: 'Santo Tomé y Príncipe' },
+    { value: 'SA', label: 'Arabia Saudita' },
+    { value: 'SN', label: 'Senegal' },
+    { value: 'RS', label: 'Serbia' },
+    { value: 'SC', label: 'Seychelles' },
+    { value: 'SL', label: 'Sierra Leona' },
+    { value: 'SG', label: 'Singapur' },
+    { value: 'SK', label: 'Eslovaquia' },
+    { value: 'SI', label: 'Eslovenia' },
+    { value: 'SB', label: 'Islas Salomón' },
+    { value: 'SO', label: 'Somalia' },
+    { value: 'ZA', label: 'Sudáfrica' },
+    { value: 'ES', label: 'España' },
+    { value: 'LK', label: 'Sri Lanka' },
+    { value: 'SD', label: 'Sudán' },
+    { value: 'SR', label: 'Surinam' },
+    { value: 'SE', label: 'Suecia' },
+    { value: 'CH', label: 'Suiza' },
+    { value: 'SY', label: 'Siria' },
+    { value: 'TW', label: 'Taiwán' },
+    { value: 'TJ', label: 'Tayikistán' },
+    { value: 'TZ', label: 'Tanzania' },
+    { value: 'TH', label: 'Tailandia' },
+    { value: 'TL', label: 'Timor Oriental' },
+    { value: 'TG', label: 'Togo' },
+    { value: 'TO', label: 'Tonga' },
+    { value: 'TT', label: 'Trinidad y Tobago' },
+    { value: 'TN', label: 'Túnez' },
+    { value: 'TR', label: 'Turquía' },
+    { value: 'TM', label: 'Turkmenistán' },
+    { value: 'TV', label: 'Tuvalu' },
+    { value: 'UG', label: 'Uganda' },
+    { value: 'UA', label: 'Ucrania' },
+    { value: 'AE', label: 'Emiratos Árabes Unidos' },
+    { value: 'GB', label: 'Reino Unido' },
+    { value: 'US', label: 'Estados Unidos' },
+    { value: 'UY', label: 'Uruguay' },
+    { value: 'UZ', label: 'Uzbekistán' },
+    { value: 'VU', label: 'Vanuatu' },
+    { value: 'VA', label: 'Ciudad del Vaticano' },
+    { value: 'VE', label: 'Venezuela' },
+    { value: 'VN', label: 'Vietnam' },
+    { value: 'YE', label: 'Yemen' },
+    { value: 'ZM', label: 'Zambia' },
+    { value: 'ZW', label: 'Zimbabue' },
+    // Añadir más países si es necesario
+];
 function Clients() {
     const [clients, setClients] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredClients, setFilteredClients] = useState([]);
+    const [searchTerm, setSearchTerm] = useState(localStorage.getItem('searchTerm') || '');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20);
-    const [lastSearch, setLastSearch] = useState('');
-    const [singleClientView, setSingleClientView] = useState(false);
+    const [itemsPerPage] = useState(10); // Número de clientes por página
+    const [totalClients, setTotalClients] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
-    const [selectedProvince, setSelectedProvince] = useState(null);
+    const [selectedProvince, setSelectedProvince] = useState(JSON.parse(localStorage.getItem('selectedProvince')) || null);
+    const [selectedCountry, setSelectedCountry] = useState(localStorage.getItem('selectedCountry') || null);
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [clientBillings, setClientBillings] = useState({});
+    const [singleClientView, setSingleClientView] = useState(false);
 
     useEffect(() => {
-        const fetchClients = async () => {
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                setClients(data);
-                setFilteredClients(data);
-                fetchClientBillings(data);
-            } catch (error) {
-                console.error('Error fetching client data:', error);
-            }
-        };
-
-        const fetchClientBillings = async (clients) => {
-            try {
-                const billingPromises = clients.map(client =>
-                    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            const totalBilling = data.reduce((sum, product) => {
-                                let importe = parseFloat(product.importe) || 0;
-                                const dt1 = parseFloat(product.dt1) || 0;
-                                const dt2 = parseFloat(product.dt2) || 0;
-                                const dt3 = parseFloat(product.dt3) || 0;
-                                if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
-                                if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
-                                if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
-                                if (importe < 0) importe = 0;
-                                return sum + importe;
-                            }, 0);
-                            return { clientId: client.codclien, totalBilling };
-                        })
-                );
-
-                const billings = await Promise.all(billingPromises);
-                const billingsMap = billings.reduce((map, billing) => {
-                    map[billing.clientId] = billing.totalBilling;
-                    return map;
-                }, {});
-                setClientBillings(billingsMap);
-            } catch (error) {
-                console.error('Error fetching client billings:', error);
-            }
-        };
-
         fetchClients();
-    }, [currentPage, itemsPerPage]);
+    }, [currentPage, selectedCountry, selectedProvince]);
+
+    useEffect(() => {
+        localStorage.setItem('searchTerm', searchTerm);
+        localStorage.setItem('selectedProvince', JSON.stringify(selectedProvince));
+        localStorage.setItem('selectedCountry', selectedCountry);
+    }, [searchTerm, selectedProvince, selectedCountry]);
+
+    const fetchClients = async () => {
+        try {
+            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
+            if (selectedCountry) {
+                url += `&codpais=${selectedCountry}`;
+            }
+            if (selectedProvince) {
+                url += `&codprovi=${selectedProvince.value}`;
+            }
+            if (searchTerm) {
+                url += `&query=${searchTerm}`;
+            }
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (Array.isArray(data.clients)) {
+                setClients(data.clients);
+                setTotalClients(data.total);
+                fetchClientBillings(data.clients);
+                setSingleClientView(data.clients.length === 1);
+            } else {
+                console.error('El dato recibido no es un array:', data);
+            }
+        } catch (error) {
+            console.error('Error fetching client data:', error);
+        }
+    };
+
+    const fetchClientBillings = async (clients) => {
+        if (!Array.isArray(clients)) {
+            console.error('clients no es un array:', clients);
+            return;
+        }
+
+        try {
+            const billingPromises = clients.map(client =>
+                fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const totalBilling = data.reduce((sum, product) => {
+                            let importe = parseFloat(product.importe) || 0;
+                            const dt1 = parseFloat(product.dt1) || 0;
+                            const dt2 = parseFloat(product.dt2) || 0;
+                            const dt3 = parseFloat(product.dt3) || 0;
+                            if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
+                            if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
+                            if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
+                            if (importe < 0) importe = 0;
+                            return sum + importe;
+                        }, 0);
+                        return { clientId: client.codclien, totalBilling };
+                    })
+            );
+
+            const billings = await Promise.all(billingPromises);
+            const billingsMap = billings.reduce((map, billing) => {
+                map[billing.clientId] = billing.totalBilling;
+                return map;
+            }, {});
+            setClientBillings(billingsMap);
+        } catch (error) {
+            console.error('Error fetching client billings:', error);
+        }
+    };
 
     useEffect(() => {
         if (searchTerm.length >= 3) {
@@ -144,80 +373,25 @@ function Clients() {
         }
     }, [searchTerm]);
 
-    const performSearch = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${query}&limit=${itemsPerPage}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                setFilteredClients(data);
-                setSingleClientView(data.length === 1);
-                fetchClientBillings(data);
-            })
-            .catch(error => console.error('Error performing search:', error));
-    };
-
-    useEffect(() => {
-        if (selectedProvince) {
-            const provinceValue = selectedProvince.value;
-            const url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/province/${provinceValue}`;
-
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        return response.text().then(text => {
-                            throw new Error(`Network response was not ok: ${text}`);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    setFilteredClients(data);
-                    fetchClientBillings(data);
-                })
-                .catch(error => console.error('Error fetching clients:', error));
-        } else {
-            setFilteredClients(clients);
-        }
-    }, [selectedProvince, clients]);
-
     const handleSearchInputChange = (event) => {
         setSearchTerm(event.target.value);
     };
 
     const handleSearchKeyPress = (event) => {
         if (event.key === 'Enter') {
-            setLastSearch(searchTerm);
-            performSearch(searchTerm);
-            setSearchTerm('');
+            setCurrentPage(1);
+            fetchClients();
         }
     };
 
     const handleSuggestionClick = (client) => {
-        setFilteredClients([client]);
-        setLastSearch(client.razclien);
-        setSingleClientView(true);
-        setSearchTerm('');
-        setSuggestions([]);
-        fetchClientBillings([client]);
-    };
-
-    const handleShowAll = () => {
-        setSearchTerm('');
-        setFilteredClients(clients);
-        setSingleClientView(false);
+        setSearchTerm(client.razclien);
+        setCurrentPage(1);
+        fetchClients();
     };
 
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
-    };
-
-    const handleLastSearchClick = () => {
-        performSearch(lastSearch);
-        setSearchTerm('');
     };
 
     const handleClientClick = async (codclien) => {
@@ -251,11 +425,24 @@ function Clients() {
 
     const handleProvinceChange = (selectedOption) => {
         setSelectedProvince(selectedOption);
+        setSearchTerm('');
+        setCurrentPage(1);
+        fetchClients();
+    };
+
+    const handleCountryChange = (selectedOption) => {
+        setSelectedCountry(selectedOption ? selectedOption.value : null);
+        setSearchTerm('');
+        setCurrentPage(1);
+        fetchClients();
     };
 
     const handleClearFilter = () => {
         setSelectedProvince(null);
-        setFilteredClients(clients); // Reset filtered clients to the original clients list
+        setSelectedCountry(null);
+        setSearchTerm('');
+        setCurrentPage(1);
+        fetchClients();
     };
 
     const getClientColor = (totalBilling) => {
@@ -265,12 +452,7 @@ function Clients() {
         return 'bg-blue-500';
     };
 
-    const updateClientBilling = (clientId, billing) => {
-        setClientBillings(prevBillings => ({
-            ...prevBillings,
-            [clientId]: billing
-        }));
-    };
+    const totalPages = Math.ceil(totalClients / itemsPerPage);
 
     return (
         <div className="container mx-auto justify-center text-center py-4 px-4 md:px-8">
@@ -282,46 +464,49 @@ function Clients() {
                 handleSearchKeyPress={handleSearchKeyPress}
                 handleSuggestionClick={handleSuggestionClick}
             />
-            {lastSearch && (
-                <button
-                    onClick={handleLastSearchClick}
-                    className="mb-4 px-4 py-2 bg-yellow-400 text-white rounded cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600"
-                >
-                    Última búsqueda: {lastSearch}
-                </button>
-            )}
-            <div className="mb-4">
-                <label htmlFor="provinceFilter" className="block text-sm font-medium text-gray-700">Filtrar por Provincia</label>
-                <div className="flex items-center mt-2">
-                    <Select
-                        id="provinceFilter"
-                        options={provinces}
-                        value={selectedProvince}
-                        onChange={handleProvinceChange}
-                        className="flex-1"
-                        placeholder="Seleccione una provincia"
-                    />
-                    <button
-                        onClick={handleClearFilter}
-                        className="ml-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
-                    >
-                        Limpiar
-                    </button>
+            <div className="mb-4 flex justify-between items-center">
+                <div className="flex space-x-4">
+                    <div className="w-48">
+                        <label htmlFor="countryFilter" className="block text-sm font-medium text-gray-700">País</label>
+                        <Select
+                            id="countryFilter"
+                            options={countryCodes}
+                            value={countryCodes.find(option => option.value === selectedCountry)}
+                            onChange={handleCountryChange}
+                            placeholder="Seleccione un país"
+                        />
+                    </div>
+                    <div className="w-48">
+                        <label htmlFor="provinceFilter" className="block text-sm font-medium text-gray-700">Provincia</label>
+                        <Select
+                            id="provinceFilter"
+                            options={provinces}
+                            value={selectedProvince}
+                            onChange={handleProvinceChange}
+                            placeholder="Seleccione una provincia"
+                        />
+                    </div>
                 </div>
+                <button
+                    onClick={handleClearFilter}
+                    className="ml-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
+                >
+                    Limpiar Filtros
+                </button>
             </div>
             <ClientTable
-                clients={filteredClients}
+                clients={clients}
                 handleClientClick={handleClientClick}
                 handleVisitClick={handleVisitClick}
                 clientBillings={clientBillings}
                 getClientColor={getClientColor}
             />
-            {!singleClientView && (
-                <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} />
+            {!singleClientView && totalPages > 1 && (
+                <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} totalPages={totalPages} />
             )}
             {singleClientView && (
                 <button
-                    onClick={handleShowAll}
+                    onClick={handleClearFilter}
                     className="mt-4 px-4 py-2 bg-green-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-300"
                 >
                     Mostrar todos
@@ -331,7 +516,6 @@ function Clients() {
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}
                 closeModal={closeModal}
-                updateClientBilling={updateClientBilling}
             />
             <VisitModal
                 modalVisible={visitModalVisible}

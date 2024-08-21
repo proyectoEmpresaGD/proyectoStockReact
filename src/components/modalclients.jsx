@@ -9,11 +9,11 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
-    const [selectedFilter, setSelectedFilter] = useState('LIBRO');
+    const [selectedFilter, setSelectedFilter] = useState('');
     const [sortOrder, setSortOrder] = useState('newest');
-    const [filteredLibros, setFilteredLibros] = useState([]);
-    const [selectedMarca, setSelectedMarca] = useState('CJM');
-    const filters = ["LIBRO", "PERCHA", "QUALITY"];
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [selectedMarca, setSelectedMarca] = useState('');
+    const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
     const marcas = ["FLA", "CJM", "HAR", "ARE"];
 
     useEffect(() => {
@@ -100,6 +100,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
 
     const handleFilterChange = (filter) => {
         setSelectedFilter(filter);
+        fetchFilteredProducts(selectedMarca, filter);
     };
 
     const toggleSortOrder = () => {
@@ -113,33 +114,27 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         return products.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     };
 
-    const fetchLibrosByMarca = async (codmarca) => {
+    const fetchFilteredProducts = async (codmarca, filter) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${selectedFilter}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${filter}`);
             if (response.ok) {
-                const libros = await response.json();
-                setFilteredLibros(libros);
+                const products = await response.json();
+                setFilteredProducts(products);
             } else {
-                console.error('Failed to fetch libros by marca');
+                console.error('Failed to fetch products by filter');
             }
         } catch (error) {
-            console.error('Error fetching libros by marca:', error);
+            console.error('Error fetching products by filter:', error);
         }
     };
 
     const handleMarcaClick = (codmarca) => {
         setSelectedMarca(codmarca);
-        fetchLibrosByMarca(codmarca);
+        fetchFilteredProducts(codmarca, selectedFilter);
     };
 
-    useEffect(() => {
-        if (selectedMarca) {
-            fetchLibrosByMarca(selectedMarca);
-        }
-    }, [selectedFilter]);
-
-    const filteredProducts = applyFilter(purchasedProducts, selectedFilter);
-    const sortedFilteredProducts = sortProducts(filteredProducts, sortOrder);
+    const filteredPurchasedProducts = applyFilter(purchasedProducts, selectedFilter);
+    const sortedFilteredProducts = sortProducts(filteredPurchasedProducts, sortOrder);
 
     const formatDate = (dateString) => {
         if (!dateString) return 'No data';
@@ -174,7 +169,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                         ))}
                     </div>
                     <div className="flex flex-wrap ml-4">
-                        {filters.map(filter => (
+                        {["LIBRO", "PERCHA", "QUALITY"].map(filter => (
                             <button
                                 key={filter}
                                 onClick={() => handleFilterChange(filter)}
@@ -199,12 +194,12 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredLibros.length > 0 ? (
-                                filteredLibros.map((libro, index) => (
+                            {filteredProducts.length > 0 ? (
+                                filteredProducts.map((product, index) => (
                                     <tr key={index} className="border-b">
-                                        <td className="px-4 py-2">{libro.desprodu}</td>
+                                        <td className="px-4 py-2">{product.desprodu}</td>
                                         <td className="px-4 py-2">
-                                            {purchasedProducts.some(p => p.codprodu === libro.codprodu) ? '✔️' : '❌'}
+                                            {purchasedProducts.some(p => p.codprodu === product.codprodu) ? '✔️' : '❌'}
                                         </td>
                                     </tr>
                                 ))

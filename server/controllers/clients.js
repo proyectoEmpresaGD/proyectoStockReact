@@ -4,15 +4,20 @@ import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
 export class ClienteController {
     async getAll(req, res) {
         try {
-            const { page = 1, limit = 20 } = req.query;
+            const { page = 1, limit = 10, codpais, codprovi, query } = req.query;
             const offset = (page - 1) * limit;
-            const clientes = await ClienteModel.getAll({ offset, limit });
-            res.json(clientes);
+
+            // Obtén los clientes filtrados por país, provincia y/o búsqueda
+            const clientes = await ClienteModel.getAll({ offset, limit, codpais, codprovi, query });
+            const totalClientes = await ClienteModel.getCount({ codpais, codprovi, query });
+
+            // Retorna los clientes y la cantidad total para manejar la paginación en el frontend
+            res.json({ clients: clientes, total: totalClientes });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     }
-    
+
     async getById(req, res) {
         try {
             const { codclien } = req.params;
@@ -97,7 +102,7 @@ export class ClienteController {
             res.status(500).json({ error: error.message });
         }
     }
-    
+
     async getByProvince(req, res) {
         try {
             const { codprovi } = req.params;

@@ -10,17 +10,31 @@ const pool = new pg.Pool({
 
 export class ClienteModel {
 
-    static async getAll({ offset, limit }) {
-        const query = `
-            SELECT * 
-            FROM clientes
-            ORDER BY localidad
-            LIMIT $1 OFFSET $2
-        `;
-        const params = [limit, offset];
+    static async getAll({ offset, limit, codpais, codprovi, query }) {
+        let queryText = `SELECT * FROM clientes WHERE 1=1`;
+        const params = [];
+
+        if (codpais) {
+            queryText += ` AND codpais = $${params.length + 1}`;
+            params.push(codpais);
+        }
+
+        if (codprovi) {
+            queryText += ` AND codprovi = $${params.length + 1}`;
+            params.push(codprovi);
+        }
+
+        if (query) {
+            queryText += ` AND razclien ILIKE $${params.length + 1}`;
+            params.push(`%${query}%`);
+        }
+
+        // Ordenamos por localidad y aplicamos la paginación
+        queryText += ` ORDER BY localidad LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
 
         try {
-            const { rows } = await pool.query(query, params);
+            const { rows } = await pool.query(queryText, params);
             return rows;
         } catch (error) {
             console.error('Error fetching clients:', error);
@@ -28,21 +42,50 @@ export class ClienteModel {
         }
     }
 
+
+    static async getCount({ codpais, codprovi, query }) {
+        let queryText = `SELECT COUNT(*) FROM clientes WHERE 1=1`;
+        const params = [];
+
+        if (codpais) {
+            queryText += ` AND codpais = $${params.length + 1}`;
+            params.push(codpais);
+        }
+
+        if (codprovi) {
+            queryText += ` AND codprovi = $${params.length + 1}`;
+            params.push(codprovi);
+        }
+
+        if (query) {
+            queryText += ` AND razclien ILIKE $${params.length + 1}`;
+            params.push(`%${query}%`);
+        }
+
+        try {
+            const { rows } = await pool.query(queryText, params);
+            return parseInt(rows[0].count, 10);
+        } catch (error) {
+            console.error('Error counting clients:', error);
+            throw new Error('Error counting clients');
+        }
+    }
+
     static async search({ query, limit = 4 }) {
         try {
-          const searchQuery = `
+            const searchQuery = `
                 SELECT * FROM clientes
                 WHERE "razclien" ILIKE $1
                 LIMIT $2;
             `;
-          const values = [`%${query}%`, limit];
-          const { rows } = await pool.query(searchQuery, values);
-          return rows;
+            const values = [`%${query}%`, limit];
+            const { rows } = await pool.query(searchQuery, values);
+            return rows;
         } catch (error) {
-          console.error('Error searching products:', error);
-          throw new Error('Error searching products');
+            console.error('Error searching products:', error);
+            throw new Error('Error searching products');
         }
-      }
+    }
 
     static async getById({ codclien }) {
         const { rows } = await pool.query(`
