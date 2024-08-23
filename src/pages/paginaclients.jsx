@@ -270,7 +270,7 @@ function Clients() {
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20); // Número de clientes por página ahora es 20 por defecto
+    const [itemsPerPage] = useState(20); // Número de clientes por página
     const [totalClients, setTotalClients] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
@@ -282,7 +282,6 @@ function Clients() {
     const [singleClientView, setSingleClientView] = useState(false);
 
     useEffect(() => {
-        // Fetch initial set of clients on page load
         fetchClients();
     }, [currentPage, selectedCountry, selectedProvince]);
 
@@ -515,6 +514,7 @@ function Clients() {
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}
                 closeModal={closeModal}
+                updateClientBilling={(clientId, billing) => setClientBillings(prev => ({ ...prev, [clientId]: billing }))}
             />
             <VisitModal
                 modalVisible={visitModalVisible}

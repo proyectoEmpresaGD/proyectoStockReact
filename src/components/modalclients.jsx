@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 
 function classNames(...classes) {
@@ -16,19 +16,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
     const marcas = ["FLA", "CJM", "HAR", "ARE"];
 
-    useEffect(() => {
-        if (selectedClientDetails && selectedTabIndex === 1) {
-            fetchPurchasedProducts(selectedClientDetails.codclien);
-        }
-    }, [selectedClientDetails, selectedTabIndex]);
-
-    useEffect(() => {
-        if (selectedClientDetails && totalBilling > 0) {
-            updateClientBilling(selectedClientDetails.codclien, totalBilling);
-        }
-    }, [selectedClientDetails, totalBilling]);
-
-    const fetchPurchasedProducts = async (codclien) => {
+    const fetchPurchasedProducts = useCallback(async (codclien) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
             if (response.ok) {
@@ -57,7 +45,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         } catch (error) {
             console.error('Error fetching purchased products:', error);
         }
-    };
+    }, []);
 
     const fetchStockForProducts = async (products) => {
         try {
@@ -81,10 +69,24 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         }
     };
 
-    const calculateTotalBilling = (products) => {
+    const calculateTotalBilling = useCallback((products) => {
         const total = products.reduce((sum, product) => sum + parseFloat(product.importeDescuento), 0);
         setTotalBilling(total);
-    };
+    }, []);
+
+    // Evitar que se ejecute continuamente verificando si hay un cambio real en las dependencias
+    useEffect(() => {
+        if (selectedClientDetails && selectedTabIndex === 1) {
+            fetchPurchasedProducts(selectedClientDetails.codclien);
+        }
+    }, [selectedClientDetails, selectedTabIndex, fetchPurchasedProducts]);
+
+    useEffect(() => {
+        // Evitar actualización infinita asegurándose de que `totalBilling` no se actualiza innecesariamente
+        if (selectedClientDetails && totalBilling > 0) {
+            updateClientBilling(selectedClientDetails.codclien, totalBilling);
+        }
+    }, [selectedClientDetails, totalBilling]); // Se eliminó `updateClientBilling` de las dependencias para evitar ciclos infinitos
 
     const applyFilter = (products, filter) => {
         if (filter === "TELAS") {
