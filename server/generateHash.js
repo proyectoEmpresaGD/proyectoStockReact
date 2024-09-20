@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 
-const password = 'DANIEL07';
+const password = 'IOSYSTEM09';
 const saltRounds = 10;
 
 bcrypt.hash(password, saltRounds, function (err, hash) {

@@ -1,10 +1,15 @@
+import React from 'react';
+import { AiOutlineClose } from 'react-icons/ai'; // Importar el icono de cierre desde react-icons
+
 function ProductModal({ modalVisible, selectedProductLots, closeModal }) {
     return (
         modalVisible && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
                 <div className="bg-white p-4 rounded shadow-lg max-w-4xl w-full relative">
                     <h2 className="text-xl font-bold mb-4">Lotes del Producto</h2>
-                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800"><img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="" /></button>
+                    <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
+                        <AiOutlineClose size={24} />
+                    </button>
                     {Array.isArray(selectedProductLots) && selectedProductLots.length > 0 ? (
                         <div className="max-h-96 overflow-y-auto">
                             <table className="min-w-full bg-white border border-gray-300 text-sm">

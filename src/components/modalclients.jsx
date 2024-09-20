@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
+import { AiOutlineClose } from 'react-icons/ai'; // Importar el icono de cierre desde react-icons
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
@@ -74,7 +75,6 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         setTotalBilling(total);
     }, []);
 
-    // Evitar que se ejecute continuamente verificando si hay un cambio real en las dependencias
     useEffect(() => {
         if (selectedClientDetails && selectedTabIndex === 1) {
             fetchPurchasedProducts(selectedClientDetails.codclien);
@@ -82,11 +82,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     }, [selectedClientDetails, selectedTabIndex, fetchPurchasedProducts]);
 
     useEffect(() => {
-        // Evitar actualización infinita asegurándose de que `totalBilling` no se actualiza innecesariamente
         if (selectedClientDetails && totalBilling > 0) {
             updateClientBilling(selectedClientDetails.codclien, totalBilling);
         }
-    }, [selectedClientDetails, totalBilling]); // Se eliminó `updateClientBilling` de las dependencias para evitar ciclos infinitos
+    }, [selectedClientDetails, totalBilling]);
 
     const applyFilter = (products, filter) => {
         if (filter === "TELAS") {
@@ -223,7 +222,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                 <div className="bg-white p-4 rounded shadow-lg max-w-6xl w-full relative mx-2">
                     <h2 className="text-xl font-bold mb-4">Detalles del Cliente</h2>
                     <button onClick={closeModal} className="absolute top-2 right-2 text-gray-600 w-8 hover:text-gray-800">
-                        <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/close.svg" alt="Cerrar" />
+                        <AiOutlineClose size={24} />
                     </button>
                     {selectedClientDetails ? (
                         <div className="max-h-96 overflow-y-auto">
