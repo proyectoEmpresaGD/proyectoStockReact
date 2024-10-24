@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import SignaturePad from 'react-signature-canvas';
-import { useAuthContext } from '../AuthContext'; // Importar el contexto de autenticación
+import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
 
 const FirmaModal = ({ isOpen, onClose, onSave }) => {
     const { user } = useAuthContext(); // Obtener el usuario autenticado

@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
-import SearchBar from '../components/SearchBar';
-import ProductTable from '../components/ProductTable';
+import SearchBar from '../components/productos/SearchBar';
+import ProductTable from '../components/productos/ProductTable';
 import PaginationControls from '../components/PaginationControls';
-import ProductModal from '../components/ProductModal';
-import { useAuthContext } from '../AuthContext';
+import ProductModal from '../components/productos/ProductModal';
+import { useAuthContext } from '../Auth/AuthContext';
 
 function Stock() {
     const { token } = useAuthContext();

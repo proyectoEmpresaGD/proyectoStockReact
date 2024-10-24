@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { AiOutlineClose } from 'react-icons/ai';
-import { useAuthContext } from '../AuthContext'; // Importar el contexto de autenticación
+import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');

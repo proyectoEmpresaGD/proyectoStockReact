@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'; // Asegúrate de que useState esté importado
 import { HashRouter as Router, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './AuthContext';
-import ProtectedRoute from './ProtectedRoute';
+import { AuthProvider } from './Auth/AuthContext.jsx';
+import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Home from './pages/Home';
 import Stock from './pages/paginaStock';
 import Clients from './pages/paginaclients';
@@ -9,7 +9,7 @@ import Admin from './pages/Admin';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
-import EquivalenciasTable from './components/EquivalenciasTable';
+import EquivalenciasTable from './components/equivalencias/EquivalenciasTable.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
