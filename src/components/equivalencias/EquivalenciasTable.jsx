@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import SearchBarEquivalencias from './SearchBarEquivalencias';
-import SearchBar from './SearchBar';
-import { useAuthContext } from '../AuthContext';
+import SearchBar from '../productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 
 const EquivalenciasTable = () => {
     const { user, token } = useAuthContext();
@@ -166,7 +166,7 @@ const EquivalenciasTable = () => {
                         suggestions={suggestionsProveedor}
                         handleSearchInputChange={(e) => setSearchTermProveedor(e.target.value)}
                         handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchProveedor(searchTermProveedor); }}
-                        handleSuggestionClick={handleSuggestionClickProveedor}
+                        handleSuggestionClick={performSearchProveedor}
                     />
                     <SearchBar
                         searchTerm={searchTermCJMW}
@@ -174,7 +174,7 @@ const EquivalenciasTable = () => {
                         suggestions={suggestionsCJMW}
                         handleSearchInputChange={(e) => setSearchTermCJMW(e.target.value)}
                         handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchCJMW(searchTermCJMW); }}
-                        handleSuggestionClick={handleSuggestionClickCJMW}
+                        handleSuggestionClick={performSearchCJMW}
                     />
                 </div>
             </div>

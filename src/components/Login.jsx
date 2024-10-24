@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom'; // Para redirección después de login
-import { useAuthContext } from '../AuthContext.jsx'; // Contexto de autenticación
+import { useAuthContext } from '../Auth/AuthContext.jsx'; // Contexto de autenticación
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function Login() {

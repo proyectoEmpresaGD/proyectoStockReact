@@ -1,6 +1,6 @@
 import { FaBars } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useAuthContext } from '../AuthContext';
+import { useAuthContext } from '../Auth/AuthContext';
 
 function Header({ toggleSidebar }) {
     const { logout } = useAuthContext();

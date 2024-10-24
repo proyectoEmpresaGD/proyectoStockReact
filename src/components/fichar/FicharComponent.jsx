@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthContext } from '../AuthContext.jsx'; // Cambiado a useAuthContext
+import { useAuthContext } from '../../Auth/AuthContext.jsx'; // Cambiado a useAuthContext
 import jsPDF from 'jspdf';
 import moment from 'moment-timezone';
 import FirmaModal from './FirmaModal';

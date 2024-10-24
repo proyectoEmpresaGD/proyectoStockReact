@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlane } from '@fortawesome/free-solid-svg-icons';
-import { useAuthContext } from '../AuthContext'; // Importar el contexto de autenticación
+import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
 
 function ClientTable({ clients, handleClientClick, handleVisitClick, clientBillings, getClientColor }) {
     const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0, clientId: null });
