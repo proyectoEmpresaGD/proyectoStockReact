@@ -9,7 +9,6 @@ import Admin from './pages/Admin';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
-import FicharPage from './pages/Fichar.jsx';
 import EquivalenciasTable from './components/EquivalenciasTable';
 
 function App() {
@@ -34,7 +33,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Home />} />
                       <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
-                      <Route path="/stock" element={<ProtectedRoute requiredRole="comercial"><Stock /></ProtectedRoute>} />
+                      <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                       <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
                       <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><EquivalenciasTable /></ProtectedRoute>} />
                     </Routes>
