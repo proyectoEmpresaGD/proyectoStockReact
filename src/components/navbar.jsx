@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock, FaCubes, FaBalanceScale } from 'react-icons/fa';
-import { useAuth } from '../AuthContext';
+import { useAuthContext } from '../AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [productosDropdownOpen, setProductosDropdownOpen] = useState(false);
-    const { user } = useAuth();
+    const { user } = useAuthContext();
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
@@ -19,12 +19,13 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     return (
         <>
             <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} onClick={closeSidebar}></div>
-            <nav className={`fixed top-0 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 md:sticky md:top-0`}>
+            <nav className={`fixed mt-20 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300`}>
                 <button onClick={closeSidebar} className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4">
                     <FaTimes />
                 </button>
-                <div className="h-full overflow-y-auto">
+                <div className="h-screen overflow-y-auto">
                     <ul className="mt-4 space-y-2">
+                        {/* Rutas accesibles por comercial y admin */}
                         {user && (user.role === 'admin' || user.role === 'comercial') && (
                             <li>
                                 <NavLink
@@ -37,6 +38,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 </NavLink>
                             </li>
                         )}
+                        {/* Rutas accesibles solo para admin */}
                         {user && user.role === 'admin' && (
                             <li>
                                 <NavLink
@@ -49,6 +51,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 </NavLink>
                             </li>
                         )}
+                        {/* Rutas comunes accesibles por todos */}
                         <li>
                             <NavLink
                                 to="/settings"
@@ -69,6 +72,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 Analitic
                             </NavLink>
                         </li>
+
+                        {/* Menú desplegable de productos accesible por almacen y admin */}
                         <li>
                             <div
                                 onClick={toggleProductosDropdown}
@@ -105,7 +110,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 </ul>
                             )}
                         </li>
-                        <li>
+
+                        {/* Rutas accesibles por todos los roles */}
+                        {/* <li>
                             <NavLink
                                 to="/fichar"
                                 className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
@@ -114,7 +121,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 <FaClock className="mr-3 text-lg" />
                                 Fichar
                             </NavLink>
-                        </li>
+                        </li> */}
+
+                        {/* Menú desplegable de aplicaciones accesible por todos */}
                         <li>
                             <div
                                 onClick={toggleDropdown}

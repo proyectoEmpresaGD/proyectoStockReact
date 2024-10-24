@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
-import { AiOutlineClose } from 'react-icons/ai'; // Importar el icono de cierre desde react-icons
+import { AiOutlineClose } from 'react-icons/ai';
+import { useAuthContext } from '../AuthContext'; // Importar el contexto de autenticación
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
 
 function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateClientBilling }) {
+    const { token } = useAuthContext(); // Obtener el token del contexto de autenticación
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
@@ -19,7 +21,11 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
 
     const fetchPurchasedProducts = useCallback(async (codclien) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                },
+            });
             if (response.ok) {
                 const data = await response.json();
                 const productsWithDiscounts = data.map(product => {
@@ -46,11 +52,15 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         } catch (error) {
             console.error('Error fetching purchased products:', error);
         }
-    }, []);
+    }, [token]); // Añadido token como dependencia
 
     const fetchStockForProducts = async (products) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                },
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -82,10 +92,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     }, [selectedClientDetails, selectedTabIndex, fetchPurchasedProducts]);
 
     useEffect(() => {
-        if (selectedClientDetails && totalBilling > 0) {
+        if (selectedClientDetails && totalBilling > 0 && typeof updateClientBilling === 'function') {
             updateClientBilling(selectedClientDetails.codclien, totalBilling);
         }
-    }, [selectedClientDetails, totalBilling]);
+    }, [selectedClientDetails, totalBilling, updateClientBilling]);
 
     const applyFilter = (products, filter) => {
         if (filter === "TELAS") {
@@ -117,7 +127,11 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
 
     const fetchFilteredProducts = async (codmarca, filter) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${filter}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${filter}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                },
+            });
             if (response.ok) {
                 const products = await response.json();
                 setFilteredProducts(products);

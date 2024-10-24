@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { useAuth } from '../AuthContext';
+import { useNavigate } from 'react-router-dom'; // Para redirección después de login
+import { useAuthContext } from '../AuthContext.jsx'; // Contexto de autenticación
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function Login() {
@@ -8,15 +9,16 @@ function Login() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const { login } = useAuth();
+    const { login } = useAuthContext(); // Contexto de autenticación
     const passwordRef = useRef(null);
     const usernameRef = useRef(null);
+    const navigate = useNavigate(); // Hook de navegación
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (password.includes(' ')) {
-            setError('Password should not contain spaces');
+            setError('La contraseña no debe contener espacios.');
             return;
         }
 
@@ -33,9 +35,15 @@ function Login() {
             }
 
             const data = await response.json();
-            login(data);
+
+            // Guardamos el token, refresh token y otros datos del usuario en el contexto de autenticación
+            login(data.token, data.refreshToken, { userId: data.user.id, role: data.user.role });
+
             setSuccess(true);
             setError('');
+
+            // Redirigir al Home tras el login exitoso
+            navigate('/');
         } catch (error) {
             setError(error.message);
             setSuccess(false);
@@ -59,29 +67,30 @@ function Login() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <div className="container mx-auto p-6 md:p-8 border border-black bg-white shadow-md max-w-md">
-                <h1 className="text-2xl font-bold mb-4 text-center">
-                    <img src="https://cjmw.eu/ImagenesTelasCjmw/Iconos/CJM-new-transparente.svg" alt="Logo" className='h-24 mx-auto' />
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-400 to-purple-500">
+            <div className="container mx-auto p-6 md:p-8 border border-gray-200 bg-white rounded-lg shadow-lg max-w-md">
+                <h1 className="text-3xl font-bold mb-6 text-center text-gray-700">
+                    <img src="https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoCJM_group.png" alt="Logo" className='h-24 mx-auto mb-4' />
+                    Iniciar Sesión
                 </h1>
-                {error && <div className="text-red-500 mb-4 text-center">{error}</div>}
-                {success && <div className="text-green-500 mb-4 text-center">Login successful</div>}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="text-red-600 bg-red-100 p-3 rounded mb-4 text-center">{error}</div>}
+                {success && <div className="text-green-600 bg-green-100 p-3 rounded mb-4 text-center">Inicio de sesión exitoso</div>}
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <input
                             type="text"
-                            placeholder="Username"
+                            placeholder="Nombre de Usuario"
                             value={username}
                             onChange={(e) => setUsername(e.target.value.toUpperCase())}
                             onKeyDown={handleUsernameKeyPress}
                             ref={usernameRef}
-                            className="w-full p-2 border rounded text-center text-lg border-gray-300 text-gray-700 font-bold bg-gray-100 hover:text-xl hover:bg-gray-200 duration-200"
+                            className="w-full p-3 border border-gray-300 rounded-lg text-center text-lg bg-gray-50 text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         />
                     </div>
                     <div className="relative">
                         <input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Password"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="Contraseña"
                             value={password}
                             ref={passwordRef}
                             onChange={(e) => setPassword(e.target.value.toUpperCase())}
@@ -89,18 +98,18 @@ function Login() {
                             onKeyPress={(e) => {
                                 if (e.key === 'Enter') handleSubmit(e);
                             }}
-                            className="w-full p-2 text-lg border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 hover:text-xl hover:bg-gray-200 duration-200"
+                            className="w-full p-3 text-lg border border-gray-300 rounded-lg text-center bg-gray-50 text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         />
                         <button
                             type="button"
                             onClick={togglePasswordVisibility}
-                            className="absolute right-2 top-2 text-gray-700"
+                            className="absolute right-3 top-3 text-gray-600 hover:text-gray-800"
                         >
                             {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </button>
                     </div>
-                    <button type="submit" className="w-full px-4 py-2 text-lg bg-black text-white rounded hover:bg-white border-2 border-black hover:text-black hover:text-xl duration-200">
-                        Login
+                    <button type="submit" className="w-full py-3 text-lg bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                        Iniciar Sesión
                     </button>
                 </form>
             </div>

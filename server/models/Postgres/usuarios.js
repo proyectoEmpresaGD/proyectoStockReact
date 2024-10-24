@@ -98,4 +98,45 @@ export class UserModel {
             throw new Error('Error updating last activity');
         }
     }
+
+    // Guardar el refresh token
+    static async storeRefreshToken(userId, refreshToken) {
+        const query = 'UPDATE usuarios SET refresh_token = $1 WHERE id = $2';
+        const values = [refreshToken, userId];
+
+        try {
+            await pool.query(query, values);
+        } catch (error) {
+            console.error('Error storing refresh token:', error);
+            throw new Error('Error storing refresh token');
+        }
+    }
+
+    // Limpiar el refresh token al cerrar sesión
+    static async clearRefreshToken(userId) {
+        const query = 'UPDATE usuarios SET refresh_token = NULL WHERE id = $1';
+        const values = [userId];
+
+        try {
+            await pool.query(query, values);
+        } catch (error) {
+            console.error('Error clearing refresh token:', error);
+            throw new Error('Error clearing refresh token');
+        }
+    }
+
+    // Recuperar usuario por ID para verificar refresh token
+    static async findById(userId) {
+        const query = 'SELECT * FROM usuarios WHERE id = $1';
+        const values = [userId];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows.length > 0 ? rows[0] : null;
+        } catch (error) {
+            console.error('Error fetching user by ID:', error);
+            throw new Error('Error fetching user by ID');
+        }
+    }
+
 }

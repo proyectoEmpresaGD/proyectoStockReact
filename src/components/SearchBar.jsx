@@ -1,42 +1,57 @@
-import { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { AiOutlineSearch } from 'react-icons/ai';
 
-const SearchBar = ({ searchTerm, setSearchTerm, suggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) => {
-    const wrapperRef = useRef(null);
+const SearchBar = ({ searchTerm, setSearchTerm, suggestions, setSuggestions, handleSearchInputChange, handleSearchKeyPress, handleSuggestionClick }) => {
+    const inputRef = useRef(null);
 
+    // Use effect to handle click outside to close suggestions
     useEffect(() => {
-        function handleClickOutside(event) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setSearchTerm('');
-                suggestions.length = 0;
+        const handleClickOutside = (event) => {
+            if (inputRef.current && !inputRef.current.contains(event.target)) {
+                setSuggestions([]); // Close suggestions when clicking outside
             }
-        }
+        };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [wrapperRef, setSearchTerm, suggestions]);
+    }, [setSuggestions]);
+
+    // Handle the key press for "Enter" and ensure suggestions are closed
+    const handleKeyPress = (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent default behavior
+            setSuggestions([]); // Clear suggestions immediately
+            handleSearchKeyPress(event); // Perform search
+        }
+    };
 
     return (
-        <div ref={wrapperRef} className="relative mb-4">
-            <input
-                type="text"
-                placeholder="Buscar por Nombre"
-                value={searchTerm}
-                onChange={handleSearchInputChange}
-                onKeyPress={handleSearchKeyPress}
-                className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+        <div className="mb-2 w-3/4 md:w-1/2 mx-auto justify-center" ref={inputRef}>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchInputChange}
+                    onKeyPress={handleKeyPress}
+                    className="w-full p-2 border rounded-lg text-gray-700 bg-gray-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition duration-200"
+                    placeholder="Buscar productos..."
+                />
+                <AiOutlineSearch className="absolute right-3 top-3 text-gray-500" size={20} />
+            </div>
             {suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-2 max-h-60 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg">
-                    {suggestions.map((item, index) => (
+                <ul className="absolute left-0 mx-auto w-2/4 right-0 mt-2 max-h-60 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg z-30">
+                    {suggestions.map((suggestion, index) => (
                         <li
                             key={index}
-                            className="p-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleSuggestionClick(item)}
+                            className="p-3 cursor-pointer hover:bg-gray-100 text-gray-700 transition-all duration-200 ease-in-out"
+                            onClick={() => {
+                                handleSuggestionClick(suggestion);
+                                setSuggestions([]); // Close suggestions on suggestion click
+                            }}
                         >
-                            <div className="font-bold">{item.desprodu}</div>
-                            <div className="text-sm text-gray-600">{item.codprodu}</div>
+                            {suggestion.desprodu}
                         </li>
                     ))}
                 </ul>

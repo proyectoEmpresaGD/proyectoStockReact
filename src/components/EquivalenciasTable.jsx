@@ -1,9 +1,10 @@
-// components/EquivalenciasTable.jsx
 import { useEffect, useState, useRef } from 'react';
 import SearchBarEquivalencias from './SearchBarEquivalencias';
-import SearchBar from './SearchBar'; // Import the existing search bar
+import SearchBar from './SearchBar';
+import { useAuthContext } from '../AuthContext';
 
 const EquivalenciasTable = () => {
+    const { user, token } = useAuthContext();
     const [equivalencias, setEquivalencias] = useState([]);
     const [filteredEquivalencias, setFilteredEquivalencias] = useState([]);
     const [searchTermProveedor, setSearchTermProveedor] = useState('');
@@ -11,18 +12,25 @@ const EquivalenciasTable = () => {
     const [suggestionsProveedor, setSuggestionsProveedor] = useState([]);
     const [suggestionsCJMW, setSuggestionsCJMW] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20);
+    const [itemsPerPage] = useState(10);
     const [isSearchActive, setIsSearchActive] = useState(false);
-    const [lastSearch, setLastSearch] = useState('');
+    const [lastSearch, setLastSearch] = useState(''); // Almacenar la última búsqueda
     const searchBarRef = useRef(null);
 
     useEffect(() => {
-        fetchEquivalencias();
-    }, [currentPage]);
+        if (user && (user.role === 'almacen' || user.role === 'admin')) {
+            fetchEquivalencias();
+        }
+    }, [currentPage, user]);
 
+    // Obtener equivalencias de la API
     const fetchEquivalencias = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -34,110 +42,101 @@ const EquivalenciasTable = () => {
         }
     };
 
+    // Búsqueda de sugerencias por proveedor
     useEffect(() => {
         if (searchTermProveedor.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTermProveedor}`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTermProveedor}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
                 .then(response => response.json())
                 .then(data => setSuggestionsProveedor(data))
-                .catch(error => console.error('Error fetching search suggestions:', error));
+                .catch(error => console.error('Error fetching suggestions:', error));
         } else {
             setSuggestionsProveedor([]);
         }
-    }, [searchTermProveedor]);
+    }, [searchTermProveedor, token]);
 
+    // Búsqueda de sugerencias por CJMW
     useEffect(() => {
         if (searchTermCJMW.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${searchTermCJMW}`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${searchTermCJMW}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
                 .then(response => response.json())
                 .then(data => setSuggestionsCJMW(data))
-                .catch(error => console.error('Error fetching search suggestions:', error));
+                .catch(error => console.error('Error fetching suggestions:', error));
         } else {
             setSuggestionsCJMW([]);
         }
-    }, [searchTermCJMW]);
+    }, [searchTermCJMW, token]);
 
-    const handleSearchInputChangeProveedor = (event) => {
-        setSearchTermProveedor(event.target.value);
-        if (searchTermCJMW) setSearchTermCJMW(''); // Clear the other search term
-    };
-
-    const handleSearchInputChangeCJMW = (event) => {
-        setSearchTermCJMW(event.target.value);
-        if (searchTermProveedor) setSearchTermProveedor(''); // Clear the other search term
-    };
-
-    const handleSearchKeyPressProveedor = (event) => {
-        if (event.key === 'Enter') {
-            performSearchProveedor(searchTermProveedor);
-        }
-    };
-
-    const handleSearchKeyPressCJMW = (event) => {
-        if (event.key === 'Enter') {
-            performSearchCJMW(searchTermCJMW);
-        }
-    };
-
+    // Función de búsqueda por proveedor
     const performSearchProveedor = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${query}`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${query}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 setFilteredEquivalencias(data);
-                setIsSearchActive(true); // Set search active
-                setLastSearch(query); // Save the last search term
+                setIsSearchActive(true);
+                setLastSearch(`Proveedor: ${query}`);
                 setSearchTermProveedor('');
                 setSuggestionsProveedor([]);
-                setCurrentPage(1); // Reset to the first page after search
+                setCurrentPage(1);
             })
             .catch(error => console.error('Error performing search:', error));
     };
 
+    // Función de búsqueda por CJMW
     const performSearchCJMW = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${query}`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${query}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 setFilteredEquivalencias(data);
-                setIsSearchActive(true); // Set search active
-                setLastSearch(query); // Save the last search term
+                setIsSearchActive(true);
+                setLastSearch(`CJMW: ${query}`);
                 setSearchTermCJMW('');
                 setSuggestionsCJMW([]);
-                setCurrentPage(1); // Reset to the first page after search
+                setCurrentPage(1);
             })
             .catch(error => console.error('Error performing search:', error));
     };
 
-    const handleSuggestionClickProveedor = (item) => {
-        setSearchTermProveedor(item.desequiv);
-        setFilteredEquivalencias([item]);
-        setIsSearchActive(true); // Set search active
-        setLastSearch(item.desequiv); // Save the last search term
-        setSuggestionsProveedor([]);
-    };
-
-    const handleSuggestionClickCJMW = (item) => {
-        setSearchTermCJMW(item.desprodu);
-        setFilteredEquivalencias([item]);
-        setIsSearchActive(true); // Set search active
-        setLastSearch(item.desprodu); // Save the last search term
-        setSuggestionsCJMW([]);
-    };
-
+    // Limpiar búsqueda y mostrar todos
     const handleShowAll = () => {
         setSearchTermProveedor('');
         setSearchTermCJMW('');
         setFilteredEquivalencias(equivalencias);
-        setIsSearchActive(false); // Set search inactive
-        setCurrentPage(1); // Reset to the first page
+        setIsSearchActive(false);
+        setCurrentPage(1);
     };
 
-    const handleLastSearchClick = () => {
-        performSearchProveedor(lastSearch);
+    // Evento cuando se selecciona una sugerencia por proveedor
+    const handleSuggestionClickProveedor = (item) => {
+        performSearchProveedor(item.desequiv);
     };
 
+    // Evento cuando se selecciona una sugerencia por CJMW
+    const handleSuggestionClickCJMW = (item) => {
+        performSearchCJMW(item.desprodu);
+    };
+
+    // Manejo de paginación
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
 
+    // Cerrar sugerencias al hacer clic fuera del input
     const handleClickOutside = (event) => {
         if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
             setSuggestionsProveedor([]);
@@ -152,83 +151,107 @@ const EquivalenciasTable = () => {
         };
     }, []);
 
+    // Si el usuario no tiene acceso, mostrar un mensaje de error
+    if (user && user.role !== 'almacen' && user.role !== 'admin') {
+        return <div className="text-center text-red-500">Acceso denegado. No tienes permisos para ver las equivalencias.</div>;
+    }
+
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4 text-center">Equivalencias</h1>
-            <div ref={searchBarRef}>
-                <SearchBarEquivalencias
-                    searchTerm={searchTermProveedor}
-                    setSearchTerm={setSearchTermProveedor}
-                    suggestions={suggestionsProveedor}
-                    handleSearchInputChange={handleSearchInputChangeProveedor}
-                    handleSearchKeyPress={handleSearchKeyPressProveedor}
-                    handleSuggestionClick={handleSuggestionClickProveedor}
-                />
-                <SearchBar
-                    searchTerm={searchTermCJMW}
-                    setSearchTerm={setSearchTermCJMW}
-                    suggestions={suggestionsCJMW}
-                    handleSearchInputChange={handleSearchInputChangeCJMW}
-                    handleSearchKeyPress={handleSearchKeyPressCJMW}
-                    handleSuggestionClick={handleSuggestionClickCJMW}
-                />
+        <div className="md:mt-[8%] container mx-auto p-2 bg-white shadow-md rounded-lg">
+            <div ref={searchBarRef} className="space-y-0">
+                <div className="grid grid-cols-1 mt-[20%] md:mt-0 lg:grid-cols-2 gap-0">
+                    <SearchBarEquivalencias
+                        searchTerm={searchTermProveedor}
+                        setSearchTerm={setSearchTermProveedor}
+                        suggestions={suggestionsProveedor}
+                        handleSearchInputChange={(e) => setSearchTermProveedor(e.target.value)}
+                        handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchProveedor(searchTermProveedor); }}
+                        handleSuggestionClick={handleSuggestionClickProveedor}
+                    />
+                    <SearchBar
+                        searchTerm={searchTermCJMW}
+                        setSearchTerm={setSearchTermCJMW}
+                        suggestions={suggestionsCJMW}
+                        handleSearchInputChange={(e) => setSearchTermCJMW(e.target.value)}
+                        handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchCJMW(searchTermCJMW); }}
+                        handleSuggestionClick={handleSuggestionClickCJMW}
+                    />
+                </div>
             </div>
-            {isSearchActive && (
-                <button
-                    onClick={handleShowAll}
-                    className="mb-4 px-4 py-2 bg-blue-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-                >
-                    Mostrar todos
-                </button>
-            )}
-            {lastSearch && (
-                <button
-                    onClick={handleLastSearchClick}
-                    className="mb-4 px-4 py-2 bg-green-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-300"
-                >
-                    Última búsqueda: {lastSearch}
-                </button>
-            )}
-            <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-300 text-sm">
-                    <thead className="bg-gray-200">
+            <div className=' grid grid-cols-2'>
+                {/* Mostrar la última búsqueda si existe */}
+                {lastSearch && (
+                    <button
+                        onClick={() => {
+                            if (lastSearch.startsWith("Proveedor: ")) {
+                                performSearchProveedor(lastSearch.replace("Proveedor: ", ""));
+                            } else {
+                                performSearchCJMW(lastSearch.replace("CJMW: ", ""));
+                            }
+                        }}
+                        className=" px-4 py-2 bg-green-500 text-white rounded cursor-pointer hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                    >
+                        Última búsqueda: {lastSearch}
+                    </button>
+                )}
+
+                {isSearchActive && (
+                    <button
+                        onClick={handleShowAll}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition duration-200"
+                    >
+                        Mostrar todos
+                    </button>
+                )}
+            </div>
+            {/* Ajustar la tabla para que sea más pequeña */}
+            <div className="overflow-y-auto h-full max-h-[50vh] md:max-h-[60vh] mt-2 max-w-full">
+                <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm">
+                    <thead className="bg-gray-100">
                         <tr>
-                            <th className="px-4 py-2 border-b">NOMBRE CJMW</th>
-                            <th className="px-4 py-2 border-b">NOMBRE Proveedor</th>
-                            <th className="px-4 py-2 border-b">CodEquiv</th>
-                            <th className="px-4 py-2 border-b">RazProve</th>
+                            <th className="px-2 py-2 border-b md:text-sm text-xs font-semibold text-left">NOMBRE CJMW</th>
+                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">NOMBRE Proveedor</th>
+                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">CodEquiv</th>
+                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">RazProve</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredEquivalencias.map((equiv, index) => (
-                            <tr key={index}>
-                                <td className="px-4 py-2 border-b">{equiv.desprodu}</td>
-                                <td className="px-4 py-2 border-b">{equiv.desequiv}</td>
-                                <td className="px-4 py-2 border-b">{equiv.codequiv}</td>
-                                <td className="px-4 py-2 border-b">{equiv.razprove}</td>
+                        {filteredEquivalencias.length > 0 ? (
+                            filteredEquivalencias.map((equiv, index) => (
+                                <tr key={index} className="hover:bg-gray-100">
+                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.desprodu}</td>
+                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.desequiv}</td>
+                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.codequiv}</td>
+                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.razprove}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="4" className="text-center py-4 text-gray-500">
+                                    No se encontraron equivalencias.
+                                </td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
-            {!isSearchActive && (
-                <div className="flex justify-center mt-4">
-                    <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 mx-1 bg-gray-300 rounded disabled:opacity-50"
-                    >
-                        Anterior
-                    </button>
-                    <span className="px-4 py-2">{currentPage}</span>
-                    <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        className="px-4 py-2 mx-1 bg-gray-300 rounded"
-                    >
-                        Siguiente
-                    </button>
-                </div>
-            )}
+
+            <div className="flex justify-center mt-0">
+                <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 mx-1 bg-gray-300 rounded disabled:opacity-50"
+                >
+                    Anterior
+                </button>
+                <span className="px-4 py-2">{currentPage}</span>
+                <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className="px-4 py-2 mx-1 bg-gray-300 rounded"
+                >
+                    Siguiente
+                </button>
+            </div>
         </div>
     );
 };

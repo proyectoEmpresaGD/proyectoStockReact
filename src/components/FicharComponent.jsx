@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
+import { useAuthContext } from '../AuthContext.jsx'; // Cambiado a useAuthContext
 import jsPDF from 'jspdf';
 import moment from 'moment-timezone';
 import FirmaModal from './FirmaModal';
 
 const FicharComponent = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuthContext(); // Obtener información del usuario y función de logout
     const [fichajes, setFichajes] = useState([]);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
@@ -22,8 +22,17 @@ const FicharComponent = () => {
     }, [fichajes]);
 
     const fetchFichajes = async (userId) => {
+        const token = localStorage.getItem('token'); // Obtener el token JWT
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/fichajes?userId=${userId}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/fichajes?userId=${userId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.status === 401) {
+                logout(); // Redirigir si el token ha expirado o no es válido
+            }
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -44,6 +53,8 @@ const FicharComponent = () => {
             return;
         }
 
+        const token = localStorage.getItem('token'); // Obtener el token JWT
+
         if (tipo === 'salida') {
             setSelectedDate(new Date().getDate());
             setShowSignatureModal(true);
@@ -55,9 +66,15 @@ const FicharComponent = () => {
             const requestBody = { userId: user.id, tipo, timestamp: now };
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/fichajes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(requestBody),
             });
+            if (response.status === 401) {
+                logout(); // Redirigir si el token ha expirado o no es válido
+            }
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -74,14 +91,21 @@ const FicharComponent = () => {
             return;
         }
 
+        const token = localStorage.getItem('token'); // Obtener el token JWT
         const now = getMadridTime();
         try {
             const requestBody = { userId: user.id, tipo: 'salida', timestamp: now, firma: signatureData };
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/fichajes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(requestBody),
             });
+            if (response.status === 401) {
+                logout(); // Redirigir si el token ha expirado o no es válido
+            }
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -190,64 +214,6 @@ const FicharComponent = () => {
 
         doc.text(`Total Horas Realizadas: ${totalHoras}`, 20, rowY + 10);
         doc.save('registro_horas.pdf');
-    };
-
-    const renderFichajesTable = () => {
-        const month = new Date().getMonth() + 1;
-        const year = new Date().getFullYear();
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const rows = [];
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dayFichajes = fichajes.filter(fichaje => new Date(fichaje.timestamp).getDate() === day);
-            const morningEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() < 12);
-            const morningSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() < 12);
-            const afternoonEntradas = dayFichajes.filter(fichaje => fichaje.tipo === 'entrada' && new Date(fichaje.timestamp).getHours() >= 12);
-            const afternoonSalidas = dayFichajes.filter(fichaje => fichaje.tipo === 'salida' && new Date(fichaje.timestamp).getHours() >= 12);
-
-            const morningEntrada = morningEntradas[0];
-            const morningSalida = morningSalidas[0];
-            const afternoonEntrada = afternoonEntradas[0];
-            const afternoonSalida = afternoonSalidas[0];
-
-            rows.push(
-                <tr key={day}>
-                    <td className="border px-4 py-2 text-center">{day}</td>
-                    <td className="border px-4 py-2 text-center">{morningEntrada ? moment(morningEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2 text-center">{morningSalida ? moment(morningSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2 text-center">{afternoonEntrada ? moment(afternoonEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2 text-center">{afternoonSalida ? moment(afternoonSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}</td>
-                    <td className="border px-4 py-2 text-center">
-                        {morningSalida && morningSalida.firma ? <img src={morningSalida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
-                        {afternoonSalida && afternoonSalida.firma ? <img src={afternoonSalida.firma} alt="Firma" className="mx-auto" style={{ width: '100px', height: '50px' }} /> : ''}
-                    </td>
-                </tr>
-            );
-        }
-
-        return (
-            <div className="overflow-auto max-h-screen lg:max-h-[400px]">
-                <table className="min-w-full bg-white border font-bold border-gray-300 text-sm">
-                    <thead className="bg-gray-200">
-                        <tr>
-                            <th className="px-1 py-1 border-b text-center">Día</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Entrada Mañana</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Salida Mañana</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Entrada Tarde</th>
-                            <th className="px-1 py-1 border-b text-center">Hora Salida Tarde</th>
-                            <th className="px-1 py-1 border-b text-center">Firma</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows}
-                        <tr>
-                            <td className="border px-4 py-2 text-center font-bold" colSpan="5">Total Horas Realizadas</td>
-                            <td className="border px-4 py-2 text-center font-bold">{totalHoras}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        );
     };
 
     return (

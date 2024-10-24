@@ -11,28 +11,28 @@ const pool = new pg.Pool({
 export class StockLotesModel {
 
     static async getAll({ canal }) {
-    let query = `
+        let query = `
         SELECT codprodu, SUM(stockactual) as stockactual
         FROM stocklotes
         WHERE codalmac = '0'
     `;
-    let params = [];
+        let params = [];
 
-    if (canal) {
-        query += ' AND canal = $1';
-        params.push(canal);
+        if (canal) {
+            query += ' AND canal = $1';
+            params.push(canal);
+        }
+
+        query += ' GROUP BY codprodu';
+
+        try {
+            const { rows } = await pool.query(query, params);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching stock lots:', error);
+            throw new Error('Error fetching stock lots');
+        }
     }
-
-    query += ' GROUP BY codprodu';
-
-    try {
-        const { rows } = await pool.query(query, params);
-        return rows;
-    } catch (error) {
-        console.error('Error fetching stock lots:', error);
-        throw new Error('Error fetching stock lots');
-    }
-}
 
     static async getById({ codProdu }) {
         const { rows } = await pool.query(`

@@ -2,44 +2,42 @@ import bcrypt from 'bcrypt';
 import moment from 'moment-timezone';
 import { UserModel } from '../models/Postgres/usuarios.js';
 import { AccessModel } from '../models/Postgres/AccessModel.js';
+import jwt from 'jsonwebtoken';
 
 export class AuthController {
+
     static async login(req, res) {
         const { username, password } = req.body;
 
         try {
+            console.log('Attempting login with:', { username, password });
+
             const user = await UserModel.findByUsername(username);
             if (!user) {
-                console.log('User not found');
+                console.log('User not found:', username);
                 return res.status(401).json({ message: 'Invalid username or password' });
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                console.log('Password does not match');
+                console.log('Password mismatch for user:', username);
                 return res.status(401).json({ message: 'Invalid username or password' });
             }
 
-            const isActive = await UserModel.getActiveSession(user.id);
-            if (isActive) {
-                console.log('User already logged in');
-                return res.status(403).json({ message: 'User already logged in' });
-            }
+            const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-            // Log the access with the correct timezone
-            const accessTime = moment().tz('Europe/Madrid').format('YYYY-MM-DD HH:mm:ss');
-            await AccessModel.logAccess(user.id, accessTime);
-
-            // Set active session
+            await UserModel.storeRefreshToken(user.id, refreshToken);
             await UserModel.setActiveSession(user.id, true);
 
-            console.log('Login successful');
-            return res.json({ message: 'Login successful', id: user.id, role: user.role, tipo_jornada: user.tipo_jornada });
+            console.log('Login successful for user:', username);
+            return res.json({ message: 'Login successful', token, refreshToken, user: { id: user.id, role: user.role, tipo_jornada: user.tipo_jornada } });
         } catch (error) {
             console.error('Error during login:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }
+
 
     static async updateJornada(req, res) {
         const { userId, tipoJornada } = req.body;
@@ -61,7 +59,7 @@ export class AuthController {
         const { userId } = req.body;
 
         try {
-            // Clear active session
+            await UserModel.clearRefreshToken(userId);
             await UserModel.setActiveSession(userId, false);
 
             console.log('Logout successful');
@@ -89,7 +87,6 @@ export class AuthController {
         const { userId } = req.body;
 
         try {
-            // Update last activity time
             const lastActivityTime = moment().tz('Europe/Madrid').format('YYYY-MM-DD HH:mm:ss');
             await UserModel.updateLastActivity(userId, lastActivityTime);
 
@@ -99,4 +96,21 @@ export class AuthController {
             res.status(500).json({ message: 'Internal server error' });
         }
     }
+
+    static async refreshToken(req, res) {
+        const { refreshToken } = req.body;
+        if (!refreshToken) return res.status(403).json({ message: 'Refresh token required' });
+
+        try {
+            const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            const user = await UserModel.findById(decoded.id);
+            if (!user || user.refresh_token !== refreshToken) return res.status(403).json({ message: 'Invalid refresh token' });
+
+            const newToken = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            return res.json({ token: newToken });
+        } catch (error) {
+            return res.status(403).json({ message: 'Invalid refresh token' });
+        }
+    }
+
 }
