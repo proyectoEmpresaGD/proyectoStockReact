@@ -1,21 +1,52 @@
 import { Router } from 'express';
 import { ClienteController } from '../controllers/clients.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js'; // Middleware de autenticación
 
 export const createClienteRouter = () => {
     const clienteRouter = Router();
     const clienteController = new ClienteController();
 
-    // Rutas para la gestión de clientes
-    clienteRouter.get('/', clienteController.getAll.bind(clienteController));
-    clienteRouter.post('/', clienteController.create.bind(clienteController));
+    // Rutas para la gestión de clientes (protegidas para 'comercial' y 'admin')
+    clienteRouter.get('/', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.getAll.bind(clienteController));
 
-    // Rutas para operaciones específicas de clientes
-    clienteRouter.get('/search', clienteController.search.bind(clienteController));
-    clienteRouter.get('/:codclien', clienteController.getById.bind(clienteController));
-    clienteRouter.get('/cliente/:codclien', clienteController.getByCodclien.bind(clienteController)); // Ajusta si es necesario
-    clienteRouter.patch('/:codclien', clienteController.update.bind(clienteController));
-    clienteRouter.get('/province/:codprovi', clienteController.getByProvince.bind(clienteController)); // Nueva ruta
-    clienteRouter.delete('/:codclien', clienteController.delete.bind(clienteController));
+    clienteRouter.post('/', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.create.bind(clienteController));
+
+    // Rutas para operaciones específicas de clientes (protegidas por 'comercial' y 'admin')
+    clienteRouter.get('/search', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.search.bind(clienteController));
+
+    clienteRouter.get('/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.getById.bind(clienteController));
+
+    clienteRouter.get('/cliente/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.getByCodclien.bind(clienteController)); // Ajusta si es necesario
+
+    clienteRouter.patch('/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.update.bind(clienteController));
+
+    clienteRouter.get('/province/:codprovi', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.getByProvince.bind(clienteController));
+
+    clienteRouter.delete('/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.delete.bind(clienteController));
 
     return clienteRouter;
 };

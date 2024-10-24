@@ -1,19 +1,27 @@
-// ProtectedRoute.jsx
 import { Navigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuthContext } from './AuthContext';
+import jwt_decode from 'jwt-decode';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
-    const { user } = useAuth();
+    const { token } = useAuthContext();
 
-    if (!user) {
+    if (!token) {
         return <Navigate to="/login" />;
     }
 
-    if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
-        return <Navigate to="/" />;
-    }
+    try {
+        const decoded = jwt_decode(token);
 
-    return children;
+        // Verifica si el rol es el adecuado o si es admin
+        if (requiredRole && decoded.role !== requiredRole && decoded.role !== 'admin') {
+            return <Navigate to="/" />;
+        }
+
+        return children;
+    } catch (error) {
+        console.error("Invalid token:", error.message);
+        return <Navigate to="/login" />;
+    }
 };
 
 export default ProtectedRoute;

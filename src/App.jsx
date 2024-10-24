@@ -1,28 +1,22 @@
-// App.jsx
-import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import Home from './pages/Home.jsx';
-import Stock from './pages/paginaStock.jsx';
-import Login from './components/Login.jsx';
-import Clients from './pages/paginaclients.jsx';
-import Admin from './pages/Admin.jsx';
-import Header from './components/header.jsx';
-import Sidebar from './components/navbar.jsx';
-import ProtectedRoute from './ProtectedRoute.jsx';
+import React, { useState, useEffect } from 'react'; // Asegúrate de que useState esté importado
+import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './AuthContext';
-import { useState } from 'react';
+import ProtectedRoute from './ProtectedRoute';
+import Home from './pages/Home';
+import Stock from './pages/paginaStock';
+import Clients from './pages/paginaclients';
+import Admin from './pages/Admin';
+import Sidebar from './components/navbar';
+import Header from './components/header';
+import Login from './components/Login.jsx';
 import FicharPage from './pages/Fichar.jsx';
 import EquivalenciasTable from './components/EquivalenciasTable';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-  };
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const closeSidebar = () => setSidebarOpen(false);
 
   return (
     <Router>
@@ -33,24 +27,17 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex flex-col h-screen overflow-hidden">
-                  <Header toggleSidebar={toggleSidebar} />
-                  <div className="flex flex-1 overflow-hidden">
-                    <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
-                    <div className="flex-1 p-4 overflow-auto">
-                      <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
-                        <Route path="/stock" element={<Stock />} />
-                        <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
-                        <Route path="/fichar" element={<FicharPage />} />
-                        <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><EquivalenciasTable /></ProtectedRoute>} />
-                        <Route path="/app1" element={<div>Aplicación 1</div>} />
-                        <Route path="/app2" element={<div>Aplicación 2</div>} />
-                        <Route path="/app3" element={<div>Aplicación 3</div>} />
-                        <Route path="*" element={<Navigate to="/" />} />
-                      </Routes>
-                    </div>
+                <div className="flex">
+                  <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
+                  <div className="flex-1">
+                    <Header toggleSidebar={toggleSidebar} />
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+                      <Route path="/stock" element={<ProtectedRoute requiredRole="comercial"><Stock /></ProtectedRoute>} />
+                      <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
+                      <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><EquivalenciasTable /></ProtectedRoute>} />
+                    </Routes>
                   </div>
                 </div>
               </ProtectedRoute>

@@ -5,6 +5,7 @@ import ClientModal from '../components/modalclients';
 import VisitModal from '../components/VisitModal';
 import SearchBar from '../components/SearchBarClients';
 import PaginationControls from '../components/PaginationControls';
+import { useAuthContext } from '../AuthContext';
 
 const provinces = [
     { value: '02', label: 'Albacete' },
@@ -264,13 +265,13 @@ const countryCodes = [
     { value: 'ZW', label: 'Zimbabue' },
     // Añadir más países si es necesario
 ];
-
 function Clients() {
+    const { token } = useAuthContext(); // Obtener el token del contexto de autenticación
     const [clients, setClients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20); // Número de clientes por página
+    const [itemsPerPage] = useState(10); // Número de clientes por página
     const [totalClients, setTotalClients] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
@@ -282,8 +283,8 @@ function Clients() {
     const [singleClientView, setSingleClientView] = useState(false);
 
     useEffect(() => {
-        fetchClients();
-    }, [currentPage, selectedCountry, selectedProvince]);
+        if (token) fetchClients(); // Ejecuta la llamada solo si hay token
+    }, [currentPage, selectedCountry, selectedProvince, token]);
 
     const fetchClients = async () => {
         try {
@@ -297,7 +298,12 @@ function Clients() {
             if (searchTerm) {
                 url += `&query=${searchTerm}`;
             }
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`, // Enviar el token de autenticación
+                    'Content-Type': 'application/json'
+                }
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -316,14 +322,13 @@ function Clients() {
     };
 
     const fetchClientBillings = async (clients) => {
-        if (!Array.isArray(clients)) {
-            console.error('clients no es un array:', clients);
-            return;
-        }
+        if (!Array.isArray(clients)) return;
 
         try {
             const billingPromises = clients.map(client =>
-                fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`)
+                fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
+                    headers: { 'Authorization': `Bearer ${token}` } // Autenticación
+                })
                     .then(response => response.json())
                     .then(data => {
                         const totalBilling = data.reduce((sum, product) => {
@@ -331,11 +336,10 @@ function Clients() {
                             const dt1 = parseFloat(product.dt1) || 0;
                             const dt2 = parseFloat(product.dt2) || 0;
                             const dt3 = parseFloat(product.dt3) || 0;
-                            if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
-                            if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
-                            if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
-                            if (importe < 0) importe = 0;
-                            return sum + importe;
+                            if (dt1 > 0) importe -= (importe * dt1) / 100;
+                            if (dt2 > 0) importe -= (importe * dt2) / 100;
+                            if (dt3 > 0) importe -= (importe * dt3) / 100;
+                            return sum + (importe > 0 ? importe : 0);
                         }, 0);
                         return { clientId: client.codclien, totalBilling };
                     })
@@ -352,49 +356,51 @@ function Clients() {
         }
     };
 
-    useEffect(() => {
-        if (searchTerm.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}&limit=4`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => setSuggestions(data))
-                .catch(error => console.error('Error fetching search suggestions:', error));
-        } else {
-            setSuggestions([]);
-        }
-    }, [searchTerm]);
+    // Función que maneja la selección de una sugerencia
+    const handleSuggestionClick = (client) => {
+        setSearchTerm(client.razclien); // Actualiza el término de búsqueda con la sugerencia seleccionada
+        setSuggestions([]); // Limpia las sugerencias
+        setCurrentPage(1); // Reinicia a la primera página
+        fetchClients(); // Realiza una búsqueda actualizada
+    };
 
-    const handleSearchInputChange = (event) => {
-        setSearchTerm(event.target.value);
+    const handleSearchInputChange = async (event) => {
+        const searchTerm = event.target.value;
+        setSearchTerm(searchTerm);
+
+        if (searchTerm.length > 2) {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}&limit=4`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                setSuggestions(data); // Actualizar las sugerencias
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+            }
+        } else {
+            setSuggestions([]); // Limpiar sugerencias si el término es corto
+        }
     };
 
     const handleSearchKeyPress = (event) => {
         if (event.key === 'Enter') {
             setCurrentPage(1);
+            setSuggestions([]); // Limpiar sugerencias al presionar Enter
             fetchClients();
         }
     };
 
-    const handleSuggestionClick = (client) => {
-        setSearchTerm(client.razclien);
-        setCurrentPage(1);
-        fetchClients();
-    };
-
-    const handlePageChange = (newPage) => {
-        setCurrentPage(newPage);
-    };
+    const handlePageChange = (newPage) => setCurrentPage(newPage);
 
     const handleClientClick = async (codclien) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`, {
+                headers: { 'Authorization': `Bearer ${token}` } // Autenticación
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             setSelectedClientDetails(data);
             setModalVisible(true);
@@ -408,39 +414,26 @@ function Clients() {
         setVisitModalVisible(true);
     };
 
-    const closeModal = () => {
-        setModalVisible(false);
-        setSelectedClientDetails(null);
-    };
-
-    const closeVisitModal = () => {
-        setVisitModalVisible(false);
-        setSelectedClientId(null);
-    };
-
+    const closeModal = () => setModalVisible(false);
+    const closeVisitModal = () => setVisitModalVisible(false);
     const handleProvinceChange = (selectedOption) => {
         setSelectedProvince(selectedOption);
-        setSearchTerm('');
         setCurrentPage(1);
         fetchClients();
     };
-
     const handleCountryChange = (selectedOption) => {
         setSelectedCountry(selectedOption ? selectedOption.value : null);
-        setSearchTerm('');
         setCurrentPage(1);
         fetchClients();
     };
-
     const handleClearFilter = () => {
         setSelectedProvince(null);
-        setSelectedCountry(null); // Vaciar el filtro de país
+        setSelectedCountry(null);
         setSearchTerm('');
         setSuggestions([]);
         setCurrentPage(1);
         fetchClients();
     };
-
     const getClientColor = (totalBilling) => {
         if (totalBilling <= 1000) return 'bg-yellow-500';
         if (totalBilling <= 3000) return 'bg-orange-500';
@@ -451,43 +444,43 @@ function Clients() {
     const totalPages = Math.ceil(totalClients / itemsPerPage);
 
     return (
-        <div className="container mx-auto justify-center text-center py-4 px-4 md:px-8">
+        <div className="container mx-auto justify-center text-center mt-[15%] md:mt-[0%] py-4 px-4 md:px-8">
             <SearchBar
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 suggestions={suggestions}
                 handleSearchInputChange={handleSearchInputChange}
                 handleSearchKeyPress={handleSearchKeyPress}
-                handleSuggestionClick={handleSuggestionClick}
+                handleSuggestionClick={handleSuggestionClick} // Pasa la función para manejar la selección de sugerencias
             />
-            <div className="mb-4 flex justify-between items-center">
-                <div className="flex space-x-4">
-                    <div className="w-48">
-                        <label htmlFor="countryFilter" className="block text-sm font-medium text-gray-700">País</label>
+            <div className="md:mb-4 mb-0 justify-between items-center md:flex grid grid-rows-2">
+                <div className="flex md:space-x-4 space-x-1">
+                    <div className="w-40">
+                        <label htmlFor="countryFilter" className="block text-xs md:text-sm font-medium text-gray-700">País</label>
                         <Select
                             id="countryFilter"
                             options={countryCodes}
                             value={countryCodes.find(option => option.value === selectedCountry)}
                             onChange={handleCountryChange}
                             placeholder="Seleccione un país"
-                            isClearable={true} // Permite limpiar el campo manualmente si es necesario
+                            isClearable={true}
                         />
                     </div>
                     <div className="w-48">
-                        <label htmlFor="provinceFilter" className="block text-sm font-medium text-gray-700">Provincia</label>
+                        <label htmlFor="provinceFilter" className="block text-xs md:text-sm font-medium text-gray-700">Provincia</label>
                         <Select
                             id="provinceFilter"
                             options={provinces}
                             value={selectedProvince}
                             onChange={handleProvinceChange}
                             placeholder="Seleccione una provincia"
-                            isClearable={true} // Permite limpiar el campo manualmente si es necesario
+                            isClearable={true}
                         />
                     </div>
                 </div>
                 <button
                     onClick={handleClearFilter}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
+                    className="px-4 py-1 md:py-2 w-3/4 md:w-1/5 mx-auto md:mx-0 bg-red-500 text-white rounded hover:bg-red-700"
                 >
                     Limpiar Filtros
                 </button>
@@ -514,7 +507,6 @@ function Clients() {
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}
                 closeModal={closeModal}
-                updateClientBilling={(clientId, billing) => setClientBillings(prev => ({ ...prev, [clientId]: billing }))}
             />
             <VisitModal
                 modalVisible={visitModalVisible}

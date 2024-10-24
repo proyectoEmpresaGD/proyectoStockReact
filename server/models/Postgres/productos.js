@@ -28,43 +28,27 @@ export class ProductModel {
     }
 
     query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
+    params.push(limit * 2, offset);  // Duplicamos el límite para obtener más productos
 
     try {
       const { rows } = await pool.query(query, params);
-      return rows;
+
+      // Aquí realizamos el filtrado de productos inválidos
+      const validProducts = rows.filter(product => (
+        !/^(LIBRO|PORTADA|SET|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
+        !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
+        !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
+        ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
+      ));
+
+      // Retornamos los primeros 'limit' productos válidos
+      return validProducts.slice(0, limit);
     } catch (error) {
       console.error('Error fetching products:', error);
       throw new Error('Error fetching products');
     }
   }
 
-  static async getAllProductos(CodFamil, CodSubFamil) {
-    let query = 'SELECT * FROM productos';
-    let params = [];
-
-    if (CodFamil) {
-      query += ' WHERE "codfamil" = $1';
-      params.push(CodFamil);
-    }
-
-    if (CodSubFamil) {
-      if (params.length > 0) {
-        query += ' AND "codsubfamil" = $2';
-      } else {
-        query += ' WHERE "codsubfamil" = $1';
-      }
-      params.push(CodSubFamil);
-    }
-
-    try {
-      const { rows } = await pool.query(query, params);
-      return rows;
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      throw new Error('Error fetching products');
-    }
-  }
 
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);
@@ -100,14 +84,14 @@ export class ProductModel {
     const { rows } = await pool.query('DELETE FROM productos WHERE "codprodu" = $1 RETURNING *;', [id]);
     return rows[0];
   }
-
-  static async search({ query }) {
+  static async search({ query, limit = 20 }) {
     try {
       const searchQuery = `
-                SELECT * FROM productos
-                WHERE "desprodu" ILIKE $1
-            `;
-      const values = [`%${query}%`];
+        SELECT * FROM productos
+        WHERE "desprodu" ILIKE $1
+        LIMIT $2
+      `;
+      const values = [`%${query}%`, limit]; // Se utiliza el valor del límite
       const { rows } = await pool.query(searchQuery, values);
       return rows;
     } catch (error) {
@@ -286,5 +270,31 @@ export class ProductModel {
     }
   }
 
+  static async getProductCount({ CodFamil, CodSubFamil }) {
+    let query = 'SELECT COUNT(*) FROM productos';
+    let params = [];
+
+    if (CodFamil) {
+      query += ' WHERE "codfamil" = $1';
+      params.push(CodFamil);
+    }
+
+    if (CodSubFamil) {
+      if (params.length > 0) {
+        query += ' AND "codsubfamil" = $2';
+      } else {
+        query += ' WHERE "codsubfamil" = $1';
+      }
+      params.push(CodSubFamil);
+    }
+
+    try {
+      const { rows } = await pool.query(query, params);
+      return parseInt(rows[0].count, 10); // Retorna el total como número
+    } catch (error) {
+      console.error('Error fetching product count:', error);
+      throw new Error('Error fetching product count');
+    }
+  }
 
 }

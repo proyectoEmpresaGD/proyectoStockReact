@@ -1,18 +1,31 @@
+
 import { ProductModel } from '../models/Postgres/productos.js';
 
 export class ProductController {
+
   async getAll(req, res) {
     try {
-      const { CodFamil, CodSubFamil, limit, page } = req.query;
-      const limitParsed = parseInt(limit, 10) || 20;
+      const { CodFamil, CodSubFamil, limit = 10, page = 1 } = req.query; // Límite predeterminado de 10
+      const limitParsed = parseInt(limit, 10) || 10;
       const pageParsed = parseInt(page, 10) || 1;
       const offset = (pageParsed - 1) * limitParsed;
+
+      // Obtener productos válidos
       const products = await ProductModel.getAll({ CodFamil, CodSubFamil, limit: limitParsed, offset });
-      res.json(products);
+
+      // Calcular el total sin el filtrado
+      const total = await ProductModel.getProductCount({ CodFamil, CodSubFamil });
+
+      res.json({
+        products,
+        total,
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   }
+
+
 
   async getAllProductos(req, res) {
     try {
@@ -77,16 +90,19 @@ export class ProductController {
 
   async search(req, res) {
     try {
-      const { query } = req.query;
+      const { query, limit } = req.query; // Ahora se acepta el límite desde el cliente
       if (!query) {
         return res.status(400).json({ message: 'Query parameter is required' });
       }
-      const products = await ProductModel.search({ query });
+      const products = await ProductModel.search({ query, limit: parseInt(limit) || 20 }); // Límite predeterminado
+      console.log('Productos encontrados:', products); // Añadir para verificar
       res.json(products);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   }
+
+
 
   async getByCodFamil(req, res) {
     try {
@@ -157,6 +173,8 @@ export class ProductController {
       res.status(500).json({ error: error.message });
     }
   }
+
+
 
 
 }

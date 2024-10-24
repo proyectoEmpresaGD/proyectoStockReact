@@ -3,8 +3,10 @@ import SearchBar from '../components/SearchBar';
 import ProductTable from '../components/ProductTable';
 import PaginationControls from '../components/PaginationControls';
 import ProductModal from '../components/ProductModal';
+import { useAuthContext } from '../AuthContext';
 
 function Stock() {
+    const { token } = useAuthContext();
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
     const [stockLotes, setStockLotes] = useState([]);
@@ -13,11 +15,13 @@ function Stock() {
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(40);
+    const [itemsPerPage] = useState(10);
+    const [totalProducts, setTotalProducts] = useState(0);
     const [lastSearch, setLastSearch] = useState('');
     const [singleProductView, setSingleProductView] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedProductLots, setSelectedProductLots] = useState([]);
+    const [isSearchActive, setIsSearchActive] = useState(false);
     const searchBarRef = useRef(null);
 
     const isValidProduct = (product) => {
@@ -29,55 +33,80 @@ function Stock() {
         );
     };
 
+    // Fetch de productos con token y paginación
     useEffect(() => {
+        if (!token) return;
+
         const fetchProducts = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products?page=${currentPage}&limit=${itemsPerPage}`);
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products?page=${currentPage}&limit=${itemsPerPage}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                setProducts(data);
+                setProducts(data.products || []);
+                setTotalProducts(data.total || 0);
             } catch (error) {
                 console.error('Error fetching product data:', error);
             }
         };
-        fetchProducts();
-    }, [currentPage, itemsPerPage]);
 
+        fetchProducts();
+    }, [currentPage, itemsPerPage, token]);
+
+    // Fetch de stock
     useEffect(() => {
+        if (!token) return;
+
         const fetchStock = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`);
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                setStocks(data);
+                setStocks(data || []);
             } catch (error) {
                 console.error('Error fetching stock data:', error);
             }
         };
-        fetchStock();
-    }, []);
 
+        fetchStock();
+    }, [token]);
+
+    // Fetch de lotes de stock
     useEffect(() => {
+        if (!token) return;
+
         const fetchStockLotes = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes`);
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                setStockLotes(data);
+                setStockLotes(data || []);
             } catch (error) {
                 console.error('Error fetching stock lotes data:', error);
             }
         };
-        fetchStockLotes();
-    }, []);
 
-    // Combine stock with stocklotes
+        fetchStockLotes();
+    }, [token]);
+
+    // Combinar productos, stock y lotes
     useEffect(() => {
         if (products.length > 0 && stocks.length > 0 && stockLotes.length > 0) {
             const combined = products
@@ -100,53 +129,42 @@ function Stock() {
                     };
                 });
             setCombinedProducts(combined);
-            setFilteredProducts(combined); // Mostrar productos iniciales
+            setFilteredProducts(combined);
         }
     }, [products, stocks, stockLotes]);
 
+    // Sugerencias al escribir en el buscador
     useEffect(() => {
         if (searchTerm.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=40`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=40`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.json();
                 })
-                .then(data => setSuggestions(data))
-                .catch(error => console.error('Error fetching search suggestions:', error));
+                .then(data => {
+                    setSuggestions(data || []);
+                })
+                .catch(error => {
+                    console.error('Error fetching search suggestions:', error);
+                    setSuggestions([]);
+                });
         } else {
             setSuggestions([]);
         }
-    }, [searchTerm]);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
-                setSuggestions([]);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const handleSearchInputChange = (event) => {
-        setSearchTerm(event.target.value);
-    };
-
-    const handleSearchKeyPress = (event) => {
-        if (event.key === 'Enter') {
-            setLastSearch(searchTerm);
-            performSearch(searchTerm);
-            setSearchTerm('');
-        }
-    };
+    }, [searchTerm, token]);
 
     const performSearch = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${query}&limit=${itemsPerPage}`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${query}&limit=${itemsPerPage}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            }
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -154,125 +172,140 @@ function Stock() {
                 return response.json();
             })
             .then(data => {
-                const combined = data
-                    .filter(isValidProduct)
-                    .map(product => {
-                        const stock = stocks.find(s => s.codprodu === product.codprodu);
-                        const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
+                if (data && Array.isArray(data)) {
+                    const combined = data
+                        .filter(isValidProduct)
+                        .map(product => {
+                            const stock = stocks.find(s => s.codprodu === product.codprodu);
+                            const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
 
-                        let totalStockActual = 0;
-                        if (lotes.length > 0) {
-                            totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
-                        } else if (stock) {
-                            totalStockActual = parseFloat(stock.stockactual);
-                        }
+                            let totalStockActual = 0;
+                            if (lotes.length > 0) {
+                                totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
+                            } else if (stock) {
+                                totalStockActual = parseFloat(stock.stockactual);
+                            }
 
-                        return {
-                            ...product,
-                            stockactual: totalStockActual.toFixed(2),
-                            canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
-                        };
-                    });
-                setFilteredProducts(combined);
-                setSingleProductView(combined.length === 1);
+                            return {
+                                ...product,
+                                stockactual: totalStockActual.toFixed(2),
+                                canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
+                            };
+                        });
+                    setFilteredProducts(combined);
+                    setSingleProductView(combined.length === 1);
+                    setIsSearchActive(true);
+                    setSuggestions([]); // Ensure suggestions are closed after search
+                } else {
+                    setFilteredProducts([]);
+                }
             })
-            .catch(error => console.error('Error performing search:', error));
+            .catch(error => {
+                console.error('Error performing search:', error);
+            });
     };
 
+    // Manejar clic en sugerencia
     const handleSuggestionClick = (product) => {
-        const stock = stocks.find(s => s.codprodu === product.codprodu);
-        const lotes = stockLotes.filter(l => l.codprodu === product.codprodu);
-
-        let totalStockActual = 0;
-        if (lotes.length > 0) {
-            totalStockActual = lotes.reduce((acc, lote) => acc + parseFloat(lote.stockactual), 0);
-        } else if (stock) {
-            totalStockActual = parseFloat(stock.stockactual);
-        }
-
-        const combinedProduct = {
-            ...product,
-            stockactual: totalStockActual.toFixed(2),
-            canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
-        };
-        setFilteredProducts([combinedProduct]);
         setLastSearch(product.desprodu);
-        setSingleProductView(true);
-        setSearchTerm('');
-        setSuggestions([]);
+        performSearch(product.desprodu);
+        setSearchTerm('');  // Limpiar el campo de búsqueda
+        setSuggestions([]); // Cerrar las sugerencias
     };
 
-    const handleShowAll = () => {
-        setSearchTerm('');
+    // Manejar clic en el botón de última búsqueda
+    const handleLastSearchClick = () => {
+        if (lastSearch) {
+            performSearch(lastSearch);
+        }
+    };
+
+    // Mostrar todos los productos
+    const handleShowAllProducts = () => {
         setFilteredProducts(combinedProducts);
         setSingleProductView(false);
+        setIsSearchActive(false);
     };
 
+    // Manejo de cambio de página
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
 
-    const handleLastSearchClick = () => {
-        performSearch(lastSearch);
-        setSearchTerm('');
-    };
-
-    const handleProductClick = async (codprodu) => {
+    // Manejar clic en producto para abrir el modal
+    const handleProductClick = async (product) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${codprodu}`);
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${product.codprodu}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            setSelectedProductLots(Array.isArray(data) ? data : []);
+            setSelectedProductLots(data || []);
             setModalVisible(true);
         } catch (error) {
-            console.error('Error fetching product lots data:', error);
+            console.error('Error fetching product lots:', error);
         }
     };
 
-    const closeModal = () => {
-        setModalVisible(false);
-        setSelectedProductLots([]);
-    };
-
     return (
-        <div className="container mx-auto justify-center text-center py-4">
-            <div ref={searchBarRef}>
+        <div className="container mx-auto justify-center text-center py-0 mt-[15%] md:mt-[1%] px-4">
+            <div ref={searchBarRef} className="mb-0 mb:mb-6">
                 <SearchBar
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}
                     suggestions={suggestions}
-                    handleSearchInputChange={handleSearchInputChange}
-                    handleSearchKeyPress={handleSearchKeyPress}
+                    setSuggestions={setSuggestions}  // Pasar la función para actualizar sugerencias
+                    handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
+                    handleSearchKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                            setLastSearch(searchTerm);
+                            performSearch(searchTerm);
+                            setSearchTerm('');  // Limpiar el campo de búsqueda
+                            setSuggestions([]);  // Cerrar las sugerencias al presionar Enter
+                        }
+                    }}
                     handleSuggestionClick={handleSuggestionClick}
                 />
             </div>
-            {lastSearch && (
-                <button
-                    onClick={handleLastSearchClick}
-                    className="mb-4 px-4 py-2 bg-yellow-400 text-white rounded cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600"
-                >
-                    Última búsqueda: {lastSearch}
-                </button>
-            )}
+            <div className='grid grid-cols-2'>
+                {lastSearch && (
+                    <button
+                        onClick={handleLastSearchClick}
+                        className="mb-4 px-4 py-1 bg-yellow-400 text-white rounded-lg cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600 transition duration-200"
+                    >
+                        Última búsqueda: {lastSearch}
+                    </button>
+                )}
+                {isSearchActive && (
+                    <button
+                        onClick={handleShowAllProducts}
+                        className="mb-4 px-4 py-1 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200"
+                    >
+                        Mostrar todos los productos
+                    </button>
+                )}
+            </div>
             <ProductTable products={filteredProducts} handleProductClick={handleProductClick} />
+
             {!singleProductView && (
-                <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} />
+                <PaginationControls
+                    currentPage={currentPage}
+                    handlePageChange={handlePageChange}
+                    totalPages={Math.ceil(totalProducts / itemsPerPage)}
+                />
             )}
-            {singleProductView && (
-                <button
-                    onClick={handleShowAll}
-                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-300"
-                >
-                    Mostrar todos
-                </button>
+
+            {modalVisible && (
+                <ProductModal
+                    modalVisible={modalVisible}
+                    selectedProductLots={selectedProductLots}
+                    closeModal={() => setModalVisible(false)}
+                />
             )}
-            <ProductModal
-                modalVisible={modalVisible}
-                selectedProductLots={selectedProductLots}
-                closeModal={closeModal}
-            />
         </div>
     );
 }
