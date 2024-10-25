@@ -135,21 +135,28 @@ const EquivalenciasTable = () => {
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
-
-    // Cerrar sugerencias al hacer clic fuera del input
-    const handleClickOutside = (event) => {
-        if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
-            setSuggestionsProveedor([]);
-            setSuggestionsCJMW([]);
-        }
-    };
-
     useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+        const handleClickOutsideProveedor = (event) => {
+            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
+                setSuggestionsProveedor([]);
+            }
         };
-    }, []);
+
+        const handleClickOutsideCJMW = (event) => {
+            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
+                setSuggestionsCJMW([]);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutsideProveedor);
+        document.addEventListener('mousedown', handleClickOutsideCJMW);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutsideProveedor);
+            document.removeEventListener('mousedown', handleClickOutsideCJMW);
+        };
+    }, [setSuggestionsProveedor, setSuggestionsCJMW]);
+
 
     // Si el usuario no tiene acceso, mostrar un mensaje de error
     if (user && user.role !== 'almacen' && user.role !== 'admin') {
@@ -164,17 +171,19 @@ const EquivalenciasTable = () => {
                         searchTerm={searchTermProveedor}
                         setSearchTerm={setSearchTermProveedor}
                         suggestions={suggestionsProveedor}
+                        setSuggestions={setSuggestionsProveedor} // Aquí aseguramos que se pasa la función correcta
                         handleSearchInputChange={(e) => setSearchTermProveedor(e.target.value)}
                         handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchProveedor(searchTermProveedor); }}
-                        handleSuggestionClick={performSearchProveedor}
+                        handleSuggestionClick={handleSuggestionClickProveedor}
                     />
                     <SearchBar
                         searchTerm={searchTermCJMW}
                         setSearchTerm={setSearchTermCJMW}
                         suggestions={suggestionsCJMW}
+                        setSuggestions={setSuggestionsCJMW} // Aseguramos que se pasa correctamente la función
                         handleSearchInputChange={(e) => setSearchTermCJMW(e.target.value)}
                         handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchCJMW(searchTermCJMW); }}
-                        handleSuggestionClick={performSearchCJMW}
+                        handleSuggestionClick={handleSuggestionClickCJMW}
                     />
                 </div>
             </div>

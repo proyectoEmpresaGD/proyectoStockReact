@@ -28,7 +28,7 @@ const SearchBar = ({ searchTerm, setSearchTerm, suggestions, setSuggestions, han
     };
 
     return (
-        <div className="mb-2 w-3/4 md:w-1/2 mx-auto justify-center" ref={inputRef}>
+        <div className="relative mb-2 w-3/4 lg:w-1/2 mx-auto justify-center" ref={inputRef}>
             <div className="relative">
                 <input
                     type="text"
@@ -41,7 +41,7 @@ const SearchBar = ({ searchTerm, setSearchTerm, suggestions, setSuggestions, han
                 <AiOutlineSearch className="absolute right-3 top-3 text-gray-500" size={20} />
             </div>
             {suggestions.length > 0 && (
-                <ul className="absolute left-0 mx-auto w-2/4 right-0 mt-2 max-h-60 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg z-30">
+                <ul className="absolute left-0 right-0 mt-2 max-h-60 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg z-30">
                     {suggestions.map((suggestion, index) => (
                         <li
                             key={index}

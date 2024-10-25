@@ -24,7 +24,7 @@ const SearchBarEquivalencias = ({ searchTerm, setSearchTerm, suggestions, setSug
     };
 
     return (
-        <div ref={wrapperRef} className="relative mb-4 w-3/4 sm:w-1/2 lg:w-1/2 mx-auto" role="search">
+        <div ref={wrapperRef} className="relative mb-2 w-3/4 lg:w-1/2 mx-auto justify-center" role="search">
             <input
                 type="text"
                 aria-label="Buscar por producto proveedor"
