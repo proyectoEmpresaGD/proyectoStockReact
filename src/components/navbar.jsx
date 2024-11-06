@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock, FaCubes, FaBalanceScale } from 'react-icons/fa';
+import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock, FaCubes, FaBalanceScale, FaTag } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [productosDropdownOpen, setProductosDropdownOpen] = useState(false);
+    const [documentsDropdownOpen, setDocumentsDropdownOpen] = useState(false); // Nuevo estado para la sección de documentos
     const { user } = useAuthContext();
 
     const toggleDropdown = () => {
@@ -14,6 +15,10 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
 
     const toggleProductosDropdown = () => {
         setProductosDropdownOpen(!productosDropdownOpen);
+    };
+
+    const toggleDocumentsDropdown = () => {
+        setDocumentsDropdownOpen(!documentsDropdownOpen);
     };
 
     return (
@@ -111,17 +116,31 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             )}
                         </li>
 
-                        {/* Rutas accesibles por todos los roles */}
-                        {/* <li>
-                            <NavLink
-                                to="/fichar"
-                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                onClick={closeSidebar}
+                        {/* Nueva sección de Documentos accesible por todos */}
+                        <li>
+                            <div
+                                onClick={toggleDocumentsDropdown}
+                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
                             >
-                                <FaClock className="mr-3 text-lg" />
-                                Fichar
-                            </NavLink>
-                        </li> */}
+                                <FaTag className="mr-3 text-lg" />
+                                <span>Documentos</span>
+                                <FaChevronDown className={`ml-auto transform ${documentsDropdownOpen ? 'rotate-180' : ''}`} />
+                            </div>
+                            {documentsDropdownOpen && (
+                                <ul className="pl-8 mt-2 space-y-2">
+                                    <li>
+                                        <NavLink
+                                            to="/etiquetas"
+                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
+                                            onClick={closeSidebar}
+                                        >
+                                            <FaTag className="mr-3 text-lg" />
+                                            Etiquetas
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            )}
+                        </li>
 
                         {/* Menú desplegable de aplicaciones accesible por todos */}
                         <li>

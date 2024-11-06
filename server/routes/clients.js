@@ -48,5 +48,11 @@ export const createClienteRouter = () => {
         next();
     }, clienteController.delete.bind(clienteController));
 
+    // Ruta para obtener el historial de facturación de un cliente específico
+    clienteRouter.get('/billing/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        next();
+    }, clienteController.getBillingHistory.bind(clienteController));
+
     return clienteRouter;
 };

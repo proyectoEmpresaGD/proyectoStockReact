@@ -10,6 +10,7 @@ import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
 import EquivalenciasTable from './components/equivalencias/EquivalenciasTable.jsx';
+import Etiquetas from './pages/Etiquetas.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,6 +37,7 @@ function App() {
                       <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                       <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
                       <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><EquivalenciasTable /></ProtectedRoute>} />
+                      <Route path="/etiquetas" element={<Etiquetas />} /> {/* Nueva ruta */}
                     </Routes>
                   </div>
                 </div>

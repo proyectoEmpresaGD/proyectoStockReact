@@ -84,14 +84,15 @@ export class ProductModel {
     const { rows } = await pool.query('DELETE FROM productos WHERE "codprodu" = $1 RETURNING *;', [id]);
     return rows[0];
   }
-  static async search({ query, limit = 20 }) {
+
+  static async search({ query, limit = 20, offset = 0 }) {
     try {
       const searchQuery = `
-        SELECT * FROM productos
-        WHERE "desprodu" ILIKE $1
-        LIMIT $2
-      `;
-      const values = [`%${query}%`, limit]; // Se utiliza el valor del límite
+            SELECT * FROM productos
+            WHERE "desprodu" ILIKE $1
+            LIMIT $2 OFFSET $3
+        `;
+      const values = [`%${query}%`, limit, offset];
       const { rows } = await pool.query(searchQuery, values);
       return rows;
     } catch (error) {
@@ -99,6 +100,7 @@ export class ProductModel {
       throw new Error('Error searching products');
     }
   }
+
 
   static async getByCodFamil(codfamil) {
     try {

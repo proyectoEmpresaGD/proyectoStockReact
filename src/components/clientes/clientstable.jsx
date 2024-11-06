@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlane } from '@fortawesome/free-solid-svg-icons';
-import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
+import { faPlane, faPlusCircle } from '@fortawesome/free-solid-svg-icons';
+import { useAuthContext } from '../../Auth/AuthContext';
+import VisitModal from '../clientes/VisitModal';
 
-function ClientTable({ clients, handleClientClick, handleVisitClick, clientBillings, getClientColor }) {
+function ClientTable({ clients, handleClientClick, clientBillings, getClientColor, setClients }) {
     const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0, clientId: null });
-    const { user } = useAuthContext(); // Obtener la información del usuario
+    const [visitModalVisible, setVisitModalVisible] = useState(false);
+    const [selectedClientId, setSelectedClientId] = useState(null);
+    const { user } = useAuthContext();
 
     const handleMouseEnter = (billing, clientId, event) => {
         const content = `Facturación: ${billing.toFixed(2)} €`;
@@ -23,15 +26,34 @@ function ClientTable({ clients, handleClientClick, handleVisitClick, clientBilli
         setTooltip({ show: false, content: '', x: 0, y: 0, clientId: null });
     };
 
+    const openVisitModal = (clientId) => {
+        setSelectedClientId(clientId);
+        setVisitModalVisible(true);
+    };
+
+    const closeVisitModal = () => {
+        setVisitModalVisible(false);
+        setSelectedClientId(null);
+    };
+
+    const updateLastVisitDate = (clientId, date) => {
+        setClients((prevClients) => {
+            return prevClients.map((client) =>
+                client.codclien === clientId ? { ...client, ultimaVisita: date } : client
+            );
+        });
+    };
+
     return (
         <div className="relative overflow-x-auto overflow-y-auto shadow-md rounded-lg md:max-h-[60%] max-h-[45vh]">
-            <table className=" md:min-w-[100%] bg-white border border-gray-300 rounded-lg text-sm">
+            <table className="md:min-w-[100%] bg-white border border-gray-300 rounded-lg text-sm">
                 <thead className="bg-gray-100 text-xs md:text-sm">
                     <tr>
                         <th className="md:px-4 px-1 py-2 border-b text-center">Estado</th>
                         <th className="md:px-4 px-1 py-2 border-b text-left">Código</th>
                         <th className="md:px-4 px-1 py-2 border-b text-left">Nombre</th>
                         <th className="md:px-4 px-1 py-2 border-b text-left">Localidad</th>
+                        <th className="md:px-4 px-1 py-2 border-b text-center">Última Visita</th>
                         <th className="md:px-4 px-1 py-2 border-b text-center">Visitas</th>
                     </tr>
                 </thead>
@@ -53,20 +75,43 @@ function ClientTable({ clients, handleClientClick, handleVisitClick, clientBilli
                                     </div>
                                 )}
                             </td>
-                            <td className="px-1 md:px-4 py-2 text-left" onClick={() => handleClientClick(client.codclien)}>{client.codclien}</td>
-                            <td className="px-1 md:px-4 py-2 text-left break-words" onClick={() => handleClientClick(client.codclien)}>{client.razclien}</td>
-                            <td className="px-1 md:px-4 py-2 text-left max-h-[45vh]" onClick={() => handleClientClick(client.codclien)}>{client.localidad}</td>
+                            <td className="px-1 md:px-4 py-2 text-left" onClick={() => handleClientClick(client.codclien)}>
+                                {client.codclien}
+                            </td>
+                            <td className="px-1 md:px-4 py-2 text-left break-words" onClick={() => handleClientClick(client.codclien)}>
+                                {client.razclien}
+                            </td>
+                            <td className="px-1 md:px-4 py-2 text-left max-h-[45vh]" onClick={() => handleClientClick(client.codclien)}>
+                                {client.localidad}
+                            </td>
+                            <td className="px-1 md:px-4 py-2 text-center">
+                                {client.ultimaVisita ? new Date(client.ultimaVisita).toLocaleDateString() : "Sin Visitas"}
+                            </td>
                             <td className="px-4 py-2 text-center">
                                 {user && (user.role === 'comercial' || user.role === 'admin') && (
-                                    <button onClick={() => handleVisitClick(client.codclien)}>
-                                        <FontAwesomeIcon icon={faPlane} size="lg" className="text-blue-500 hover:text-blue-700 transition-colors duration-200" />
-                                    </button>
+                                    <>
+                                        <button onClick={() => openVisitModal(client.codclien)} aria-label="Abrir visitas">
+                                            <FontAwesomeIcon icon={faPlane} size="lg" className="text-blue-500 hover:text-blue-700 transition-colors duration-200" />
+                                        </button>
+                                        <button onClick={() => openVisitModal(client.codclien)} aria-label="Agregar visita" className="ml-2">
+                                            <FontAwesomeIcon icon={faPlusCircle} size="lg" className="text-green-500 hover:text-green-700 transition-colors duration-200" />
+                                        </button>
+                                    </>
                                 )}
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </table>
+
+            {visitModalVisible && (
+                <VisitModal
+                    modalVisible={visitModalVisible}
+                    selectedClientId={selectedClientId}
+                    closeModal={closeVisitModal}
+                    updateLastVisitDate={updateLastVisitDate}
+                />
+            )}
         </div>
     );
 }
