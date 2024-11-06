@@ -261,3 +261,17 @@ export const countryCodes = [
     { value: 'ZW', label: 'Zimbabue' },
     // Añadir más países si es necesario
 ];
+
+// src/Constants/constants.jsx
+export const clientStatuses = {
+    active: 'Activo',
+    inactive: 'Inactivo',
+    suspended: 'Suspendido',
+};
+
+export const billingThresholds = [
+    { limit: 1000, colorClass: 'bg-yellow-500' },
+    { limit: 3000, colorClass: 'bg-orange-500' },
+    { limit: 5000, colorClass: 'bg-green-500' },
+    { limit: Infinity, colorClass: 'bg-blue-500' },
+];

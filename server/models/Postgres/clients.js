@@ -10,7 +10,7 @@ const pool = new pg.Pool({
 
 export class ClienteModel {
 
-    static async getAll({ offset, limit, codpais, codprovi, query }) {
+    static async getAll({ offset, limit, codpais, codprovi, query, status }) {
         let queryText = `SELECT * FROM clientes WHERE 1=1`;
         const params = [];
 
@@ -29,7 +29,11 @@ export class ClienteModel {
             params.push(`%${query}%`);
         }
 
-        // Ordenamos por localidad y aplicamos la paginación
+        if (status) {  // Filtro por estado del cliente
+            queryText += ` AND estado = $${params.length + 1}`;
+            params.push(status);
+        }
+
         queryText += ` ORDER BY localidad LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(limit, offset);
 
@@ -39,6 +43,23 @@ export class ClienteModel {
         } catch (error) {
             console.error('Error fetching clients:', error);
             throw new Error('Error fetching clients');
+        }
+    }
+
+    static async getBillingHistory(codclien) {
+        const queryText = `
+            SELECT fecha, importe, dt1, dt2, dt3
+            FROM facturacion
+            WHERE codclien = $1
+            ORDER BY fecha DESC
+        `;
+
+        try {
+            const { rows } = await pool.query(queryText, [codclien]);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching billing history:', error);
+            throw new Error('Error fetching billing history');
         }
     }
 

@@ -15,6 +15,7 @@ import { dirname, join } from 'path';
 import pg from 'pg';
 import 'dotenv/config';
 import { createLibroRouter } from './routes/libros.js';
+import { createVisitaRouter } from './routes/visitaRoutes.js';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +49,7 @@ app.use('/api/fichajes', authMiddleware, createFichajeRouter({ pool }));
 app.use('/api/pedventa', authMiddleware, createPedVentaRouter());
 app.use('/api/equivalencias', authMiddleware, createEquivalenciasRouter());
 app.use('/api/libros', authMiddleware, createLibroRouter());
+app.use('/api/visits', authMiddleware, createVisitaRouter());
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {
