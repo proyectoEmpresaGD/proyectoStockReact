@@ -6,6 +6,15 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
+// Ruta a los logos en la carpeta public/logos
+const brandLogos = {
+    ARE: 'public/logos/logoArena (1).png',
+    HAR: 'public/logos/logoHarbour (1).png',
+    FLA: 'public/logos/logoFlamenco (1).png',
+    CJM: 'public/logos/CJM marca negro.png',
+    BAS: 'public/logos/LOGO BASSARI negro.png',
+};
+
 function Etiquetas() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,12 +75,11 @@ function Etiquetas() {
     const handlePrint = () => {
         const element = printRef.current;
         const options = {
-            margin: [0, 0, 0, 0.5],
+            margin: [0, 0, 0, 0], // Sin márgenes para evitar segunda página
             filename: 'Etiqueta_Producto.pdf',
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'cm', format: [9, 3], orientation: 'landscape' },
-            pagebreak: { mode: ['avoid-all'] },
+            jsPDF: { unit: 'cm', format: [9, 5], orientation: 'landscape' },
         };
 
         html2pdf()
@@ -79,14 +87,6 @@ function Etiquetas() {
             .from(element)
             .save()
             .catch(error => console.error('Error generating PDF:', error));
-    };
-
-    const brandNamesMap = {
-        ARE: 'Arena',
-        HAR: 'Harbour',
-        FLA: 'Flamenco',
-        CJM: 'CJM',
-        BAS: 'Bassari',
     };
 
     return (
@@ -108,31 +108,41 @@ function Etiquetas() {
             {selectedProduct && (
                 <div
                     ref={printRef}
-                    className="bg-white p-4 rounded shadow-lg flex items-center justify-between"
+                    className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
                     style={{
-                        width: '8.8cm', // Ajustado para dejar más margen
-                        height: '2.8cm',
+                        width: '9cm',
+                        height: '4.8cm',
                         fontSize: '8px',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        padding: '10px',
-                        marginLeft: '0.1cm', // Margen izquierdo adicional
+                        padding: '0 0 0 0.2cm', // Margen izquierdo solo para QR
                         boxSizing: 'border-box',
+                        color: 'black',
+                        fontFamily: 'Arial, sans-serif',
+                        fontWeight: 'bold',
+                        textAlign: 'start',
                     }}
                 >
-                    <div className="qr-code" style={{ marginRight: '10px' }}>
-                        <QRCode
-                            value={encryptProductId(selectedProduct.codprodu)}
-                            size={70} // Tamaño ajustado para el QR
+                    <div className="logo-section" style={{ marginBottom: '4px', marginTop: '-4px' }}>
+                        <img
+                            src={brandLogos[selectedProduct.codmarca]}
+                            alt="Logo de Marca"
+                            style={{ width: '75%', maxHeight: '1.6cm', objectFit: 'contain' }}
                         />
                     </div>
-                    <div className="text-content text-xs text-gray-700">
-                        <p><strong>Marca:</strong> {brandNamesMap[selectedProduct.codmarca] || selectedProduct.codmarca}</p>
-                        <p><strong>Nombre:</strong> {selectedProduct.desprodu}</p>
-                        <p><strong>Tonalidad:</strong> {selectedProduct.tonalidad}</p>
-                        <p><strong>Ancho:</strong> {selectedProduct.ancho} cm</p>
-                        <p><strong>Composición:</strong> {selectedProduct.composicion}</p>
+
+                    <div className="content-section" style={{ display: 'flex', alignItems: 'top', width: '100%', }}>
+                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', }}>
+                            <QRCode
+                                value={encryptProductId(selectedProduct.codprodu)}
+                                size={75} // Aumentado el tamaño del QR
+                            />
+                        </div>
+
+                        <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '15px' }}>
+                            <p><strong>Name:</strong> {selectedProduct.nombre}</p>
+                            <p><strong>Colour:</strong> {selectedProduct.tonalidad}</p>
+                            <p><strong>Width:</strong> {selectedProduct.ancho} </p>
+                            <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
+                        </div>
                     </div>
                 </div>
             )}

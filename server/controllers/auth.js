@@ -112,5 +112,13 @@ export class AuthController {
             return res.status(403).json({ message: 'Invalid refresh token' });
         }
     }
-
+    static async getCommercialUsers(req, res) {
+        try {
+            const commercialUsers = await UserModel.getCommercialUsers();
+            res.json(commercialUsers);
+        } catch (error) {
+            console.error('Error fetching commercial users:', error);
+            res.status(500).json({ message: 'Error fetching commercial users' });
+        }
+    }
 }

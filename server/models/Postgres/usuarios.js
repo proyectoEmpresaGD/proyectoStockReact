@@ -139,4 +139,16 @@ export class UserModel {
         }
     }
 
+    static async getCommercialUsers() {
+        const query = 'SELECT id, username FROM usuarios WHERE role = $1';
+        const values = ['comercial'];
+
+        try {
+            const { rows } = await pool.query(query, values);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching commercial users:', error);
+            throw new Error('Error fetching commercial users');
+        }
+    }
 }
