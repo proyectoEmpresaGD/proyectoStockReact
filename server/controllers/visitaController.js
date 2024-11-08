@@ -14,16 +14,20 @@ export class VisitaController {
     }
 
     async createVisit(req, res) {
-        const { cliente_id } = req.params;
-        const { date, description } = req.body;
+        const { cliente_id } = req.params; // Cliente ID desde los parámetros de la URL
+        const { date, description, assigned_to } = req.body; // Desestructuramos `assigned_to` del cuerpo de la solicitud
         const created_by = req.user.id; // ID del usuario autenticado
+
         try {
-            const newVisit = await VisitaModel.create({ cliente_id, date, description, created_by });
+            // Asegurarnos de que `assigned_to` se pasa al modelo para almacenar la visita correctamente
+            const newVisit = await VisitaModel.create({ cliente_id, date, description, created_by, assigned_to });
             res.status(201).json(newVisit);
         } catch (error) {
+            console.error("Error en createVisit:", error); // Registro de errores para depuración
             res.status(500).json({ error: error.message });
         }
     }
+
 
     async deleteVisit(req, res) {
         const { id } = req.params;
