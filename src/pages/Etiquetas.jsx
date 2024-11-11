@@ -6,13 +6,13 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-// URLs de los logos (con CORS habilitado si es posible)
+// Rutas locales a los logos en `public/logos`
 const brandLogos = {
-    ARE: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoArena.png',
-    HAR: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoHarbour.png',
-    FLA: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoCJM-sintexto.png',
-    CJM: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoFlamenco.png',
-    BAS: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LOGO%20BASSARI%20negro.png',
+    ARE: 'public/logos/logoArena (1).png',
+    HAR: 'public/logos/logoHarbour (1).png',
+    FLA: 'public/logos/CJM marca negro.png',
+    CJM: 'public/logos/logoFlamenco (1).png',
+    BAS: 'public/logos/LOGO BASSARI negro.png',
 };
 
 function Etiquetas() {
@@ -81,7 +81,7 @@ function Etiquetas() {
             html2canvas: {
                 scale: 2,
                 useCORS: true,
-                proxy: 'https://cors-anywhere.herokuapp.com/' // Usar un proxy si es necesario
+                allowTaint: false,
             },
             jsPDF: { unit: 'cm', format: [9, 5], orientation: 'landscape' },
         };
