@@ -6,13 +6,13 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-// Ruta a los logos en la carpeta public/logos
+// URLs de los logos (con CORS habilitado si es posible)
 const brandLogos = {
-    ARE: 'public/logos/logoArena (1).png',
-    HAR: 'public/logos/logoHarbour (1).png',
-    FLA: 'public/logos/logoFlamenco (1).png',
-    CJM: 'public/logos/CJM marca negro.png',
-    BAS: 'public/logos/LOGO BASSARI negro.png',
+    ARE: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoArena.png',
+    HAR: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoHarbour.png',
+    FLA: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoCJM-sintexto.png',
+    CJM: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoFlamenco.png',
+    BAS: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LOGO%20BASSARI%20negro.png',
 };
 
 function Etiquetas() {
@@ -75,10 +75,14 @@ function Etiquetas() {
     const handlePrint = () => {
         const element = printRef.current;
         const options = {
-            margin: [0, 0, 0, 0], // Sin márgenes para evitar segunda página
+            margin: [0, 0, 0, 0],
             filename: 'Etiqueta_Producto.pdf',
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                proxy: 'https://cors-anywhere.herokuapp.com/' // Usar un proxy si es necesario
+            },
             jsPDF: { unit: 'cm', format: [9, 5], orientation: 'landscape' },
         };
 
@@ -113,7 +117,7 @@ function Etiquetas() {
                         width: '9cm',
                         height: '4.8cm',
                         fontSize: '8px',
-                        padding: '0 0 0 0.2cm', // Margen izquierdo solo para QR
+                        padding: '0 0 0 0.2cm',
                         boxSizing: 'border-box',
                         color: 'black',
                         fontFamily: 'Arial, sans-serif',
@@ -129,18 +133,18 @@ function Etiquetas() {
                         />
                     </div>
 
-                    <div className="content-section" style={{ display: 'flex', alignItems: 'top', width: '100%', }}>
-                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', }}>
+                    <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
+                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '8px' }}>
                             <QRCode
                                 value={encryptProductId(selectedProduct.codprodu)}
-                                size={75} // Aumentado el tamaño del QR
+                                size={75}
                             />
                         </div>
 
                         <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '15px' }}>
                             <p><strong>Name:</strong> {selectedProduct.nombre}</p>
                             <p><strong>Colour:</strong> {selectedProduct.tonalidad}</p>
-                            <p><strong>Width:</strong> {selectedProduct.ancho} </p>
+                            <p><strong>Width:</strong> {selectedProduct.ancho}</p>
                             <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
                         </div>
                     </div>
