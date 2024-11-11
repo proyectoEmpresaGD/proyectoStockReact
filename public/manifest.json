@@ -3,17 +3,17 @@
     "name": "CJMW WORLDWIDE STOCK",
     "icons": [
         {
-            "src": "https://cjmw.eu/ImagenesTelasCjmw/Iconos/CJM-new-transparente.svg",
+            "src": "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJMlogo%2064x64.png",
             "sizes": "64x64 32x32 24x24 16x16",
             "type": "image/x-icon"
         },
         {
-            "src": "https://cjmw.eu/ImagenesTelasCjmw/Iconos/CJM-new-transparente.svg",
-            "type": "image/svg",
+            "src": "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJMlogo%20192x192.png",
+            "type": "image/svg+xml",
             "sizes": "192x192"
         },
         {
-            "src": "https://cjmw.eu/ImagenesTelasCjmw/Iconos/CJM-new-transparente.svg",
+            "src": "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJMlogo%20512x512.png",
             "type": "image/png",
             "sizes": "512x512"
         }
