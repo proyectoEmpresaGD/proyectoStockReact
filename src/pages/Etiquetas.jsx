@@ -8,11 +8,11 @@ import html2pdf from 'html2pdf.js';
 
 // Rutas locales a los logos en `public/logos`
 const brandLogos = {
-    ARE: 'public/logos/logoArena (1).png',
-    HAR: 'public/logos/logoHarbour (1).png',
-    FLA: 'public/logos/CJM marca negro.png',
-    CJM: 'public/logos/logoFlamenco (1).png',
-    BAS: 'public/logos/LOGO BASSARI negro.png',
+    ARE: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoArena.png',
+    HAR: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoHarbour.png',
+    FLA: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoFlamenco.png',
+    CJM: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoCJM.png',
+    BAS: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LOGO%20BASSARI%20negro.png',
 };
 
 function Etiquetas() {
