@@ -12,7 +12,10 @@ function Etiquetas() {
     const [suggestions, setSuggestions] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [brandLogos, setBrandLogos] = useState({});
+    const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
+    const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const printRef = useRef();
+    const [showIconMeaning, setShowIconMeaning] = useState(null);
 
     // Cargar logos en Base64 desde el archivo JSON
     useEffect(() => {
@@ -26,6 +29,32 @@ function Etiquetas() {
             }
         };
         loadBrandLogos();
+    }, []);
+
+    useEffect(() => {
+        const loadBrandLogosMantenimiento = async () => {
+            try {
+                const response = await fetch('/LogosBase64/brandLogosMantenimiento.json');
+                const logos = await response.json();
+                setBrandLogosMantenimiento(logos);
+            } catch (error) {
+                console.error("Error loading brand logos:", error);
+            }
+        };
+        loadBrandLogosMantenimiento();
+    }, []);
+
+    useEffect(() => {
+        const loadBrandLogosUsos = async () => {
+            try {
+                const response = await fetch('/LogosBase64/brandLogosUsos.json');
+                const logos = await response.json();
+                setBrandLogosUsos(logos);
+            } catch (error) {
+                console.error("Error loading brand logos:", error);
+            }
+        };
+        loadBrandLogosUsos();
     }, []);
 
     const handleSearchInputChange = (e) => {
@@ -71,6 +100,8 @@ function Etiquetas() {
         }
     };
 
+
+
     const encryptProductId = (productId) => {
         const secretKey = 'R2tyY1|YO.Bp!bK£BCl7l*?ZC1dT+q~6cAT-4|nx2z`0l3}78U';
         const encrypted = CryptoJS.AES.encrypt(productId, secretKey).toString();
@@ -99,6 +130,54 @@ function Etiquetas() {
             .catch(error => console.error('Error generating PDF:', error));
     };
 
+    const allowedMantenimientos = ['EASYCLEAN'];
+    const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
+
+    const getMantenimientoImages = (mantenimiento) => {
+        if (!mantenimiento) return "";
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
+
+        const valores = xmlDoc.getElementsByTagName("Valor");
+        const mantenimientoList = Array.from(valores)
+            .map(node => node.textContent.trim())
+            .filter(mantenimiento => allowedMantenimientos.includes(mantenimiento));
+
+        return mantenimientoList
+            .filter(mantenimiento => loadBrandLogosMantenimiento[mantenimiento])
+            .map((mantenimiento, index) => (
+                <img
+                    key={index}
+                    src={loadBrandLogosMantenimiento[mantenimiento]}
+                    alt={mantenimiento}
+                    className="w-14 h-6 mx-0 md:mx-1 cursor-pointer"
+                    title={`Click para ver el significado de ${mantenimiento}`}
+                    onClick={() => setShowIconMeaning(mantenimiento)}
+                />
+            ));
+    };
+
+    const getUsoImages = (usos) => {
+        if (!usos) return "";
+
+        const usoList = usos.split(';')
+            .map(uso => uso.trim())
+            .filter(uso => allowedUsos.includes(uso));
+
+        return usoList
+            .filter(uso => loadBrandLogosUsos[uso])
+            .map((uso, index) => (
+                <img
+                    key={index}
+                    src={loadBrandLogosUsos[uso]}
+                    alt={uso}
+                    className="w-5 h-5 mx-0 md:mx-1 cursor-pointer"
+                    title={`Click para ver el significado de ${uso}`}
+                    onClick={() => setShowIconMeaning(uso)}
+                />
+            ));
+    };
     return (
         <div className="container mx-auto p-4 max-w-3xl">
             <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800">Generador de Etiquetas de Productos</h1>
@@ -120,8 +199,8 @@ function Etiquetas() {
                     ref={printRef}
                     className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
                     style={{
-                        width: '9cm',
-                        height: '4.8cm',
+                        width: '8cm',
+                        height: '4cm',
                         fontSize: '8px',
                         padding: '0 0 0 0.2cm',
                         boxSizing: 'border-box',
@@ -131,13 +210,22 @@ function Etiquetas() {
                         textAlign: 'start',
                     }}
                 >
-                    <div className="logo-section" style={{ marginBottom: '4px', marginTop: '-4px' }}>
-                        <img
-                            src={brandLogos[selectedProduct.codmarca]}
-                            alt="Logo de Marca"
-                            style={{ width: '75%', maxHeight: '1.6cm', objectFit: 'contain' }}
-                        />
+                    <div className="grid grid-cols-7 w-[100%]">
+                        <div className="col-span-2" style={{ marginBottom: '4px', marginTop: '22px', marginLeft: "10px", width: "100%" }} >
+                            {getMantenimientoImages(selectedProduct.mantenimiento)}
+                        </div>
+                        <div className="logo-section col-span-3" style={{ marginBottom: '4px', marginTop: '-4px' }}>
+                            <img
+                                src={brandLogos[selectedProduct.codmarca]}
+                                alt="Logo de Marca"
+                                style={{ width: '100%', maxHeight: '1.6cm', objectFit: 'contain' }}
+                            />
+                        </div>
+                        <div className="col-span-2 items-center flex" style={{ marginBottom: '4px', marginTop: '-4px', paddingRight: "10px", width: "100%", justifyContent: "space-around", }}>
+                            {getUsoImages(selectedProduct.uso)}
+                        </div>
                     </div>
+
 
                     <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
                         <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '8px' }}>
@@ -147,7 +235,7 @@ function Etiquetas() {
                             />
                         </div>
 
-                        <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '15px' }}>
+                        <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '5px' }}>
                             <p><strong>Name:</strong> {selectedProduct.nombre}</p>
                             <p><strong>Colour:</strong> {selectedProduct.tonalidad}</p>
                             <p><strong>Width:</strong> {selectedProduct.ancho}</p>
