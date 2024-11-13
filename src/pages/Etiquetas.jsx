@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../components/productos/SearchBar';
 import { useAuthContext } from '../Auth/AuthContext';
@@ -6,21 +6,27 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-// Rutas locales a los logos en `public/logos`
-const brandLogos = {
-    ARE: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoArena.png',
-    HAR: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoHarbour.png',
-    FLA: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoFlamenco.png',
-    CJM: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LogosBajaCalidad/logoCJM.png',
-    BAS: 'https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LOGO%20BASSARI%20negro.png',
-};
-
 function Etiquetas() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [brandLogos, setBrandLogos] = useState({});
     const printRef = useRef();
+
+    // Cargar logos en Base64 desde el archivo JSON
+    useEffect(() => {
+        const loadBrandLogos = async () => {
+            try {
+                const response = await fetch('/LogosBase64/brandLogos.json');
+                const logos = await response.json();
+                setBrandLogos(logos);
+            } catch (error) {
+                console.error("Error loading brand logos:", error);
+            }
+        };
+        loadBrandLogos();
+    }, []);
 
     const handleSearchInputChange = (e) => {
         setSearchTerm(e.target.value);

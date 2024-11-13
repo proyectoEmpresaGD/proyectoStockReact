@@ -11,7 +11,6 @@ const ACCEPTED_ORIGINS = [
   'https://cjmw-worldwide.vercel.app',
   'https://proyecto-stock-react-backend.vercel.app',
   'https://proyecto-stock-react.vercel.app',
-  'https://proyecto-stock-react.vercel.app',
   'https://cjmw.eu',
   'https://www.cjmw.eu',
   'https://bassari.eu',
