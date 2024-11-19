@@ -17,7 +17,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [selectedMarca, setSelectedMarca] = useState('');
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
-    const marcas = ["FLA", "CJM", "HAR", "ARE"];
+    const marcas = ["FLA", "CJM", "HAR", "ARE", "BAS"];
 
     const fetchPurchasedProducts = useCallback(async (codclien) => {
         try {
