@@ -168,16 +168,32 @@ function Etiquetas() {
         return usoList
             .filter(uso => loadBrandLogosUsos[uso])
             .map((uso, index) => (
-                <img
+                <div
                     key={index}
-                    src={loadBrandLogosUsos[uso]}
-                    alt={uso}
-                    className="w-5 h-5 mx-0 md:mx-1 cursor-pointer"
-                    title={`Click para ver el significado de ${uso}`}
-                    onClick={() => setShowIconMeaning(uso)}
-                />
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginRight: "8px" // Espacio entre cada logo y texto
+                    }}
+                >
+                    <img
+                        src={loadBrandLogosUsos[uso]}
+                        alt={uso}
+                        className="cursor-pointer"
+                        style={{
+                            width: "20px",
+                            height: "20px",
+                            objectFit: "contain",
+                            marginRight: "4px" // Espacio entre el logo y el nombre
+                        }}
+                        title={`Click para ver el significado de ${uso}`}
+                        onClick={() => setShowIconMeaning(uso)}
+                    />
+                    <span style={{ fontSize: "12px", marginBottom: " 15px" }}>{uso}</span>
+                </div>
             ));
     };
+
     return (
         <div className="container mx-auto p-4 max-w-3xl">
             <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800">Generador de Etiquetas de Productos</h1>
@@ -200,7 +216,7 @@ function Etiquetas() {
                     className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
                     style={{
                         width: '8cm',
-                        height: '4cm',
+                        height: '4.8cm',
                         fontSize: '8px',
                         padding: '0 0 0 0.2cm',
                         boxSizing: 'border-box',
@@ -210,19 +226,13 @@ function Etiquetas() {
                         textAlign: 'start',
                     }}
                 >
-                    <div className="grid grid-cols-7 w-[100%]">
-                        <div className="col-span-2" style={{ marginBottom: '4px', marginTop: '22px', marginLeft: "10px", width: "100%" }} >
-                            {getMantenimientoImages(selectedProduct.mantenimiento)}
-                        </div>
-                        <div className="logo-section col-span-3" style={{ marginBottom: '4px', marginTop: '-4px' }}>
+                    <div className="w-[100%]">
+                        <div className="logo-section" style={{ marginBottom: '4px', marginTop: '4px', justifyItems: "center" }}>
                             <img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
-                                style={{ width: '100%', maxHeight: '1.6cm', objectFit: 'contain' }}
+                                style={{ width: '50%', maxHeight: '1.6cm', objectFit: 'contain' }}
                             />
-                        </div>
-                        <div className="col-span-2 items-center flex" style={{ marginBottom: '4px', marginTop: '-4px', paddingRight: "10px", width: "100%", justifyContent: "space-around", }}>
-                            {getUsoImages(selectedProduct.uso)}
                         </div>
                     </div>
 
@@ -241,6 +251,10 @@ function Etiquetas() {
                             <p><strong>Width:</strong> {selectedProduct.ancho}</p>
                             <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
                         </div>
+                    </div>
+                    <div className=' flex flex-wrap items-start justify-start' style={{ marginBottom: '4px', marginTop: '4px', paddingLeft: "8px", paddingRight: "10px", width: "100%", justifyItems: "space-around", }}>
+                        {getMantenimientoImages(selectedProduct.mantenimiento)}
+                        {getUsoImages(selectedProduct.uso)}
                     </div>
                 </div>
             )}

@@ -299,4 +299,32 @@ export class ProductModel {
     }
   }
 
+  static async getEtiquetaLibroById({ id }) {
+    try {
+      const query = `
+        SELECT 
+          codprodu AS "code",
+          desprodu AS "description",
+          codmarca AS "brand",
+          tonalidad AS "color",
+          ancho AS "width",
+          composicion AS "composition",
+          calidad AS "quality",
+          martindale AS "martindale",
+          uso AS "usage",
+          tipo AS "fabricType",
+          estilo AS "fabricPattern",
+          colorprincipal AS "primaryColor",
+          coleccion AS "collection"
+        FROM productos 
+        WHERE "codprodu" = $1
+      `;
+      const { rows } = await pool.query(query, [id]);
+      return rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+      console.error('Error fetching etiqueta libro data:', error);
+      throw new Error('Error fetching etiqueta libro data');
+    }
+  }
+
 }

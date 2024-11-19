@@ -135,7 +135,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                             onClick={closeSidebar}
                                         >
                                             <FaTag className="mr-3 text-lg" />
-                                            Etiquetas
+                                            QUALITY
+                                        </NavLink>
+                                        <NavLink
+                                            to="/libro"
+                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
+                                            onClick={closeSidebar}
+                                        >
+                                            <FaTag className="mr-3 text-lg" />
+                                            LIBRO
                                         </NavLink>
                                     </li>
                                 </ul>

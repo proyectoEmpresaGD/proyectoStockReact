@@ -8,7 +8,6 @@ import PaginationControls from '../components/PaginationControls';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { provinces, countryCodes } from '../Constants/constants.jsx'; // Importar provincias y países
 
-
 function Clients() {
     const { token } = useAuthContext(); // Obtener el token del contexto de autenticación
     const [clients, setClients] = useState([]);
@@ -30,27 +29,30 @@ function Clients() {
         if (token) fetchClients(); // Ejecuta la llamada solo si hay token
     }, [currentPage, selectedCountry, selectedProvince, token]);
 
-    const fetchClients = async () => {
+    const fetchClients = async (page = currentPage, query = searchTerm) => {
         try {
-            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
+            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${page}&limit=${itemsPerPage}`;
             if (selectedCountry) {
                 url += `&codpais=${selectedCountry}`;
             }
             if (selectedProvince) {
                 url += `&codprovi=${selectedProvince.value}`;
             }
-            if (searchTerm) {
-                url += `&query=${searchTerm}`;
+            if (query) {
+                url += `&query=${query}`;
             }
+
             const response = await fetch(url, {
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Enviar el token de autenticación
-                    'Content-Type': 'application/json'
-                }
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
             });
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
             const data = await response.json();
             if (Array.isArray(data.clients)) {
                 setClients(data.clients);
@@ -100,44 +102,49 @@ function Clients() {
         }
     };
 
-    // Función que maneja la selección de una sugerencia
     const handleSuggestionClick = (client) => {
-        setSearchTerm(client.razclien); // Actualiza el término de búsqueda con la sugerencia seleccionada
+        setSearchTerm(client.razclien);
+        setClients([client]); // Actualiza la tabla con el cliente seleccionado
         setSuggestions([]); // Limpia las sugerencias
-        setCurrentPage(1); // Reinicia a la primera página
-        fetchClients(); // Realiza una búsqueda actualizada
+        setTotalClients(1); // Ajusta el contador total de clientes
+        setCurrentPage(1); // Reinicia la paginación
     };
 
     const handleSearchInputChange = async (event) => {
-        const searchTerm = event.target.value;
+        const searchTerm = event.target.value.trim();
         setSearchTerm(searchTerm);
 
-        if (searchTerm.length > 2) {
+        if (searchTerm.length > 1) {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}&limit=4`, {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
                 });
                 const data = await response.json();
-                setSuggestions(data); // Actualizar las sugerencias
+                // Actualizar sugerencias en tiempo real basadas en el término
+                setSuggestions(data.filter(client => client.razclien.toLowerCase().includes(searchTerm.toLowerCase())));
             } catch (error) {
                 console.error('Error fetching suggestions:', error);
             }
         } else {
-            setSuggestions([]); // Limpiar sugerencias si el término es corto
+            setSuggestions([]);
         }
     };
 
     const handleSearchKeyPress = (event) => {
         if (event.key === 'Enter') {
-            setCurrentPage(1);
-            setSuggestions([]); // Limpiar sugerencias al presionar Enter
-            fetchClients();
+            setCurrentPage(1); // Reinicia la paginación al buscar
+            setSuggestions([]); // Limpia las sugerencias
+            fetchClients(); // Realiza la búsqueda con el término actual
         }
     };
 
-    const handlePageChange = (newPage) => setCurrentPage(newPage);
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+        fetchClients(newPage, searchTerm); // Incluye el término de búsqueda
+    };
 
     const handleClientClick = async (codclien) => {
         try {
@@ -160,24 +167,28 @@ function Clients() {
 
     const closeModal = () => setModalVisible(false);
     const closeVisitModal = () => setVisitModalVisible(false);
+
     const handleProvinceChange = (selectedOption) => {
         setSelectedProvince(selectedOption);
         setCurrentPage(1);
-        fetchClients();
+        fetchClients(1, searchTerm); // Incluye el término de búsqueda actual
     };
+
     const handleCountryChange = (selectedOption) => {
         setSelectedCountry(selectedOption ? selectedOption.value : null);
         setCurrentPage(1);
-        fetchClients();
+        fetchClients(1, searchTerm); // Incluye el término de búsqueda actual
     };
+
     const handleClearFilter = () => {
         setSelectedProvince(null);
         setSelectedCountry(null);
         setSearchTerm('');
         setSuggestions([]);
         setCurrentPage(1);
-        fetchClients();
+        fetchClients(); // Recupera todos los clientes originales
     };
+
     const getClientColor = (totalBilling) => {
         if (totalBilling <= 1000) return 'bg-yellow-500';
         if (totalBilling <= 3000) return 'bg-orange-500';
@@ -193,10 +204,11 @@ function Clients() {
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 suggestions={suggestions}
-                handleSearchInputChange={handleSearchInputChange}
-                handleSearchKeyPress={handleSearchKeyPress}
-                handleSuggestionClick={handleSuggestionClick} // Pasa la función para manejar la selección de sugerencias
+                setSuggestions={setSuggestions}
+                handleSearchEnter={() => fetchClients(1, searchTerm)} // Ejecuta fetchClients con el término actual
+                handleSuggestionClick={handleSuggestionClick}
             />
+
             <div className="md:mb-4 mb-0 justify-between items-center md:flex grid grid-rows-2">
                 <div className="flex md:space-x-4 space-x-1">
                     <div className="w-40">
@@ -236,17 +248,10 @@ function Clients() {
                 clientBillings={clientBillings}
                 getClientColor={getClientColor}
             />
-            {!singleClientView && totalPages > 1 && (
+            {totalPages > 1 && (
                 <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} totalPages={totalPages} />
             )}
-            {singleClientView && (
-                <button
-                    onClick={handleClearFilter}
-                    className="mt-4 px-4 py-2 bg-green-500 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-300"
-                >
-                    Mostrar todos
-                </button>
-            )}
+
             <ClientModal
                 modalVisible={modalVisible}
                 selectedClientDetails={selectedClientDetails}

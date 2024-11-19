@@ -24,12 +24,12 @@ export class ClienteModel {
             params.push(codprovi);
         }
 
-        if (query) {
+        if (query) { // Agregar filtro por término de búsqueda
             queryText += ` AND razclien ILIKE $${params.length + 1}`;
             params.push(`%${query}%`);
         }
 
-        if (status) {  // Filtro por estado del cliente
+        if (status) {
             queryText += ` AND estado = $${params.length + 1}`;
             params.push(status);
         }
@@ -45,6 +45,7 @@ export class ClienteModel {
             throw new Error('Error fetching clients');
         }
     }
+
 
     static async getBillingHistory(codclien) {
         const queryText = `
@@ -92,7 +93,7 @@ export class ClienteModel {
         }
     }
 
-    static async search({ query, limit = 4 }) {
+    static async search({ query, limit = 10 }) {
         try {
             const searchQuery = `
                 SELECT * FROM clientes
@@ -103,10 +104,11 @@ export class ClienteModel {
             const { rows } = await pool.query(searchQuery, values);
             return rows;
         } catch (error) {
-            console.error('Error searching products:', error);
-            throw new Error('Error searching products');
+            console.error('Error searching clients:', error);
+            throw new Error('Error searching clients');
         }
     }
+
 
     static async getById({ codclien }) {
         const { rows } = await pool.query(`

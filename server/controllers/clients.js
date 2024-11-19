@@ -41,7 +41,7 @@ export class ClienteController {
     }
 
     async search(req, res) {
-        const { query, limit = 4 } = req.query;
+        const { query = '', limit = 10 } = req.query;
 
         try {
             const results = await ClienteModel.search({ query, limit });
