@@ -1,6 +1,22 @@
 import { PedVentaModel } from '../models/Postgres/pedventa.js';
 
 export class PedVentaController {
+
+
+
+    async getAll(req, res) {
+        try {
+            const pedidos = await PedVentaModel.getAll();
+            if (pedidos) {
+                res.json(pedidos);
+            } else {
+                res.status(404).json({ message: 'No orders found' });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async getByClient(req, res) {
         try {
             const { codclien } = req.params;
@@ -51,4 +67,6 @@ export class PedVentaController {
             res.status(500).json({ error: error.message });
         }
     }
+
+
 }
