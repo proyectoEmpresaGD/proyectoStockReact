@@ -30,7 +30,7 @@ function App() {
               <ProtectedRoute>
                 <div className="flex">
                   <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
-                  <div className="flex-1">
+                  <div className="flex-1 h-screen overflow-y-auto">
                     <Header toggleSidebar={toggleSidebar} />
                     <Routes>
                       <Route path="/" element={<Home />} />

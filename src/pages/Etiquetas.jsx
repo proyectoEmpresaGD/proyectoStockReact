@@ -120,7 +120,7 @@ function Etiquetas() {
                 useCORS: true,
                 allowTaint: false,
             },
-            jsPDF: { unit: 'cm', format: [9, 5], orientation: 'landscape' },
+            jsPDF: { unit: 'cm', format: [8, 5], orientation: 'landscape' },
         };
 
         html2pdf()
@@ -246,8 +246,8 @@ function Etiquetas() {
                         </div>
 
                         <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '5px' }}>
-                            <p><strong>Name:</strong> {selectedProduct.nombre}</p>
-                            <p><strong>Colour:</strong> {selectedProduct.tonalidad}</p>
+                            <p><strong>Pattern:</strong> {selectedProduct.nombre}</p>
+                            <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
                             <p><strong>Width:</strong> {selectedProduct.ancho}</p>
                             <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
                         </div>

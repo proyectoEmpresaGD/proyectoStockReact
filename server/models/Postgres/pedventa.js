@@ -10,9 +10,18 @@ const pool = new pg.Pool({
 
 export class PedVentaModel {
 
+    static async getAll() {
+        const { rows } = await pool.query(`
+            SELECT DISTINCT npedventa
+            FROM pedventa
+        `);
+        return rows;
+    }
+
+
     static async getByClient({ codclien }) {
         const { rows } = await pool.query(`
-            SELECT codprodu, fecha, desprodu, cantidad, precio, importe, dt1, dt2, dt3
+            SELECT codprodu, fecha, desprodu, cantidad, precio, importe, dt1, dt2, dt3, npedventa
             FROM pedventa 
             WHERE codclien = $1
         `, [codclien]);
@@ -50,4 +59,6 @@ export class PedVentaModel {
 
         return rows[0];
     }
+
+
 }

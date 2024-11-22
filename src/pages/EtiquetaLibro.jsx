@@ -5,7 +5,7 @@ import { useAuthContext } from '../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
-import { mantenimientoImages, usoImages } from '../../Constants/constants';
+
 
 function EtiquetaLibro() {
     const { token } = useAuthContext();
@@ -292,22 +292,22 @@ function EtiquetaLibro() {
                     <div className="text-content text-[10px] grid grid-cols-4 ">
                         <div>
                             <p><strong>Colección:</strong> {selectedProduct.coleccion}</p>
-                            <p><strong>Tonalidad:</strong> {selectedProduct.tonalidad}</p>
-                            <p><strong>Gramaje:</strong> {formatNumber(selectedProduct.gramaje)} g/m²</p>
-                            <p><strong>Composición:</strong> {selectedProduct.composicion}</p>
-                            <p><strong>Rapport Horizontal:</strong> {formatNumber(selectedProduct.repminhor)} cm</p>
-                            <p><strong>Rapport Vertical:</strong> {formatNumber(selectedProduct.repminver)} cm</p>
+                            <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
+                            <p><strong>Weight:</strong> {formatNumber(selectedProduct.gramaje)} g/m²</p>
+                            <p><strong>Compositión:</strong> {selectedProduct.composicion}</p>
+                            <p><strong>Horizontal Repeat:</strong> {formatNumber(selectedProduct.repminhor)} cm</p>
+                            <p><strong>Vertical Repeat:</strong> {formatNumber(selectedProduct.repminver)} cm</p>
 
                         </div>
                         <div className="text-content text-[11px]">
-                            <h3><strong>Usos:</strong></h3>
+                            <h3><strong>Usages:</strong></h3>
                             <div className="flex">{getUsoImages(selectedProduct.uso)}</div>
-                            <h3 className="mt-2"><strong>Mantenimiento:</strong></h3>
+                            <h3 className="mt-2"><strong>Cares:</strong></h3>
                             <div className="flex">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                         </div>
                         <div className='text-[9px]'>
                             <h1>
-                                <strong>Reglamentacion:</strong>
+                                <strong>Regulations:</strong>
                             </h1>
                             <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
                         </div>

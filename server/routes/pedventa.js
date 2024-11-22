@@ -6,6 +6,12 @@ export const createPedVentaRouter = () => {
     const pedVentaRouter = Router();
     const pedVentaController = new PedVentaController();
 
+    pedVentaRouter.get('/', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial'; // Permitir a 'comercial' y 'admin'
+        next();
+    }, pedVentaController.getAll.bind(pedVentaController));
+
+
     // Rutas protegidas para 'comercial' y 'admin'
     pedVentaRouter.get('/client/:codclien', authMiddleware, (req, res, next) => {
         req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'

@@ -351,41 +351,43 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                             </div>
                                         </div>
                                         <div className="overflow-x-auto">
-                                            <table className="min-w-full bg-white border border-gray-300 text-sm">
+                                            <table className="min-w-full bg-white border border-gray-300 text-xs md:text-sm">
                                                 <thead className="bg-gray-200">
                                                     <tr>
-                                                        <th className="px-4 py-2 border-b">Descripción del Producto</th>
-                                                        <th className="px-4 py-2 border-b">Cantidad</th>
-                                                        <th className="px-4 py-2 border-b">Precio</th>
-                                                        <th className="px-4 py-2 border-b">Descuento 1</th>
-                                                        <th className="px-4 py-2 border-b">Importe con Descuento</th>
-                                                        <th className="px-4 py-2 border-b">Stock producto</th>
-                                                        <th className="px-4 py-2 border-b">Fecha Pedido</th>
+                                                        <th className="px-2 py-1 border-b min-w-[150px] sticky top-0 z-10">Descripción</th>
+                                                        <th className="px-2 py-1 border-b min-w-[120px] hidden sm:table-cell">N Pedido</th>
+                                                        <th className="px-2 py-1 border-b min-w-[100px] hidden md:table-cell">Unidad</th>
+                                                        <th className="px-2 py-1 border-b min-w-[100px] hidden md:table-cell">Precio</th>
+                                                        <th className="px-2 py-1 border-b min-w-[100px] hidden lg:table-cell">Descuento 1</th>
+                                                        <th className="px-2 py-1 border-b min-w-[140px]">Importe</th>
+                                                        <th className="px-2 py-1 border-b min-w-[140px] hidden sm:table-cell">Stock</th>
+                                                        <th className="px-2 py-1 border-b min-w-[140px] hidden lg:table-cell">Fecha</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {sortedFilteredProducts.length > 0 ? (
                                                         sortedFilteredProducts.map((product, index) => (
                                                             <tr key={index} className="border-b">
-                                                                <td className="px-4 py-2">{product.desprodu}</td>
-                                                                <td className="px-4 py-2">{product.cantidad}</td>
-                                                                <td className="px-4 py-2">{product.precio}</td>
-                                                                <td className="px-4 py-2">{product.dt1}</td>
-                                                                <td className="px-4 py-2">{product.importeDescuento}</td>
-                                                                <td className="px-4 py-2">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
-                                                                <td className="px-4 py-2">{formatDate(product.fecha)}</td>
+                                                                <td className="px-2 py-1">{product.desprodu}</td>
+                                                                <td className="px-2 py-1 hidden sm:table-cell">{product.npedventa}</td>
+                                                                <td className="px-2 py-1 hidden md:table-cell">{product.cantidad}</td>
+                                                                <td className="px-2 py-1 hidden md:table-cell">{product.precio}</td>
+                                                                <td className="px-2 py-1 hidden lg:table-cell">{product.dt1}</td>
+                                                                <td className="px-2 py-1">{product.importeDescuento}</td>
+                                                                <td className="px-2 py-1 hidden sm:table-cell">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
+                                                                <td className="px-2 py-1 hidden lg:table-cell">{formatDate(product.fecha)}</td>
                                                             </tr>
                                                         ))
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan="7" className="px-4 py-2 text-center">No hay productos disponibles.</td>
+                                                            <td colSpan="8" className="px-4 py-2 text-center">No hay productos disponibles.</td>
                                                         </tr>
                                                     )}
                                                 </tbody>
                                                 {sortedFilteredProducts.length > 0 && (
                                                     <tfoot>
                                                         <tr>
-                                                            <td colSpan="4" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
+                                                            <td colSpan="6" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
                                                             <td className="px-4 py-2 font-bold">{totalBilling.toFixed(2)}</td>
                                                         </tr>
                                                     </tfoot>
