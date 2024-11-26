@@ -46,7 +46,7 @@ function ClientTable({ clients, handleClientClick, clientBillings, getClientColo
 
     return (
         <div className="relative overflow-x-auto overflow-y-auto shadow-md rounded-lg md:max-h-[60%] max-h-[45vh]">
-            <table className="md:min-w-[100%] bg-white border border-green-300 rounded-lg text-sm">
+            <table className="md:min-w-[100%] bg-white border border-gray-300 rounded-lg text-sm">
                 <thead className="bg-gray-100 text-xs md:text-sm">
                     <tr>
                         <th className="md:px-4 px-1 py-2 border-b text-center">Estado</th>
