@@ -199,71 +199,121 @@ function Clients() {
     const totalPages = Math.ceil(totalClients / itemsPerPage);
 
     return (
-        <div className="container mx-auto justify-center text-center mt-[15%] md:mt-[0%] py-4 px-4 md:px-8">
-            <SearchBar
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                suggestions={suggestions}
-                setSuggestions={setSuggestions}
-                handleSearchEnter={() => fetchClients(1, searchTerm)} // Ejecuta fetchClients con el término actual
-                handleSuggestionClick={handleSuggestionClick}
-            />
+        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center md:px-4 px-2 py-6">
+            <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-24">
+                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
+                    Gestión de Clientes
+                </h1>
+                <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
+                    Explora y gestiona los datos de tus clientes con nuestras herramientas eficientes e intuitivas.
+                </p>
 
-            <div className="md:mb-4 mb-0 justify-between items-center md:flex grid grid-rows-2">
-                <div className="flex md:space-x-4 space-x-1">
-                    <div className="w-40">
-                        <label htmlFor="countryFilter" className="block text-xs md:text-sm font-medium text-gray-700">País</label>
-                        <Select
-                            id="countryFilter"
-                            options={countryCodes}
-                            value={countryCodes.find(option => option.value === selectedCountry)}
-                            onChange={handleCountryChange}
-                            placeholder="Seleccione un país"
-                            isClearable={true}
-                        />
-                    </div>
-                    <div className="w-48">
-                        <label htmlFor="provinceFilter" className="block text-xs md:text-sm font-medium text-gray-700">Provincia</label>
-                        <Select
-                            id="provinceFilter"
-                            options={provinces}
-                            value={selectedProvince}
-                            onChange={handleProvinceChange}
-                            placeholder="Seleccione una provincia"
-                            isClearable={true}
-                        />
-                    </div>
+                {/* Barra de búsqueda */}
+                <div className="mb-8">
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        suggestions={suggestions}
+                        setSuggestions={setSuggestions}
+                        handleSearchEnter={() => fetchClients(1, searchTerm)}
+                        handleSuggestionClick={handleSuggestionClick}
+                    />
                 </div>
-                <button
-                    onClick={handleClearFilter}
-                    className="px-4 py-1 md:py-2 w-3/4 md:w-1/5 mx-auto md:mx-0 bg-red-500 text-white rounded hover:bg-red-700"
-                >
-                    Limpiar Filtros
-                </button>
-            </div>
-            <ClientTable
-                clients={clients}
-                handleClientClick={handleClientClick}
-                handleVisitClick={handleVisitClick}
-                clientBillings={clientBillings}
-                getClientColor={getClientColor}
-            />
-            {totalPages > 1 && (
-                <PaginationControls currentPage={currentPage} handlePageChange={handlePageChange} totalPages={totalPages} />
-            )}
 
-            <ClientModal
-                modalVisible={modalVisible}
-                selectedClientDetails={selectedClientDetails}
-                closeModal={closeModal}
-            />
-            <VisitModal
-                modalVisible={visitModalVisible}
-                selectedClientId={selectedClientId}
-                closeModal={closeVisitModal}
-            />
+                {/* Filtros */}
+                <div className="flex flex-wrap justify-center md:justify-between items-center mb-8 gap-4">
+                    <div className="flex gap-4">
+                        <div className="md:w-40 w-30">
+                            <label htmlFor="countryFilter" className="block text-sm font-medium text-gray-700">
+                                País
+                            </label>
+                            <Select
+                                id="countryFilter"
+                                options={countryCodes}
+                                value={countryCodes.find(option => option.value === selectedCountry)}
+                                onChange={handleCountryChange}
+                                placeholder="Seleccione país"
+                                isClearable={true}
+                                styles={{
+                                    control: (provided) => ({
+                                        ...provided,
+                                        borderColor: '#cbd5e0',
+                                        borderRadius: '8px',
+                                    }),
+                                }}
+                            />
+                        </div>
+                        <div className="md:w-48 w-44">
+                            <label htmlFor="provinceFilter" className="block text-sm font-medium text-gray-700">
+                                Provincia
+                            </label>
+                            <Select
+                                id="provinceFilter"
+                                options={provinces}
+                                value={selectedProvince}
+                                onChange={handleProvinceChange}
+                                placeholder="Seleccione provincia"
+                                isClearable={true}
+                                styles={{
+                                    control: (provided) => ({
+                                        ...provided,
+                                        borderColor: '#cbd5e0',
+                                        borderRadius: '8px',
+                                    }),
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClearFilter}
+                        className="px-6 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition duration-200 shadow"
+                    >
+                        Limpiar Filtros
+                    </button>
+                </div>
+
+                {/* Tabla de clientes */}
+                <div className="overflow-x-auto mb-8">
+                    <ClientTable
+                        clients={clients}
+                        handleClientClick={handleClientClick}
+                        handleVisitClick={handleVisitClick}
+                        clientBillings={clientBillings}
+                        getClientColor={getClientColor}
+                    />
+                </div>
+
+                {/* Paginación */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            handlePageChange={handlePageChange}
+                            totalPages={totalPages}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Modales */}
+            {modalVisible && (
+                <ClientModal
+                    modalVisible={modalVisible}
+                    selectedClientDetails={selectedClientDetails}
+                    closeModal={closeModal}
+                />
+            )}
+            {visitModalVisible && (
+                <VisitModal
+                    modalVisible={visitModalVisible}
+                    selectedClientId={selectedClientId}
+                    closeModal={closeVisitModal}
+                />
+            )}
         </div>
+
     );
+
 }
 
 export default Clients;
