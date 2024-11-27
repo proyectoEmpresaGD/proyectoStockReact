@@ -164,31 +164,39 @@ const EquivalenciasTable = () => {
     }
 
     return (
-        <div className="md:mt-[8%] container mx-auto p-2 bg-white shadow-md rounded-lg">
-            <div ref={searchBarRef} className="space-y-0">
-                <div className="grid grid-cols-1 mt-[20%] md:mt-0 lg:grid-cols-2 gap-0">
+        <div className="container mx-auto bg-white shadow-lg rounded-lg p-6 md:p-8">
+
+
+            {/* Barra de búsqueda */}
+            <div ref={searchBarRef} className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <SearchBarEquivalencias
                         searchTerm={searchTermProveedor}
                         setSearchTerm={setSearchTermProveedor}
                         suggestions={suggestionsProveedor}
-                        setSuggestions={setSuggestionsProveedor} // Aquí aseguramos que se pasa la función correcta
+                        setSuggestions={setSuggestionsProveedor}
                         handleSearchInputChange={(e) => setSearchTermProveedor(e.target.value)}
-                        handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchProveedor(searchTermProveedor); }}
+                        handleSearchKeyPress={(e) => {
+                            if (e.key === 'Enter') performSearchProveedor(searchTermProveedor);
+                        }}
                         handleSuggestionClick={handleSuggestionClickProveedor}
                     />
                     <SearchBar
                         searchTerm={searchTermCJMW}
                         setSearchTerm={setSearchTermCJMW}
                         suggestions={suggestionsCJMW}
-                        setSuggestions={setSuggestionsCJMW} // Aseguramos que se pasa correctamente la función
+                        setSuggestions={setSuggestionsCJMW}
                         handleSearchInputChange={(e) => setSearchTermCJMW(e.target.value)}
-                        handleSearchKeyPress={(e) => { if (e.key === 'Enter') performSearchCJMW(searchTermCJMW); }}
+                        handleSearchKeyPress={(e) => {
+                            if (e.key === 'Enter') performSearchCJMW(searchTermCJMW);
+                        }}
                         handleSuggestionClick={handleSuggestionClickCJMW}
                     />
                 </div>
             </div>
-            <div className=' grid grid-cols-2'>
-                {/* Mostrar la última búsqueda si existe */}
+
+            {/* Botones de última búsqueda y mostrar todos */}
+            <div className="flex justify-center space-x-4 my-4">
                 {lastSearch && (
                     <button
                         onClick={() => {
@@ -198,12 +206,11 @@ const EquivalenciasTable = () => {
                                 performSearchCJMW(lastSearch.replace("CJMW: ", ""));
                             }
                         }}
-                        className=" px-4 py-2 bg-green-500 text-white rounded cursor-pointer hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
+                        className="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 transition duration-200"
                     >
                         Última búsqueda: {lastSearch}
                     </button>
                 )}
-
                 {isSearchActive && (
                     <button
                         onClick={handleShowAll}
@@ -213,25 +220,26 @@ const EquivalenciasTable = () => {
                     </button>
                 )}
             </div>
-            {/* Ajustar la tabla para que sea más pequeña */}
-            <div className="overflow-y-auto h-full max-h-[50vh] md:max-h-[60vh] mt-2 max-w-full">
-                <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm">
-                    <thead className="bg-gray-100">
+
+            {/* Tabla de equivalencias */}
+            <div className="overflow-x-auto max-h-[50vh] md:max-h-[60vh]">
+                <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
+                    <thead className="bg-gradient-to-r from-blue-400 to-purple-500 text-white">
                         <tr>
-                            <th className="px-2 py-2 border-b md:text-sm text-xs font-semibold text-left">NOMBRE CJMW</th>
-                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">NOMBRE Proveedor</th>
-                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">CodEquiv</th>
-                            <th className="px-2 py-2 border-b font-semibold text-left md:text-sm text-xs">RazProve</th>
+                            <th className="px-4 py-2 text-left font-semibold text-sm">NOMBRE CJMW</th>
+                            <th className="px-4 py-2 text-left font-semibold text-sm">NOMBRE Proveedor</th>
+                            <th className="px-4 py-2 text-left font-semibold text-sm">CodEquiv</th>
+                            <th className="px-4 py-2 text-left font-semibold text-sm">RazProve</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredEquivalencias.length > 0 ? (
                             filteredEquivalencias.map((equiv, index) => (
-                                <tr key={index} className="hover:bg-gray-100">
-                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.desprodu}</td>
-                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.desequiv}</td>
-                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.codequiv}</td>
-                                    <td className="px-2 py-2 border-b md:text-sm text-xs">{equiv.razprove}</td>
+                                <tr key={index} className="hover:bg-blue-100">
+                                    <td className="px-4 py-2 border-b text-sm">{equiv.desprodu}</td>
+                                    <td className="px-4 py-2 border-b text-sm">{equiv.desequiv}</td>
+                                    <td className="px-4 py-2 border-b text-sm">{equiv.codequiv}</td>
+                                    <td className="px-4 py-2 border-b text-sm">{equiv.razprove}</td>
                                 </tr>
                             ))
                         ) : (
@@ -245,23 +253,26 @@ const EquivalenciasTable = () => {
                 </table>
             </div>
 
-            <div className="flex justify-center mt-0">
+            {/* Controles de paginación */}
+            <div className="flex justify-center items-center space-x-4 mt-4">
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 mx-1 bg-gray-300 rounded disabled:opacity-50"
+                    className={`px-4 py-2 bg-gray-300 rounded-lg shadow-md ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-400'
+                        }`}
                 >
                     Anterior
                 </button>
-                <span className="px-4 py-2">{currentPage}</span>
+                <span className="text-lg font-semibold">{currentPage}</span>
                 <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    className="px-4 py-2 mx-1 bg-gray-300 rounded"
+                    className="px-4 py-2 bg-gray-300 rounded-lg shadow-md hover:bg-gray-400 transition duration-200"
                 >
                     Siguiente
                 </button>
             </div>
         </div>
+
     );
 };
 

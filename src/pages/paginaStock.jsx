@@ -252,60 +252,78 @@ function Stock() {
     };
 
     return (
-        <div className="container mx-auto justify-center text-center py-0 mt-[15%] md:mt-[1%] px-4">
-            <div ref={searchBarRef} className="mb-0 mb:mb-6">
-                <SearchBar
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    suggestions={suggestions}
-                    setSuggestions={setSuggestions}  // Pasar la función para actualizar sugerencias
-                    handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
-                    handleSearchKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                            setLastSearch(searchTerm);
-                            performSearch(searchTerm);
-                            setSearchTerm('');  // Limpiar el campo de búsqueda
-                            setSuggestions([]);  // Cerrar las sugerencias al presionar Enter
-                        }
-                    }}
-                    handleSuggestionClick={handleSuggestionClick}
-                />
-            </div>
-            <div className='grid grid-cols-2'>
-                {lastSearch && (
-                    <button
-                        onClick={handleLastSearchClick}
-                        className="mb-4 px-4 py-1 bg-yellow-400 text-white rounded-lg cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600 transition duration-200"
-                    >
-                        Última búsqueda: {lastSearch}
-                    </button>
-                )}
-                {isSearchActive && (
-                    <button
-                        onClick={handleShowAllProducts}
-                        className="mb-4 px-4 py-1 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200"
-                    >
-                        Mostrar todos los productos
-                    </button>
-                )}
-            </div>
-            <ProductTable products={filteredProducts} handleProductClick={handleProductClick} />
+        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6">
+            <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-8">
+                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
+                    Stock
+                </h1>
+                <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
+                    Gestiona y consulta el inventario de productos y sus lotes.
+                </p>
 
-            {!singleProductView && (
-                <PaginationControls
-                    currentPage={currentPage}
-                    handlePageChange={handlePageChange}
-                    totalPages={Math.ceil(totalProducts / itemsPerPage)}
-                />
-            )}
+                {/* Barra de búsqueda */}
+                <div ref={searchBarRef} className="mb-6">
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        suggestions={suggestions}
+                        setSuggestions={setSuggestions}
+                        handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
+                        handleSearchKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                                setLastSearch(searchTerm);
+                                performSearch(searchTerm);
+                                setSearchTerm('');
+                                setSuggestions([]);
+                            }
+                        }}
+                        handleSuggestionClick={handleSuggestionClick}
+                    />
+                </div>
 
-            {modalVisible && (
-                <ProductModal
-                    modalVisible={modalVisible}
-                    selectedProductLots={selectedProductLots}
-                    closeModal={() => setModalVisible(false)}
-                />
-            )}
+                {/* Botones de acciones */}
+                <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+                    {lastSearch && (
+                        <button
+                            onClick={handleLastSearchClick}
+                            className="px-4 py-2 bg-yellow-400 text-white rounded-lg cursor-pointer hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-600 transition duration-200"
+                        >
+                            Última búsqueda: {lastSearch}
+                        </button>
+                    )}
+                    {isSearchActive && (
+                        <button
+                            onClick={handleShowAllProducts}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200"
+                        >
+                            Mostrar todos los productos
+                        </button>
+                    )}
+                </div>
+
+                {/* Tabla de productos */}
+                <div className="mb-6 overflow-x-auto">
+                    <ProductTable products={filteredProducts} handleProductClick={handleProductClick} />
+                </div>
+
+                {/* Controles de paginación */}
+                {!singleProductView && (
+                    <PaginationControls
+                        currentPage={currentPage}
+                        handlePageChange={handlePageChange}
+                        totalPages={Math.ceil(totalProducts / itemsPerPage)}
+                    />
+                )}
+
+                {/* Modal de productos */}
+                {modalVisible && (
+                    <ProductModal
+                        modalVisible={modalVisible}
+                        selectedProductLots={selectedProductLots}
+                        closeModal={() => setModalVisible(false)}
+                    />
+                )}
+            </div>
         </div>
     );
 }
