@@ -179,4 +179,28 @@ export class ClienteModel {
             throw new Error('Error fetching clients by province');
         }
     }
+
+    static async getClientsWithBilling({ limit, offset, order = 'DESC' }) {
+        const queryText = `
+            SELECT c.codclien, c.razclien, c.localidad, c.email,
+                   COALESCE(SUM(p.importe * 
+                                 (1 - COALESCE(p.dt1, 0) / 100) * 
+                                 (1 - COALESCE(p.dt2, 0) / 100) * 
+                                 (1 - COALESCE(p.dt3, 0) / 100)), 0) AS total_billing
+            FROM clientes c
+            LEFT JOIN pedventa p ON c.codclien = p.codclien
+            GROUP BY c.codclien, c.razclien, c.localidad, c.email
+            ORDER BY total_billing ${order}
+            LIMIT $1 OFFSET $2;
+        `;
+
+        try {
+            const { rows } = await pool.query(queryText, [limit, offset]);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching clients with billing:', error);
+            throw new Error('Error fetching clients with billing');
+        }
+    }
+
 }

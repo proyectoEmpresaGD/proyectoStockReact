@@ -33,5 +33,7 @@ export const createPedVentaRouter = () => {
         next();
     }, pedVentaController.delete.bind(pedVentaController));
 
+
+
     return pedVentaRouter;
 };

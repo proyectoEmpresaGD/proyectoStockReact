@@ -120,4 +120,20 @@ export class ClienteController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    async getClientsWithBilling(req, res) {
+        try {
+            const { page = 1, limit = 10, order = 'DESC' } = req.query;
+            const offset = (page - 1) * limit;
+
+            const clients = await ClienteModel.getClientsWithBilling({ limit, offset, order });
+            res.json({ clients });
+        } catch (error) {
+            console.error('Error fetching clients with billing:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+
+
 }
