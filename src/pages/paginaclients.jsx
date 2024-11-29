@@ -6,15 +6,15 @@ import VisitModal from '../components/clientes/VisitModal';
 import SearchBar from '../components/clientes/SearchBarClients';
 import PaginationControls from '../components/PaginationControls';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
-import { provinces, countryCodes } from '../Constants/constants.jsx'; // Importar provincias y países
+import { provinces, countryCodes } from '../Constants/constants.jsx';
 
 function Clients() {
-    const { token } = useAuthContext(); // Obtener el token del contexto de autenticación
+    const { token } = useAuthContext();
     const [clients, setClients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10); // Número de clientes por página
+    const [itemsPerPage] = useState(10);
     const [totalClients, setTotalClients] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
@@ -23,28 +23,32 @@ function Clients() {
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [clientBillings, setClientBillings] = useState({});
-    const [singleClientView, setSingleClientView] = useState(false);
+    const [sortByBilling, setSortByBilling] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (token) fetchClients(); // Ejecuta la llamada solo si hay token
-    }, [currentPage, selectedCountry, selectedProvince, token]);
+        if (token) fetchClients();
+    }, [currentPage, selectedCountry, selectedProvince, sortByBilling, searchTerm, token]);
 
-    const fetchClients = async (page = currentPage, query = searchTerm) => {
+    const fetchClients = async () => {
         try {
-            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${page}&limit=${itemsPerPage}`;
-            if (selectedCountry) {
-                url += `&codpais=${selectedCountry}`;
-            }
-            if (selectedProvince) {
-                url += `&codprovi=${selectedProvince.value}`;
-            }
-            if (query) {
-                url += `&query=${query}`;
+            setLoading(true);
+
+            // Construir la URL base según el filtro aplicado
+            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
+            if (sortByBilling) {
+                url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/billing?page=${currentPage}&limit=${itemsPerPage}`;
             }
 
+            // Agregar parámetros de filtro adicionales (país, provincia, búsqueda)
+            if (selectedCountry) url += `&codpais=${selectedCountry}`;
+            if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
+            if (searchTerm) url += `&query=${searchTerm}`;
+
+            // Realizar la solicitud a la API
             const response = await fetch(url, {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
             });
@@ -54,18 +58,22 @@ function Clients() {
             }
 
             const data = await response.json();
-            if (Array.isArray(data.clients)) {
-                setClients(data.clients);
-                setTotalClients(data.total);
-                fetchClientBillings(data.clients);
-                setSingleClientView(data.clients.length === 1);
-            } else {
-                console.error('El dato recibido no es un array:', data);
+
+            // Actualizar el estado de los clientes y el total de clientes
+            setClients(data.clients || []);
+            setTotalClients(data.total || 0);
+
+            // Calcular la facturación manualmente independientemente del filtro
+            if (data.clients.length > 0) {
+                await fetchClientBillings(data.clients);
             }
         } catch (error) {
             console.error('Error fetching client data:', error);
+        } finally {
+            setLoading(false);
         }
     };
+
 
     const fetchClientBillings = async (clients) => {
         if (!Array.isArray(clients)) return;
@@ -73,7 +81,7 @@ function Clients() {
         try {
             const billingPromises = clients.map(client =>
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
-                    headers: { 'Authorization': `Bearer ${token}` } // Autenticación
+                    headers: { Authorization: `Bearer ${token}` },
                 })
                     .then(response => response.json())
                     .then(data => {
@@ -102,91 +110,54 @@ function Clients() {
         }
     };
 
-    const handleSuggestionClick = (client) => {
-        setSearchTerm(client.razclien);
-        setClients([client]); // Actualiza la tabla con el cliente seleccionado
-        setSuggestions([]); // Limpia las sugerencias
-        setTotalClients(1); // Ajusta el contador total de clientes
-        setCurrentPage(1); // Reinicia la paginación
-    };
-
-    const handleSearchInputChange = async (event) => {
-        const searchTerm = event.target.value.trim();
-        setSearchTerm(searchTerm);
-
-        if (searchTerm.length > 1) {
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${searchTerm}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const data = await response.json();
-                // Actualizar sugerencias en tiempo real basadas en el término
-                setSuggestions(data.filter(client => client.razclien.toLowerCase().includes(searchTerm.toLowerCase())));
-            } catch (error) {
-                console.error('Error fetching suggestions:', error);
-            }
-        } else {
-            setSuggestions([]);
-        }
-    };
-
-    const handleSearchKeyPress = (event) => {
-        if (event.key === 'Enter') {
-            setCurrentPage(1); // Reinicia la paginación al buscar
-            setSuggestions([]); // Limpia las sugerencias
-            fetchClients(); // Realiza la búsqueda con el término actual
-        }
-    };
-
-    const handlePageChange = (newPage) => {
-        setCurrentPage(newPage);
-        fetchClients(newPage, searchTerm); // Incluye el término de búsqueda
-    };
-
-    const handleClientClick = async (codclien) => {
+    const handleSuggestionClick = async (client) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`, {
-                headers: { 'Authorization': `Bearer ${token}` } // Autenticación
+            setSearchTerm(client.razclien);
+            setClients([client]);
+            setTotalClients(1);
+            setCurrentPage(1);
+
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
+                headers: { Authorization: `Bearer ${token}` },
             });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            setSelectedClientDetails(data);
-            setModalVisible(true);
+            if (response.ok) {
+                const billingData = await response.json();
+                const totalBilling = billingData.reduce((sum, product) => {
+                    let importe = parseFloat(product.importe) || 0;
+                    const dt1 = parseFloat(product.dt1) || 0;
+                    const dt2 = parseFloat(product.dt2) || 0;
+                    const dt3 = parseFloat(product.dt3) || 0;
+                    if (dt1 > 0) importe -= (importe * dt1) / 100;
+                    if (dt2 > 0) importe -= (importe * dt2) / 100;
+                    if (dt3 > 0) importe -= (importe * dt3) / 100;
+                    return sum + (importe > 0 ? importe : 0);
+                }, 0);
+                setClientBillings({ [client.codclien]: totalBilling });
+            }
         } catch (error) {
-            console.error('Error fetching client details:', error);
+            console.error('Error handling suggestion click:', error);
         }
     };
 
-    const handleVisitClick = (clientId) => {
-        setSelectedClientId(clientId);
-        setVisitModalVisible(true);
-    };
-
-    const closeModal = () => setModalVisible(false);
-    const closeVisitModal = () => setVisitModalVisible(false);
-
-    const handleProvinceChange = (selectedOption) => {
-        setSelectedProvince(selectedOption);
-        setCurrentPage(1);
-        fetchClients(1, searchTerm); // Incluye el término de búsqueda actual
-    };
-
-    const handleCountryChange = (selectedOption) => {
-        setSelectedCountry(selectedOption ? selectedOption.value : null);
-        setCurrentPage(1);
-        fetchClients(1, searchTerm); // Incluye el término de búsqueda actual
-    };
-
-    const handleClearFilter = () => {
+    const handleClearFilter = async () => {
         setSelectedProvince(null);
         setSelectedCountry(null);
         setSearchTerm('');
+        setSortByBilling(false);
         setSuggestions([]);
         setCurrentPage(1);
-        fetchClients(); // Recupera todos los clientes originales
+        await fetchClients();
+    };
+
+    const toggleSortByBilling = () => {
+        setSortByBilling((prev) => !prev); // Alternar el estado del filtro
+        setCurrentPage(1); // Reiniciar a la primera página para respetar la paginación
+    };
+
+
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
     };
 
     const getClientColor = (totalBilling) => {
@@ -201,69 +172,52 @@ function Clients() {
     return (
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center md:px-4 px-2 py-6">
             <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-24">
-                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
-                    Gestión de Clientes
-                </h1>
+                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">Gestión de Clientes</h1>
                 <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
                     Explora y gestiona los datos de tus clientes con nuestras herramientas eficientes e intuitivas.
                 </p>
 
-                {/* Barra de búsqueda */}
                 <div className="mb-8">
                     <SearchBar
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
                         suggestions={suggestions}
                         setSuggestions={setSuggestions}
-                        handleSearchEnter={() => fetchClients(1, searchTerm)}
+                        handleSearchEnter={() => fetchClients()}
                         handleSuggestionClick={handleSuggestionClick}
                     />
                 </div>
 
-                {/* Filtros */}
                 <div className="flex flex-wrap justify-center md:justify-between items-center mb-8 gap-4">
                     <div className="flex gap-4">
-                        <div className="md:w-40 w-30">
-                            <label htmlFor="countryFilter" className="block text-sm font-medium text-gray-700">
-                                País
-                            </label>
-                            <Select
-                                id="countryFilter"
-                                options={countryCodes}
-                                value={countryCodes.find(option => option.value === selectedCountry)}
-                                onChange={handleCountryChange}
-                                placeholder="Seleccione país"
-                                isClearable={true}
-                                styles={{
-                                    control: (provided) => ({
-                                        ...provided,
-                                        borderColor: '#cbd5e0',
-                                        borderRadius: '8px',
-                                    }),
-                                }}
-                            />
-                        </div>
-                        <div className="md:w-48 w-44">
-                            <label htmlFor="provinceFilter" className="block text-sm font-medium text-gray-700">
-                                Provincia
-                            </label>
-                            <Select
-                                id="provinceFilter"
-                                options={provinces}
-                                value={selectedProvince}
-                                onChange={handleProvinceChange}
-                                placeholder="Seleccione provincia"
-                                isClearable={true}
-                                styles={{
-                                    control: (provided) => ({
-                                        ...provided,
-                                        borderColor: '#cbd5e0',
-                                        borderRadius: '8px',
-                                    }),
-                                }}
-                            />
-                        </div>
+                        <Select
+                            options={countryCodes}
+                            value={countryCodes.find(option => option.value === selectedCountry)}
+                            onChange={(option) => {
+                                setSelectedCountry(option ? option.value : null);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Seleccione país"
+                            isClearable
+                        />
+                        <Select
+                            options={provinces}
+                            value={selectedProvince}
+                            onChange={(option) => {
+                                setSelectedProvince(option);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Seleccione provincia"
+                            isClearable
+                        />
                     </div>
+                    <button
+                        onClick={toggleSortByBilling}
+                        className={`px-6 py-2 text-white font-medium rounded-lg transition duration-200 shadow ${sortByBilling ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'
+                            }`}
+                    >
+                        {sortByBilling ? 'Ordenar por Código' : 'Ordenar por Facturación'}
+                    </button>
                     <button
                         onClick={handleClearFilter}
                         className="px-6 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition duration-200 shadow"
@@ -272,48 +226,30 @@ function Clients() {
                     </button>
                 </div>
 
-                {/* Tabla de clientes */}
-                <div className="overflow-x-auto mb-8">
-                    <ClientTable
-                        clients={clients}
-                        handleClientClick={handleClientClick}
-                        handleVisitClick={handleVisitClick}
-                        clientBillings={clientBillings}
-                        getClientColor={getClientColor}
-                    />
-                </div>
-
-                {/* Paginación */}
-                {totalPages > 1 && (
-                    <div className="flex justify-center">
-                        <PaginationControls
-                            currentPage={currentPage}
-                            handlePageChange={handlePageChange}
-                            totalPages={totalPages}
+                {loading ? (
+                    <div className="text-center">Cargando...</div>
+                ) : clients.length > 0 ? (
+                    <div className="overflow-x-auto mb-8">
+                        <ClientTable
+                            clients={clients}
+                            clientBillings={clientBillings}
+                            getClientColor={getClientColor}
                         />
                     </div>
+                ) : (
+                    <div className="text-center text-gray-500">No hay clientes disponibles.</div>
+                )}
+
+                {totalPages > 1 && (
+                    <PaginationControls
+                        currentPage={currentPage}
+                        handlePageChange={handlePageChange}
+                        totalPages={totalPages}
+                    />
                 )}
             </div>
-
-            {/* Modales */}
-            {modalVisible && (
-                <ClientModal
-                    modalVisible={modalVisible}
-                    selectedClientDetails={selectedClientDetails}
-                    closeModal={closeModal}
-                />
-            )}
-            {visitModalVisible && (
-                <VisitModal
-                    modalVisible={visitModalVisible}
-                    selectedClientId={selectedClientId}
-                    closeModal={closeVisitModal}
-                />
-            )}
         </div>
-
     );
-
 }
 
 export default Clients;
