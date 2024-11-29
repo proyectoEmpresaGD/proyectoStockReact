@@ -231,7 +231,11 @@ function Etiquetas() {
                             <img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
-                                style={{ width: '50%', maxHeight: '1.6cm', objectFit: 'contain' }}
+                                style={{
+                                    width: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '30%' : '50%',
+                                    maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
+                                    objectFit: 'contain'
+                                }}
                             />
                         </div>
                     </div>
