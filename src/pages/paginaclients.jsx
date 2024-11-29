@@ -34,18 +34,15 @@ function Clients() {
         try {
             setLoading(true);
 
-            // Construir la URL base según el filtro aplicado
             let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
             if (sortByBilling) {
                 url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/billing?page=${currentPage}&limit=${itemsPerPage}`;
             }
 
-            // Agregar parámetros de filtro adicionales (país, provincia, búsqueda)
             if (selectedCountry) url += `&codpais=${selectedCountry}`;
             if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
             if (searchTerm) url += `&query=${searchTerm}`;
 
-            // Realizar la solicitud a la API
             const response = await fetch(url, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -58,12 +55,9 @@ function Clients() {
             }
 
             const data = await response.json();
-
-            // Actualizar el estado de los clientes y el total de clientes
             setClients(data.clients || []);
             setTotalClients(data.total || 0);
 
-            // Calcular la facturación manualmente independientemente del filtro
             if (data.clients.length > 0) {
                 await fetchClientBillings(data.clients);
             }
@@ -73,7 +67,6 @@ function Clients() {
             setLoading(false);
         }
     };
-
 
     const fetchClientBillings = async (clients) => {
         if (!Array.isArray(clients)) return;
@@ -150,14 +143,28 @@ function Clients() {
     };
 
     const toggleSortByBilling = () => {
-        setSortByBilling((prev) => !prev); // Alternar el estado del filtro
-        setCurrentPage(1); // Reiniciar a la primera página para respetar la paginación
+        setSortByBilling((prev) => !prev);
+        setCurrentPage(1);
     };
-
-
 
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
+    };
+
+    const handleClientClick = async (codclien) => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!response.ok) {
+                throw new Error('Error fetching client details');
+            }
+            const data = await response.json();
+            setSelectedClientDetails(data);
+            setModalVisible(true);
+        } catch (error) {
+            console.error('Error fetching client details:', error);
+        }
     };
 
     const getClientColor = (totalBilling) => {
@@ -234,6 +241,7 @@ function Clients() {
                             clients={clients}
                             clientBillings={clientBillings}
                             getClientColor={getClientColor}
+                            handleClientClick={handleClientClick}
                         />
                     </div>
                 ) : (
@@ -248,6 +256,22 @@ function Clients() {
                     />
                 )}
             </div>
+
+            {modalVisible && (
+                <ClientModal
+                    modalVisible={modalVisible}
+                    selectedClientDetails={selectedClientDetails}
+                    closeModal={() => setModalVisible(false)}
+                />
+            )}
+
+            {visitModalVisible && (
+                <VisitModal
+                    modalVisible={visitModalVisible}
+                    selectedClientId={selectedClientId}
+                    closeModal={() => setVisitModalVisible(false)}
+                />
+            )}
         </div>
     );
 }
