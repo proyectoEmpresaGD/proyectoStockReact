@@ -238,18 +238,18 @@ function Etiquetas() {
 
 
                     <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
-                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '8px' }}>
+                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '10px' }}>
                             <QRCode
                                 value={encryptProductId(selectedProduct.codprodu)}
                                 size={75}
                             />
                         </div>
 
-                        <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '5px' }}>
-                            <p><strong>Pattern:</strong> {selectedProduct.nombre}</p>
-                            <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
-                            <p><strong>Width:</strong> {selectedProduct.ancho}</p>
-                            <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
+                        <div className="text-content text-xs " style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
+                            <p className="font-bold" >Pattern: {selectedProduct.nombre}</p>
+                            <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
+                            <p className="font-bold">Width: {selectedProduct.ancho}</p>
+                            <p className="font-bold break-words ">Comp:{selectedProduct.composicion}</p>
                         </div>
                     </div>
                     <div className=' flex flex-wrap items-start justify-start' style={{ marginBottom: '4px', marginTop: '4px', paddingLeft: "8px", paddingRight: "10px", width: "100%", justifyItems: "space-around", }}>
