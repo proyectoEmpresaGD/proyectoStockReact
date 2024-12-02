@@ -114,9 +114,9 @@ function Etiquetas() {
         const options = {
             margin: [0, 0, 0, 0],
             filename: 'Etiqueta_Producto.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg', quality: 1 },
             html2canvas: {
-                scale: 2,
+                scale: 6,
                 useCORS: true,
                 allowTaint: false,
             },
