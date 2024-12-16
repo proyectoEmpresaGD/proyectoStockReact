@@ -110,10 +110,11 @@ function Etiquetas() {
     };
 
     const handlePrint = () => {
+        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
-            filename: 'Etiqueta_Producto.pdf',
+            filename: `${sanitizedProductName}.pdf`,
             image: { type: 'jpeg', quality: 1 },
             html2canvas: {
                 scale: 6,

@@ -6,8 +6,7 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-
-function EtiquetaLibro() {
+function EtiquetaNormativa() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -104,13 +103,10 @@ function EtiquetaLibro() {
     };
 
     const handlePrint = () => {
-        // Generar un nombre válido para el archivo eliminando caracteres especiales
-        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
-
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
-            filename: `${sanitizedProductName}.pdf`,
+            filename: 'Etiqueta_Libro.pdf',
             image: { type: 'jpeg', quality: 1 },
             html2canvas: { scale: 6, useCORS: true, allowTaint: false },
             jsPDF: { unit: 'cm', format: [25, 10], orientation: 'landscape' },
@@ -142,7 +138,7 @@ function EtiquetaLibro() {
                     key={index}
                     src={loadBrandLogosMantenimiento[m]} // Usar las imágenes de loadBrandLogosMantenimiento
                     alt={m}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
+                    className="w-[15px] h-[15px] mx-1 cursor-pointer mt-[1px]"
                     title={m}
                 />
             ));
@@ -158,14 +154,19 @@ function EtiquetaLibro() {
                     key={index}
                     src={loadBrandLogosUsos[uso]} // Usa la imagen o una imagen predeterminada si no se encuentra
                     alt={uso}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-
+                    className="cursor-pointer"
+                    style={{
+                        width: "15px",
+                        height: "15px",
+                        objectFit: "contain",
+                        marginRight: "4px", // Espacio entre cada logo
+                        marginTop: "1px"
+                    }}
                     title={`Click para ver el significado de ${uso}`}
                     onClick={() => setShowIconMeaning(uso)}
                 />
             ));
     };
-
 
     const allowedMantenimientos = ['EASYCLEAN'];
     const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
@@ -275,52 +276,36 @@ function EtiquetaLibro() {
                             <img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
-                                className={`h-auto ${{
-                                    BAS: "w-[80px] relative left-[-1px]",
-                                    HAR: "w-[135px] relative left-[-6px]",
-                                    CJM: "w-[50px] relative left-[-1px]",
-                                    ARE: "w-[140px] relative left-[-10px]",
-                                    FLA: "w-[130px] relative left-[-5px]",
-                                }[selectedProduct.codmarca] || "w-[90px]" // Valor por defecto
-                                    }`}
+                                className="w-[85px] h-auto"
                             />
                         </div>
-                        <div className=" ">
+                        <div className="">
                             <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
                             <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
                         </div>
                     </div>
 
-                    <div className="text-content text-[9px] grid grid-cols-3 ">
+                    <div className="text-content text-[9px] grid grid-cols-4 ">
                         <div>
-                            <p className="font-extrabold flex items-center">
-                                Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Shade: <span className="font-light ml-1 mb-[2px]">{selectedProduct.tonalidad}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Composition:
-                            </p>
-                            <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
-                            <p className="font-extrabold flex items-center">
-                                Horizontal Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminhor)} cm</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Vertical Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminver)} cm</span>
-                            </p>
+                            <p><strong>Pattern:</strong> {selectedProduct.nombre}</p>
+                            <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
+                            <p><strong>Weight:</strong> {formatNumber(selectedProduct.gramaje)} g/m²</p>
+                            <p><strong>Compositión:</strong> {selectedProduct.composicion}</p>
+                            <p><strong>Horizontal Repeat:</strong> {formatNumber(selectedProduct.repminhor)} cm</p>
+                            <p><strong>Vertical Repeat:</strong> {formatNumber(selectedProduct.repminver)} cm</p>
                         </div>
-                        <div className="text-content text-[10px] relative left-[40px]">
-                            <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                        <div className="text-content text-[11px]">
+                            <h3 className='mb-1'><strong>Usages:</strong></h3>
                             <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                            <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                            <h3 className="mt-1 mb-1"><strong>Cares:</strong></h3>
                             <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+
                         </div>
-                        <div className="relative left-[50px] mt-[5px]">
-                            <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
+                        <div className='text-[8px]'>
+                            <p><strong>Regulations: </strong>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                        </div>
+                        <div className="flex flex-col items-center mt-1">
+                            <QRCode value={encryptProductId(selectedProduct.codprodu)} size={80} />
                         </div>
                     </div>
                 </div>
@@ -335,4 +320,4 @@ function EtiquetaLibro() {
     );
 }
 
-export default EtiquetaLibro;
+export default EtiquetaNormativa; 

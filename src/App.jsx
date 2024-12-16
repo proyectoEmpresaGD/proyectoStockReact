@@ -12,7 +12,8 @@ import Login from './components/Login.jsx';
 import Etiquetas from './pages/Etiquetas.jsx';
 import EtiquetaLibro from './pages/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
-
+import EtiquetaMarke from './pages/EtiquetasMarke.jsx';
+import EtiquetaNormativa from './pages/EtiquetasNormativa.jsx';
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -39,7 +40,9 @@ function App() {
                       <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
                       <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
                       <Route path="/etiquetas" element={<Etiquetas />} />
+                      <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
+                      <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
                     </Routes>
                   </div>
                 </div>
