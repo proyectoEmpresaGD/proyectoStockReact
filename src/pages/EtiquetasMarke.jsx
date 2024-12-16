@@ -6,18 +6,18 @@ import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-
-function EtiquetaLibro() {
+function EtiquetasMarke() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [brandLogos, setBrandLogos] = useState({});
-    const printRef = useRef();
-    const [showIconMeaning, setShowIconMeaning] = useState(null);
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
+    const printRef = useRef();
+    const [showIconMeaning, setShowIconMeaning] = useState(null);
 
+    // Cargar logos en Base64 desde el archivo JSON
     useEffect(() => {
         const loadBrandLogos = async () => {
             try {
@@ -69,7 +69,9 @@ function EtiquetaLibro() {
     const fetchSuggestions = async (query) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${query}&limit=10`, {
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
             });
             const data = await response.json();
             setSuggestions(data || []);
@@ -87,7 +89,9 @@ function EtiquetaLibro() {
     const fetchProductDetails = async (productId) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
             });
             const data = await response.json();
             setSelectedProduct(data);
@@ -95,6 +99,8 @@ function EtiquetaLibro() {
             console.error('Error fetching product details:', error);
         }
     };
+
+
 
     const encryptProductId = (productId) => {
         const secretKey = 'R2tyY1|YO.Bp!bK£BCl7l*?ZC1dT+q~6cAT-4|nx2z`0l3}78U';
@@ -104,16 +110,18 @@ function EtiquetaLibro() {
     };
 
     const handlePrint = () => {
-        // Generar un nombre válido para el archivo eliminando caracteres especiales
         const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
-
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
             filename: `${sanitizedProductName}.pdf`,
             image: { type: 'jpeg', quality: 1 },
-            html2canvas: { scale: 6, useCORS: true, allowTaint: false },
-            jsPDF: { unit: 'cm', format: [25, 10], orientation: 'landscape' },
+            html2canvas: {
+                scale: 6,
+                useCORS: true,
+                allowTaint: false,
+            },
+            jsPDF: { unit: 'cm', format: [8, 5], orientation: 'landscape' },
         };
 
         html2pdf()
@@ -123,54 +131,10 @@ function EtiquetaLibro() {
             .catch(error => console.error('Error generating PDF:', error));
     };
 
-    const formatNumber = (number, decimals = 2) => {
-        return parseFloat(number).toFixed(decimals);
-    };
-
-    const getMantenimientoImages = (mantenimiento) => {
-        if (!mantenimiento) return null;
-
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
-        const valores = xmlDoc.getElementsByTagName("Valor");
-
-        return Array.from(valores)
-            .map(node => node.textContent.trim())
-            .filter(m => loadBrandLogosMantenimiento[m]) // Filtrar solo los mantenimientos que tienen imagen en loadBrandLogosMantenimiento
-            .map((m, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosMantenimiento[m]} // Usar las imágenes de loadBrandLogosMantenimiento
-                    alt={m}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-                    title={m}
-                />
-            ));
-    };
-
-    const getUsoImages = (usos) => {
-        if (!usos) return null;
-
-        return usos.split(';')
-            .map(uso => uso.trim())
-            .map((uso, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosUsos[uso]} // Usa la imagen o una imagen predeterminada si no se encuentra
-                    alt={uso}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-
-                    title={`Click para ver el significado de ${uso}`}
-                    onClick={() => setShowIconMeaning(uso)}
-                />
-            ));
-    };
-
-
     const allowedMantenimientos = ['EASYCLEAN'];
     const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
 
-    const getMantenimientoImagesImportantes = (mantenimiento) => {
+    const getMantenimientoImages = (mantenimiento) => {
         if (!mantenimiento) return "";
 
         const parser = new DOMParser();
@@ -188,14 +152,14 @@ function EtiquetaLibro() {
                     key={index}
                     src={loadBrandLogosMantenimiento[mantenimiento]}
                     alt={mantenimiento}
-                    className="w-9 h-4 mx-0 md:mx-1 cursor-pointer"
+                    className="w-14 h-6 mx-0 md:mx-1 cursor-pointer"
                     title={`Click para ver el significado de ${mantenimiento}`}
                     onClick={() => setShowIconMeaning(mantenimiento)}
                 />
             ));
     };
 
-    const getUsoImagesImportantes = (usos) => {
+    const getUsoImages = (usos) => {
         if (!usos) return "";
 
         const usoList = usos.split(';')
@@ -210,7 +174,7 @@ function EtiquetaLibro() {
                     style={{
                         display: "flex",
                         alignItems: "center",
-                        marginRight: "3px" // Espacio entre cada logo y texto
+                        marginRight: "8px" // Espacio entre cada logo y texto
                     }}
                 >
                     <img
@@ -218,31 +182,23 @@ function EtiquetaLibro() {
                         alt={uso}
                         className="cursor-pointer"
                         style={{
-                            width: "16px",
-                            height: "16px",
+                            width: "20px",
+                            height: "20px",
                             objectFit: "contain",
-                            marginRight: "2px" // Espacio entre el logo y el nombre
+                            marginRight: "4px" // Espacio entre el logo y el nombre
                         }}
                         title={`Click para ver el significado de ${uso}`}
                         onClick={() => setShowIconMeaning(uso)}
                     />
-                    <span style={{ fontSize: "10px", marginBottom: " 12px", marginTop: "6px" }}>{uso}</span>
+                    <span style={{ fontSize: "12px", marginBottom: " 15px" }}>{uso}</span>
                 </div>
             ));
     };
 
-    const getHighlightedIcons = () => {
-        if (!selectedProduct) return null;
-
-        const { mantenimiento, uso } = selectedProduct;
-        const highlightedIcons = ["FR", "OUTDOOR", "EASYCLEAN", "IMO"];
-        const icons = [...getMantenimientoImages(mantenimiento), ...getUsoImages(uso)];
-        return icons.filter(icon => highlightedIcons.includes(icon.props.alt));
-    };
-
     return (
-        <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Libro</h1>
+        <div className="container mx-auto p-4 max-w-3xl">
+            <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800">Generador de Etiquetas de Productos</h1>
+
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}
@@ -258,11 +214,12 @@ function EtiquetaLibro() {
             {selectedProduct && (
                 <div
                     ref={printRef}
-                    className="bg-white p-4 rounded-lg flex flex-col justify-center"
+                    className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
                     style={{
-                        width: '15cm',
-                        height: '4cm',
-                        fontSize: '6px',
+                        width: '8cm',
+                        height: '4.8cm',
+                        fontSize: '8px',
+                        padding: '0 0 0 0.2cm',
                         boxSizing: 'border-box',
                         color: 'black',
                         fontFamily: 'Arial, sans-serif',
@@ -270,69 +227,51 @@ function EtiquetaLibro() {
                         textAlign: 'start',
                     }}
                 >
-                    <div className="grid grid-cols-2 items-center mr-[25px]">
-                        <div className="text-left">
+                    <div className="w-[100%]">
+                        <div className="logo-section" style={{ marginBottom: '4px', marginTop: '4px', justifyItems: "center" }}>
                             <img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
-                                className={`h-auto ${{
-                                    BAS: "w-[80px] relative left-[-1px]",
-                                    HAR: "w-[135px] relative left-[-6px]",
-                                    CJM: "w-[50px] relative left-[-1px]",
-                                    ARE: "w-[140px] relative left-[-10px]",
-                                    FLA: "w-[130px] relative left-[-5px]",
-                                }[selectedProduct.codmarca] || "w-[90px]" // Valor por defecto
-                                    }`}
+                                style={{
+                                    width: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '30%' : '50%',
+                                    maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
+                                    objectFit: 'contain'
+                                }}
                             />
-                        </div>
-                        <div className=" ">
-                            <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
-                            <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
                         </div>
                     </div>
 
-                    <div className="text-content text-[9px] grid grid-cols-3 ">
-                        <div>
-                            <p className="font-extrabold flex items-center">
-                                Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Shade: <span className="font-light ml-1 mb-[2px]">{selectedProduct.tonalidad}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Composition:
-                            </p>
-                            <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
-                            <p className="font-extrabold flex items-center">
-                                Horizontal Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminhor)} cm</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Vertical Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminver)} cm</span>
-                            </p>
+
+                    <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
+                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '10px' }}>
+                            <QRCode
+                                value={encryptProductId(selectedProduct.codprodu)}
+                                size={75}
+                            />
                         </div>
-                        <div className="text-content text-[10px] relative left-[40px]">
-                            <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
-                            <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                            <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                            <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+
+                        <div className="text-content text-xs " style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
+                            <p className="font-bold">Codigo: {selectedProduct.codprodu}</p>
+                            <p className="font-bold" >Pattern: {selectedProduct.nombre}</p>
+                            <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
+
                         </div>
-                        <div className="relative left-[50px] mt-[5px]">
-                            <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
-                        </div>
+                    </div>
+                    <div className=' flex flex-wrap items-start justify-start' style={{ marginBottom: '4px', marginTop: '4px', paddingLeft: "8px", paddingRight: "10px", width: "100%", justifyItems: "space-around", }}>
+                        {getMantenimientoImages(selectedProduct.mantenimiento)}
+                        {getUsoImages(selectedProduct.uso)}
                     </div>
                 </div>
             )}
+
             <button
                 onClick={handlePrint}
-                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
+                className="mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200"
             >
-                Descargar Etiqueta de Libro
+                Descargar Etiqueta
             </button>
         </div>
     );
 }
 
-export default EtiquetaLibro;
+export default EtiquetasMarke;

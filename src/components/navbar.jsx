@@ -1,198 +1,208 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes, FaClock, FaCubes, FaBalanceScale, FaTag } from 'react-icons/fa';
+import {
+    FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
+    FaCubes, FaBalanceScale, FaTag
+} from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [productosDropdownOpen, setProductosDropdownOpen] = useState(false);
-    const [documentsDropdownOpen, setDocumentsDropdownOpen] = useState(false); // Nuevo estado para la sección de documentos
+    const [dropdownOpen, setDropdownOpen] = useState('');
+    const [searchTerm, setSearchTerm] = useState(''); // Estado para la búsqueda
     const { user } = useAuthContext();
 
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
+    // Función para alternar dropdowns
+    const toggleDropdown = (section) => {
+        setDropdownOpen(dropdownOpen === section ? '' : section);
     };
 
-    const toggleProductosDropdown = () => {
-        setProductosDropdownOpen(!productosDropdownOpen);
+    // Función para filtrar enlaces según roles
+    const filterLinksByRole = (links) => {
+        return links.filter(link => {
+            if (!link.roles) return true; // Enlace disponible para todos
+            return user && link.roles.includes(user.role); // Enlace según el rol del usuario
+        });
     };
 
-    const toggleDocumentsDropdown = () => {
-        setDocumentsDropdownOpen(!documentsDropdownOpen);
+    // Función para filtrar enlaces por término de búsqueda
+    const filterLinksBySearchTerm = (links) => {
+        return links.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
     };
+
+    // Secciones del sidebar
+    const sections = [
+        {
+            label: 'Clientes',
+            icon: <FaUsers className="mr-3 text-lg" />,
+            dropdown: 'clientes',
+            links: [
+                { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
+            ],
+        },
+        {
+            label: 'Productos',
+            icon: <FaCubes className="mr-3 text-lg" />,
+            dropdown: 'productos',
+            links: [
+                { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user'] },
+                { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+            ],
+        },
+        {
+            label: 'Documentos',
+            icon: <FaTag className="mr-3 text-lg" />,
+            dropdown: 'documentos',
+            links: [
+                {
+                    label: 'Facturas',
+                    subheader: true,
+                    sublinks: [],
+                },
+                {
+                    label: 'Etiquetas Q&M',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
+                {
+                    label: 'Etiquetas Libro',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/libro', label: 'LIBRO', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/libroNormativa', label: 'Libro Normativa', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
+            ],
+        },
+        {
+            label: 'Configuraciones',
+            icon: <FaCog className="mr-3 text-lg" />,
+            dropdown: 'configuraciones',
+            links: [
+                { to: '/settings', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+            ],
+        },
+        {
+            label: 'Aplicaciones',
+            icon: <FaRocket className="mr-3 text-lg" />,
+            dropdown: 'aplicaciones',
+            links: [
+                { to: 'https://cjmw-worldwide.vercel.app/', label: 'Página Web', external: true },
+                { to: '/app2', label: 'Aplicación 2', roles: ['admin', 'comercial'] },
+                { to: '/app3', label: 'Aplicación 3', roles: ['admin', 'comercial'] },
+            ],
+        },
+    ];
 
     return (
         <>
-            <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} onClick={closeSidebar}></div>
-            <nav className={`fixed mt-20 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300`}>
-                <button onClick={closeSidebar} className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4">
+            {/* Fondo oscuro para cerrar el sidebar */}
+            <div
+                className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`}
+                onClick={closeSidebar}
+            ></div>
+
+            <nav
+                className={`fixed mt-20 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300`}
+            >
+                <button
+                    onClick={closeSidebar}
+                    className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4"
+                >
                     <FaTimes />
                 </button>
+
+                {/* Campo de búsqueda */}
+                <div className="p-4">
+                    <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
                 <div className="h-screen overflow-y-auto">
                     <ul className="mt-4 space-y-2">
-                        {/* Rutas accesibles por comercial y admin */}
-                        {user && (user.role === 'admin' || user.role === 'comercial') && (
-                            <li>
-                                <NavLink
-                                    to="/clients"
-                                    className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                    onClick={closeSidebar}
-                                >
-                                    <FaUsers className="mr-3 text-lg" />
-                                    Clients
-                                </NavLink>
-                            </li>
-                        )}
-                        {/* Rutas accesibles solo para admin */}
-                        {user && user.role === 'admin' && (
-                            <li>
-                                <NavLink
-                                    to="/admin"
-                                    className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                    onClick={closeSidebar}
-                                >
-                                    <FaUsers className="mr-3 text-lg" />
-                                    Admin
-                                </NavLink>
-                            </li>
-                        )}
-                        {/* Rutas comunes accesibles por todos */}
-                        <li>
-                            <NavLink
-                                to="/settings"
-                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                onClick={closeSidebar}
-                            >
-                                <FaCog className="mr-3 text-lg" />
-                                Settings
-                            </NavLink>
-                        </li>
-                        <li>
-                            <NavLink
-                                to="/deploy"
-                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} w-full duration-200`}
-                                onClick={closeSidebar}
-                            >
-                                <FaRocket className="mr-3 text-lg" />
-                                Analitic
-                            </NavLink>
-                        </li>
+                        {sections.map((section, index) => {
+                            const visibleLinks = filterLinksBySearchTerm(filterLinksByRole(section.links));
+                            if (visibleLinks.length === 0) return null;
 
-                        {/* Menú desplegable de productos accesible por almacen y admin */}
-                        <li>
-                            <div
-                                onClick={toggleProductosDropdown}
-                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
-                            >
-                                <FaCubes className="mr-3 text-lg" />
-                                <span>Productos</span>
-                                <FaChevronDown className={`ml-auto transform ${productosDropdownOpen ? 'rotate-180' : ''}`} />
-                            </div>
-                            {productosDropdownOpen && (
-                                <ul className="pl-8 mt-2 space-y-2">
-                                    <li>
-                                        <NavLink
-                                            to="/stock"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            <FaBox className="mr-3 text-lg" />
-                                            Stock
-                                        </NavLink>
-                                    </li>
-                                    {user && (user.role === 'admin' || user.role === 'almacen') && (
-                                        <li>
-                                            <NavLink
-                                                to="/equivalencias"
-                                                className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                                onClick={closeSidebar}
-                                            >
-                                                <FaBalanceScale className="mr-3 text-lg" />
-                                                Equivalencias
-                                            </NavLink>
-                                        </li>
+                            return (
+                                <li key={index}>
+                                    <div
+                                        onClick={() => toggleDropdown(section.dropdown)}
+                                        className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
+                                    >
+                                        {section.icon}
+                                        <span>{section.label}</span>
+                                        <FaChevronDown
+                                            className={`ml-auto transform ${dropdownOpen === section.dropdown ? 'rotate-180' : ''}`}
+                                        />
+                                    </div>
+                                    {dropdownOpen === section.dropdown && (
+                                        <ul className="pl-8 mt-2 space-y-2">
+                                            {visibleLinks.map((link, idx) => (
+                                                link.subheader ? (
+                                                    <li key={idx} className="mb-2">
+                                                        <h3 className="text-gray-500 uppercase text-sm font-semibold mb-2">{link.label}</h3>
+                                                        {link.sublinks.length > 0 ? (
+                                                            <ul className="pl-4 space-y-2">
+                                                                {filterLinksByRole(link.sublinks).map((sublink, subIdx) => (
+                                                                    <li key={subIdx}>
+                                                                        <NavLink
+                                                                            to={sublink.to}
+                                                                            className={({ isActive }) =>
+                                                                                `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`
+                                                                            }
+                                                                            onClick={closeSidebar}
+                                                                        >
+                                                                            {sublink.icon}
+                                                                            {sublink.label}
+                                                                        </NavLink>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <p className="text-gray-600 italic">Sin enlaces disponibles.</p>
+                                                        )}
+                                                    </li>
+                                                ) : (
+                                                    <li key={idx}>
+                                                        {link.external ? (
+                                                            <a
+                                                                href={link.to}
+                                                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                onClick={closeSidebar}
+                                                            >
+                                                                {link.icon}
+                                                                {link.label}
+                                                            </a>
+                                                        ) : (
+                                                            <NavLink
+                                                                to={link.to}
+                                                                className={({ isActive }) =>
+                                                                    `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`
+                                                                }
+                                                                onClick={closeSidebar}
+                                                            >
+                                                                {link.icon}
+                                                                {link.label}
+                                                            </NavLink>
+                                                        )}
+                                                    </li>
+                                                )
+                                            ))}
+                                        </ul>
                                     )}
-                                </ul>
-                            )}
-                        </li>
-
-                        {/* Nueva sección de Documentos accesible por todos */}
-                        <li>
-                            <div
-                                onClick={toggleDocumentsDropdown}
-                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
-                            >
-                                <FaTag className="mr-3 text-lg" />
-                                <span>Documentos</span>
-                                <FaChevronDown className={`ml-auto transform ${documentsDropdownOpen ? 'rotate-180' : ''}`} />
-                            </div>
-                            {documentsDropdownOpen && (
-                                <ul className="pl-8 mt-2 space-y-2">
-                                    <li>
-                                        <NavLink
-                                            to="/etiquetas"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            <FaTag className="mr-3 text-lg" />
-                                            QUALITY
-                                        </NavLink>
-                                        <NavLink
-                                            to="/libro"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            <FaTag className="mr-3 text-lg" />
-                                            LIBRO
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
-
-                        {/* Menú desplegable de aplicaciones accesible por todos */}
-                        <li>
-                            <div
-                                onClick={toggleDropdown}
-                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
-                            >
-                                <span className="mr-3">Nuestras aplicaciones</span>
-                                <FaChevronDown className={`ml-auto transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-                            </div>
-                            {dropdownOpen && (
-                                <ul className="pl-8 mt-2 space-y-2">
-                                    <li>
-                                        <a
-                                            href="https://cjmw-worldwide.vercel.app/"
-                                            className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={closeSidebar}
-                                        >
-                                            Pagina web
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <NavLink
-                                            to="/app2"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            Aplicación 2
-                                        </NavLink>
-                                    </li>
-                                    <li>
-                                        <NavLink
-                                            to="/app3"
-                                            className={({ isActive }) => `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`}
-                                            onClick={closeSidebar}
-                                        >
-                                            Aplicación 3
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             </nav>
