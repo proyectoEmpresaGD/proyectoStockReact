@@ -276,7 +276,13 @@ function EtiquetaNormativa() {
                             <img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
-                                className="w-[85px] h-auto"
+                                className={`h-auto ${{
+                                    BAS: "w-[80px] relative left-[-1px]",
+                                    HAR: "w-[135px] relative left-[-6px]",
+                                    CJM: "w-[50px] relative left-[-1px]",
+                                    ARE: "w-[140px] relative left-[-10px]",
+                                    FLA: "w-[130px] relative left-[-5px]",
+                                }[selectedProduct.codmarca] || "w-[90px]"}`}
                             />
                         </div>
                         <div className="">

@@ -5,7 +5,7 @@ import { useAuthContext } from '../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
-
+import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 
 function EtiquetaLibro() {
     const { token } = useAuthContext();
@@ -17,6 +17,26 @@ function EtiquetaLibro() {
     const [showIconMeaning, setShowIconMeaning] = useState(null);
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
+    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
+    const [direccionLogos, setDireccionLogos] = useState({});
+
+    useEffect(() => {
+        const loadDireccionLogos = async () => {
+            try {
+                const response = await fetch('/LogosBase64/direccionLogos.json');
+                if (!response.ok) throw new Error('Error fetching direction logos');
+                const logos = await response.json();
+                setDireccionLogos(logos);
+            } catch (error) {
+                console.error("Error loading direction logos:", error);
+            }
+        };
+        loadDireccionLogos();
+    }, []);
+
+    const getLogoUrl = (name) => {
+        return direccionLogos[name]
+    };
 
     useEffect(() => {
         const loadBrandLogos = async () => {
@@ -104,7 +124,6 @@ function EtiquetaLibro() {
     };
 
     const handlePrint = () => {
-        // Generar un nombre válido para el archivo eliminando caracteres especiales
         const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
 
         const element = printRef.current;
@@ -122,6 +141,19 @@ function EtiquetaLibro() {
             .save()
             .catch(error => console.error('Error generating PDF:', error));
     };
+    // Exportar como JPG (nuevo)
+    const handleExportAsJPG = async () => {
+        try {
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true });
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            const link = document.createElement('a');
+            link.href = imgData;
+            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+            link.click();
+        } catch (error) {
+            console.error('Error generating JPG:', error);
+        }
+    };
 
     const formatNumber = (number, decimals = 2) => {
         return parseFloat(number).toFixed(decimals);
@@ -136,11 +168,11 @@ function EtiquetaLibro() {
 
         return Array.from(valores)
             .map(node => node.textContent.trim())
-            .filter(m => loadBrandLogosMantenimiento[m]) // Filtrar solo los mantenimientos que tienen imagen en loadBrandLogosMantenimiento
+            .filter(m => loadBrandLogosMantenimiento[m])
             .map((m, index) => (
                 <img
                     key={index}
-                    src={loadBrandLogosMantenimiento[m]} // Usar las imágenes de loadBrandLogosMantenimiento
+                    src={loadBrandLogosMantenimiento[m]}
                     alt={m}
                     className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
                     title={m}
@@ -156,16 +188,14 @@ function EtiquetaLibro() {
             .map((uso, index) => (
                 <img
                     key={index}
-                    src={loadBrandLogosUsos[uso]} // Usa la imagen o una imagen predeterminada si no se encuentra
+                    src={loadBrandLogosUsos[uso]}
                     alt={uso}
                     className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-
                     title={`Click para ver el significado de ${uso}`}
                     onClick={() => setShowIconMeaning(uso)}
                 />
             ));
     };
-
 
     const allowedMantenimientos = ['EASYCLEAN'];
     const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
@@ -195,6 +225,8 @@ function EtiquetaLibro() {
             ));
     };
 
+
+
     const getUsoImagesImportantes = (usos) => {
         if (!usos) return "";
 
@@ -210,7 +242,7 @@ function EtiquetaLibro() {
                     style={{
                         display: "flex",
                         alignItems: "center",
-                        marginRight: "3px" // Espacio entre cada logo y texto
+                        marginRight: "3px"
                     }}
                 >
                     <img
@@ -221,23 +253,395 @@ function EtiquetaLibro() {
                             width: "16px",
                             height: "16px",
                             objectFit: "contain",
-                            marginRight: "2px" // Espacio entre el logo y el nombre
+                            marginRight: "2px"
                         }}
                         title={`Click para ver el significado de ${uso}`}
                         onClick={() => setShowIconMeaning(uso)}
                     />
-                    <span style={{ fontSize: "10px", marginBottom: " 12px", marginTop: "6px" }}>{uso}</span>
+                    <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{uso}</span>
                 </div>
             ));
     };
 
-    const getHighlightedIcons = () => {
-        if (!selectedProduct) return null;
 
-        const { mantenimiento, uso } = selectedProduct;
-        const highlightedIcons = ["FR", "OUTDOOR", "EASYCLEAN", "IMO"];
-        const icons = [...getMantenimientoImages(mantenimiento), ...getUsoImages(uso)];
-        return icons.filter(icon => highlightedIcons.includes(icon.props.alt));
+    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON_DIRECTIONAL']; // Lista de direcciones importantes
+
+    const getDireccionImagesImportantes = (direcciones) => {
+        if (!direcciones) return "";
+
+        const direccionList = direcciones.split(';') // Supongamos que las direcciones están separadas por ";"
+            .map(direccion => direccion.trim()) // Elimina espacios en blanco
+            .filter(direccion => allowedDirecciones.includes(direccion)); // Filtra solo las importantes
+
+        return direccionList
+            .filter(direccion => loadBrandLogosUsos[direccion]) // Asegúrate de que tengan un logo asociado
+            .map((direccion, index) => (
+                <div
+                    key={index}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginRight: "3px", // Espacio entre cada logo y texto
+                    }}
+                >
+                    <img
+                        src={loadBrandLogosUsos[direccion]} // Usa un logo específico si existe
+                        alt={direccion}
+                        className="cursor-pointer"
+                        style={{
+                            width: "16px",
+                            height: "16px",
+                            objectFit: "contain",
+                            marginRight: "2px", // Espacio entre el logo y el nombre
+                        }}
+                        title={`Click para ver el significado de ${direccion}`}
+                        onClick={() => setShowIconMeaning(direccion)}
+                    />
+                    <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{direccion}</span>
+                </div>
+            ));
+    };
+
+    const renderEtiquetaFormato1 = () => (
+        <div
+            ref={printRef}
+            className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{
+                width: '15cm',
+                height: '4cm',
+                fontSize: '6px',
+                boxSizing: 'border-box',
+                color: 'black',
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'start',
+            }}
+        >
+            <div className="grid grid-cols-2 items-center mr-[25px]">
+                <div className="text-left">
+                    <img
+                        src={brandLogos[selectedProduct.codmarca]}
+                        alt="Logo de Marca"
+                        className={`h-auto ${{
+                            BAS: "w-[80px] relative left-[-1px]",
+                            HAR: "w-[135px] relative left-[-6px]",
+                            CJM: "w-[50px] relative left-[-1px]",
+                            ARE: "w-[140px] relative left-[-10px]",
+                            FLA: "w-[130px] relative left-[-5px]",
+                        }[selectedProduct.codmarca] || "w-[90px]"}`}
+                    />
+                </div>
+                <div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
+                    <div className="w-[33px] flex items-center relative left-[175px]">
+                        <img
+                            className="w-[15px]"
+                            src={getLogoUrl(nombre)}
+                            alt={nombre}
+                        />
+                        <p className="text-[6px] ml-1">NON_DIRECTIONAL</p>
+                    </div>
+                </div>
+            </div>
+            <div className="text-content text-[9px] grid grid-cols-3">
+                <div>
+                    <p className="font-extrabold flex items-center">
+                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-extrabold flex items-center">
+                        Repeat: H:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminhor)} cm`
+                                : '-'}
+                        </span>
+                        , V:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminver)} cm`
+                                : '-'}
+                        </span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale} cycles</span>
+                    </p>
+                </div>
+                <div className="text-content text-[10px] relative left-[40px]">
+                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                </div>
+                <div className="relative left-[50px] mt-[5px]">
+                    <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderEtiquetaFormato2 = () => (
+        <div
+            ref={printRef}
+            className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{
+                width: '15cm',
+                height: '4cm',
+                fontSize: '6px',
+                boxSizing: 'border-box',
+                color: 'black',
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'start',
+            }}
+        >
+            <div className="grid grid-cols-2 items-center mr-[25px]">
+                <div className="text-left">
+                    <img
+                        src={brandLogos[selectedProduct.codmarca]}
+                        alt="Logo de Marca"
+                        className={`h-auto ${{
+                            BAS: "w-[80px] relative left-[-1px]",
+                            HAR: "w-[135px] relative left-[-6px]",
+                            CJM: "w-[50px] relative left-[-1px]",
+                            ARE: "w-[140px] relative left-[-10px]",
+                            FLA: "w-[130px] relative left-[-5px]",
+                        }[selectedProduct.codmarca] || "w-[90px]"}`}
+                    />
+                </div>
+                <div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
+                </div>
+            </div>
+
+            <div className="text-content text-[9px] grid grid-cols-3">
+                <div>
+                    <p className="font-extrabold flex items-center">
+                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-extrabold flex items-center">
+                        Repeat: H:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminhor)} cm`
+                                : '-'}
+                        </span>
+                        , V:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminver)} cm`
+                                : '-'}
+                        </span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                    </p>
+                </div>
+                <div className="text-content text-[10px] relative left-[40px]">
+                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                </div>
+                <div className="relative left-[50px] mt-[5px]">
+                    <QRCode value={encryptProductId(selectedProduct.codprodu)} size={100} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderEtiquetaFormato3 = () => (
+        <div
+            ref={printRef}
+            className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{
+                width: '15cm',
+                height: '4cm',
+                fontSize: '6px',
+                boxSizing: 'border-box',
+                color: 'black',
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'start',
+            }}
+        >
+            <div className="grid grid-cols-2 items-center mr-[25px]">
+                <div className="text-left">
+                    <img
+                        src={brandLogos[selectedProduct.codmarca]}
+                        alt="Logo de Marca"
+                        className={`h-auto ${{
+                            BAS: "w-[80px] relative left-[-1px]",
+                            HAR: "w-[135px] relative left-[-6px]",
+                            CJM: "w-[50px] relative left-[-1px]",
+                            ARE: "w-[140px] relative left-[-10px]",
+                            FLA: "w-[130px] relative left-[-5px]",
+                        }[selectedProduct.codmarca] || "w-[90px]"}`}
+                    />
+                </div>
+                <div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                </div>
+            </div>
+
+            <div className="text-content text-[9px] grid grid-cols-3">
+                <div>
+                    <p className="font-extrabold flex items-center">
+                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-extrabold flex items-center">
+                        Repeat: H:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminhor)} cm`
+                                : '-'}
+                        </span>
+                        , V:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminver)} cm`
+                                : '-'}
+                        </span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                    </p>
+                </div>
+                <div className="text-content text-[10px] relative left-[40px]">
+                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                </div>
+                <div className="relative left-[50px] mt-[5px]">
+                    <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderEtiquetaFormato4 = () => (
+        <div
+            ref={printRef}
+            className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{
+                width: '15cm',
+                height: '4cm',
+                fontSize: '6px',
+                boxSizing: 'border-box',
+                color: 'black',
+                fontFamily: 'Arial, sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'start',
+            }}
+        >
+            <div className="grid grid-cols-2 items-center mr-[25px]">
+                <div className="text-left">
+                    <img
+                        src={brandLogos[selectedProduct.codmarca]}
+                        alt="Logo de Marca"
+                        className={`h-auto ${{
+                            BAS: "w-[80px] relative left-[-1px]",
+                            HAR: "w-[135px] relative left-[-6px]",
+                            CJM: "w-[50px] relative left-[-1px]",
+                            ARE: "w-[140px] relative left-[-10px]",
+                            FLA: "w-[130px] relative left-[-5px]",
+                        }[selectedProduct.codmarca] || "w-[90px]"}`}
+                    />
+                </div>
+                <div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
+                    <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                </div>
+            </div>
+
+            <div className="text-content text-[9px] grid grid-cols-3">
+                <div>
+                    <p className="font-extrabold flex items-center">
+                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
+                    </p>
+                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-extrabold flex items-center">
+                        Repeat: H:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminhor)} cm`
+                                : '-'}
+                        </span>
+                        , V:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
+                                ? `${formatNumber(selectedProduct.repminver)} cm`
+                                : '-'}
+                        </span>
+                    </p>
+                    <p className="font-extrabold flex items-center">
+                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                    </p>
+                </div>
+
+                <div className="text-content text-[10px] relative left-[40px]">
+                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                </div>
+                <div className="relative left-[50px] mt-[5px]">
+                    <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const getEtiquetaFormato = () => {
+        const composicionLength = selectedProduct?.composicion?.length || 0;
+        const mantenimientoCount = (selectedProduct?.mantenimiento?.split(';') || []).length;
+        const usosCount = (selectedProduct?.uso?.split(';') || []).length;
+
+        if (composicionLength > 30 && (mantenimientoCount > 6 || usosCount > 6)) {
+            return renderEtiquetaFormato3();
+        } else if (composicionLength > 30) {
+            return renderEtiquetaFormato2();
+        } else if (mantenimientoCount > 6 || usosCount > 6) {
+            return renderEtiquetaFormato4();
+        } else {
+            return renderEtiquetaFormato1();
+        }
     };
 
     return (
@@ -255,81 +659,19 @@ function EtiquetaLibro() {
                 />
             </div>
 
-            {selectedProduct && (
-                <div
-                    ref={printRef}
-                    className="bg-white p-4 rounded-lg flex flex-col justify-center"
-                    style={{
-                        width: '15cm',
-                        height: '4cm',
-                        fontSize: '6px',
-                        boxSizing: 'border-box',
-                        color: 'black',
-                        fontFamily: 'Arial, sans-serif',
-                        fontWeight: 'bold',
-                        textAlign: 'start',
-                    }}
-                >
-                    <div className="grid grid-cols-2 items-center mr-[25px]">
-                        <div className="text-left">
-                            <img
-                                src={brandLogos[selectedProduct.codmarca]}
-                                alt="Logo de Marca"
-                                className={`h-auto ${{
-                                    BAS: "w-[80px] relative left-[-1px]",
-                                    HAR: "w-[135px] relative left-[-6px]",
-                                    CJM: "w-[50px] relative left-[-1px]",
-                                    ARE: "w-[140px] relative left-[-10px]",
-                                    FLA: "w-[130px] relative left-[-5px]",
-                                }[selectedProduct.codmarca] || "w-[90px]" // Valor por defecto
-                                    }`}
-                            />
-                        </div>
-                        <div className=" ">
-                            <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
-                            <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
-                        </div>
-                    </div>
+            {selectedProduct && getEtiquetaFormato()}
 
-                    <div className="text-content text-[9px] grid grid-cols-3 ">
-                        <div>
-                            <p className="font-extrabold flex items-center">
-                                Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Shade: <span className="font-light ml-1 mb-[2px]">{selectedProduct.tonalidad}</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Composition:
-                            </p>
-                            <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
-                            <p className="font-extrabold flex items-center">
-                                Horizontal Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminhor)} cm</span>
-                            </p>
-                            <p className="font-extrabold flex items-center">
-                                Vertical Repeat: <span className="font-light ml-1 mb-[2px]">{formatNumber(selectedProduct.repminver)} cm</span>
-                            </p>
-                        </div>
-                        <div className="text-content text-[10px] relative left-[40px]">
-                            <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
-                            <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                            <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                            <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
-                        </div>
-                        <div className="relative left-[50px] mt-[5px]">
-                            <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
-                        </div>
-                    </div>
-                </div>
-            )}
             <button
                 onClick={handlePrint}
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
             >
                 Descargar Etiqueta de Libro
+            </button>
+            <button
+                onClick={handleExportAsJPG}
+                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
+            >
+                Descargar como JPG
             </button>
         </div>
     );

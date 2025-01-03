@@ -74,6 +74,13 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         { to: '/libroNormativa', label: 'Libro Normativa', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
+                {
+                    label: 'Etiquetas Perchas',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/perchas', label: 'PERCHAS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
             ],
         },
         {
