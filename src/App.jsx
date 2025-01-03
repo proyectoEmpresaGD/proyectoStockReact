@@ -14,6 +14,8 @@ import EtiquetaLibro from './pages/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
 import EtiquetaMarke from './pages/EtiquetasMarke.jsx';
 import EtiquetaNormativa from './pages/EtiquetasNormativa.jsx';
+import EtiquetaPerchas from './pages/EtiquetasPechas.jsx'
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -43,6 +45,7 @@ function App() {
                       <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
+                      <Route path="/perchas" element={< EtiquetaPerchas />} />
                     </Routes>
                   </div>
                 </div>
