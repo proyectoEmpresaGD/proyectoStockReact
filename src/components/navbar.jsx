@@ -67,7 +67,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     ],
                 },
                 {
-                    label: 'Etiquetas Libro',
+                    label: 'Etiquetas Libro 20 x 20',
                     subheader: true,
                     sublinks: [
                         { to: '/libro', label: 'LIBRO', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
@@ -75,10 +75,27 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     ],
                 },
                 {
+                    label: 'Etiquetas Libro 35 x 35',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
+                {
                     label: 'Etiquetas Perchas',
                     subheader: true,
                     sublinks: [
-                        { to: '/perchas', label: 'PERCHAS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/perchas', label: 'PERCHAS LISOS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
+                {
+                    label: 'Etiquetas Contraportada',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/EtiquetaContraportada35', label: 'Contraportada (35cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetaContraportada20', label: 'Contraportada (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
             ],

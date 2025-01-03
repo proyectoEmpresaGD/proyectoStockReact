@@ -14,8 +14,12 @@ import EtiquetaLibro from './pages/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
 import EtiquetaMarke from './pages/EtiquetasMarke.jsx';
 import EtiquetaNormativa from './pages/EtiquetasNormativa.jsx';
-import EtiquetaPerchas from './pages/EtiquetasPechas.jsx'
-
+import EtiquetaPerchas from './pages/EtiquetasPechas.jsx';
+import EtiquetasLibro35Tipo1 from './pages/EtiquetasLibro35Tipo1.jsx';
+import EtiquetasLibro35Tipo2 from './pages/EtiquetasLibro35Tipo2.jsx';
+import EtiquetaContraportada35 from './pages/EtiquetaContraportada35.jsx';
+import EtiquetaContraportada20 from './pages/EtiquetaContraportada20.jsx';
+import EtiquetaPerchasEstampados from './pages/EtiquetasPerchasEstampados.jsx';
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -46,6 +50,11 @@ function App() {
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
                       <Route path="/perchas" element={< EtiquetaPerchas />} />
+                      <Route path="/perchasEstampados" element={< EtiquetaPerchasEstampados />} />
+                      <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />
+                      <Route path="/EtiquetasLibro35Tipo2" element={< EtiquetasLibro35Tipo2 />} />
+                      <Route path="/EtiquetaContraportada35" element={< EtiquetaContraportada35 />} />
+                      <Route path="/EtiquetaContraportada20" element={< EtiquetaContraportada20 />} />
                     </Routes>
                   </div>
                 </div>
