@@ -5,6 +5,8 @@ import { useAuthContext } from '../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
+import piexif from 'piexifjs';
+import html2canvas from 'html2canvas';
 
 function EtiquetaNormativa() {
     const { token } = useAuthContext();
@@ -117,6 +119,50 @@ function EtiquetaNormativa() {
             .from(element)
             .save()
             .catch(error => console.error('Error generating PDF:', error));
+    };
+
+    const handleExportAsJPGDirect = async () => {
+        try {
+            const element = printRef.current;
+            if (!element) return;
+
+            // Captura sin cambiar el tamaño (scale: 1)
+            const canvas = await html2canvas(element, {
+                useCORS: true,
+                scale: 15,
+            });
+
+            // Convierte el canvas a dataURL (JPEG)
+            const dataURL = canvas.toDataURL("image/jpeg", 1.0);
+
+            // EXIF: 300 DPI, unidad = pulgadas (2)
+            const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
+            exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
+            exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
+            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2; // 2 => inches (Photoshop friendly)
+
+            // Incrustar EXIF
+            const exifBytes = piexif.dump(exifObj);
+            const newDataURL = piexif.insert(exifBytes, dataURL);
+
+            // dataURL -> Blob
+            const byteString = atob(newDataURL.split(",")[1]);
+            const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
+            const buffer = new ArrayBuffer(byteString.length);
+            const intArray = new Uint8Array(buffer);
+            for (let i = 0; i < byteString.length; i++) {
+                intArray[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([buffer], { type: mimeString });
+
+            // Forzar descarga
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+            link.click();
+        } catch (error) {
+            console.error("Error generating JPG:", error);
+        }
     };
 
     const formatNumber = (number, decimals = 2) => {
@@ -321,6 +367,12 @@ function EtiquetaNormativa() {
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
             >
                 Descargar Etiqueta de Libro
+            </button>
+            <button
+                onClick={handleExportAsJPGDirect}
+                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
+            >
+                Descargar como JPG
             </button>
         </div>
     );
