@@ -1,3 +1,4 @@
+// Para prueba
 import { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../components/productos/SearchBar';
