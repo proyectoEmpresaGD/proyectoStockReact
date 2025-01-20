@@ -20,6 +20,7 @@ function EtiquetaLibro() {
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const [nombre, setNombre] = useState("NON_DIRECTIONAL");
     const [direccionLogos, setDireccionLogos] = useState({});
+    const [downloadCounter, setDownloadCounter] = useState(1);
 
     useEffect(() => {
         const loadDireccionLogos = async () => {
@@ -125,7 +126,7 @@ function EtiquetaLibro() {
     };
 
     const handlePrint = () => {
-        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_');
 
         const element = printRef.current;
         const options = {
@@ -148,26 +149,20 @@ function EtiquetaLibro() {
             const element = printRef.current;
             if (!element) return;
 
-            // Captura sin cambiar el tamaño (scale: 1)
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 scale: 15,
             });
-
-            // Convierte el canvas a dataURL (JPEG)
             const dataURL = canvas.toDataURL("image/jpeg", 1.0);
 
             // EXIF: 300 DPI, unidad = pulgadas (2)
             const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
             exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
-            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2; // 2 => inches (Photoshop friendly)
-
-            // Incrustar EXIF
+            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2;
             const exifBytes = piexif.dump(exifObj);
             const newDataURL = piexif.insert(exifBytes, dataURL);
 
-            // dataURL -> Blob
             const byteString = atob(newDataURL.split(",")[1]);
             const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
             const buffer = new ArrayBuffer(byteString.length);
@@ -177,10 +172,12 @@ function EtiquetaLibro() {
             }
             const blob = new Blob([buffer], { type: mimeString });
 
-            // Forzar descarga
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+
+            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            setDownloadCounter(prev => prev + 1);
+
             link.click();
         } catch (error) {
             console.error("Error generating JPG:", error);
@@ -643,7 +640,9 @@ function EtiquetaLibro() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale: <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
+                        </span>
                     </p>
                 </div>
 

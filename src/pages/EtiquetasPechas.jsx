@@ -8,6 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 import html2canvas from 'html2canvas';
 import piexif from 'piexifjs';
 
+"NON_DIRECTIONAL"
+"RAILROADED"
+"NON_RAILROADED"
 
 function EtiquetaPerchas() {
     const { token } = useAuthContext();
@@ -19,10 +22,11 @@ function EtiquetaPerchas() {
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const [showIconMeaning, setShowIconMeaning] = useState(null);
-    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
+    const [nombre, setNombre] = useState("NON_RAILROADED");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [flechaLogos, setFlechaLogos] = useState({});
     const [flecha, setFlecha] = useState("flechaAbajo");
+    const [downloadCounter, setDownloadCounter] = useState(1);
 
     useEffect(() => {
         const loadBrandLogos = async () => {
@@ -221,7 +225,7 @@ function EtiquetaPerchas() {
                     key={index}
                     src={loadBrandLogosMantenimiento[m]}
                     alt={m}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
+                    className="w-[15px] h-[15px] mr-[2px] cursor-pointer mt-[2px]"
                     title={m}
                 />
             ));
@@ -237,7 +241,7 @@ function EtiquetaPerchas() {
                     key={index}
                     src={loadBrandLogosUsos[uso]}
                     alt={uso}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
+                    className="w-[15px] h-[15px] mr-[2px] cursor-pointer mt-[2px]"
                     title={`Click para ver el significado de ${uso}`}
                     onClick={() => setShowIconMeaning(uso)}
                 />
@@ -276,40 +280,42 @@ function EtiquetaPerchas() {
                             {/* Contenedor del texto */}
                             <div>
                                 <p className="font-extrabold flex items-center">
-                                    Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
+                                    Pattern: <span className="font-light ml-1 mb-[3px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
                                 </p>
                                 <p className="font-extrabold flex items-center">
-                                    Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
+                                    Weight: <span className="font-light ml-1 mb-[3px]">{selectedProduct.gramaje} g/m²</span>
                                 </p>
                                 <p className="font-extrabold flex items-center mr-4">
                                     Repeat: H:
-                                    <span className="font-light ml-1 mb-[2px]">
+                                    <span className="font-light ml-1 mb-[3px]">
                                         {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
                                             ? `${formatNumber(selectedProduct.repminhor)} cm`
                                             : '-'}
                                     </span>
                                     , V:
-                                    <span className="font-light ml-1 mb-[2px]">
+                                    <span className="font-light ml-1 mb-[3px]">
                                         {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
                                             ? `${formatNumber(selectedProduct.repminver)} cm`
                                             : '-'}
                                     </span>
                                 </p>
                                 <p className="font-extrabold flex items-center">
-                                    Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale} cycles</span>
+                                    Martindale: <span className="font-light ml-1 mb-[3px]">
+                                        {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
+                                    </span>
                                 </p>
                             </div>
                         </div>
                     </div>
                     <div className="max-w-[150px] min-w-[140px] text-[10px]">
                         <p className="font-extrabold flex items-center">
-                            Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
+                            Width: <span className="font-light ml-1 mb-[3px]">{selectedProduct.ancho}</span>
                         </p>
                         <p className="font-extrabold flex break-words items-center">Composition: </p>
-                        <span className="font-light w-[100px] mb-[2px] items-center break-words">{selectedProduct.composicion}</span>
+                        <span className="font-light w-[100px] items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
-                <div className="w-[33px] relative right-[60px]">
+                <div className="w-[33px] relative right-[57px]">
                     <img
                         className="w-[40px]"
                         src={getLogoUrl(nombre)}
@@ -320,12 +326,12 @@ function EtiquetaPerchas() {
                 <div>
                     <div className="text-content relative right-[52px] text-[10px]">
                         <h3 className="text-[10px]"><strong>Usages:</strong></h3>
-                        <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
+                        <div className="flex w-4 h-4 mt-[1px]">{getUsoImages(selectedProduct.uso)}</div>
                         <h3 className="text-[10px]"><strong>Cares:</strong></h3>
-                        <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                        <div className="flex w-4 h-4 mt-[1px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                     </div>
                 </div>
-                <div className="relative left-[10px]">
+                <div className="relative left-[10px] top-[5px]">
                     <img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
@@ -338,11 +344,7 @@ function EtiquetaPerchas() {
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>
-                <div>
-                    <div className="flex">
-                        <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
-                        <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.uso)}</div>
-                    </div>
+                <div className=' relative top-[10px]'>
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={46} />
                 </div>
             </div>
@@ -353,7 +355,7 @@ function EtiquetaPerchas() {
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
-            filename: `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`,
+            filename: `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.pdf`,
             image: { type: 'jpeg', quality: 1 },
             html2canvas: { scale: 6, useCORS: true },
             jsPDF: { unit: 'cm', format: [18, 2.1], orientation: 'landscape' },
@@ -368,26 +370,20 @@ function EtiquetaPerchas() {
             const element = printRef.current;
             if (!element) return;
 
-            // Captura sin cambiar el tamaño (scale: 1)
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 scale: 15,
             });
-
-            // Convierte el canvas a dataURL (JPEG)
             const dataURL = canvas.toDataURL("image/jpeg", 1.0);
 
             // EXIF: 300 DPI, unidad = pulgadas (2)
             const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
             exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
-            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2; // 2 => inches (Photoshop friendly)
-
-            // Incrustar EXIF
+            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2;
             const exifBytes = piexif.dump(exifObj);
             const newDataURL = piexif.insert(exifBytes, dataURL);
 
-            // dataURL -> Blob
             const byteString = atob(newDataURL.split(",")[1]);
             const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
             const buffer = new ArrayBuffer(byteString.length);
@@ -397,10 +393,12 @@ function EtiquetaPerchas() {
             }
             const blob = new Blob([buffer], { type: mimeString });
 
-            // Forzar descarga
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+
+            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            setDownloadCounter(prev => prev + 1);
+
             link.click();
         } catch (error) {
             console.error("Error generating JPG:", error);

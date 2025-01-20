@@ -8,6 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 import piexif from 'piexifjs';
+"NON_DIRECTIONAL"
+"RAILROADED"
+"NON_RAILROADED"
 
 function EtiquetasLibro35Tipo1() {
     const { token } = useAuthContext();
@@ -21,6 +24,7 @@ function EtiquetasLibro35Tipo1() {
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const [nombre, setNombre] = useState("NON_DIRECTIONAL");
     const [direccionLogos, setDireccionLogos] = useState({});
+    const [downloadCounter, setDownloadCounter] = useState(1);
 
     useEffect(() => {
         const loadDireccionLogos = async () => {
@@ -144,31 +148,26 @@ function EtiquetasLibro35Tipo1() {
             .catch(error => console.error('Error generating PDF:', error));
     };
     // Exportar como JPG (nuevo)
+    // Exportar como JPG (nuevo)
     const handleExportAsJPGDirect = async () => {
         try {
             const element = printRef.current;
             if (!element) return;
 
-            // Captura sin cambiar el tamaño (scale: 1)
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 scale: 15,
             });
-
-            // Convierte el canvas a dataURL (JPEG)
             const dataURL = canvas.toDataURL("image/jpeg", 1.0);
 
             // EXIF: 300 DPI, unidad = pulgadas (2)
             const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
             exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
-            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2; // 2 => inches (Photoshop friendly)
-
-            // Incrustar EXIF
+            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2;
             const exifBytes = piexif.dump(exifObj);
             const newDataURL = piexif.insert(exifBytes, dataURL);
 
-            // dataURL -> Blob
             const byteString = atob(newDataURL.split(",")[1]);
             const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
             const buffer = new ArrayBuffer(byteString.length);
@@ -178,10 +177,12 @@ function EtiquetasLibro35Tipo1() {
             }
             const blob = new Blob([buffer], { type: mimeString });
 
-            // Forzar descarga
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+
+            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            setDownloadCounter(prev => prev + 1);
+
             link.click();
         } catch (error) {
             console.error("Error generating JPG:", error);
@@ -374,11 +375,11 @@ function EtiquetasLibro35Tipo1() {
                             src={getLogoUrl(nombre)}
                             alt={nombre}
                         />
-                        <p className="text-[6px] ml-1">NON_DIRECTIONAL</p>
+                        <p className="text-[6px] ml-1">{nombre}</p>
                     </div>
                 </div>
             </div>
-            <div className="text-content text-[9px] grid grid-cols-3 w-[110%]">
+            <div className="text-content text-[9px] grid grid-cols-3 w-[120%]">
                 <div>
                     <p className="font-extrabold flex items-center">
                         Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
@@ -406,16 +407,18 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale} cycles</span>
+                        Martindale: <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
+                        </span>
                     </p>
                 </div>
-                <div className="text-content text-[10px] relative left-[40px]">
+                <div className="text-content text-[10px] relative left-[20px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
-                <div className="flex justify-start ml-[20px]  mt-[5px]">
+                <div className="flex justify-start ml-[2px]  mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
                 </div>
             </div>

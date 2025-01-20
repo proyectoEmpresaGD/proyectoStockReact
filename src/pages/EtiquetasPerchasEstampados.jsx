@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 import piexif from 'piexifjs';
+"NON_DIRECTIONAL"
+"RAILROADED"
+"NON_RAILROADED"
 
 function EtiquetaPerchasEstampados() {
     const { token } = useAuthContext();
@@ -18,9 +21,10 @@ function EtiquetaPerchasEstampados() {
     const [showIconMeaning, setShowIconMeaning] = useState(null);
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
-    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
+    const [nombre, setNombre] = useState("NON_RAILROADED");
     const [direccionLogos, setDireccionLogos] = useState({});
-
+    const [downloadCounter, setDownloadCounter] = useState(1);
+    
     useEffect(() => {
         const loadDireccionLogos = async () => {
             try {
@@ -148,26 +152,20 @@ function EtiquetaPerchasEstampados() {
             const element = printRef.current;
             if (!element) return;
 
-            // Captura sin cambiar el tamaño (scale: 1)
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 scale: 15,
             });
-
-            // Convierte el canvas a dataURL (JPEG)
             const dataURL = canvas.toDataURL("image/jpeg", 1.0);
 
             // EXIF: 300 DPI, unidad = pulgadas (2)
             const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
             exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
-            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2; // 2 => inches (Photoshop friendly)
-
-            // Incrustar EXIF
+            exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2;
             const exifBytes = piexif.dump(exifObj);
             const newDataURL = piexif.insert(exifBytes, dataURL);
 
-            // dataURL -> Blob
             const byteString = atob(newDataURL.split(",")[1]);
             const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
             const buffer = new ArrayBuffer(byteString.length);
@@ -177,10 +175,12 @@ function EtiquetaPerchasEstampados() {
             }
             const blob = new Blob([buffer], { type: mimeString });
 
-            // Forzar descarga
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_')}.jpg`;
+
+            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            setDownloadCounter(prev => prev + 1);
+
             link.click();
         } catch (error) {
             console.error("Error generating JPG:", error);
@@ -373,7 +373,7 @@ function EtiquetaPerchasEstampados() {
                             src={getLogoUrl(nombre)}
                             alt={nombre}
                         />
-                        <p className="text-[6px] ml-1">NON_DIRECTIONAL</p>
+                        <p className="text-[6px] ml-1">NON_RAILROADED</p>
                     </div>
                 </div>
             </div>
