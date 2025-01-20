@@ -321,7 +321,7 @@ function EtiquetaPerchas() {
                         src={getLogoUrl(nombre)}
                         alt={nombre}
                     />
-                    <p className="text-[4px]">NON_DIRECTIONAL</p>
+                    <p className="text-[4px]">{nombre}</p>
                 </div>
                 <div>
                     <div className="text-content relative right-[52px] text-[10px]">
