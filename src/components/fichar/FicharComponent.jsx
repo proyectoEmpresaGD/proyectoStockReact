@@ -10,6 +10,7 @@ const FicharComponent = () => {
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
     const [totalHoras, setTotalHoras] = useState(0);
+    var nada;
 
     useEffect(() => {
         if (user?.id) {
