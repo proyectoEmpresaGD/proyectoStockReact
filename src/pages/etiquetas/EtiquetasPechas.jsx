@@ -1,8 +1,8 @@
 // Para prueba
 import { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import SearchBar from '../components/productos/SearchBar';
-import { useAuthContext } from '../Auth/AuthContext';
+import SearchBar from '../../components/productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 import html2pdf from 'html2pdf.js';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,7 +23,7 @@ function EtiquetaPerchas() {
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const [showIconMeaning, setShowIconMeaning] = useState(null);
-    const [nombre, setNombre] = useState("NON_RAILROADED");
+    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [flechaLogos, setFlechaLogos] = useState({});
     const [flecha, setFlecha] = useState("flechaAbajo");
@@ -308,15 +308,15 @@ function EtiquetaPerchas() {
                             </div>
                         </div>
                     </div>
-                    <div className="max-w-[150px] min-w-[140px] text-[10px]">
+                    <div className="max-w-[140px] min-w-[140px] text-[10px]">
                         <p className="font-extrabold flex items-center">
                             Width: <span className="font-light ml-1 mb-[3px]">{selectedProduct.ancho}</span>
                         </p>
                         <p className="font-extrabold flex break-words items-center">Composition: </p>
-                        <span className="font-light w-[100px] items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
+                        <span className="font-light items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
-                <div className="w-[33px] relative right-[57px]">
+                <div className="w-[40px] relative right-[55px]  top-[4px] flex flex-col items-center">
                     <img
                         className="w-[40px]"
                         src={getLogoUrl(nombre)}
@@ -327,9 +327,9 @@ function EtiquetaPerchas() {
                 <div>
                     <div className="text-content relative right-[52px] text-[10px]">
                         <h3 className="text-[10px]"><strong>Usages:</strong></h3>
-                        <div className="flex w-4 h-4 mt-[1px]">{getUsoImages(selectedProduct.uso)}</div>
+                        <div className="flex w-4 h-4 mt-[3px] mb-[0px]">{getUsoImages(selectedProduct.uso)}</div>
                         <h3 className="text-[10px]"><strong>Cares:</strong></h3>
-                        <div className="flex w-4 h-4 mt-[1px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                        <div className="flex w-4 h-4 mt-[3px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                     </div>
                 </div>
                 <div className="relative left-[10px] top-[5px]">
@@ -345,7 +345,7 @@ function EtiquetaPerchas() {
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>
-                <div className=' relative top-[10px]'>
+                <div className=' relative top-[6px]'>
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={46} />
                 </div>
             </div>

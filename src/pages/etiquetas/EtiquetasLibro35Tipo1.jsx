@@ -1,7 +1,8 @@
+
 import { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import SearchBar from '../components/productos/SearchBar';
-import { useAuthContext } from '../Auth/AuthContext';
+import SearchBar from '../../components/productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
@@ -11,7 +12,7 @@ import piexif from 'piexifjs';
 "RAILROADED"
 "NON_RAILROADED"
 
-function EtiquetasLibro35Tipo2() {
+function EtiquetasLibro35Tipo1() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -146,6 +147,7 @@ function EtiquetasLibro35Tipo2() {
             .save()
             .catch(error => console.error('Error generating PDF:', error));
     };
+    // Exportar como JPG (nuevo)
     // Exportar como JPG (nuevo)
     const handleExportAsJPGDirect = async () => {
         try {
@@ -339,7 +341,7 @@ function EtiquetasLibro35Tipo2() {
             ref={printRef}
             className="bg-white p-4 rounded-lg flex flex-col justify-center"
             style={{
-                width: '20cm',
+                width: '13cm',
                 height: '4cm',
                 fontSize: '6px',
                 boxSizing: 'border-box',
@@ -363,7 +365,7 @@ function EtiquetasLibro35Tipo2() {
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>
-                <div className='flex justify-end items-start gap-2 relative left-[23px]'>
+                <div className='flex justify-end items-start w-[110%] gap-2'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
                     <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
@@ -377,7 +379,7 @@ function EtiquetasLibro35Tipo2() {
                     </div>
                 </div>
             </div>
-            <div className="text-content text-[9px] grid grid-cols-3">
+            <div className="text-content text-[9px] grid grid-cols-3 w-[120%]">
                 <div>
                     <p className="font-extrabold flex items-center">
                         Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
@@ -410,13 +412,13 @@ function EtiquetasLibro35Tipo2() {
                         </span>
                     </p>
                 </div>
-                <div className="text-content text-[10px] relative left-[80px]">
+                <div className="text-content text-[10px] relative left-[20px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
-                <div className="flex justify-end mt-[5px]">
+                <div className="flex justify-start ml-[2px]  mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
                 </div>
             </div>
@@ -711,4 +713,4 @@ function EtiquetasLibro35Tipo2() {
     );
 }
 
-export default EtiquetasLibro35Tipo2;
+export default EtiquetasLibro35Tipo1;

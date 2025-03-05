@@ -38,7 +38,7 @@ export class ProductModel {
         !/^(LIBRO|PORTADA|SET|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
-        ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
+        ['ARE', 'FLA', 'CJM', 'HAR','BAS'].includes(product.codmarca)
       ));
 
       // Retornamos los primeros 'limit' productos válidos

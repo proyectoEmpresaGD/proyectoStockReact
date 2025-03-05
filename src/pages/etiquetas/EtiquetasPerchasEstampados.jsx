@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import SearchBar from '../components/productos/SearchBar';
-import { useAuthContext } from '../Auth/AuthContext';
+import SearchBar from '../../components/productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
@@ -24,7 +24,7 @@ function EtiquetaPerchasEstampados() {
     const [nombre, setNombre] = useState("NON_RAILROADED");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [downloadCounter, setDownloadCounter] = useState(1);
-    
+
     useEffect(() => {
         const loadDireccionLogos = async () => {
             try {
@@ -186,7 +186,7 @@ function EtiquetaPerchasEstampados() {
             console.error("Error generating JPG:", error);
         }
     };
-    
+
     const formatNumber = (number, decimals = 2) => {
         return parseFloat(number).toFixed(decimals);
     };
