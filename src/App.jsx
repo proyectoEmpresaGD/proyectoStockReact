@@ -54,8 +54,6 @@ function App() {
                       <Route path="/perchasEstampados" element={< EtiquetaPerchasEstampados />} />
                       <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />
                       <Route path="/EtiquetasLibro35Tipo2" element={< EtiquetasLibro35Tipo2 />} />
-                      <Route path="/EtiquetaContraportada35" element={< EtiquetaContraportada35 />} />
-                      <Route path="/EtiquetaContraportada20" element={< EtiquetaContraportada20 />} />
                       <Route path="/EtiquetaPersonalizable" element={< EtiquetasPersonalizable />} />
 
                     </Routes>
