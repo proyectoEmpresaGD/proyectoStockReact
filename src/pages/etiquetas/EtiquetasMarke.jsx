@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import SearchBar from '../components/productos/SearchBar';
-import { useAuthContext } from '../Auth/AuthContext';
+import SearchBar from '../../components/productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 
-function Etiquetas() {
+function EtiquetasMarke() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -251,10 +251,10 @@ function Etiquetas() {
                         </div>
 
                         <div className="text-content text-xs " style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
+                            <p className="font-bold">Codigo: {selectedProduct.codprodu}</p>
                             <p className="font-bold" >Pattern: {selectedProduct.nombre}</p>
                             <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
-                            <p className="font-bold">Width: {selectedProduct.ancho}</p>
-                            <p className="font-bold break-words ">Comp:{selectedProduct.composicion}</p>
+
                         </div>
                     </div>
                     <div className=' flex flex-wrap items-start justify-start' style={{ marginBottom: '4px', marginTop: '4px', paddingLeft: "8px", paddingRight: "10px", width: "100%", justifyItems: "space-around", }}>
@@ -274,4 +274,4 @@ function Etiquetas() {
     );
 }
 
-export default Etiquetas;
+export default EtiquetasMarke;

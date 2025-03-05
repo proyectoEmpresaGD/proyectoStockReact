@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
-    FaCubes, FaBalanceScale, FaTag
+    FaCubes, FaBalanceScale, FaTag, FaBalanceScaleLeft,
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -64,6 +64,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     sublinks: [
                         { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin'] },
                     ],
                 },
                 {
@@ -98,6 +99,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         { to: '/EtiquetaContraportada20', label: 'Contraportada (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
+
             ],
         },
         {
@@ -113,7 +115,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             icon: <FaRocket className="mr-3 text-lg" />,
             dropdown: 'aplicaciones',
             links: [
-                { to: 'https://cjmw-worldwide.vercel.app/', label: 'Página Web', external: true },
+                { to: 'https://www.cjmw.eu/#/', label: 'Página Web', external: true },
                 { to: '/app2', label: 'Aplicación 2', roles: ['admin', 'comercial'] },
                 { to: '/app3', label: 'Aplicación 3', roles: ['admin', 'comercial'] },
             ],
@@ -149,7 +151,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     />
                 </div>
 
-                <div className="h-screen overflow-y-auto">
+                <div className="h-screen overflow-y-auto pb-10">
                     <ul className="mt-4 space-y-2">
                         {sections.map((section, index) => {
                             const visibleLinks = filterLinksBySearchTerm(filterLinksByRole(section.links));

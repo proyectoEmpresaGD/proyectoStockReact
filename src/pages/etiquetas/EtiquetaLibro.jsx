@@ -1,18 +1,15 @@
-
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
-import SearchBar from '../components/productos/SearchBar';
-import { useAuthContext } from '../Auth/AuthContext';
+import SearchBar from '../../components/productos/SearchBar';
+import { useAuthContext } from '../../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 import piexif from 'piexifjs';
-"NON_DIRECTIONAL"
-"RAILROADED"
-"NON_RAILROADED"
 
-function EtiquetasLibro35Tipo1() {
+
+function EtiquetaLibro() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -130,7 +127,7 @@ function EtiquetasLibro35Tipo1() {
     };
 
     const handlePrint = () => {
-        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_');
 
         const element = printRef.current;
         const options = {
@@ -147,7 +144,6 @@ function EtiquetasLibro35Tipo1() {
             .save()
             .catch(error => console.error('Error generating PDF:', error));
     };
-    // Exportar como JPG (nuevo)
     // Exportar como JPG (nuevo)
     const handleExportAsJPGDirect = async () => {
         try {
@@ -341,7 +337,7 @@ function EtiquetasLibro35Tipo1() {
             ref={printRef}
             className="bg-white p-4 rounded-lg flex flex-col justify-center"
             style={{
-                width: '13cm',
+                width: '15cm',
                 height: '4cm',
                 fontSize: '6px',
                 boxSizing: 'border-box',
@@ -365,23 +361,23 @@ function EtiquetasLibro35Tipo1() {
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>
-                <div className='flex justify-end items-start w-[110%] gap-2'>
+                <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
                     <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
-                    <div className="w-[33px] flex justify-end pt-[7px] items-end ml-5">
+                    <div className="w-[33px] flex items-center relative left-[175px]">
                         <img
                             className="w-[15px]"
                             src={getLogoUrl(nombre)}
                             alt={nombre}
                         />
-                        <p className="text-[6px] ml-1">{nombre}</p>
+                        <p className="text-[6px] ml-1 mt-1">NON_DIRECTIONAL</p>
                     </div>
                 </div>
             </div>
-            <div className="text-content text-[9px] grid grid-cols-3 w-[120%]">
+            <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
+                    <p className="font-extrabold flex items-center min-w-[210px]">
                         Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -407,18 +403,16 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">
-                            {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
-                        </span>
+                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale} cycles</span>
                     </p>
                 </div>
-                <div className="text-content text-[10px] relative left-[20px]">
+                <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
-                <div className="flex justify-start ml-[2px]  mt-[5px]">
+                <div className="relative left-[50px] mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
                 </div>
             </div>
@@ -647,7 +641,9 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale: <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
+                        </span>
                     </p>
                 </div>
 
@@ -713,4 +709,4 @@ function EtiquetasLibro35Tipo1() {
     );
 }
 
-export default EtiquetasLibro35Tipo1;
+export default EtiquetaLibro;
