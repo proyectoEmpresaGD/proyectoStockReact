@@ -17,8 +17,6 @@ import EtiquetaNormativa from './pages/etiquetas/EtiquetasNormativa.jsx';
 import EtiquetaPerchas from './pages/etiquetas/EtiquetasPechas.jsx';
 import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
 import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
-import EtiquetaContraportada35 from './pages/etiquetas/EtiquetaContraportada35.jsx';
-import EtiquetaContraportada20 from './pages/etiquetas/EtiquetaContraportada20.jsx';
 import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
 import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
 
