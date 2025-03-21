@@ -181,4 +181,5 @@ app.listen(PORT, () => {
   console.log(`Serving static files from ${join(__dirname, 'web')}`);
 });
 
+
 export default app;
