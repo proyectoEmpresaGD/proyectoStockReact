@@ -19,7 +19,7 @@ import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
 import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
 import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
 import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
-import EntradasPage from './pages/EntradasPage';
+import EntradasPage from './pages/EntradasPages.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
