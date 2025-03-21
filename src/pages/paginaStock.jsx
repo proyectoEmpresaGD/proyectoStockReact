@@ -133,7 +133,14 @@ function Stock() {
         }
     }, [products, stocks, stockLotes]);
 
-    // Sugerencias al escribir en el buscador
+    // Función para realizar un filtrado "fuzzy" en base al término de búsqueda.
+    const fuzzyFilter = (product, searchTerm) => {
+        const tokens = searchTerm.toLowerCase().split(' ').filter(Boolean);
+        const productText = product.desprodu.toLowerCase();
+        return tokens.every(token => productText.includes(token));
+    };
+
+    // Sugerencias al escribir en el buscador (modificado para realizar filtrado difuso)
     useEffect(() => {
         if (searchTerm.length >= 3) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${searchTerm}&limit=40`, {
@@ -148,7 +155,9 @@ function Stock() {
                     return response.json();
                 })
                 .then(data => {
-                    setSuggestions(data || []);
+                    // Aplicar filtrado difuso sobre los datos obtenidos
+                    const fuzzySuggestions = data.filter(product => fuzzyFilter(product, searchTerm));
+                    setSuggestions(fuzzySuggestions);
                 })
                 .catch(error => {
                     console.error('Error fetching search suggestions:', error);
@@ -195,7 +204,7 @@ function Stock() {
                     setFilteredProducts(combined);
                     setSingleProductView(combined.length === 1);
                     setIsSearchActive(true);
-                    setSuggestions([]); // Ensure suggestions are closed after search
+                    setSuggestions([]); // Cerrar sugerencias después de la búsqueda
                 } else {
                     setFilteredProducts([]);
                 }

@@ -38,7 +38,7 @@ export class ProductModel {
         !/^(LIBRO|PORTADA|SET|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
-        ['ARE', 'FLA', 'CJM', 'HAR','BAS'].includes(product.codmarca)
+        ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(product.codmarca)
       ));
 
       // Retornamos los primeros 'limit' productos válidos
@@ -87,12 +87,32 @@ export class ProductModel {
 
   static async search({ query, limit = 20, offset = 0 }) {
     try {
+      // Dividir el query en tokens (palabras) y eliminar espacios vacíos.
+      const tokens = query.split(' ').filter(token => token.trim().length > 0);
+      let whereClause = '';
+      const values = [];
+
+      if (tokens.length > 0) {
+        // Construir la cláusula WHERE para que cada token se busque en "desprodu".
+        whereClause = tokens.map((token, index) => {
+          // Se agrega el token al arreglo de valores con comodines.
+          values.push(`%${token}%`);
+          return `"desprodu" ILIKE $${index + 1}`;
+        }).join(' AND ');
+      }
+
+      // Agregar parámetros para LIMIT y OFFSET.
+      values.push(limit, offset);
+      const limitParam = values.length - 1;   // posición del límite
+      const offsetParam = values.length;        // posición del offset
+
+      // Construir la consulta final.
       const searchQuery = `
-            SELECT * FROM productos
-            WHERE "desprodu" ILIKE $1
-            LIMIT $2 OFFSET $3
-        `;
-      const values = [`%${query}%`, limit, offset];
+        SELECT * FROM productos
+        ${whereClause ? `WHERE ${whereClause}` : ''}
+        LIMIT $${limitParam} OFFSET $${offsetParam}
+      `;
+
       const { rows } = await pool.query(searchQuery, values);
       return rows;
     } catch (error) {
@@ -326,5 +346,23 @@ export class ProductModel {
       throw new Error('Error fetching etiqueta libro data');
     }
   }
-
+  static async getEntradasByDate({ date }) {
+    try {
+      const query = `
+        SELECT s.*, p.desprodu
+        FROM stock s
+        JOIN productos p ON s.codprodu = p.codprodu
+        WHERE CAST(s.fecultmod AS date) = $1
+          AND s.cancompra > 0
+          AND p.desprodu NOT ILIKE '%CUTTING%'
+          AND p.desprodu NOT ILIKE '%QUALITY SAMPLE%'
+          AND p.desprodu NOT ILIKE '%PORTES%'
+      `;
+      const { rows } = await pool.query(query, [date]);
+      return rows;
+    } catch (error) {
+      console.error('Error fetching entradas:', error);
+      throw new Error('Error fetching entradas');
+    }
+  }
 }
