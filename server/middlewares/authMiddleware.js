@@ -10,6 +10,7 @@ export const authMiddleware = async (req, res, next) => {
         // Verificar el token JWT usando la clave secreta
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+
         // Buscar al usuario correspondiente al ID en la base de datos
         const user = await UserModel.findById(decoded.id);
         if (!user) {
