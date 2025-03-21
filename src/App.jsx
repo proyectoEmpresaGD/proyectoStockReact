@@ -19,7 +19,7 @@ import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
 import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
 import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
 import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
-
+import EntradasPage from './pages/EntradasPage';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -55,7 +55,7 @@ function App() {
                       <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />
                       <Route path="/EtiquetasLibro35Tipo2" element={< EtiquetasLibro35Tipo2 />} />
                       <Route path="/EtiquetaPersonalizable" element={< EtiquetasPersonalizable />} />
-
+                      <Route path="entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
                     </Routes>
                   </div>
                 </div>

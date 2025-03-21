@@ -102,4 +102,15 @@ export class StockController {
             res.status(500).json({ error: error.message });
         }
     }
+    async getEntradas(req, res) {
+        try {
+            const { date } = req.query;
+            const dateValue = date || new Date().toISOString().split('T')[0];
+            const entradas = await StockModel.getEntradasByDate({ date: dateValue });
+            res.json(entradas);
+        } catch (error) {
+            console.error('Error fetching entradas:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
-    FaCubes, FaBalanceScale, FaTag, FaBalanceScaleLeft,
+    FaCubes, FaBalanceScale, FaTag, FaShoppingCart, FaMoneyBillWave
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -46,6 +46,19 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             links: [
                 { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user'] },
                 { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+            ],
+        },
+        {
+            label: 'Ventas',
+            icon: <FaShoppingCart className="mr-3 text-lg" />,
+            dropdown: 'ventas',
+            links: [
+                {
+                    to: 'entradas',
+                    label: 'Entradas',
+                    icon: <FaMoneyBillWave className="mr-3 text-lg" />,
+                    roles: ['admin', 'ventas']
+                },
             ],
         },
         {

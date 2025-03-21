@@ -10,6 +10,7 @@ export const createStockRouter = () => {
     stockRouter.get('/', authMiddleware, stockController.getAll.bind(stockController));
     stockRouter.post('/', authMiddleware, stockController.create.bind(stockController));
 
+    stockRouter.get('/entradas', authMiddleware, stockController.getEntradas.bind(stockController));
     // Rutas para operaciones específicas del stock, protegidas por autenticación
     stockRouter.get('/:codprodu', authMiddleware, stockController.getById.bind(stockController));
     stockRouter.get('/producto/:codprodu', authMiddleware, stockController.getByCodprodu.bind(stockController)); // Ajusta si es necesario
