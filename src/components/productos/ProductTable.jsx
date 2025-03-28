@@ -12,6 +12,7 @@ function ProductTable({ products, handleProductClick }) {
                             <th className="py-4 px-5 md:px-6 text-left">Descripción</th>
                             <th className="py-4 px-2 md:px-6 text-center">Stock Actual</th>
                             <th className="py-4 px-2 md:px-6 text-center">Pendiente Recibir</th>
+                            <th className="py-4 px-2 md:px-6 text-center">Pendiente Servir</th>
                         </tr>
                     </thead>
                     <tbody className="text-gray-700">
@@ -30,6 +31,7 @@ function ProductTable({ products, handleProductClick }) {
                                     <td className="py-4 px-5 md:px-6 text-left">{product.desprodu}</td>
                                     <td className="py-4 px-2 md:px-6 text-center">{product.stockactual}</td>
                                     <td className="py-4 px-2 md:px-6 text-center">{product.canpenrecib}</td>
+                                    <td className="py-4 px-2 md:px-6 text-center">{product.canpenservir}</td>
                                 </tr>
                             ))
                         ) : (

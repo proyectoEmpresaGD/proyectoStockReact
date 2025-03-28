@@ -126,6 +126,7 @@ function Stock() {
                         ...product,
                         stockactual: totalStockActual.toFixed(2),
                         canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
+                        canpenservir: stock ? parseFloat(stock.canpenservir).toFixed(2) : 'N/A',
                     };
                 });
             setCombinedProducts(combined);
