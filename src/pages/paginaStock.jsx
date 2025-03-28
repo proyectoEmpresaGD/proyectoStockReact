@@ -26,7 +26,7 @@ function Stock() {
 
     const isValidProduct = (product) => {
         return (
-            !/^(LIBRO|PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
+            !/^(PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
             !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
             !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
             ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
@@ -200,6 +200,7 @@ function Stock() {
                                 ...product,
                                 stockactual: totalStockActual.toFixed(2),
                                 canpenrecib: stock ? parseFloat(stock.canpenrecib).toFixed(2) : 'N/A',
+                                canpenservir: stock ? parseFloat(stock.canpenservir).toFixed(2) : 'N/A',
                             };
                         });
                     setFilteredProducts(combined);
