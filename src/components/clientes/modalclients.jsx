@@ -8,7 +8,7 @@ function classNames(...classes) {
 }
 
 function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateClientBilling }) {
-    const { token } = useAuthContext(); // Obtener el token del contexto de autenticación
+    const { token } = useAuthContext(); // Obtener el token
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
     const [purchasedProducts, setPurchasedProducts] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
@@ -19,11 +19,19 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
     const marcas = ["FLA", "CJM", "HAR", "ARE", "BAS"];
 
+    // Declaramos sortProducts antes de usarla
+    const sortProducts = (products, order) => {
+        if (order === 'newest') {
+            return products.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        }
+        return products.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    };
+
     const fetchPurchasedProducts = useCallback(async (codclien) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${codclien}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                    'Authorization': `Bearer ${token}`,
                 },
             });
             if (response.ok) {
@@ -33,16 +41,12 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                     const dt1 = parseFloat(product.dt1) || 0;
                     const dt2 = parseFloat(product.dt2) || 0;
                     const dt3 = parseFloat(product.dt3) || 0;
-
                     if (dt1 > 0) importe -= (importe * Math.floor(dt1)) / 100;
                     if (dt2 > 0) importe -= (importe * Math.floor(dt2)) / 100;
                     if (dt3 > 0) importe -= (importe * Math.floor(dt3)) / 100;
-
                     if (importe < 0) importe = 0;
-
                     return { ...product, importeDescuento: importe.toFixed(2), dt1: Math.floor(dt1) };
                 });
-
                 setPurchasedProducts(productsWithDiscounts);
                 calculateTotalBilling(productsWithDiscounts);
                 fetchStockForProducts(productsWithDiscounts);
@@ -52,20 +56,19 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         } catch (error) {
             console.error('Error fetching purchased products:', error);
         }
-    }, [token]); // Añadido token como dependencia
+    }, [token]);
 
     const fetchStockForProducts = async (products) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                    'Authorization': `Bearer ${token}`,
                 },
             });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const stockData = await response.json();
-
             const productsWithStock = products.map(product => {
                 if (!product.codprodu) {
                     return { ...product, stockactual: '0' };
@@ -73,7 +76,6 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                 const stock = stockData.find(item => item.codprodu === product.codprodu);
                 return { ...product, stockactual: stock ? stock.stockactual : '0' };
             });
-
             setPurchasedProducts(productsWithStock);
         } catch (error) {
             console.error('Error fetching stock data:', error);
@@ -118,18 +120,11 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         setSortOrder(prevSortOrder => (prevSortOrder === 'newest' ? 'oldest' : 'newest'));
     };
 
-    const sortProducts = (products, order) => {
-        if (order === 'newest') {
-            return products.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-        }
-        return products.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-    };
-
     const fetchFilteredProducts = async (codmarca, filter) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/filter?codmarca=${codmarca}&filter=${filter}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Enviar el token en la cabecera
+                    'Authorization': `Bearer ${token}`,
                 },
             });
             if (response.ok) {
@@ -149,6 +144,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     };
 
     const filteredPurchasedProducts = applyFilter(purchasedProducts, selectedFilter);
+    // Aquí se usa sortProducts, ya definida previamente
     const sortedFilteredProducts = sortProducts(filteredPurchasedProducts, sortOrder);
 
     const formatDate = (dateString) => {

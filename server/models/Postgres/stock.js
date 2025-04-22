@@ -98,4 +98,24 @@ export class StockModel {
 
         return rows[0];
     }
+
+    static async getLowStockAlerts() {
+        try {
+            const query = `
+                SELECT s.codprodu, s.stockactual, p.desprodu, p.coleccion
+                FROM stock s
+                LEFT JOIN productos p ON s.codprodu = p.codprodu
+                WHERE s.codalmac = '00'
+            `;
+            const { rows } = await pool.query(query);
+            return rows;
+        } catch (error) {
+            console.error("Error fetching low stock alerts:", error);
+            throw new Error("Error fetching low stock alerts");
+        }
+    }
+
+
+
+
 }

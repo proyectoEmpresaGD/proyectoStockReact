@@ -113,4 +113,56 @@ export class StockController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    // controllers/stock.js
+    // controllers/stock.js
+
+    // controllers/stock.js
+    async getLowStockAlerts(req, res) {
+        try {
+            const all = await StockModel.getLowStockAlerts();
+
+            // Expresiones regulares y configuraciones
+            const reExcludeTela = /LIBRO|QUALITY|TAPILLA|PERCHA|CUTTING(?:S)?|RIEL/i;
+            const reLibro = /LIBRO/i;
+            const rePercha = /PERCHA/i;
+            const marcasTela = /^(CJM|HAR|BAS|ARE|FLA)/i;
+            const colecciones = [
+                'stratos', 'diamante', 'urban contemporary',
+                'revoltoso vol i', 'revoltoso vol ii'
+            ];
+
+            const lowTelas = all.filter(item => {
+                const des = String(item.desprodu || '');
+                const codp = String(item.codprodu || '');
+                const cole = String(item.coleccion || '').toLowerCase();
+
+                return (
+                    parseFloat(item.stockactual) < 30 &&
+                    marcasTela.test(codp) &&
+                    !reExcludeTela.test(des) &&
+                    // si colecciones definidas, filtrar por ellas:
+                    (colecciones.length === 0 || colecciones.includes(cole))
+                );
+            });
+
+            const lowLibros = all.filter(item =>
+                parseFloat(item.stockactual) < 30 &&
+                reLibro.test(item.desprodu)
+            );
+
+            const lowPerchas = all.filter(item =>
+                parseFloat(item.stockactual) < 10 &&
+                rePercha.test(item.desprodu)
+            );
+
+            res.json({ telas: lowTelas, libros: lowLibros, perchas: lowPerchas });
+        } catch (error) {
+            console.error("Error fetching low stock alerts:", error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+
+
 }

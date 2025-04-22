@@ -19,14 +19,27 @@ export class PedVentaModel {
     }
 
 
-    static async getByClient({ codclien }) {
-        const { rows } = await pool.query(`
-            SELECT codprodu, fecha, desprodu, cantidad, precio, importe, dt1, dt2, dt3, npedventa
-            FROM pedventa 
-            WHERE codclien = $1
-        `, [codclien]);
+    // Ejemplo de modificación en el modelo
+    static async getByClient({ codclien, ejercicio }) {
+        let query = `
+        SELECT codprodu, fecha, desprodu, cantidad, precio, importe, dt1, dt2, dt3, npedventa
+        FROM pedventa 
+        WHERE codclien = $1
+    `;
+        const params = [codclien];
+
+        if (ejercicio && ejercicio.trim() !== '') {
+            query += ` AND ejercicio = $2`;
+            params.push(ejercicio);
+        } else {
+            query += ` ORDER BY fecha DESC`;
+        }
+
+        const { rows } = await pool.query(query, params);
         return rows;
     }
+
+
 
     static async create({ input }) {
         const { empresa, ejercicio, canal, codSerPedVenta, nPedVenta, linea, codclien, razclien, fecha, fecEntre, codAlmac, codProdu, desProdu, cantidad, precio, importe, dt1, impDt1, dt2, impDt2, dt3, impDt3, impBruto, codIva } = input;
