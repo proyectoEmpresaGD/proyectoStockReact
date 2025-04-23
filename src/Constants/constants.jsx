@@ -270,6 +270,7 @@ export const clientStatuses = {
 };
 
 export const billingThresholds = [
+    { limit: 0, colorClass: 'bg-stone-300' },
     { limit: 1000, colorClass: 'bg-yellow-500' },
     { limit: 3000, colorClass: 'bg-orange-500' },
     { limit: 5000, colorClass: 'bg-green-500' },

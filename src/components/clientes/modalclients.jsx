@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Tab } from '@headlessui/react';
 import { AiOutlineClose } from 'react-icons/ai';
 import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
+import * as XLSX from 'xlsx'; // <-- import para generar Excel
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
@@ -16,6 +17,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const [sortOrder, setSortOrder] = useState('newest');
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [selectedMarca, setSelectedMarca] = useState('');
+    // 🔽 Estado añadido para el filtro de año:
+    const [selectedYear, setSelectedYear] = useState('All');
+    const [yearOptions, setYearOptions] = useState([]);
+
     const filters = ["LIBRO", "PERCHA", "QUALITY", "TELAS"];
     const marcas = ["FLA", "CJM", "HAR", "ARE", "BAS"];
 
@@ -48,6 +53,13 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                     return { ...product, importeDescuento: importe.toFixed(2), dt1: Math.floor(dt1) };
                 });
                 setPurchasedProducts(productsWithDiscounts);
+
+                // 🔽 Calcular años únicos y preparar opciones
+                const years = Array.from(
+                    new Set(productsWithDiscounts.map(p => new Date(p.fecha).getFullYear()))
+                ).sort((a, b) => b - a);
+                setYearOptions(['All', ...years.map(String)]);
+
                 calculateTotalBilling(productsWithDiscounts);
                 fetchStockForProducts(productsWithDiscounts);
             } else {
@@ -85,7 +97,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
     const calculateTotalBilling = useCallback((products) => {
         const total = products.reduce((sum, product) => sum + parseFloat(product.importeDescuento), 0);
         setTotalBilling(total);
-    }, []);
+        if (selectedClientDetails && typeof updateClientBilling === 'function') {
+            updateClientBilling(selectedClientDetails.codclien, total);
+        }
+    }, [selectedClientDetails, updateClientBilling]);
 
     useEffect(() => {
         if (selectedClientDetails && selectedTabIndex === 1) {
@@ -93,31 +108,38 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         }
     }, [selectedClientDetails, selectedTabIndex, fetchPurchasedProducts]);
 
+    // 🔽 Filtrar por año, filtro y orden cada vez que cambia algo relevante
     useEffect(() => {
-        if (selectedClientDetails && totalBilling > 0 && typeof updateClientBilling === 'function') {
-            updateClientBilling(selectedClientDetails.codclien, totalBilling);
-        }
-    }, [selectedClientDetails, totalBilling, updateClientBilling]);
+        let temp = purchasedProducts;
 
-    const applyFilter = (products, filter) => {
-        if (filter === "TELAS") {
-            return products.filter(product =>
-                product.desprodu &&
-                !["LIBRO", "PERCHA", "QUALITY"].some(word => product.desprodu.toUpperCase().includes(word))
-            );
+        if (selectedYear !== 'All') {
+            temp = temp.filter(p => new Date(p.fecha).getFullYear().toString() === selectedYear);
         }
-        return products.filter(product =>
-            product.desprodu && product.desprodu.toUpperCase().includes(filter)
-        );
+
+        if (selectedFilter) {
+            if (selectedFilter === 'TELAS') {
+                temp = temp.filter(p =>
+                    p.desprodu &&
+                    !["LIBRO", "PERCHA", "QUALITY"].some(w => p.desprodu.toUpperCase().includes(w))
+                );
+            } else {
+                temp = temp.filter(p =>
+                    p.desprodu && p.desprodu.toUpperCase().includes(selectedFilter)
+                );
+            }
+        }
+
+        temp = sortProducts(temp, sortOrder);
+        calculateTotalBilling(temp);
+        setFilteredProducts(temp);
+    }, [purchasedProducts, selectedYear, selectedFilter, sortOrder, calculateTotalBilling]);
+
+    const toggleSortOrder = () => {
+        setSortOrder(prev => (prev === 'newest' ? 'oldest' : 'newest'));
     };
 
     const handleFilterChange = (filter) => {
         setSelectedFilter(filter);
-        fetchFilteredProducts(selectedMarca, filter);
-    };
-
-    const toggleSortOrder = () => {
-        setSortOrder(prevSortOrder => (prevSortOrder === 'newest' ? 'oldest' : 'newest'));
     };
 
     const fetchFilteredProducts = async (codmarca, filter) => {
@@ -142,10 +164,6 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         setSelectedMarca(codmarca);
         fetchFilteredProducts(codmarca, selectedFilter);
     };
-
-    const filteredPurchasedProducts = applyFilter(purchasedProducts, selectedFilter);
-    // Aquí se usa sortProducts, ya definida previamente
-    const sortedFilteredProducts = sortProducts(filteredPurchasedProducts, sortOrder);
 
     const formatDate = (dateString) => {
         if (!dateString) return 'No data';
@@ -226,6 +244,25 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         );
     };
 
+    // Nueva función para exportar a Excel (respeta filtro de año)
+    const exportToExcel = () => {
+        let toExport = filteredProducts;
+        const ws = XLSX.utils.json_to_sheet(
+            toExport.map(p => ({
+                Código: p.codprodu,
+                Descripción: p.desprodu,
+                Cantidad: p.npedventa,
+                Precio: p.precio,
+                'Descuento 1 %': p.dt1,
+                'Importe con Desc.': p.importeDescuento,
+                Fecha: formatDate(p.fecha),
+            }))
+        );
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
+        XLSX.writeFile(wb, `Ventas_${selectedClientDetails.codclien}_${selectedYear}.xlsx`);
+    };
+
     return (
         modalVisible && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-y-auto">
@@ -279,6 +316,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                     </Tab>
                                 </Tab.List>
                                 <Tab.Panels className="mt-2">
+                                    {/* INFO */}
                                     <Tab.Panel className="bg-white rounded-xl p-3">
                                         <table className="min-w-full bg-white border border-gray-300 text-sm">
                                             <thead className="bg-gray-200">
@@ -319,30 +357,34 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                             </tbody>
                                         </table>
                                     </Tab.Panel>
+                                    {/* COMPRADOS */}
                                     <Tab.Panel className="bg-white rounded-xl p-3">
-                                        <div className="flex justify-between mb-4">
-                                            <div className="flex flex-wrap">
-                                                {filters.map(filter => (
-                                                    <button
-                                                        key={filter}
-                                                        onClick={() => handleFilterChange(filter)}
-                                                        className={classNames(
-                                                            'px-4 py-2 mr-2 mb-2 rounded',
-                                                            selectedFilter === filter
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                                        )}
-                                                    >
-                                                        {filter}
-                                                    </button>
-                                                ))}
+                                        <div className="flex justify-between mb-4 items-center">
+                                            {/* Selector de Año */}
+                                            <div className="flex items-center space-x-2">
+                                                <label className="font-medium">Año:</label>
+                                                <select
+                                                    value={selectedYear}
+                                                    onChange={e => setSelectedYear(e.target.value)}
+                                                    className="border px-2 py-1 rounded"
+                                                >
+                                                    {yearOptions.map(y => (
+                                                        <option key={y} value={y}>{y}</option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                            <div>
+                                            <div className="flex space-x-2">
                                                 <button
                                                     onClick={toggleSortOrder}
                                                     className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
                                                 >
                                                     {sortOrder === 'newest' ? 'Mostrar antiguas' : 'Mostrar recientes'}
+                                                </button>
+                                                <button
+                                                    onClick={exportToExcel}
+                                                    className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600"
+                                                >
+                                                    Exportar Ventas a Excel
                                                 </button>
                                             </div>
                                         </div>
@@ -361,8 +403,8 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {sortedFilteredProducts.length > 0 ? (
-                                                        sortedFilteredProducts.map((product, index) => (
+                                                    {filteredProducts.length > 0 ? (
+                                                        filteredProducts.map((product, index) => (
                                                             <tr key={index} className="border-b">
                                                                 <td className="px-2 py-1">{product.desprodu}</td>
                                                                 <td className="px-2 py-1 hidden sm:table-cell">{product.npedventa}</td>
@@ -380,7 +422,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                         </tr>
                                                     )}
                                                 </tbody>
-                                                {sortedFilteredProducts.length > 0 && (
+                                                {filteredProducts.length > 0 && (
                                                     <tfoot>
                                                         <tr>
                                                             <td colSpan="6" className="px-4 py-2 font-bold text-right">Facturación Bruto Total</td>
@@ -391,7 +433,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                             </table>
                                         </div>
                                     </Tab.Panel>
-                                    <Tab.Panel>{renderLibrosTab()}</Tab.Panel>
+                                    {/* LIBROS/PERCHAS/QUALITY */}
+                                    <Tab.Panel className="bg-white rounded-xl p-3">
+                                        {renderLibrosTab()}
+                                    </Tab.Panel>
                                 </Tab.Panels>
                             </Tab.Group>
                         </div>

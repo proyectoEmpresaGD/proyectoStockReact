@@ -168,6 +168,7 @@ function Clients() {
     };
 
     const getClientColor = (totalBilling) => {
+        if (totalBilling == 0) return 'bg-stone-300';
         if (totalBilling <= 1000) return 'bg-yellow-500';
         if (totalBilling <= 3000) return 'bg-orange-500';
         if (totalBilling <= 5000) return 'bg-green-500';
