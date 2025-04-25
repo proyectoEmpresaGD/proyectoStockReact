@@ -14,13 +14,11 @@
     "crons": [
         {
             "path": "/api/test-send-stock-alerts",
-            "schedule": "0 8 * * *",
-            "timezone": "Europe/Madrid"
+            "schedule": "0 7 * * *"
         },
         {
             "path": "/api/test-send-visits-email",
-            "schedule": "0 15 * * 0",
-            "timezone": "Europe/Madrid"
+            "schedule": "0 15 * * 0"
         }
     ]
 }
