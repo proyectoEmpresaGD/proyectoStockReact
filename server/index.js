@@ -57,7 +57,6 @@ app.use('/api/visits', authMiddleware, createVisitaRouter());
 // NOTIFICACIONES POR CORREO
 // ----------------------------
 
-// Configuración del transporter de nodemailer
 const transporter = nodemailer.createTransport({
   host: "send.one.com",
   port: 465,
@@ -139,7 +138,7 @@ async function sendWeeklyVisitsEmail() {
 async function sendDailyLowStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
-    // Filtrado:
+
     const lowTelas = all.filter(r =>
       r.desprodu &&
       !(/LIBRO|QUALITY|TAPILLA|PERCHA/i.test(r.desprodu)) &&
@@ -153,38 +152,82 @@ async function sendDailyLowStockAlerts() {
       /PERCHA/i.test(r.desprodu) &&
       parseFloat(r.stockactual) < 10
     );
+
     if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length > 0)) {
       console.log("No hay stock bajo hoy.");
       return;
     }
 
+    // HTML con tabla estilo frontend
     let html = `
-      <div style="font-family:Arial,sans-serif;line-height:1.4">
-        <h1 style="color:#2D9CDB;">Alerta Diaria de Stock Bajo</h1>
-        <p>Hola Agustín, estos productos están bajo el umbral:</p>
+      <div style="font-family: Helvetica, Arial, sans-serif; color: #333; padding: 20px;">
+        <h1 style="text-align:center; color:#2D9CDB;">Alerta Diaria de Stock Bajo</h1>
+        <p>Hola Agustín, estos productos están bajos de stock:</p>
+        <table style="width:100%; border-collapse: collapse; margin-top:20px;">
+          <tr>
+            <th style="background:#FDE68A; padding:10px; border:1px solid #FCD34D; color:#92400E;">
+              Telas (&lt;30m)
+            </th>
+            <th style="background:#BBF7D0; padding:10px; border:1px solid #34D399; color:#065F46;">
+              Libros (&lt;30)
+            </th>
+            <th style="background:#FECACA; padding:10px; border:1px solid #F87171; color:#991B1B;">
+              Perchas (&lt;10)
+            </th>
+          </tr>
+          <tr>
+            <td style="vertical-align: top; padding:10px; border:1px solid #FCD34D;">
+              ${lowTelas.length === 0
+        ? `<p style="margin:0;">No hay alertas.</p>`
+        : `<ul style="padding-left:20px; margin:0;">
+                    ${lowTelas.map(i => `
+                      <li style="margin-bottom:4px;">
+                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                        <span style="font-size:0.9em; color:#555;">
+                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                        </span>
+                      </li>
+                    `).join("")}
+                  </ul>`
+      }
+            </td>
+            <td style="vertical-align: top; padding:10px; border:1px solid #34D399;">
+              ${lowLibros.length === 0
+        ? `<p style="margin:0;">No hay alertas.</p>`
+        : `<ul style="padding-left:20px; margin:0;">
+                    ${lowLibros.map(i => `
+                      <li style="margin-bottom:4px;">
+                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                        <span style="font-size:0.9em; color:#555;">
+                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                        </span>
+                      </li>
+                    `).join("")}
+                  </ul>`
+      }
+            </td>
+            <td style="vertical-align: top; padding:10px; border:1px solid #F87171;">
+              ${lowPerchas.length === 0
+        ? `<p style="margin:0;">No hay alertas.</p>`
+        : `<ul style="padding-left:20px; margin:0;">
+                    ${lowPerchas.map(i => `
+                      <li style="margin-bottom:4px;">
+                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                        <span style="font-size:0.9em; color:#555;">
+                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                        </span>
+                      </li>
+                    `).join("")}
+                  </ul>`
+      }
+            </td>
+          </tr>
+        </table>
+        <p style="margin-top:20px; font-style:italic; color:#555;">
+          Este email se envía automáticamente todos los días a las 08:00 AM (CET).
+        </p>
+      </div>
     `;
-    if (lowTelas.length) {
-      html += `<h2 style="color:#F2994A;">Telas (&lt;30m)</h2><ul>`;
-      lowTelas.forEach(i => {
-        html += `<li><strong>${i.codprodu}</strong> - ${i.desprodu} (Stock: ${parseFloat(i.stockactual).toFixed(2)})</li>`;
-      });
-      html += `</ul>`;
-    }
-    if (lowLibros.length) {
-      html += `<h2 style="color:#27AE60;">Libros (&lt;30)</h2><ul>`;
-      lowLibros.forEach(i => {
-        html += `<li><strong>${i.codprodu}</strong> - ${i.desprodu} (Stock: ${parseFloat(i.stockactual).toFixed(2)})</li>`;
-      });
-      html += `</ul>`;
-    }
-    if (lowPerchas.length) {
-      html += `<h2 style="color:#EB5757;">Perchas (&lt;10)</h2><ul>`;
-      lowPerchas.forEach(i => {
-        html += `<li><strong>${i.codprodu}</strong> - ${i.desprodu} (Stock: ${parseFloat(i.stockactual).toFixed(2)})</li>`;
-      });
-      html += `</ul>`;
-    }
-    html += `<p style="font-style:italic;color:#555;">Este email se envía diariamente a las 08:00 AM (CET).</p></div>`;
 
     await transporter.sendMail({
       from: "gerardo@cjmw.eu",
@@ -200,7 +243,7 @@ async function sendDailyLowStockAlerts() {
 
 // Cron schedules
 cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
-cron.schedule('0 8  * * *', sendDailyLowStockAlerts, { timezone: "Europe/Madrid" });
+cron.schedule('0 8 * * *', sendDailyLowStockAlerts, { timezone: "Europe/Madrid" });
 
 // ----------------------------
 // ENDPOINTS DE PRUEBA
