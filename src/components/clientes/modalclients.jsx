@@ -359,9 +359,26 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                     </Tab.Panel>
                                     {/* COMPRADOS */}
                                     <Tab.Panel className="bg-white rounded-xl p-3">
-                                        <div className="flex justify-between mb-4 items-center">
-                                            {/* Selector de Año */}
-                                            <div className="flex items-center space-x-2">
+                                        <div className="flex flex-wrap justify-between mb-4 items-center gap-2">
+                                            {/* LIBRO/PERCHA/QUALITY/TELAS buttons */}
+                                            <div className="flex flex-wrap gap-2">
+                                                {filters.map(f => (
+                                                    <button
+                                                        key={f}
+                                                        onClick={() => handleFilterChange(f)}
+                                                        className={classNames(
+                                                            'px-4 py-2 rounded',
+                                                            selectedFilter === f
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-gray-200 hover:bg-gray-300'
+                                                        )}
+                                                    >
+                                                        {f}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {/* Año selector, sort & export */}
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <label className="font-medium">Año:</label>
                                                 <select
                                                     value={selectedYear}
@@ -372,11 +389,9 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                         <option key={y} value={y}>{y}</option>
                                                     ))}
                                                 </select>
-                                            </div>
-                                            <div className="flex space-x-2">
                                                 <button
                                                     onClick={toggleSortOrder}
-                                                    className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                                    className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
                                                 >
                                                     {sortOrder === 'newest' ? 'Mostrar antiguas' : 'Mostrar recientes'}
                                                 </button>
@@ -384,7 +399,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                     onClick={exportToExcel}
                                                     className="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600"
                                                 >
-                                                    Exportar Ventas a Excel
+                                                    Exportar Excel
                                                 </button>
                                             </div>
                                         </div>
@@ -396,7 +411,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                         <th className="px-2 py-1 border-b min-w-[120px] hidden sm:table-cell">N Pedido</th>
                                                         <th className="px-2 py-1 border-b min-w-[100px] hidden md:table-cell">Unidad</th>
                                                         <th className="px-2 py-1 border-b min-w-[100px] hidden md:table-cell">Precio</th>
-                                                        <th className="px-2 py-1 border-b min-w-[100px] hidden lg:table-cell">Descuento 1</th>
+                                                        <th className="px-2 py-1 border-b min-w-[100px] hidden lg:table-cell">Descuento</th>
                                                         <th className="px-2 py-1 border-b min-w-[140px]">Importe</th>
                                                         <th className="px-2 py-1 border-b min-w-[140px] hidden sm:table-cell">Stock</th>
                                                         <th className="px-2 py-1 border-b min-w-[140px] hidden lg:table-cell">Fecha</th>
@@ -412,7 +427,7 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                                 <td className="px-2 py-1 hidden md:table-cell">{product.precio}</td>
                                                                 <td className="px-2 py-1 hidden lg:table-cell">{product.dt1}</td>
                                                                 <td className="px-2 py-1">{product.importeDescuento}</td>
-                                                                <td className="px-2 py-1 hidden sm:table-cell">{product.stockactual !== null ? parseFloat(product.stockactual).toFixed(2) : '0'}</td>
+                                                                <td className="px-2 py-1 hidden sm:table-cell">{parseFloat(product.stockactual || 0).toFixed(2)}</td>
                                                                 <td className="px-2 py-1 hidden lg:table-cell">{formatDate(product.fecha)}</td>
                                                             </tr>
                                                         ))

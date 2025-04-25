@@ -41,7 +41,7 @@ function Clients() {
 
             if (selectedCountry) url += `&codpais=${selectedCountry}`;
             if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
-            if (searchTerm) url += `&query=${searchTerm}`;
+            if (searchTerm) url += `&query=${encodeURIComponent(searchTerm)}`;
 
             const response = await fetch(url, {
                 headers: {
@@ -103,32 +103,43 @@ function Clients() {
         }
     };
 
+    // → Aquí está la única función modificada:
     const handleSuggestionClick = async (client) => {
         try {
+            // Ponemos el término de búsqueda en el input
             setSearchTerm(client.razclien);
-            setClients([client]);
-            setTotalClients(1);
+            // Cerramos sugerencias
+            setSuggestions([]);
+            // Volvemos a la primera página
             setCurrentPage(1);
 
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
-                headers: { Authorization: `Bearer ${token}` },
+            // Disparamos la misma lógica de fetchClients, forzando query=client.razclien
+            setLoading(true);
+            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=1&limit=${itemsPerPage}`;
+            if (sortByBilling) {
+                url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/billing?page=1&limit=${itemsPerPage}`;
+            }
+            if (selectedCountry) url += `&codpais=${selectedCountry}`;
+            if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
+            url += `&query=${encodeURIComponent(client.razclien)}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
             });
-            if (response.ok) {
-                const billingData = await response.json();
-                const totalBilling = billingData.reduce((sum, product) => {
-                    let importe = parseFloat(product.importe) || 0;
-                    const dt1 = parseFloat(product.dt1) || 0;
-                    const dt2 = parseFloat(product.dt2) || 0;
-                    const dt3 = parseFloat(product.dt3) || 0;
-                    if (dt1 > 0) importe -= (importe * dt1) / 100;
-                    if (dt2 > 0) importe -= (importe * dt2) / 100;
-                    if (dt3 > 0) importe -= (importe * dt3) / 100;
-                    return sum + (importe > 0 ? importe : 0);
-                }, 0);
-                setClientBillings({ [client.codclien]: totalBilling });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            setClients(data.clients || []);
+            setTotalClients(data.total || 0);
+            if (data.clients.length > 0) {
+                await fetchClientBillings(data.clients);
             }
         } catch (error) {
             console.error('Error handling suggestion click:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -180,7 +191,9 @@ function Clients() {
     return (
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center md:px-4 px-2 py-6">
             <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-24">
-                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">Gestión de Clientes</h1>
+                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
+                    Gestión de Clientes
+                </h1>
                 <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
                     Explora y gestiona los datos de tus clientes con nuestras herramientas eficientes e intuitivas.
                 </p>
@@ -221,7 +234,9 @@ function Clients() {
                     </div>
                     <button
                         onClick={toggleSortByBilling}
-                        className={`px-6 py-2 text-white font-medium rounded-lg transition duration-200 shadow ${sortByBilling ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'
+                        className={`px-6 py-2 text-white font-medium rounded-lg transition duration-200 shadow ${sortByBilling
+                            ? 'bg-green-500'
+                            : 'bg-blue-500 hover:bg-blue-600'
                             }`}
                     >
                         {sortByBilling ? 'Ordenar por Código' : 'Ordenar por Facturación'}
