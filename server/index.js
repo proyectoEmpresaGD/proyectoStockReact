@@ -61,7 +61,7 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: process.env.EMAIL_USER, // e.g. "gerardo@cjmw.eu"
+    user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
@@ -96,10 +96,8 @@ async function getNextWeekVisits() {
 async function sendWeeklyVisitsEmail() {
   try {
     const visits = await getNextWeekVisits();
-    if (visits.length === 0) {
-      console.log("No hay visitas la próxima semana.");
-      return;
-    }
+    if (!visits.length) return console.log("No hay visitas la próxima semana.");
+
     const visitsByEmail = visits.reduce((acc, v) => {
       if (v.assigned_to_email) {
         acc[v.assigned_to_email] = acc[v.assigned_to_email] || [];
@@ -107,6 +105,7 @@ async function sendWeeklyVisitsEmail() {
       }
       return acc;
     }, {});
+
     for (const [email, userVisits] of Object.entries(visitsByEmail)) {
       let html = `<h1>Visitas Programadas Próxima Semana</h1>`;
       userVisits.forEach(v => {
@@ -117,8 +116,7 @@ async function sendWeeklyVisitsEmail() {
             <strong>Descripción:</strong> ${v.descripcion}<br/>
             <strong>Creado por:</strong> ${v.creado_por}<br/>
             <hr/>
-          </p>
-        `;
+          </p>`;
       });
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -141,89 +139,72 @@ async function sendDailyLowStockAlerts() {
     // Filtrado global de términos indeseados
     const cleaned = all.filter(r =>
       r.desprodu &&
-      !/(LIBRO|QUALITY|TAPILLA|PERCHA|CUTTING(?:S)?|RIEL(?:ES)?|HERRAJES)/i.test(r.desprodu)
+      !/(QUALITY|TAPILLA|CUTTINGS|RIELES|HERRAJES|coste del trasporte|mecanismos|rellenos|cabeceros|ignifugación|contract|comisión|colcha|bolsas|tubos|servilletas|lienzo|bolonia|varadero|taiga|dune|zamfara|shira|calcuta|poison|tundra|agata|cuarzo|diamante|sueder|siddharta|nomad|habitat|gravity|lunar|candida|bambu|parlour|bennelong|macarena|nijar|mojacar|losengo|velvety|menorca|baupres|lost odissey|merops|martina|orquidea|gashgai|damasco|doves|senes|esperanza|inmaculada|atlas|mirror|ANTILLA|ANTILLA VELVET|LUMIERE|MIGRATION|PERSIAN MOOD|RINPA|SURIRI|XUBEC|AHURA|IMPERIAL|KUKULCAN|MOIRÉ|MOREAU|PERRAULT|PUMMERIN|TOPKAPI|TULUM|ZAHARA|)/i.test(r.desprodu)
     );
 
     // Subconjuntos por categoría
     const lowTelas = cleaned.filter(r => parseFloat(r.stockactual) < 30);
-    const lowLibros = cleaned.filter(r =>
-      /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30
-    );
-    const lowPerchas = cleaned.filter(r =>
-      /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10
-    );
+    const lowLibros = cleaned.filter(r => /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30);
+    const lowPerchas = cleaned.filter(r => /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10);
 
-    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length > 0)) {
-      console.log("No hay stock bajo hoy.");
-      return;
+    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) {
+      return console.log("No hay stock bajo hoy.");
     }
 
     // HTML con tres tablas de colores coordinados
-    let html = `
-      <div style="font-family: Helvetica, Arial, sans-serif; color: #333; padding: 20px;">
-        <h1 style="text-align:center; color:#2D9CDB;">Alerta Diaria de Stock Bajo</h1>
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.4;padding:20px;">
+        <h1 style="color:#2D9CDB;text-align:center;">Alerta Diaria de Stock Bajo</h1>
         <p>Hola Agustín, estos productos están bajos de stock:</p>
-        <table style="width:100%; border-collapse: collapse; margin-top:20px;">
+        <table style="width:100%;border-collapse:collapse;margin-top:20px;">
           <tr>
-            <th style="background:#FDE68A; padding:10px; border:1px solid #FCD34D; color:#92400E;">
-              Telas (&lt;30m)
-            </th>
-            <th style="background:#BBF7D0; padding:10px; border:1px solid #34D399; color:#065F46;">
-              Libros (&lt;30)
-            </th>
-            <th style="background:#FECACA; padding:10px; border:1px solid #F87171; color:#991B1B;">
-              Perchas (&lt;10)
-            </th>
+            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">Telas (&lt;30m)</th>
+            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">Libros (&lt;30)</th>
+            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">Perchas (&lt;10)</th>
           </tr>
           <tr>
-            <td style="vertical-align: top; padding:10px; border:1px solid #FCD34D;">
+            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">
               ${lowTelas.length === 0
-        ? `<p style="margin:0;">No hay alertas.</p>`
-        : `<ul style="padding-left:20px; margin:0;">
-              ${lowTelas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em; color:#555;">
-                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                  </span>
-                </li>
-              `).join("")}
-            </ul>`
+        ? '<p>No hay alertas.</p>'
+        : `<ul style="margin:0;padding-left:20px;">
+                     ${lowTelas.map(i => `
+                       <li style="margin-bottom:4px;">
+                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                       </li>
+                     `).join('')}
+                   </ul>`
       }
             </td>
-            <td style="vertical-align: top; padding:10px; border:1px solid #34D399;">
+            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">
               ${lowLibros.length === 0
-        ? `<p style="margin:0;">No hay alertas.</p>`
-        : `<ul style="padding-left:20px; margin:0;">
-              ${lowLibros.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em; color:#555;">
-                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                  </span>
-                </li>
-              `).join("")}
-            </ul>`
+        ? '<p>No hay alertas.</p>'
+        : `<ul style="margin:0;padding-left:20px;">
+                     ${lowLibros.map(i => `
+                       <li style="margin-bottom:4px;">
+                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                       </li>
+                     `).join('')}
+                   </ul>`
       }
             </td>
-            <td style="vertical-align: top; padding:10px; border:1px solid #F87171;">
+            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">
               ${lowPerchas.length === 0
-        ? `<p style="margin:0;">No hay alertas.</p>`
-        : `<ul style="padding-left:20px; margin:0;">
-              ${lowPerchas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em; color:#555;">
-                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                  </span>
-                </li>
-              `).join("")}
-            </ul>`
+        ? '<p>No hay alertas.</p>'
+        : `<ul style="margin:0;padding-left:20px;">
+                     ${lowPerchas.map(i => `
+                       <li style="margin-bottom:4px;">
+                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                       </li>
+                     `).join('')}
+                   </ul>`
       }
             </td>
           </tr>
         </table>
-        <p style="margin-top:20px; font-style:italic; color:#555;">
+        <p style="margin-top:20px;font-style:italic;color:#555;">
           Este email se envía automáticamente todos los días a las 08:00 AM (CET).
         </p>
       </div>

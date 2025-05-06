@@ -7,24 +7,52 @@ function LowStockAlertsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // regex of all unwanted terms (case-insensitive)
+    const excludeRegex = new RegExp([
+        'QUALITY',
+        'TAPILLA',
+        'CUTTINGS',
+        'RIELES',
+        'HERRAJES',
+        'El coste del trasporte',
+        'mecanismos',
+        'rellenos',
+        'cabeceros',
+        'ignifugación',
+        'contract',
+        'comisión',
+        'colcha',
+        'bolsas',
+        'tubos',
+        'servilletas',
+        'lienzo', 'bolonia', 'varadero', 'taiga', 'dune', 'zamfara', 'shira', 'calcuta', 'poison', 'tundra', 'agata', 'cuarzo', 'diamante',
+        'sueder', 'siddharta', 'nomad', 'habitat', 'gravity', 'lunar', 'candida', 'bambu', 'parlour', 'bennelong', 'macarena', 'nijar',
+        'mojacar', 'losengo', 'velvety', 'menorca', 'baupres', 'lost odissey', 'merops', 'martina', 'orquidea', 'gashgai', 'damasco',
+        'doves', 'senes', 'esperanza', 'inmaculada', 'atlas', 'mirror', 'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'NIMBOSILVA', 'PERSIAN MOOD', 'RINPA', 'SURIRI',
+        'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU', 'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
+    ].join('|'), 'i');
+
     const fetchAlerts = async () => {
         setLoading(true);
         try {
             const response = await fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/stock/alerts`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
+                { headers: { Authorization: `Bearer ${token}` } }
             );
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
             const data = await response.json();
-            setAlerts(data);
+
+            // apply filter to each category
+            const telas = (data.telas || []).filter(item => !excludeRegex.test(item.desprodu));
+            const libros = (data.libros || []).filter(item => !excludeRegex.test(item.desprodu));
+            const perchas = (data.perchas || []).filter(item => !excludeRegex.test(item.desprodu));
+
+            setAlerts({ telas, libros, perchas });
         } catch (e) {
             setError(e.message);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -37,12 +65,8 @@ function LowStockAlertsPage() {
                 <h1 className="text-4xl font-bold text-center text-gray-800 mb-8">
                     Alertas de Stock Bajo
                 </h1>
-                {loading && (
-                    <p className="text-center text-gray-600">Cargando alertas...</p>
-                )}
-                {error && (
-                    <p className="text-center text-red-500">Error: {error}</p>
-                )}
+                {loading && <p className="text-center text-gray-600">Cargando alertas...</p>}
+                {error && <p className="text-center text-red-500">Error: {error}</p>}
                 {!loading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Tarjeta para Telas */}
@@ -59,8 +83,7 @@ function LowStockAlertsPage() {
                                             <span className="font-bold text-yellow-800">{item.codprodu}</span> – {item.desprodu}
                                             {item.nombre && item.nombre.trim() !== "" && (
                                                 <span className="italic"> ({item.nombre})</span>
-                                            )}
-                                            <br />
+                                            )}<br />
                                             <span className="text-sm text-gray-700">
                                                 Stock: {parseFloat(item.stockactual).toFixed(2)}
                                             </span>
@@ -80,8 +103,7 @@ function LowStockAlertsPage() {
                                 <ul className="space-y-2">
                                     {alerts.libros.map(item => (
                                         <li key={item.codprodu} className="border-b pb-1">
-                                            <span className="font-bold text-green-800">{item.codprodu}</span> – {item.desprodu}
-                                            <br />
+                                            <span className="font-bold text-green-800">{item.codprodu}</span> – {item.desprodu}<br />
                                             <span className="text-sm text-gray-700">
                                                 Stock: {parseFloat(item.stockactual).toFixed(2)}
                                             </span>
@@ -101,8 +123,7 @@ function LowStockAlertsPage() {
                                 <ul className="space-y-2">
                                     {alerts.perchas.map(item => (
                                         <li key={item.codprodu} className="border-b pb-1">
-                                            <span className="font-bold text-red-800">{item.codprodu}</span> – {item.desprodu}
-                                            <br />
+                                            <span className="font-bold text-red-800">{item.codprodu}</span> – {item.desprodu}<br />
                                             <span className="text-sm text-gray-700">
                                                 Stock: {parseFloat(item.stockactual).toFixed(2)}
                                             </span>
