@@ -56,7 +56,6 @@ app.use('/api/visits', authMiddleware, createVisitaRouter());
 // ----------------------------
 // NOTIFICACIONES POR CORREO
 // ----------------------------
-
 const transporter = nodemailer.createTransport({
   host: "send.one.com",
   port: 465,
@@ -139,18 +138,19 @@ async function sendDailyLowStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    const lowTelas = all.filter(r =>
+    // Filtrado global de términos indeseados
+    const cleaned = all.filter(r =>
       r.desprodu &&
-      !(/LIBRO|QUALITY|TAPILLA|PERCHA/i.test(r.desprodu)) &&
-      parseFloat(r.stockactual) < 30
+      !/(LIBRO|QUALITY|TAPILLA|PERCHA|CUTTING(?:S)?|RIEL(?:ES)?|HERRAJES)/i.test(r.desprodu)
     );
-    const lowLibros = all.filter(r =>
-      /LIBRO/i.test(r.desprodu) &&
-      parseFloat(r.stockactual) < 30
+
+    // Subconjuntos por categoría
+    const lowTelas = cleaned.filter(r => parseFloat(r.stockactual) < 30);
+    const lowLibros = cleaned.filter(r =>
+      /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30
     );
-    const lowPerchas = all.filter(r =>
-      /PERCHA/i.test(r.desprodu) &&
-      parseFloat(r.stockactual) < 10
+    const lowPerchas = cleaned.filter(r =>
+      /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10
     );
 
     if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length > 0)) {
@@ -158,7 +158,7 @@ async function sendDailyLowStockAlerts() {
       return;
     }
 
-    // HTML con tabla estilo frontend
+    // HTML con tres tablas de colores coordinados
     let html = `
       <div style="font-family: Helvetica, Arial, sans-serif; color: #333; padding: 20px;">
         <h1 style="text-align:center; color:#2D9CDB;">Alerta Diaria de Stock Bajo</h1>
@@ -180,45 +180,45 @@ async function sendDailyLowStockAlerts() {
               ${lowTelas.length === 0
         ? `<p style="margin:0;">No hay alertas.</p>`
         : `<ul style="padding-left:20px; margin:0;">
-                    ${lowTelas.map(i => `
-                      <li style="margin-bottom:4px;">
-                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                        <span style="font-size:0.9em; color:#555;">
-                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                        </span>
-                      </li>
-                    `).join("")}
-                  </ul>`
+              ${lowTelas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em; color:#555;">
+                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                  </span>
+                </li>
+              `).join("")}
+            </ul>`
       }
             </td>
             <td style="vertical-align: top; padding:10px; border:1px solid #34D399;">
               ${lowLibros.length === 0
         ? `<p style="margin:0;">No hay alertas.</p>`
         : `<ul style="padding-left:20px; margin:0;">
-                    ${lowLibros.map(i => `
-                      <li style="margin-bottom:4px;">
-                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                        <span style="font-size:0.9em; color:#555;">
-                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                        </span>
-                      </li>
-                    `).join("")}
-                  </ul>`
+              ${lowLibros.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em; color:#555;">
+                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                  </span>
+                </li>
+              `).join("")}
+            </ul>`
       }
             </td>
             <td style="vertical-align: top; padding:10px; border:1px solid #F87171;">
               ${lowPerchas.length === 0
         ? `<p style="margin:0;">No hay alertas.</p>`
         : `<ul style="padding-left:20px; margin:0;">
-                    ${lowPerchas.map(i => `
-                      <li style="margin-bottom:4px;">
-                        <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                        <span style="font-size:0.9em; color:#555;">
-                          Stock: ${parseFloat(i.stockactual).toFixed(2)}
-                        </span>
-                      </li>
-                    `).join("")}
-                  </ul>`
+              ${lowPerchas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em; color:#555;">
+                    Stock: ${parseFloat(i.stockactual).toFixed(2)}
+                  </span>
+                </li>
+              `).join("")}
+            </ul>`
       }
             </td>
           </tr>
@@ -230,7 +230,7 @@ async function sendDailyLowStockAlerts() {
     `;
 
     await transporter.sendMail({
-      from: "gerardo@cjmw.eu",
+      from: process.env.EMAIL_USER,
       to: "agustin@cjmw.eu",
       subject: "Alerta Diaria de Stock Bajo",
       html

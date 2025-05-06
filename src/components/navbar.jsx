@@ -66,6 +66,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             label: 'Documentos',
             icon: <FaTag className="mr-3 text-lg" />,
             dropdown: 'documentos',
+            roles: ['admin', 'almacen'],
             links: [
                 {
                     label: 'Facturas',
