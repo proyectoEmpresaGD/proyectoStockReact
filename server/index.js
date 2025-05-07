@@ -20,6 +20,7 @@ import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import { VisitaModel } from './models/Postgres/visitaModel.js';
 import { StockModel } from './models/Postgres/stock.js';  // Modelo con getLowStockAlerts()
+import { clear } from 'console';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -136,70 +137,105 @@ async function sendDailyLowStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    // Filtrado global de términos indeseados
+    // Regex con todas las palabras a excluir (case-insensitive)
+    const excludeRegex = new RegExp([
+      'QUALITY', 'TAPILLA', 'CUTTING(?:S)?', 'RIEL(?:ES)?', 'HERRAJES',
+      'coste del trasporte', 'mecanismos', 'rellenos', 'cabeceros', 'ignifugación',
+      'contract', 'comisión', 'colcha', 'bolsas', 'tubos', 'servilletas',
+      // tejidos del papel amarillo:
+      'lienzo', 'bolonia', 'varadero', 'taiga', 'dune', 'zamfara', 'shira', 'calcuta',
+      'poison', 'tundra', 'agata', 'cuarzo', 'diamante', 'sueder', 'siddharta', 'nomad',
+      'habitat', 'gravity', 'lunar', 'candida', 'bambu', 'parlour', 'bennelong',
+      'macarena', 'nijar', 'mojacar', 'losengo', 'velvety', 'menorca', 'baupres',
+      'lost odissey', 'merops', 'martina', 'orquidea', 'gashgai', 'damasco', 'doves',
+      'senes', 'esperanza', 'inmaculada', 'atlas', 'mirror',
+      // marcas extra:
+      'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
+      'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU',
+      'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
+    ].join('|'), 'i');
+
+    // Para telas y libros: partimos de “cleaned”
     const cleaned = all.filter(r =>
       r.desprodu &&
-      !/(QUALITY|TAPILLA|CUTTINGS|RIELES|HERRAJES|coste del trasporte|mecanismos|rellenos|cabeceros|ignifugación|contract|comisión|colcha|bolsas|tubos|servilletas|lienzo|bolonia|varadero|taiga|dune|zamfara|shira|calcuta|poison|tundra|agata|cuarzo|diamante|sueder|siddharta|nomad|habitat|gravity|lunar|candida|bambu|parlour|bennelong|macarena|nijar|mojacar|losengo|velvety|menorca|baupres|lost odissey|merops|martina|orquidea|gashgai|damasco|doves|senes|esperanza|inmaculada|atlas|mirror|ANTILLA|ANTILLA VELVET|LUMIERE|MIGRATION|PERSIAN MOOD|RINPA|SURIRI|XUBEC|AHURA|IMPERIAL|KUKULCAN|MOIRÉ|MOREAU|PERRAULT|PUMMERIN|TOPKAPI|TULUM|ZAHARA|)/i.test(r.desprodu)
+      !excludeRegex.test(r.desprodu)
     );
 
-    // Subconjuntos por categoría
+    // Telas: cualquier “cleaned” con stock < 30
     const lowTelas = cleaned.filter(r => parseFloat(r.stockactual) < 30);
-    const lowLibros = cleaned.filter(r => /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30);
-    const lowPerchas = cleaned.filter(r => /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10);
+
+    // Libros: los de “cleaned” que contengan “LIBRO” y stock < 30
+    const lowLibros = cleaned.filter(r =>
+      /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30
+    );
+
+    // Perchas: partimos de “all”, permitimos PERCHA, excluimos libros/cuttings
+    const rawPerchas = all.filter(r =>
+      /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10
+    );
+    const lowPerchas = rawPerchas.filter(r =>
+      !/(LIBRO|CUTTING)/i.test(r.desprodu)
+    );
 
     if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) {
       return console.log("No hay stock bajo hoy.");
     }
 
-    // HTML con tres tablas de colores coordinados
+    // Montamos HTML con 3 tablas
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.4;padding:20px;">
         <h1 style="color:#2D9CDB;text-align:center;">Alerta Diaria de Stock Bajo</h1>
         <p>Hola Agustín, estos productos están bajos de stock:</p>
         <table style="width:100%;border-collapse:collapse;margin-top:20px;">
           <tr>
-            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">Telas (&lt;30m)</th>
-            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">Libros (&lt;30)</th>
-            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">Perchas (&lt;10)</th>
+            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">
+              Telas (&lt;30m)
+            </th>
+            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">
+              Libros (&lt;30)
+            </th>
+            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">
+              Perchas (&lt;10)
+            </th>
           </tr>
           <tr>
             <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">
               ${lowTelas.length === 0
         ? '<p>No hay alertas.</p>'
         : `<ul style="margin:0;padding-left:20px;">
-                     ${lowTelas.map(i => `
-                       <li style="margin-bottom:4px;">
-                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                       </li>
-                     `).join('')}
-                   </ul>`
+              ${lowTelas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>
+              `).join('')}
+            </ul>`
       }
             </td>
             <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">
               ${lowLibros.length === 0
         ? '<p>No hay alertas.</p>'
         : `<ul style="margin:0;padding-left:20px;">
-                     ${lowLibros.map(i => `
-                       <li style="margin-bottom:4px;">
-                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                       </li>
-                     `).join('')}
-                   </ul>`
+              ${lowLibros.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>
+              `).join('')}
+            </ul>`
       }
             </td>
             <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">
               ${lowPerchas.length === 0
         ? '<p>No hay alertas.</p>'
         : `<ul style="margin:0;padding-left:20px;">
-                     ${lowPerchas.map(i => `
-                       <li style="margin-bottom:4px;">
-                         <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                         <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                       </li>
-                     `).join('')}
-                   </ul>`
+              ${lowPerchas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>
+              `).join('')}
+            </ul>`
       }
             </td>
           </tr>
