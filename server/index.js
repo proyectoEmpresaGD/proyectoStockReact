@@ -20,7 +20,6 @@ import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import { VisitaModel } from './models/Postgres/visitaModel.js';
 import { StockModel } from './models/Postgres/stock.js';  // Modelo con getLowStockAlerts()
-import { clear } from 'console';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -132,116 +131,90 @@ async function sendWeeklyVisitsEmail() {
   }
 }
 
-// Envío diario de alertas de stock bajo (cron: cada día a las 08:00 CET)
+// Envío **viernes a las 09:00 CET** de alertas de stock bajo
 async function sendDailyLowStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    // Regex con todas las palabras a excluir (case-insensitive)
-    const excludeRegex = new RegExp([
+    // Regex con todas las palabras a excluir SOLO para Telas
+    const excludeTerms = [
       'QUALITY', 'TAPILLA', 'CUTTING(?:S)?', 'RIEL(?:ES)?', 'HERRAJES',
-      'coste del trasporte', 'mecanismos', 'rellenos', 'cabeceros', 'ignifugación',
-      'contract', 'comisión', 'colcha', 'bolsas', 'tubos', 'servilletas',
-      // tejidos del papel amarillo:
-      'lienzo', 'bolonia', 'varadero', 'taiga', 'dune', 'zamfara', 'shira', 'calcuta',
-      'poison', 'tundra', 'agata', 'cuarzo', 'diamante', 'sueder', 'siddharta', 'nomad',
-      'habitat', 'gravity', 'lunar', 'candida', 'bambu', 'parlour', 'bennelong',
-      'macarena', 'nijar', 'mojacar', 'losengo', 'velvety', 'menorca', 'baupres',
-      'lost odissey', 'merops', 'martina', 'orquidea', 'gashgai', 'damasco', 'doves',
-      'senes', 'esperanza', 'inmaculada', 'atlas', 'mirror',
+      'COSTE DEL TRASPORTE', 'MECANISMOS', 'RELLENOS', 'CABECEROS', 'IGNIFUGACIÓN',
+      'CONTRACT', 'COMISIÓN', 'COLCHA', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
+      // tejidos:
+      'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
+      'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
+      'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
+      'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
+      'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
+      'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR',
       // marcas extra:
       'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
       'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU',
       'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
-    ].join('|'), 'i');
+    ].join('|');
+    const excludeRegex = new RegExp(excludeTerms, 'i');
 
-    // Para telas y libros: partimos de “cleaned”
-    const cleaned = all.filter(r =>
-      r.desprodu &&
-      !excludeRegex.test(r.desprodu)
-    );
+    // 1) TELAS: partimos de all, excluimos con regex, luego stock < 30
+    const lowTelas = all
+      .filter(r => r.desprodu && !excludeRegex.test(r.desprodu))
+      .filter(r => parseFloat(r.stockactual) < 30);
 
-    // Telas: cualquier “cleaned” con stock < 30
-    const lowTelas = cleaned.filter(r => parseFloat(r.stockactual) < 30);
+    // 2) LIBROS: partimos de all, buscamos LIBRO y stock < 30
+    const lowLibros = all
+      .filter(r => /LIBRO/i.test(r.desprodu))
+      .filter(r => parseFloat(r.stockactual) < 30);
 
-    // Libros: los de “cleaned” que contengan “LIBRO” y stock < 30
-    const lowLibros = cleaned.filter(r =>
-      /LIBRO/i.test(r.desprodu) && parseFloat(r.stockactual) < 30
-    );
-
-    // Perchas: partimos de “all”, permitimos PERCHA, excluimos libros/cuttings
-    const rawPerchas = all.filter(r =>
-      /PERCHA/i.test(r.desprodu) && parseFloat(r.stockactual) < 10
-    );
-    const lowPerchas = rawPerchas.filter(r =>
-      !/(LIBRO|CUTTING)/i.test(r.desprodu)
-    );
+    // 3) PERCHAS: partimos de all, buscamos PERCHA, stock < 10, excluimos LIBRO/CUTTING
+    const lowPerchas = all
+      .filter(r => /PERCHA/i.test(r.desprodu))
+      .filter(r => parseFloat(r.stockactual) < 10)
+      .filter(r => !/(LIBRO|CUTTING)/i.test(r.desprodu));
 
     if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) {
       return console.log("No hay stock bajo hoy.");
     }
 
-    // Montamos HTML con 3 tablas
+    // Montamos HTML con las 3 tablas
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.4;padding:20px;">
-        <h1 style="color:#2D9CDB;text-align:center;">Alerta Diaria de Stock Bajo</h1>
+        <h1 style="color:#2D9CDB;text-align:center;">Alerta Semanal de Stock Bajo</h1>
         <p>Hola Agustín, estos productos están bajos de stock:</p>
         <table style="width:100%;border-collapse:collapse;margin-top:20px;">
           <tr>
-            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">
-              Telas (&lt;30m)
-            </th>
-            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">
-              Libros (&lt;30)
-            </th>
-            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">
-              Perchas (&lt;10)
-            </th>
+            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">Telas (&lt;30m)</th>
+            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">Libros (&lt;30)</th>
+            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">Perchas (&lt;10)</th>
           </tr>
           <tr>
-            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">
-              ${lowTelas.length === 0
+            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">${lowTelas.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowTelas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>
-              `).join('')}
-            </ul>`
-      }
-            </td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">
-              ${lowLibros.length === 0
+        : `<ul style="margin:0;padding-left:20px;">${lowTelas.map(i => `
+                    <li style="margin-bottom:4px;">
+                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                    </li>`).join('')}</ul>`
+      }</td>
+            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">${lowLibros.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowLibros.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>
-              `).join('')}
-            </ul>`
-      }
-            </td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">
-              ${lowPerchas.length === 0
+        : `<ul style="margin:0;padding-left:20px;">${lowLibros.map(i => `
+                    <li style="margin-bottom:4px;">
+                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                    </li>`).join('')}</ul>`
+      }</td>
+            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">${lowPerchas.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowPerchas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>
-              `).join('')}
-            </ul>`
-      }
-            </td>
+        : `<ul style="margin:0;padding-left:20px;">${lowPerchas.map(i => `
+                    <li style="margin-bottom:4px;">
+                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                    </li>`).join('')}</ul>`
+      }</td>
           </tr>
         </table>
         <p style="margin-top:20px;font-style:italic;color:#555;">
-          Este email se envía automáticamente todos los días a las 08:00 AM (CET).
+          Este email se envía automáticamente cada viernes a las 09:00 AM (CET).
         </p>
       </div>
     `;
@@ -249,10 +222,10 @@ async function sendDailyLowStockAlerts() {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: "agustin@cjmw.eu",
-      subject: "Alerta Diaria de Stock Bajo",
+      subject: "Alerta de Stock Bajo",
       html
     });
-    console.log("Email diario de stock enviado.");
+    console.log("Email de stock enviado.");
   } catch (err) {
     console.error("Error enviando email de stock bajo:", err);
   }
@@ -260,7 +233,8 @@ async function sendDailyLowStockAlerts() {
 
 // Cron schedules
 cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
-cron.schedule('0 8 * * *', sendDailyLowStockAlerts, { timezone: "Europe/Madrid" });
+// Solo viernes (5) a las 09:00
+cron.schedule('0 9 * * 5', sendDailyLowStockAlerts, { timezone: "Europe/Madrid" });
 
 // ----------------------------
 // ENDPOINTS DE PRUEBA
@@ -278,7 +252,7 @@ app.get('/api/test-send-visits-email', async (req, res) => {
 app.get('/api/test-send-stock-alerts', async (req, res) => {
   try {
     await sendDailyLowStockAlerts();
-    res.send("Alertas de stock diario enviadas (prueba).");
+    res.send("Alertas de stock enviadas (prueba).");
   } catch (err) {
     console.error(err);
     res.status(500).send("Error en prueba de stock.");
