@@ -18,7 +18,6 @@ import { createLibroRouter } from './routes/libros.js';
 import { createVisitaRouter } from './routes/visitaRoutes.js';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { VisitaModel } from './models/Postgres/visitaModel.js';
 import { StockModel } from './models/Postgres/stock.js';  // Modelo con getLowStockAlerts()
 
 const { Pool } = pg;
@@ -66,7 +65,41 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Envío semanal de visitas programadas (cron: cada domingo 15:00 CET)
+// ------------------------------------------------------------
+// 1) LISTA DE TÉRMINOS A EXCLUIR DE LA “TABLA DE TELAS”
+// ------------------------------------------------------------
+const EXCLUDE_TERMS = [
+  'QUALITY', 'TAPILLA', 'CUTTING', 'CUTTINGS', 'RIEL', 'RIELES', 'HERRAJES',
+  'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN',
+  'CUBRE', 'ESTOR', 'CAÍDA', 'PLAID', 'CABECERO', 'ETAMIN',
+  'CARTULINA', 'PORTES',
+  'ITALY', 'SWITZERLAND', 'TRANSPORT', 'AUSTRIA', 'BELGIUM', 'FRANCE',
+  'UNITED KINGDOM', 'ARRENDAMIENTOS',
+  'LIBRO', 'PERCHA', // <— añadidos explícitamente
+  // tejidos del papel amarillo:
+  'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
+  'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
+  'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
+  'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
+  'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
+  'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR',
+  // marcas extra:
+  'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
+  'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU',
+  'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
+].map(s => s.toUpperCase());
+
+// ------------------------------------------------------------
+// Función Auxiliar: devuelve true si description contiene CUALQUIERA de los términos excluidos
+// ------------------------------------------------------------
+function containsExcludedTerm(description = '') {
+  const text = description.toUpperCase();
+  return EXCLUDE_TERMS.some(term => text.includes(term));
+}
+
+// ------------------------------------------------------------
+// 2) EMAIL SEMANAL DE VISITAS (domingo 15:00 CET)
+// ------------------------------------------------------------
 async function getNextWeekVisits() {
   const start = new Date();
   start.setDate(start.getDate() + (7 - start.getDay()));
@@ -76,7 +109,7 @@ async function getNextWeekVisits() {
   end.setHours(23, 59, 59, 999);
 
   const { rows } = await pool.query(`
-    SELECT visitas.*, 
+    SELECT visitas.*,
            clientes.razclien AS cliente_nombre,
            u1.username AS creado_por,
            u2.username AS completado_por,
@@ -100,8 +133,7 @@ async function sendWeeklyVisitsEmail() {
 
     const visitsByEmail = visits.reduce((acc, v) => {
       if (v.assigned_to_email) {
-        acc[v.assigned_to_email] = acc[v.assigned_to_email] || [];
-        acc[v.assigned_to_email].push(v);
+        (acc[v.assigned_to_email] ||= []).push(v);
       }
       return acc;
     }, {});
@@ -131,41 +163,24 @@ async function sendWeeklyVisitsEmail() {
   }
 }
 
-// Envío **viernes a las 09:00 CET** de alertas de stock bajo
-async function sendDailyLowStockAlerts() {
+// ------------------------------------------------------------
+// 3) ALERTAS SEMANALES DE STOCK BAJO (viernes 09:00 CET)
+// ------------------------------------------------------------
+async function sendWeeklyStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    // Regex con todas las palabras a excluir SOLO para Telas
-    const excludeTerms = [
-      'QUALITY', 'TAPILLA', 'CUTTING(?:S)?', 'RIEL(?:ES)?', 'HERRAJES',
-      'COSTE DEL TRASPORTE', 'MECANISMOS', 'RELLENOS', 'CABECEROS', 'IGNIFUGACIÓN',
-      'CONTRACT', 'COMISIÓN', 'COLCHA', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
-      // tejidos:
-      'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
-      'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
-      'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
-      'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
-      'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
-      'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR',
-      // marcas extra:
-      'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
-      'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU',
-      'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
-    ].join('|');
-    const excludeRegex = new RegExp(excludeTerms, 'i');
-
-    // 1) TELAS: partimos de all, excluimos con regex, luego stock < 30
+    // 3.1) TELAS: excluyo TODO término de EXCLUDE_TERMS, luego stock < 30
     const lowTelas = all
-      .filter(r => r.desprodu && !excludeRegex.test(r.desprodu))
+      .filter(r => r.desprodu && !containsExcludedTerm(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 30);
 
-    // 2) LIBROS: partimos de all, buscamos LIBRO y stock < 30
+    // 3.2) LIBROS: busco “LIBRO” + stock < 30
     const lowLibros = all
       .filter(r => /LIBRO/i.test(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 30);
 
-    // 3) PERCHAS: partimos de all, buscamos PERCHA, stock < 10, excluimos LIBRO/CUTTING
+    // 3.3) PERCHAS: busco “PERCHA” + stock < 10 + excluyo LIBRO/CUTTING
     const lowPerchas = all
       .filter(r => /PERCHA/i.test(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 10)
@@ -175,7 +190,6 @@ async function sendDailyLowStockAlerts() {
       return console.log("No hay stock bajo hoy.");
     }
 
-    // Montamos HTML con las 3 tablas
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.4;padding:20px;">
         <h1 style="color:#2D9CDB;text-align:center;">Alerta Semanal de Stock Bajo</h1>
@@ -187,30 +201,39 @@ async function sendDailyLowStockAlerts() {
             <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">Perchas (&lt;10)</th>
           </tr>
           <tr>
-            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">${lowTelas.length === 0
+            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">
+              ${lowTelas.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">${lowTelas.map(i => `
-                    <li style="margin-bottom:4px;">
-                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                    </li>`).join('')}</ul>`
-      }</td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">${lowLibros.length === 0
+        : `<ul style="margin:0;padding-left:20px;">
+              ${lowTelas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>`).join('')}
+            </ul>`}
+            </td>
+            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">
+              ${lowLibros.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">${lowLibros.map(i => `
-                    <li style="margin-bottom:4px;">
-                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                    </li>`).join('')}</ul>`
-      }</td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">${lowPerchas.length === 0
+        : `<ul style="margin:0;padding-left:20px;">
+              ${lowLibros.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>`).join('')}
+            </ul>`}
+            </td>
+            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">
+              ${lowPerchas.length === 0
         ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">${lowPerchas.map(i => `
-                    <li style="margin-bottom:4px;">
-                      <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                      <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                    </li>`).join('')}</ul>`
-      }</td>
+        : `<ul style="margin:0;padding-left:20px;">
+              ${lowPerchas.map(i => `
+                <li style="margin-bottom:4px;">
+                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
+                </li>`).join('')}
+            </ul>`}
+            </td>
           </tr>
         </table>
         <p style="margin-top:20px;font-style:italic;color:#555;">
@@ -233,8 +256,8 @@ async function sendDailyLowStockAlerts() {
 
 // Cron schedules
 cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
-// Solo viernes (5) a las 09:00
-cron.schedule('0 9 * * 5', sendDailyLowStockAlerts, { timezone: "Europe/Madrid" });
+// Viernes 09:00 CET
+cron.schedule('0 9 * * 5', sendWeeklyStockAlerts, { timezone: "Europe/Madrid" });
 
 // ----------------------------
 // ENDPOINTS DE PRUEBA
@@ -251,7 +274,7 @@ app.get('/api/test-send-visits-email', async (req, res) => {
 
 app.get('/api/test-send-stock-alerts', async (req, res) => {
   try {
-    await sendDailyLowStockAlerts();
+    await sendWeeklyStockAlerts();
     res.send("Alertas de stock enviadas (prueba).");
   } catch (err) {
     console.error(err);
@@ -259,9 +282,9 @@ app.get('/api/test-send-stock-alerts', async (req, res) => {
   }
 });
 
-// ----------------------------
+// ------------------------------------------------------------
 // MIDDLEWARE GLOBAL DE ERRORES
-// ----------------------------
+// ------------------------------------------------------------
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
