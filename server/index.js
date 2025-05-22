@@ -18,7 +18,7 @@ import { createLibroRouter } from './routes/libros.js';
 import { createVisitaRouter } from './routes/visitaRoutes.js';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { StockModel } from './models/Postgres/stock.js';  // Modelo con getLowStockAlerts()
+import { StockModel } from './models/Postgres/stock.js';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -66,39 +66,46 @@ const transporter = nodemailer.createTransport({
 });
 
 // ------------------------------------------------------------
-// 1) LISTA DE TÉRMINOS A EXCLUIR DE LA “TABLA DE TELAS”
+// 1) Normalización + lista completa de términos a excluir
 // ------------------------------------------------------------
 const EXCLUDE_TERMS = [
   'QUALITY', 'TAPILLA', 'CUTTING', 'CUTTINGS', 'RIEL', 'RIELES', 'HERRAJES',
-  'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN',
-  'CUBRE', 'ESTOR', 'CAÍDA', 'PLAID', 'CABECERO', 'ETAMIN',
-  'CARTULINA', 'PORTES',
-  'ITALY', 'SWITZERLAND', 'TRANSPORT', 'AUSTRIA', 'BELGIUM', 'FRANCE',
-  'UNITED KINGDOM', 'ARRENDAMIENTOS',
-  'LIBRO', 'PERCHA', // <— añadidos explícitamente
-  // tejidos del papel amarillo:
+  'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN', 'CUBRE',
+  'ESTOR', 'CAIDA', 'PLAID', 'CABECERO', 'ETAMIN', 'CARTULINA', 'PORTES',
+  'COSTE DEL TRANSPORTE', 'MECANISMOS', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
+  'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'PORTES', 'CARGA', 'CORTINA',
+  'VARIOS', 'CARRE GAME',
+  // tejidos:
   'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
   'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
   'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
   'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
   'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
   'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR',
-  // marcas extra:
   'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
-  'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRÉ', 'MOREAU',
-  'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA'
-].map(s => s.toUpperCase());
+  'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU',
+  'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA',
+  // países:
+  'ITALY', 'SWITZERLAND', 'TRANSPORT', 'AUSTRIA', 'BELGIUM', 'FRANCE',
+  'UNITED KINGDOM', 'ARRENDAMIENTOS'
+];
 
-// ------------------------------------------------------------
-// Función Auxiliar: devuelve true si description contiene CUALQUIERA de los términos excluidos
-// ------------------------------------------------------------
-function containsExcludedTerm(description = '') {
-  const text = description.toUpperCase();
-  return EXCLUDE_TERMS.some(term => text.includes(term));
+// normaliza a mayúsculas y sin tildes
+function normalize(text = '') {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+// devuelve true si la descripción contiene alguno de los términos
+function containsExcluded(description) {
+  const d = normalize(description);
+  return EXCLUDE_TERMS.some(term => d.includes(term));
 }
 
 // ------------------------------------------------------------
-// 2) EMAIL SEMANAL DE VISITAS (domingo 15:00 CET)
+// 2) VISITAS SEMANALES (domingo 15:00 CET)
 // ------------------------------------------------------------
 async function getNextWeekVisits() {
   const start = new Date();
@@ -131,14 +138,12 @@ async function sendWeeklyVisitsEmail() {
     const visits = await getNextWeekVisits();
     if (!visits.length) return console.log("No hay visitas la próxima semana.");
 
-    const visitsByEmail = visits.reduce((acc, v) => {
-      if (v.assigned_to_email) {
-        (acc[v.assigned_to_email] ||= []).push(v);
-      }
+    const byEmail = visits.reduce((acc, v) => {
+      if (v.assigned_to_email) (acc[v.assigned_to_email] ||= []).push(v);
       return acc;
     }, {});
 
-    for (const [email, userVisits] of Object.entries(visitsByEmail)) {
+    for (const [email, userVisits] of Object.entries(byEmail)) {
       let html = `<h1>Visitas Programadas Próxima Semana</h1>`;
       userVisits.forEach(v => {
         html += `
@@ -170,17 +175,17 @@ async function sendWeeklyStockAlerts() {
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    // 3.1) TELAS: excluyo TODO término de EXCLUDE_TERMS, luego stock < 30
+    // Telas: excluye TODO término de EXCLUDE_TERMS
     const lowTelas = all
-      .filter(r => r.desprodu && !containsExcludedTerm(r.desprodu))
+      .filter(r => r.desprodu && !containsExcluded(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 30);
 
-    // 3.2) LIBROS: busco “LIBRO” + stock < 30
+    // Libros
     const lowLibros = all
-      .filter(r => /LIBRO/i.test(r.desprodu))
+      .filter(r => /(?:LIBRO|CARRE GAME)/i.test(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 30);
 
-    // 3.3) PERCHAS: busco “PERCHA” + stock < 10 + excluyo LIBRO/CUTTING
+    // Perchas
     const lowPerchas = all
       .filter(r => /PERCHA/i.test(r.desprodu))
       .filter(r => parseFloat(r.stockactual) < 10)
@@ -282,9 +287,9 @@ app.get('/api/test-send-stock-alerts', async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------
+// ----------------------------
 // MIDDLEWARE GLOBAL DE ERRORES
-// ------------------------------------------------------------
+// ----------------------------
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
