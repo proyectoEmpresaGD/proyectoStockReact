@@ -4,46 +4,56 @@ import fs from 'fs';
 import path from 'path';
 
 export const authMiddleware = async (req, res, next) => {
-    // Obtener el token del encabezado de autorización
-    const token = req.headers['authorization']?.split(' ')[1];
+    console.log('🔐 Entrando en authMiddleware');
 
-    if (!token) return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    const token = req.headers['authorization']?.split(' ')[1];
+    console.log('➡️ Token recibido:', token);
+
     const tempDir = path.join('C:', 'tmp');
-    if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir);
+    try {
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir);
+            console.log('📁 Carpeta temporal creada:', tempDir);
+        }
+    } catch (err) {
+        console.error('❌ Error creando carpeta temporal:', err);
+    }
+
+    if (!token) {
+        console.log('❌ No se proporcionó token');
+        return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
     if (token === process.env.INTERNAL_ACCESS_TOKEN) {
+        console.log('✅ Token interno detectado');
         req.user = { role: 'internal' };
         return next();
     }
+
     try {
-        // Verificar el token JWT usando la clave secreta
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('✅ Token decodificado:', decoded);
 
-
-        // Buscar al usuario correspondiente al ID en la base de datos
         const user = await UserModel.findById(decoded.id);
+        console.log('👤 Usuario encontrado:', user);
+
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
         }
 
-        // Si el usuario es 'admin', permitir acceso completo a todas las rutas
         if (user.role === 'admin') {
-            req.user = user; // Almacenar la información del usuario en la solicitud
-            return next(); // Continuar con la solicitud
+            req.user = user;
+            return next();
         }
 
-        // Verificar si la ruta requiere un rol específico y si el usuario lo tiene
         if (req.requiredRole && user.role !== req.requiredRole) {
             return res.status(403).json({ message: 'Access denied: Insufficient role privileges' });
         }
 
-        // Si todo está bien, almacenar al usuario en la solicitud y continuar
         req.user = user;
         next();
     } catch (err) {
-        // Manejar el caso de un token inválido o expirado
+        console.error('❌ Error al verificar token:', err);
         return res.status(401).json({ message: 'Invalid or expired token' });
     }
 };
