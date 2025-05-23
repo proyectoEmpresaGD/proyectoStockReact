@@ -85,8 +85,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     sublinks: [
                         { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin'] },
+                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
                 {
@@ -113,6 +113,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         { to: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
+                {
+                    label: 'Etiquetas Contraportada',
+                    subheader: true,
+                    sublinks: [
+                        { to: '/EtiquetaContraportada35', label: 'Contraportada (35cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetaContraportada20', label: 'Contraportada (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    ],
+                },
+
             ],
         },
         {
@@ -129,6 +138,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'aplicaciones',
             links: [
                 { to: 'https://www.cjmw.eu/#/', label: 'Página Web', external: true },
+                { to: '/app2', label: 'Aplicación 2', roles: ['admin', 'comercial'] },
+                { to: '/app3', label: 'Aplicación 3', roles: ['admin', 'comercial'] },
             ],
         },
     ];

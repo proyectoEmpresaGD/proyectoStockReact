@@ -10,8 +10,8 @@ import { createEquivalenciasRouter } from './routes/equivproveRoutes.js';
 import authRouter from './routes/auth.js';
 import { corsMiddleware } from './middlewares/cors.js';
 import { authMiddleware } from './middlewares/authMiddleware.js';
-import fetch from 'node-fetch';
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
 import toolsRouter from './routes/tools.js';
 import { dirname, join } from 'path';
 import pg from 'pg';
@@ -38,12 +38,12 @@ app.disable('x-powered-by');
 
 // Sirviendo archivos estáticos
 app.use(express.static(join(__dirname, 'web')));
+
 // --- RUTAS PÚBLICAS ---
 app.use('/api/auth', authRouter);
 
 // --- RUTAS PROTEGIDAS ---
 app.use('/api/products', authMiddleware, createProductRouter({ pool }));
-app.use('/api/images', createImagenRouter({ pool }));
 app.use('/api/images', authMiddleware, createImagenRouter({ pool }));
 app.use('/api/stock', authMiddleware, createStockRouter({ pool }));
 app.use('/api/stocklotes', authMiddleware, createStockLotesRouter({ pool }));
@@ -53,9 +53,7 @@ app.use('/api/pedventa', authMiddleware, createPedVentaRouter());
 app.use('/api/equivalencias', authMiddleware, createEquivalenciasRouter());
 app.use('/api/libros', authMiddleware, createLibroRouter());
 app.use('/api/visits', authMiddleware, createVisitaRouter());
-app.use('/api/products', authMiddleware, createProductRouter({ pool }));
 app.use('/api/tools', toolsRouter);
-
 // ----------------------------
 // NOTIFICACIONES POR CORREO
 // ----------------------------
@@ -101,35 +99,6 @@ function normalize(text = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase();
 }
-
-// PROXY PARA IMÁGENES EXTERNAS (uso libre sin autenticación)
-// Proxy para servir imágenes externas (para evitar problemas de CORS o HTTPS)
-app.get('/api/proxy', async (req, res) => {
-  const imageUrl = req.query.url;
-
-  if (!imageUrl) {
-    return res.status(400).json({ error: 'Falta el parámetro "url"' });
-  }
-
-  try {
-    const response = await fetch(imageUrl);
-
-    if (!response.ok) {
-      return res.status(404).json({ error: 'Imagen no encontrada o inaccesible' });
-    }
-
-    const contentType = response.headers.get('content-type');
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    res.setHeader('Content-Type', contentType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error en proxy:', error);
-    res.status(500).json({ error: 'Error al cargar imagen desde proxy' });
-  }
-});
 
 // devuelve true si la descripción contiene alguno de los términos
 function containsExcluded(description) {

@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
 
@@ -109,5 +110,4 @@ const EtiquetasUK = () => {
 };
 
 export default EtiquetasUK;
-
 

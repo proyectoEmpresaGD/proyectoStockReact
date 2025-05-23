@@ -12,11 +12,11 @@ export const createImagenRouter = () => {
 
         try {
             const { rows } = await pool.query(`
-        SELECT ficadjunto
-        FROM imagenesocproductos
-        WHERE codprodu = $1 AND LOWER(codclaarchivo) = 'buena'
-        LIMIT 1
-        `, [codprodu]);
+    SELECT ficadjunto
+    FROM imagenesocproductos
+    WHERE codprodu = $1 AND LOWER(codclaarchivo) = 'buena'
+    LIMIT 1
+    `, [codprodu]);
 
             if (!rows.length || !rows[0].ficadjunto) {
                 return res.status(404).send('Imagen no encontrada');
@@ -30,6 +30,7 @@ export const createImagenRouter = () => {
             res.status(500).send('Error al servir imagen');
         }
     });
+
     // Rutas para la gestión de imágenes, protegidas solo para 'admin'
     imagenRouter.get('/', authMiddleware, (req, res, next) => {
         req.requiredRole = 'admin'; // Solo 'admin' puede acceder a todas las imágenes
@@ -56,6 +57,6 @@ export const createImagenRouter = () => {
         req.requiredRole = 'admin'; // Solo 'admin' puede eliminar imágenes
         next();
     }, imagenController.delete.bind(imagenController));
-    imagenRouter.get('/public/:codprodu', imagenController.getPublicImage.bind(imagenController));
+
     return imagenRouter;
 };

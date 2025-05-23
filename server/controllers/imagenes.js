@@ -16,18 +16,33 @@ export class ImagenController {
         }
     }
 
+    async getById(req, res) {
+        try {
+            const { codprodu, codclaarchivo } = req.params;
+            const image = await ImagenModel.getById({ codprodu, codclaarchivo });
+            if (image) {
+                res.json(image);
+            } else {
+                res.status(404).json({ message: 'Image not found' });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async getPublicImage(req, res) {
         const { codprodu } = req.params;
 
         try {
             const { rows } = await pool.query(`
-            SELECT ficadjunto
-            FROM imagenesocproductos
-            WHERE codprodu = $1 AND LOWER(codclaarchivo) = 'buena'
-            LIMIT 1
-          `, [codprodu]);
+      SELECT ficadjunto
+      FROM imagenesocproductos
+      WHERE codprodu = $1 AND LOWER(codclaarchivo) = 'buena'
+      LIMIT 1
+    `, [codprodu]);
 
             if (rows.length === 0 || !rows[0].ficadjunto) {
+                console.warn(`❌ Imagen no encontrada en DB para codprodu: ${codprodu}`);
                 return res.status(404).json({ error: 'Imagen no encontrada' });
             }
 
@@ -37,7 +52,7 @@ export class ImagenController {
             const response = await axios.get(remoteUrl, {
                 responseType: 'arraybuffer',
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'User-Agent': 'Mozilla/5.0',
                     'Accept': 'image/avif,image/webp,image/apng,image/*,*/*'
                 }
             });
@@ -54,22 +69,8 @@ export class ImagenController {
             res.send(response.data);
 
         } catch (err) {
-            console.error('❌ Error al obtener imagen:', err.message);
+            console.error(`❌ Error al obtener imagen para ${codprodu}:`, err.message);
             res.status(500).json({ error: 'Error interno al obtener imagen' });
-        }
-    }
-
-    async getById(req, res) {
-        try {
-            const { codprodu, codclaarchivo } = req.params;
-            const image = await ImagenModel.getById({ codprodu, codclaarchivo });
-            if (image) {
-                res.json(image);
-            } else {
-                res.status(404).json({ message: 'Image not found' });
-            }
-        } catch (error) {
-            res.status(500).json({ error: error.message });
         }
     }
 

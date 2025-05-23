@@ -60,7 +60,7 @@ function LowStockAlertsPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-200 to-purple-300 flex flex-col items-center mt-12 p-6">
+        <div className="min-h-screen bg-gradient-to-r from-blue-200 to-purple-300 flex flex-col items-center p-6">
             <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-5xl">
                 <h1 className="text-4xl font-bold text-center text-gray-800 mb-8">
                     Alertas de Stock Bajo
