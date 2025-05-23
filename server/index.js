@@ -38,7 +38,6 @@ app.disable('x-powered-by');
 
 // Sirviendo archivos estáticos
 app.use(express.static(join(__dirname, 'web')));
-
 // --- RUTAS PÚBLICAS ---
 app.use('/api/auth', authRouter);
 

@@ -25,9 +25,13 @@ export const corsMiddleware = ({ acceptedOrigins = ACCEPTED_ORIGINS } = {}) => c
     }
 
     if (!origin) {
-      return callback(null, true);  // Permitir solicitudes sin origen (por ejemplo, en Postman)
+      return callback(null, true);  // Permitir herramientas como Postman
     }
 
     return callback(new Error('Not allowed by CORS'));
-  }
+  },
+  credentials: true, // 🔥 Esto falta
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'] // 🔥 Esto también falta si usas Authorization
 });
+

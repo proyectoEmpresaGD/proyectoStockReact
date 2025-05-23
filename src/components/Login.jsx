@@ -25,9 +25,13 @@ function Login() {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include', // 🔥 Clave para que el navegador acepte CORS + auth
                 body: JSON.stringify({ username, password }),
             });
+
 
             if (!response.ok) {
                 const responseData = await response.json();
