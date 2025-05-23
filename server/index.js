@@ -11,7 +11,6 @@ import authRouter from './routes/auth.js';
 import { corsMiddleware } from './middlewares/cors.js';
 import { authMiddleware } from './middlewares/authMiddleware.js';
 import { fileURLToPath } from 'url';
-import fetch from 'node-fetch';
 import toolsRouter from './routes/tools.js';
 import { dirname, join } from 'path';
 import pg from 'pg';
@@ -32,8 +31,8 @@ const pool = new Pool({
 });
 
 const app = express();
-app.use(json());
 app.use(corsMiddleware());
+app.use(json());
 app.disable('x-powered-by');
 
 // Sirviendo archivos estáticos
