@@ -85,6 +85,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     sublinks: [
                         { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin'] },
                     ],
                 },
@@ -112,14 +113,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         { to: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
-                {
-                    label: 'Etiquetas UK',
-                    subheader: true,
-                    sublinks: [
-                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                    ],
-                },
-
             ],
         },
         {
