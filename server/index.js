@@ -11,7 +11,6 @@ import authRouter from './routes/auth.js';
 import { corsMiddleware } from './middlewares/cors.js';
 import { authMiddleware } from './middlewares/authMiddleware.js';
 import { fileURLToPath } from 'url';
-import { createToolsRouter } from './routes/tools.js';
 import { dirname, join } from 'path';
 import pg from 'pg';
 import 'dotenv/config';
@@ -52,7 +51,6 @@ app.use('/api/pedventa', authMiddleware, createPedVentaRouter());
 app.use('/api/equivalencias', authMiddleware, createEquivalenciasRouter());
 app.use('/api/libros', authMiddleware, createLibroRouter());
 app.use('/api/visits', authMiddleware, createVisitaRouter());
-app.use('/api/tools', authMiddleware, createToolsRouter());
 // ----------------------------
 // NOTIFICACIONES POR CORREO
 // ----------------------------

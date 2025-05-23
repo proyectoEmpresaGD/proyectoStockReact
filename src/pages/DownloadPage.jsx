@@ -14,7 +14,7 @@ const DownloadPage = () => {
         try {
             const token = localStorage.getItem('token');
 
-            const res = await fetch('http://localhost:1234/api/tools/descargar-imagenes', {
+            const res = await fetch('http://localhost:1234/api/images/descargar-imagenes', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`

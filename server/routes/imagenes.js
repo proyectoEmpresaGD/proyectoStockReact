@@ -31,6 +31,11 @@ export const createImagenRouter = () => {
         }
     });
 
+    imagenRouter.post('/descargar-imagenes', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'admin'; // solo admin puede descargar imágenes
+        next();
+    }, imagenController.descargarImagenes.bind(imagenController));
+
     // Rutas para la gestión de imágenes, protegidas solo para 'admin'
     imagenRouter.get('/', authMiddleware, (req, res, next) => {
         req.requiredRole = 'admin'; // Solo 'admin' puede acceder a todas las imágenes
