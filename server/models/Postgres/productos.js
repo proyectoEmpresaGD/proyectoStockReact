@@ -49,6 +49,37 @@ export class ProductModel {
     }
   }
 
+  static async getAllWithImages() {
+    const query = `
+    SELECT 
+      p.codprodu, p.nombre, p.codmarca, p.ancho, p.composicion, 
+      p.martindale, p.uso, p.tipo, p.estilo, p.tonalidad, 
+      p.colorprincipal, p.coleccion,
+      i.imagenexcel
+    FROM productos p
+    LEFT JOIN imagenesocproductos i 
+      ON p.codprodu = i.codprodu AND LOWER(i.codclaarchivo) = 'buena'
+    WHERE p.nombre IS NOT NULL
+      AND TRIM(p.nombre) <> ''
+      AND p.nombre NOT ILIKE ANY (ARRAY[
+        '%DAMASCO%', '%STORK%', '%BAMBOO%', '%TARIFA%',
+        '%PONIENTE%', '%MARRAKESH%', '%QUALITY SAMPLE%', '%ALQUILER%'
+      ])
+      AND p.desprodu NOT ILIKE ANY (ARRAY[
+        '%QUALITY%', '%CUTTING%', '%DAMASCO%'
+      ])
+    ORDER BY p.coleccion ASC NULLS LAST, p.nombre ASC NULLS LAST
+  `;
+
+    const { rows } = await pool.query(query);
+
+    return rows.map(row => ({
+      ...row,
+      urlimagen: row.ficadjunto
+        ? `http://localhost:1234/api/images/public/${row.codprodu}`
+        : null
+    }));
+  }
 
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);

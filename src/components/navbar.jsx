@@ -60,6 +60,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     icon: <FaMoneyBillWave className="mr-3 text-lg" />,
                     roles: ['admin', 'ventas']
                 },
+                {
+                    to: 'Download',
+                    label: 'Descargar Excel productos',
+                    icon: <FaMoneyBillWave className="mr-3 text-lg" />,
+                    roles: ['admin', 'ventas']
+                },
             ],
         },
         {
@@ -107,11 +113,10 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     ],
                 },
                 {
-                    label: 'Etiquetas Contraportada',
+                    label: 'Etiquetas UK',
                     subheader: true,
                     sublinks: [
-                        { to: '/EtiquetaContraportada35', label: 'Contraportada (35cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                        { to: '/EtiquetaContraportada20', label: 'Contraportada (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
 
@@ -131,8 +136,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'aplicaciones',
             links: [
                 { to: 'https://www.cjmw.eu/#/', label: 'Página Web', external: true },
-                { to: '/app2', label: 'Aplicación 2', roles: ['admin', 'comercial'] },
-                { to: '/app3', label: 'Aplicación 3', roles: ['admin', 'comercial'] },
             ],
         },
     ];
