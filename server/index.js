@@ -30,8 +30,8 @@ const pool = new Pool({
 });
 
 const app = express();
-app.use(json());
 app.use(corsMiddleware());
+app.use(json());
 app.disable('x-powered-by');
 
 // Sirviendo archivos estáticos
