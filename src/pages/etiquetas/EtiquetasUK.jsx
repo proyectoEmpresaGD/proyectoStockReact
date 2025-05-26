@@ -53,7 +53,7 @@ const EtiquetasUK = () => {
             {/* Previsualización */}
             <div
                 ref={printRef}
-                className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
+                className="bg-white rounded shadow-lg flex flex-col items-center justify-center"
                 style={{
                     width: '8cm',
                     height: '4.8cm',
@@ -67,9 +67,9 @@ const EtiquetasUK = () => {
                 }}
             >
                 {/* Logo como Base64 */}
-                <div className="w-[100%]">
+                <div className="">
                     <div
-                        className="logo-section mx-auto"
+                        className="logo-section mx-auto relative top-7"
                         style={{ textAlign: 'center' }}
                     >
                         {logoBase64 && (
@@ -78,9 +78,8 @@ const EtiquetasUK = () => {
                                 alt="Logo de Marca"
                                 style={{
                                     width: '40%',
-                                    maxHeight: '3cm',
                                     objectFit: 'contain',
-                                    display: 'inline-block'
+                                    display: 'inline-block',
                                 }}
                             />
                         )}
@@ -90,7 +89,7 @@ const EtiquetasUK = () => {
 
                 {/* Info fija */}
                 <div className="content-section" style={{ width: '100%' }}>
-                    <div className="text-content text-xs" style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <div className="text-content text-xs" style={{ textAlign: 'center', marginBottom: '50px' }}>
                         <p className="font-bold">UK DISTRIBUTOR</p>
                         <p className="font-bold">Mobil: 07540 723672 Office: 01625 858477</p>
                         <p className="font-bold">12 Lindisfarne Drive. Poynton.</p>

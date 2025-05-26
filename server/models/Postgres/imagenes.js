@@ -1,5 +1,7 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -36,6 +38,21 @@ export class ImagenModel {
         } catch (error) {
             console.error('Error fetching images:', error);
             throw new Error('Error fetching images');
+        }
+    }
+
+    static async getImagenParaExcel(imagenexcel) {
+        if (!imagenexcel || !fs.existsSync(imagenexcel)) {
+            return null;
+        }
+
+        try {
+            const ext = path.extname(imagenexcel).toLowerCase().replace('.', '') || 'jpeg';
+            const buffer = fs.readFileSync(imagenexcel);
+            return { buffer, extension: ext === 'png' ? 'png' : 'jpeg' };
+        } catch (error) {
+            console.warn(`⚠️ No se pudo leer la imagen en ${imagenexcel}: ${error.message}`);
+            return null;
         }
     }
 

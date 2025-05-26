@@ -3,6 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { ProductModel } from '../models/Postgres/productos.js';
+import { ImagenModel } from '../models/Postgres/imagenes.js';
 
 export class ProductController {
 
@@ -31,6 +32,7 @@ export class ProductController {
   async exportarExcel(req, res) {
     try {
       const productos = await ProductModel.getAllWithImages();
+
       if (!productos || productos.length === 0) {
         return res.status(404).json({ error: 'No hay productos para exportar' });
       }
@@ -58,26 +60,19 @@ export class ProductController {
         const { codprodu, imagenexcel, ...resto } = producto;
         const row = worksheet.addRow({ codprodu, ...resto });
 
-        if (imagenexcel && fs.existsSync(imagenexcel)) {
-          try {
-            const ext = path.extname(imagenexcel).toLowerCase().replace('.', '') || 'jpeg';
-            const imageBuffer = fs.readFileSync(imagenexcel);
+        const resultado = await ImagenModel.getBufferDesdeRuta(imagenexcel);
+        if (resultado) {
+          const imageId = workbook.addImage({
+            buffer: resultado.buffer,
+            extension: resultado.extension
+          });
 
-            const imageId = workbook.addImage({
-              buffer: imageBuffer,
-              extension: ext === 'png' ? 'png' : 'jpeg'
-            });
-
-            worksheet.addImage(imageId, {
-              tl: { col: 12, row: row.number - 1 },
-              ext: { width: 100, height: 100 }
-            });
-
-          } catch (error) {
-            console.warn(`⚠️ No se pudo insertar imagen local para ${codprodu}: ${error.message}`);
-          }
+          worksheet.addImage(imageId, {
+            tl: { col: 12, row: row.number - 1 },
+            ext: { width: 100, height: 100 }
+          });
         } else {
-          console.warn(`⚠️ Imagen no encontrada en disco para ${codprodu}`);
+          console.warn(`⚠️ Imagen no válida para ${codprodu}`);
         }
       }
 
