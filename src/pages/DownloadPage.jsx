@@ -14,7 +14,7 @@ const DownloadPage = () => {
         try {
             const token = localStorage.getItem('token');
 
-            const res = await fetch('http://localhost:1234/api/images/descargar-imagenes', {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/images/descargar-imagenes`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -25,7 +25,9 @@ const DownloadPage = () => {
             setProgreso(60);
             setMensaje('Imágenes descargadas. Generando Excel...');
 
-            const excelRes = await fetch('http://localhost:1234/api/products/exportar-excel', {
+
+
+            const excelRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/exportar-excel`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
