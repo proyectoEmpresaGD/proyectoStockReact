@@ -1,5 +1,12 @@
-// UserModel.js
-import { pool } from '../../db/pool.js'; // Ajusta el path según tu estructura
+import pg from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
 export class UserModel {
     static async findByUsername(username) {
@@ -92,6 +99,7 @@ export class UserModel {
         }
     }
 
+    // Guardar el refresh token
     static async storeRefreshToken(userId, refreshToken) {
         const query = 'UPDATE usuarios SET refresh_token = $1 WHERE id = $2';
         const values = [refreshToken, userId];
@@ -104,6 +112,7 @@ export class UserModel {
         }
     }
 
+    // Limpiar el refresh token al cerrar sesión
     static async clearRefreshToken(userId) {
         const query = 'UPDATE usuarios SET refresh_token = NULL WHERE id = $1';
         const values = [userId];
@@ -116,6 +125,7 @@ export class UserModel {
         }
     }
 
+    // Recuperar usuario por ID para verificar refresh token
     static async findById(userId) {
         const query = 'SELECT * FROM usuarios WHERE id = $1';
         const values = [userId];

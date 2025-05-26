@@ -53,26 +53,32 @@ export class ProductController {
         { header: 'Tonalidad', key: 'tonalidad', width: 15 },
         { header: 'Color', key: 'colorprincipal', width: 15 },
         { header: 'Colección', key: 'coleccion', width: 20 },
-        { header: 'Imagen', key: 'imagen', width: 20 }
+        { header: 'Imagen', key: 'imagenexcel', width: 20 }
       ];
 
       for (const producto of productos) {
         const { codprodu, imagenexcel, ...resto } = producto;
         const row = worksheet.addRow({ codprodu, ...resto });
+        worksheet.getRow(row.number).height = 80;
 
-        const resultado = await ImagenModel.getBufferDesdeRuta(imagenexcel);
-        if (resultado) {
-          const imageId = workbook.addImage({
-            buffer: resultado.buffer,
-            extension: resultado.extension
-          });
+        try {
+          const resultado = await ImagenModel.getImagenParaExcel(imagenexcel);
+          if (resultado) {
+            const imageId = workbook.addImage({
+              buffer: resultado.buffer,
+              extension: resultado.extension
+            });
 
-          worksheet.addImage(imageId, {
-            tl: { col: 12, row: row.number - 1 },
-            ext: { width: 100, height: 100 }
-          });
-        } else {
-          console.warn(`⚠️ Imagen no válida para ${codprodu}`);
+            worksheet.addImage(imageId, {
+              tl: { col: 12, row: row.number - 1 },
+              ext: { width: 100, height: 100 }
+            });
+          } else {
+            console.warn(`⚠️ Imagen no válida o vacía para ${codprodu}`);
+          }
+        } catch (error) {
+          console.warn(`❌ Error cargando imagen para ${codprodu}:`, error.message);
+          // Continúa sin insertar imagen
         }
       }
 

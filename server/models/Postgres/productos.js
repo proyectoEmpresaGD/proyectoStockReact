@@ -68,6 +68,38 @@ export class ProductModel {
     return rows[0];
   }
 
+  static async getAllWithImages() {
+    const query = `
+  SELECT 
+    p.codprodu,
+    p.nombre,
+    p.codmarca,
+    p.ancho,
+    p.composicion,
+    p.martindale,
+    p.uso,
+    p.tipo,
+    p.estilo,
+    p.tonalidad,
+    p.colorprincipal,
+    p.coleccion,
+    i.imagenexcel
+  FROM productos p
+  LEFT JOIN imagenesocproductos i 
+    ON i.codprodu = p.codprodu AND i.codclaarchivo = 'Buena'
+  ORDER BY p.nombre
+`;
+
+
+    try {
+      const { rows } = await pool.query(query);
+      return rows;
+    } catch (error) {
+      console.error('Error al obtener productos con imágenes:', error);
+      throw new Error('Error al obtener productos con imágenes');
+    }
+  }
+
   static async update({ id, input }) {
     const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 2}`).join(", ");
     const values = Object.values(input);
