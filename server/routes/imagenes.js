@@ -9,8 +9,7 @@ export const createImagenRouter = () => {
     // ✅ Ruta pública para servir imágenes por codprodu sin autenticación
     imagenRouter.get('/public/:codprodu', imagenController.getPublicImage.bind(imagenController));
 
-
-    imagenRouter.post('/descargar-imagenes', authMiddleware, (req, res, next) => {
+    imagenRouter.post('/descargarImagenes', authMiddleware, (req, res, next) => {
         req.requiredRole = 'admin'; // solo admin puede descargar imágenes
         next();
     }, imagenController.descargarImagenes.bind(imagenController));

@@ -8,6 +8,7 @@ const IMAGES_DIR = path.resolve('C:/imagenes');
 if (!fs.existsSync(IMAGES_DIR)) {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 }
+
 export class ImagenController {
 
     async getAll(req, res) {
@@ -25,7 +26,7 @@ export class ImagenController {
 
     async descargarImagenes(req, res) {
         try {
-            const imagenes = await ImagenModel.getImagenesBuena(); // necesitas definir esto si no lo tienes
+            const imagenes = await ImagenModel.getImagenesBuena();
 
             let descargadas = 0;
 

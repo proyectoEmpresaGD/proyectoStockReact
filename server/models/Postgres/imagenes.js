@@ -10,6 +10,7 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+
 export class ImagenModel {
     static async getAll({ empresa, ejercicio, limit = 10, offset = 0 }) {
         let query = 'SELECT * FROM imagenesocproductos';
