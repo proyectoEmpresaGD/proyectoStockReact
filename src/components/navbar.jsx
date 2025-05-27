@@ -70,6 +70,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     icon: <FaMoneyBillWave className="mr-3 text-lg" />,
                     roles: ['admin', 'ventas']
                 },
+                {
+                    to: 'Download',
+                    label: 'Descargar Excel productos',
+                    icon: <FaMoneyBillWave className="mr-3 text-lg" />,
+                    roles: ['admin']
+                },
             ],
         },
         {

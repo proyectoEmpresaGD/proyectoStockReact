@@ -21,11 +21,13 @@ export const createProductRouter = () => {
     // Rutas adicionales para operaciones con productos protegidas por autenticación
     productsRouter.get('/codfamil/:codfamil', authMiddleware, productController.getByCodFamil.bind(productController)); // Nueva ruta
     productsRouter.get('/productos', authMiddleware, productController.getAllProductos.bind(productController));
-
+    productsRouter.get('/exportarExcel', authMiddleware, productController.exportarExcel.bind(productController));
     // Rutas para operaciones específicas de un producto protegidas por autenticación
     productsRouter.get('/:id', authMiddleware, productController.getById.bind(productController));
     productsRouter.patch('/:id', authMiddleware, productController.update.bind(productController));
     productsRouter.delete('/:id', authMiddleware, productController.delete.bind(productController));
+
+
 
     return productsRouter;
 };

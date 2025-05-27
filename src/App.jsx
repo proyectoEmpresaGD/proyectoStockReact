@@ -22,6 +22,7 @@ import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.js
 import EntradasPage from './pages/EntradasPages.jsx';
 import LowStockAlertsPage from './pages/LowStockAlertsPage.jsx';
 import PaginaMapaClientes from './pages/paginamapaclientes.jsx';
+import DownloadPage from './pages/DownloadPage.jsx'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -60,6 +61,7 @@ function App() {
                       <Route path="entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
                       <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
                       <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
+                      <Route path="/download" element={< DownloadPage />} />
 
                     </Routes>
                   </div>

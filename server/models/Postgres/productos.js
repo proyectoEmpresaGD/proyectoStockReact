@@ -49,6 +49,38 @@ export class ProductModel {
     }
   }
 
+  static async getAllWithImages() {
+    const query = `
+  SELECT 
+    p.codprodu,
+    p.nombre,
+    p.codmarca,
+    p.ancho,
+    p.composicion,
+    p.martindale,
+    p.uso,
+    p.tipo,
+    p.estilo,
+    p.tonalidad,
+    p.colorprincipal,
+    p.coleccion,
+    i.imagenexcel
+  FROM productos p
+  LEFT JOIN imagenesocproductos i 
+    ON i.codprodu = p.codprodu AND i.codclaarchivo = 'Buena'
+  ORDER BY p.nombre
+`;
+
+
+    try {
+      const { rows } = await pool.query(query);
+      return rows;
+    } catch (error) {
+      console.error('Error al obtener productos con imágenes:', error);
+      throw new Error('Error al obtener productos con imágenes');
+    }
+  }
+
 
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);
