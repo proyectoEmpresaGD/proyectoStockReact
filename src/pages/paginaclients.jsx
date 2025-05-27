@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import ClientTable from '../components/clientes/clientstable';
 import ClientModal from '../components/clientes/modalclients';
@@ -10,38 +11,70 @@ import { provinces, countryCodes } from '../Constants/constants.jsx';
 
 function Clients() {
     const { token } = useAuthContext();
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const [clients, setClients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     const [totalClients, setTotalClients] = useState(0);
+
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
+
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [selectedCountry, setSelectedCountry] = useState(null);
+
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
+
     const [clientBillings, setClientBillings] = useState({});
     const [sortByBilling, setSortByBilling] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (token) fetchClients();
-    }, [currentPage, selectedCountry, selectedProvince, sortByBilling, searchTerm, token]);
+    // <-- ESTE estado controla si ya leímos y seteamos los filtros
+    const [filtersReady, setFiltersReady] = useState(false);
 
+    // 1) Al montar o cambiar los query params, leemos codpais/codprov y seteamos los estados
+    useEffect(() => {
+        const codpais = searchParams.get("codpais");
+        if (codpais) {
+            setSelectedCountry(codpais);
+            setCurrentPage(1);
+        }
+        const codprov = searchParams.get("codprov");
+        if (codprov) {
+            const provOption = provinces.find(option => option.value === codprov);
+            if (provOption) {
+                setSelectedProvince(provOption);
+                setCurrentPage(1);
+            }
+        }
+        // Ya leímos los parámetros: marcamos filtersReady a true
+        setFiltersReady(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    // 2) Cada vez que cambian los filtros (o la página), llamamos a fetchClients
+    // pero SOLO si filtersReady está en true y tenemos token
+    useEffect(() => {
+        if (!filtersReady || !token) return;
+        fetchClients();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filtersReady, token, currentPage, selectedCountry, selectedProvince, sortByBilling, searchTerm]);
+
+    // 3) Función para obtener clientes con los filtros
     const fetchClients = async () => {
         try {
             setLoading(true);
-
             let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
             if (sortByBilling) {
                 url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/billing?page=${currentPage}&limit=${itemsPerPage}`;
             }
-
             if (selectedCountry) url += `&codpais=${selectedCountry}`;
             if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
-            if (searchTerm) url += `&query=${encodeURIComponent(searchTerm)}`;
+            if (searchTerm) url += `&query=${searchTerm}`;
 
             const response = await fetch(url, {
                 headers: {
@@ -70,7 +103,6 @@ function Clients() {
 
     const fetchClientBillings = async (clients) => {
         if (!Array.isArray(clients)) return;
-
         try {
             const billingPromises = clients.map(client =>
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
@@ -103,43 +135,32 @@ function Clients() {
         }
     };
 
-    // → Aquí está la única función modificada:
     const handleSuggestionClick = async (client) => {
         try {
-            // Ponemos el término de búsqueda en el input
             setSearchTerm(client.razclien);
-            // Cerramos sugerencias
-            setSuggestions([]);
-            // Volvemos a la primera página
+            setClients([client]);
+            setTotalClients(1);
             setCurrentPage(1);
 
-            // Disparamos la misma lógica de fetchClients, forzando query=client.razclien
-            setLoading(true);
-            let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=1&limit=${itemsPerPage}`;
-            if (sortByBilling) {
-                url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/billing?page=1&limit=${itemsPerPage}`;
-            }
-            if (selectedCountry) url += `&codpais=${selectedCountry}`;
-            if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
-            url += `&query=${encodeURIComponent(client.razclien)}`;
-
-            const response = await fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`, {
+                headers: { Authorization: `Bearer ${token}` },
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            setClients(data.clients || []);
-            setTotalClients(data.total || 0);
-            if (data.clients.length > 0) {
-                await fetchClientBillings(data.clients);
+            if (response.ok) {
+                const billingData = await response.json();
+                const totalBilling = billingData.reduce((sum, product) => {
+                    let importe = parseFloat(product.importe) || 0;
+                    const dt1 = parseFloat(product.dt1) || 0;
+                    const dt2 = parseFloat(product.dt2) || 0;
+                    const dt3 = parseFloat(product.dt3) || 0;
+                    if (dt1 > 0) importe -= (importe * dt1) / 100;
+                    if (dt2 > 0) importe -= (importe * dt2) / 100;
+                    if (dt3 > 0) importe -= (importe * dt3) / 100;
+                    return sum + (importe > 0 ? importe : 0);
+                }, 0);
+                setClientBillings({ [client.codclien]: totalBilling });
             }
         } catch (error) {
             console.error('Error handling suggestion click:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -150,6 +171,7 @@ function Clients() {
         setSortByBilling(false);
         setSuggestions([]);
         setCurrentPage(1);
+        setSearchParams({}); // Limpia codpais y codprov de la URL
         await fetchClients();
     };
 
@@ -179,7 +201,6 @@ function Clients() {
     };
 
     const getClientColor = (totalBilling) => {
-        if (totalBilling == 0) return 'bg-stone-300';
         if (totalBilling <= 1000) return 'bg-yellow-500';
         if (totalBilling <= 3000) return 'bg-orange-500';
         if (totalBilling <= 5000) return 'bg-green-500';
@@ -217,6 +238,8 @@ function Clients() {
                             onChange={(option) => {
                                 setSelectedCountry(option ? option.value : null);
                                 setCurrentPage(1);
+                                // Actualiza "codpais" en la URL
+                                setSearchParams(option ? { codpais: option.value } : {});
                             }}
                             placeholder="Seleccione país"
                             isClearable
@@ -227,20 +250,25 @@ function Clients() {
                             onChange={(option) => {
                                 setSelectedProvince(option);
                                 setCurrentPage(1);
+                                // Actualiza "codprov" en la URL
+                                setSearchParams(prev => ({
+                                    ...Object.fromEntries(prev),
+                                    codprov: option ? option.value : undefined
+                                }));
                             }}
                             placeholder="Seleccione provincia"
                             isClearable
                         />
                     </div>
+
                     <button
                         onClick={toggleSortByBilling}
-                        className={`px-6 py-2 text-white font-medium rounded-lg transition duration-200 shadow ${sortByBilling
-                            ? 'bg-green-500'
-                            : 'bg-blue-500 hover:bg-blue-600'
+                        className={`px-6 py-2 text-white font-medium rounded-lg transition duration-200 shadow ${sortByBilling ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'
                             }`}
                     >
                         {sortByBilling ? 'Ordenar por Código' : 'Ordenar por Facturación'}
                     </button>
+
                     <button
                         onClick={handleClearFilter}
                         className="px-6 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition duration-200 shadow"
@@ -255,10 +283,12 @@ function Clients() {
                     <div className="overflow-x-auto mb-8">
                         <ClientTable
                             clients={clients}
+                            setClients={setClients}
                             clientBillings={clientBillings}
                             getClientColor={getClientColor}
                             handleClientClick={handleClientClick}
                         />
+
                     </div>
                 ) : (
                     <div className="text-center text-gray-500">No hay clientes disponibles.</div>
@@ -280,7 +310,6 @@ function Clients() {
                     closeModal={() => setModalVisible(false)}
                 />
             )}
-
             {visitModalVisible && (
                 <VisitModal
                     modalVisible={visitModalVisible}

@@ -1,7 +1,5 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
 
 dotenv.config();
 
@@ -9,7 +7,6 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
-
 
 export class ImagenModel {
     static async getAll({ empresa, ejercicio, limit = 10, offset = 0 }) {
@@ -42,44 +39,10 @@ export class ImagenModel {
         }
     }
 
-    static async getImagenParaExcel(imagenexcel) {
-        if (!imagenexcel || !fs.existsSync(imagenexcel)) {
-            return null;
-        }
-
-        try {
-            const ext = path.extname(imagenexcel).toLowerCase().replace('.', '') || 'jpeg';
-            const buffer = fs.readFileSync(imagenexcel);
-            return { buffer, extension: ext === 'png' ? 'png' : 'jpeg' };
-        } catch (error) {
-            console.warn(`⚠️ No se pudo leer la imagen en ${imagenexcel}: ${error.message}`);
-            return null;
-        }
-    }
-
     static async getById({ codprodu, codclaarchivo }) {
         const { rows } = await pool.query('SELECT * FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2;', [codprodu, codclaarchivo]);
         return rows.length > 0 ? rows[0] : null;
     }
-
-    static async getImagenesBuena() {
-        const { rows } = await pool.query(`
-          SELECT codprodu, ficadjunto
-          FROM imagenesocproductos
-          WHERE LOWER(codclaarchivo) = 'buena'
-        `);
-        return rows;
-    }
-
-    static async actualizarRutaImagenExcel(codprodu, ruta) {
-        await pool.query(
-            `UPDATE imagenesocproductos 
-           SET imagenexcel = $1 
-           WHERE codprodu = $2 AND LOWER(codclaarchivo) = 'buena'`,
-            [ruta, codprodu]
-        );
-    }
-
 
     static async getByCodproduAndCodclaarchivo({ codprodu, codclaarchivo }) {
         try {

@@ -1,9 +1,5 @@
-import ExcelJS from 'exceljs';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
+
 import { ProductModel } from '../models/Postgres/productos.js';
-import { ImagenModel } from '../models/Postgres/imagenes.js';
 
 export class ProductController {
 
@@ -29,78 +25,7 @@ export class ProductController {
     }
   }
 
-  async exportarExcel(req, res) {
-    try {
-      const productos = await ProductModel.getAllWithImages();
 
-      if (!productos || productos.length === 0) {
-        return res.status(404).json({ error: 'No hay productos para exportar' });
-      }
-
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Catálogo de Productos');
-
-      worksheet.columns = [
-        { header: 'Código', key: 'codprodu', width: 15 },
-        { header: 'Nombre', key: 'nombre', width: 30 },
-        { header: 'Marca', key: 'codmarca', width: 10 },
-        { header: 'Ancho', key: 'ancho', width: 10 },
-        { header: 'Composición', key: 'composicion', width: 20 },
-        { header: 'Martindale', key: 'martindale', width: 15 },
-        { header: 'Uso', key: 'uso', width: 15 },
-        { header: 'Tipo', key: 'tipo', width: 15 },
-        { header: 'Estilo', key: 'estilo', width: 15 },
-        { header: 'Tonalidad', key: 'tonalidad', width: 15 },
-        { header: 'Color', key: 'colorprincipal', width: 15 },
-        { header: 'Colección', key: 'coleccion', width: 20 },
-        { header: 'Imagen', key: 'imagenexcel', width: 20 }
-      ];
-
-      for (const producto of productos) {
-        const { codprodu, imagenexcel, ...resto } = producto;
-        const row = worksheet.addRow({ codprodu, ...resto });
-        worksheet.getRow(row.number).height = 80;
-
-        try {
-          const resultado = await ImagenModel.getImagenParaExcel(imagenexcel);
-          if (resultado) {
-            const imageId = workbook.addImage({
-              buffer: resultado.buffer,
-              extension: resultado.extension
-            });
-
-            worksheet.addImage(imageId, {
-              tl: { col: 12, row: row.number - 1 },
-              ext: { width: 100, height: 100 }
-            });
-          } else {
-            console.warn(`⚠️ Imagen no válida o vacía para ${codprodu}`);
-          }
-        } catch (error) {
-          console.warn(`❌ Error cargando imagen para ${codprodu}:`, error.message);
-          // Continúa sin insertar imagen
-        }
-      }
-
-      const fecha = new Date().toISOString().split('T')[0];
-      const fileName = `catalogo_productos_${fecha}.xlsx`;
-      const tempPath = path.join('C:/tmp', fileName);
-
-      await workbook.xlsx.writeFile(tempPath);
-
-      res.download(tempPath, fileName, (err) => {
-        if (err) {
-          console.error('❌ Error al enviar archivo:', err);
-          res.status(500).send('Error al enviar archivo');
-        } else {
-          fs.unlink(tempPath, () => { });
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error al generar Excel:', error);
-      res.status(500).json({ error: 'Error al generar Excel' });
-    }
-  }
 
   async getAllProductos(req, res) {
     try {

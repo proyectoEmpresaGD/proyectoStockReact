@@ -38,6 +38,7 @@
     "react-router-dom": "^6.23.1",
     "react-select": "^5.8.0",
     "react-signature-canvas": "^1.0.6",
+    "react-simple-maps": "^3.0.0",
     "react-toastify": "^11.0.5",
     "react-tooltip": "^5.27.1",
     "uuid": "^11.0.2",

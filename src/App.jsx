@@ -18,11 +18,10 @@ import EtiquetaPerchas from './pages/etiquetas/EtiquetasPechas.jsx';
 import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
 import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
 import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
-import DownloadPage from './pages/DownloadPage.jsx'
-import EtiquetasUK from './pages/etiquetas/EtiquetasUK.jsx';
 import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
 import EntradasPage from './pages/EntradasPages.jsx';
 import LowStockAlertsPage from './pages/LowStockAlertsPage.jsx';
+import PaginaMapaClientes from './pages/paginamapaclientes.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -51,10 +50,8 @@ function App() {
                       <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
                       <Route path="/etiquetas" element={<Etiquetas />} />
                       <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
-                      <Route path="/download" element={< DownloadPage />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
-                      <Route path="/EtiquetasUK" element={< EtiquetasUK />} />
                       <Route path="/perchas" element={< EtiquetaPerchas />} />
                       <Route path="/perchasEstampados" element={< EtiquetaPerchasEstampados />} />
                       <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />
@@ -62,6 +59,8 @@ function App() {
                       <Route path="/EtiquetaPersonalizable" element={< EtiquetasPersonalizable />} />
                       <Route path="entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
                       <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
+                      <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
+
                     </Routes>
                   </div>
                 </div>

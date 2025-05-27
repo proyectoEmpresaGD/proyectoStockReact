@@ -133,7 +133,16 @@ export class ClienteController {
             res.status(500).json({ error: error.message });
         }
     }
-
+    async getResumenPorPais(req, res) {
+        try {
+            const ejercicio = req.query.anio || '2025';
+            const resumen = await ClienteModel.getResumenPorPais(ejercicio);
+            res.json(resumen);
+        } catch (error) {
+            console.error("Error en ClienteController.getResumenPorPais:", error);
+            res.status(500).json({ error: "Error interno del servidor" });
+        }
+    }
 
 
 }

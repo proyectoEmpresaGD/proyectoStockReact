@@ -30,8 +30,8 @@ const pool = new Pool({
 });
 
 const app = express();
-app.use(corsMiddleware());
 app.use(json());
+app.use(corsMiddleware());
 app.disable('x-powered-by');
 
 // Sirviendo archivos estáticos
@@ -51,6 +51,7 @@ app.use('/api/pedventa', authMiddleware, createPedVentaRouter());
 app.use('/api/equivalencias', authMiddleware, createEquivalenciasRouter());
 app.use('/api/libros', authMiddleware, createLibroRouter());
 app.use('/api/visits', authMiddleware, createVisitaRouter());
+
 // ----------------------------
 // NOTIFICACIONES POR CORREO
 // ----------------------------

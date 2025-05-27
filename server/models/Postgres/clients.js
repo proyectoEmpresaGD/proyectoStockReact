@@ -202,5 +202,40 @@ export class ClienteModel {
             throw new Error('Error fetching clients with billing');
         }
     }
+    static async getResumenPorPais(ejercicio) {
+        try {
+            const result = await pool.query(`
+            SELECT 
+                UPPER(c.codpais) AS codpais, 
+                COUNT(DISTINCT p.codclien) AS clientes,
+                COALESCE(
+                    SUM(
+                        CAST(COALESCE(p.importe, 0) AS numeric) *
+                        (1 - CAST(COALESCE(p.dt1, 0) AS numeric) / 100.0) *
+                        (1 - CAST(COALESCE(p.dt2, 0) AS numeric) / 100.0) *
+                        (1 - CAST(COALESCE(p.dt3, 0) AS numeric) / 100.0)
+                    ), 0
+                ) AS facturacion_total
+            FROM clientes c
+            INNER JOIN pedventa p ON c.codclien = p.codclien
+            WHERE c.codpais IS NOT NULL
+              AND p.ejercicio = $1
+            GROUP BY UPPER(c.codpais)
+        `, [ejercicio.toString()]);
+
+            const resumen = {};
+            for (const row of result.rows) {
+                resumen[row.codpais] = {
+                    clientes: parseInt(row.clientes, 10),
+                    facturacion_total: parseFloat(row.facturacion_total),
+                };
+            }
+
+            return resumen;
+        } catch (error) {
+            console.error("❌ Error en getResumenPorPais:", error);
+            throw new Error("Error al obtener el resumen por país");
+        }
+    }
 
 }

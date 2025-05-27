@@ -23,7 +23,6 @@ export const createProductRouter = () => {
     productsRouter.get('/productos', authMiddleware, productController.getAllProductos.bind(productController));
 
     // Rutas para operaciones específicas de un producto protegidas por autenticación
-    productsRouter.get('/exportarExcel', authMiddleware, productController.exportarExcel.bind(productController));
     productsRouter.get('/:id', authMiddleware, productController.getById.bind(productController));
     productsRouter.patch('/:id', authMiddleware, productController.update.bind(productController));
     productsRouter.delete('/:id', authMiddleware, productController.delete.bind(productController));

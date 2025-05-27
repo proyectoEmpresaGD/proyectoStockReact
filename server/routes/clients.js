@@ -6,6 +6,11 @@ export const createClienteRouter = () => {
     const clienteRouter = Router();
     const clienteController = new ClienteController();
 
+    clienteRouter.get('/mapa/resumen-paises', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';
+        next();
+    }, clienteController.getResumenPorPais.bind(clienteController));
+
     // Rutas para la gestión de clientes (protegidas para 'comercial' y 'admin')
     clienteRouter.get('/', authMiddleware, (req, res, next) => {
         req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'

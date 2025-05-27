@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
-    FaCubes, FaBalanceScale, FaTag, FaShoppingCart, FaMoneyBillWave
+    FaCubes, FaBalanceScale, FaTag, FaShoppingCart, FaMoneyBillWave,
+    FaGlobeEurope, FaMapMarkedAlt, FaChartBar
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -40,6 +41,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             ],
         },
         {
+            label: 'Analitica',
+            icon: <FaGlobeEurope className="mr-3 text-lg" />,
+            dropdown: 'mapa',
+            links: [
+                { to: '/mapa-clientes', label: 'Mapa Clientes', icon: <FaGlobeEurope className="mr-3 text-lg" />, roles: ['admin'] },
+                { to: '/mapa-españa', label: 'Mapa España', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin'] },
+            ],
+        },
+        {
             label: 'Productos',
             icon: <FaCubes className="mr-3 text-lg" />,
             dropdown: 'productos',
@@ -57,12 +67,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 {
                     to: 'entradas',
                     label: 'Entradas',
-                    icon: <FaMoneyBillWave className="mr-3 text-lg" />,
-                    roles: ['admin', 'ventas']
-                },
-                {
-                    to: 'Download',
-                    label: 'Descargar Excel productos',
                     icon: <FaMoneyBillWave className="mr-3 text-lg" />,
                     roles: ['admin', 'ventas']
                 },
@@ -86,7 +90,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin'] },
-                        { to: '/EtiquetasUK', label: 'QUALITY UK', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
                 {
