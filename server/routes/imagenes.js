@@ -33,7 +33,5 @@ export const createImagenRouter = () => {
         next();
     }, imagenController.delete.bind(imagenController));
 
-    imagenRouter.get('/public/:codprodu', imagenController.getPublicImage.bind(imagenController));
-
     return imagenRouter;
 };

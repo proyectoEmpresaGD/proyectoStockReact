@@ -238,7 +238,6 @@ export class ClienteModel {
         }
     }
 
-   
     static async getResumenPorProvincias(anio) {
         try {
             const result = await pool.query(
@@ -276,7 +275,5 @@ export class ClienteModel {
             throw new Error("Error al obtener el resumen por provincia");
         }
     }
-
-
 
 }

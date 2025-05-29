@@ -1,10 +1,5 @@
 
 import { ProductModel } from '../models/Postgres/productos.js';
-import { ImagenModel } from '../models/Postgres/imagenes.js';
-import ExcelJS from 'exceljs';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
 
 export class ProductController {
 
@@ -29,6 +24,8 @@ export class ProductController {
       res.status(500).json({ error: error.message });
     }
   }
+
+
 
   async getAllProductos(req, res) {
     try {

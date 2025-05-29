@@ -125,7 +125,7 @@ export class UserModel {
         }
     }
 
-     // Recuperar usuario por ID para verificar refresh token
+    // Recuperar usuario por ID para verificar refresh token
     static async findById(userId) {
         const query = 'SELECT * FROM usuarios WHERE id = $1';
         const values = [userId];
@@ -138,7 +138,7 @@ export class UserModel {
             throw new Error('Error fetching user by ID');
         }
     }
-    
+
     static async getCommercialUsers() {
         const query = 'SELECT id, username FROM usuarios WHERE role = $1';
         const values = ['comercial'];

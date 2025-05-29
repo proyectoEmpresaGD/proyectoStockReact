@@ -143,7 +143,7 @@ export class ClienteController {
             res.status(500).json({ error: "Error interno del servidor" });
         }
     }
-async getResumenPorProvincias(req, res) {
+    async getResumenPorProvincias(req, res) {
         try {
             const { anio } = req.query;
 
@@ -158,6 +158,5 @@ async getResumenPorProvincias(req, res) {
             res.status(500).json({ error: 'Error al obtener el resumen por provincia' });
         }
     }
-
 
 }

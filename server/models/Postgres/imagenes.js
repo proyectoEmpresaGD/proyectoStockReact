@@ -1,7 +1,5 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
 
 dotenv.config();
 
@@ -41,6 +39,11 @@ export class ImagenModel {
         }
     }
 
+    static async getById({ codprodu, codclaarchivo }) {
+        const { rows } = await pool.query('SELECT * FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2;', [codprodu, codclaarchivo]);
+        return rows.length > 0 ? rows[0] : null;
+    }
+
     static async getByCodproduAndCodclaarchivo({ codprodu, codclaarchivo }) {
         try {
             const { rows } = await pool.query(
@@ -52,11 +55,6 @@ export class ImagenModel {
             console.error('Error fetching image:', error);
             throw new Error('Error fetching image');
         }
-    }
-
-    static async getById({ codprodu, codclaarchivo }) {
-        const { rows } = await pool.query('SELECT * FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2;', [codprodu, codclaarchivo]);
-        return rows.length > 0 ? rows[0] : null;
     }
 
     static async create({ input }) {

@@ -1,13 +1,5 @@
 import { ImagenModel } from '../models/Postgres/imagenes.js';
 import { validateImagen, validatePartialImagen } from '../schemas/imagenes.js';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-
-const IMAGES_DIR = path.resolve('C:/imagenes');
-if (!fs.existsSync(IMAGES_DIR)) {
-    fs.mkdirSync(IMAGES_DIR, { recursive: true });
-}
 
 export class ImagenController {
     async getAll(req, res) {

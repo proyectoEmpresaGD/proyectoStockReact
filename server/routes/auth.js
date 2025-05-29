@@ -13,4 +13,5 @@ authRouter.post('/refresh', AuthController.refreshToken); // No necesita autenti
 authRouter.get('/users/commercial', authMiddleware, AuthController.getCommercialUsers);
 authRouter.get('/me', authMiddleware, AuthController.getPerfilUsuario);
 
+
 export default authRouter;
