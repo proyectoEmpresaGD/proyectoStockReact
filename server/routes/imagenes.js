@@ -35,10 +35,5 @@ export const createImagenRouter = () => {
 
     imagenRouter.get('/public/:codprodu', imagenController.getPublicImage.bind(imagenController));
 
-    imagenRouter.post('/descargarImagenes', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // solo admin puede descargar imágenes
-        next();
-    }, imagenController.descargarImagenes.bind(imagenController));
-
     return imagenRouter;
 };
