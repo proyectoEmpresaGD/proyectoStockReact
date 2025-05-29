@@ -10,7 +10,16 @@ export const createClienteRouter = () => {
         req.requiredRole = 'comercial';
         next();
     }, clienteController.getResumenPorPais.bind(clienteController));
-
+    
+       clienteRouter.get(
+        '/mapa/resumen-provincias',
+        // authMiddleware, // Descomenta si necesitas proteger la ruta
+        // (req, res, next) => {
+        //     req.requiredRole = 'comercial';
+        //     next();
+        // },
+        clienteController.getResumenPorProvincias.bind(clienteController)
+    );
     // Rutas para la gestión de clientes (protegidas para 'comercial' y 'admin')
     clienteRouter.get('/', authMiddleware, (req, res, next) => {
         req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'

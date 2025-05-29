@@ -11,4 +11,6 @@ authRouter.post('/logoutAll', authMiddleware, AuthController.logoutAll); // Prot
 authRouter.post('/heartbeat', authMiddleware, AuthController.heartbeat); // Protegida con el middleware
 authRouter.post('/refresh', AuthController.refreshToken); // No necesita autenticación
 authRouter.get('/users/commercial', authMiddleware, AuthController.getCommercialUsers);
+authRouter.get('/me', authMiddleware, AuthController.getPerfilUsuario);
+
 export default authRouter;

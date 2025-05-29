@@ -121,4 +121,22 @@ export class AuthController {
             res.status(500).json({ message: 'Error fetching commercial users' });
         }
     }
+     static async getPerfilUsuario(req, res) {
+        try {
+            const userId = req.user.id; // esto viene del middleware de autenticación
+            const user = await UserModel.findById(userId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'Usuario no encontrado' });
+            }
+
+            // Elimina campos sensibles
+            const { password, refresh_token, ...safeUser } = user;
+
+            return res.json(safeUser);
+        } catch (error) {
+            console.error('Error al obtener el perfil del usuario:', error);
+            return res.status(500).json({ message: 'Error al obtener perfil' });
+        }
+    }
 }

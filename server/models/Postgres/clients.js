@@ -238,4 +238,45 @@ export class ClienteModel {
         }
     }
 
+   
+    static async getResumenPorProvincias(anio) {
+        try {
+            const result = await pool.query(
+                `
+            SELECT 
+                c.codprovi AS provincia, 
+                COUNT(DISTINCT p.codclien) AS clientes,
+                COALESCE(
+                    SUM(
+                        CAST(COALESCE(p.importe, 0) AS numeric) *
+                        (1 - CAST(COALESCE(p.dt1, 0) AS numeric) / 100.0) *
+                        (1 - CAST(COALESCE(p.dt2, 0) AS numeric) / 100.0) *
+                        (1 - CAST(COALESCE(p.dt3, 0) AS numeric) / 100.0)
+                    ), 0
+                ) AS facturacion_total
+            FROM clientes c
+            INNER JOIN pedventa p ON c.codclien = p.codclien
+            WHERE c.codprovi IS NOT NULL
+              AND p.ejercicio = $1
+            GROUP BY c.codprovi
+            `,
+                [anio]
+            );
+
+            const resumen = {};
+            for (const row of result.rows) {
+                resumen[row.provincia] = {
+                    clientes: parseInt(row.clientes, 10),
+                    facturacion_total: parseFloat(row.facturacion_total),
+                };
+            }
+            return resumen;
+        } catch (error) {
+            console.error("Error en getResumenPorProvincias:", error);
+            throw new Error("Error al obtener el resumen por provincia");
+        }
+    }
+
+
+
 }

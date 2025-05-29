@@ -143,6 +143,21 @@ export class ClienteController {
             res.status(500).json({ error: "Error interno del servidor" });
         }
     }
+async getResumenPorProvincias(req, res) {
+        try {
+            const { anio } = req.query;
+
+            if (!anio || isNaN(parseInt(anio))) {
+                return res.status(400).json({ error: "El parámetro 'anio' es obligatorio y debe ser un número." });
+            }
+
+            const resumen = await ClienteModel.getResumenPorProvincias(parseInt(anio));
+            res.json(resumen);
+        } catch (err) {
+            console.error('Error en getResumenPorProvincias:', err);
+            res.status(500).json({ error: 'Error al obtener el resumen por provincia' });
+        }
+    }
 
 
 }

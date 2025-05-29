@@ -23,6 +23,8 @@ import EntradasPage from './pages/EntradasPages.jsx';
 import LowStockAlertsPage from './pages/LowStockAlertsPage.jsx';
 import PaginaMapaClientes from './pages/paginamapaclientes.jsx';
 import DownloadPage from './pages/DownloadPage.jsx'
+import PaginaMapaEspaña from './pages/paginamapaespaña.jsx';
+import PerfilUsuario from './pages/PerfilUsuario.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +64,8 @@ function App() {
                       <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
                       <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
                       <Route path="/download" element={< DownloadPage />} />
+                        <Route path="/mapa-españa" element={<PaginaMapaEspaña />} />
+                        <Route path="/perfilusuario" element={<PerfilUsuario />} />
 
                     </Routes>
                   </div>

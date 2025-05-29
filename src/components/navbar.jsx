@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
     FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
     FaCubes, FaBalanceScale, FaTag, FaShoppingCart, FaMoneyBillWave,
-    FaGlobeEurope, FaMapMarkedAlt, FaChartBar
+    FaGlobeEurope, FaMapMarkedAlt, FaChartBar,FaUser
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -138,9 +138,16 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             icon: <FaCog className="mr-3 text-lg" />,
             dropdown: 'configuraciones',
             links: [
-                { to: '/settings', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+                // { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+                {
+                    to: '/perfilusuario',
+                    label: 'Perfil de Usuario',
+                    icon: <FaUser className="mr-3 text-lg" />,
+                    roles: ['admin', 'comercial', 'almacen', 'ventas', 'user']
+                },
             ],
         },
+
         {
             label: 'Aplicaciones',
             icon: <FaRocket className="mr-3 text-lg" />,
