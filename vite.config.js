@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:1234',
+        target: 'https://proyecto-stock-react-backend.vercel.app/',
         changeOrigin: true,
         secure: false
       }
