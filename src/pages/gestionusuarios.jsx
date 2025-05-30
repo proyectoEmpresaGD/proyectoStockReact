@@ -4,6 +4,7 @@ import { useAuthContext } from '../Auth/AuthContext';
 import { Eye, EyeOff, Trash2, Edit3, Save } from 'lucide-react';
 
 const Perfil = () => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const { logout, token } = useAuthContext();
     const [user, setUser] = useState(null);
     const [usuarios, setUsuarios] = useState([]);
@@ -21,13 +22,13 @@ const Perfil = () => {
     useEffect(() => {
         const fetchPerfil = async () => {
             try {
-                const res = await axios.get('/api/auth/me', {
+                const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setUser(res.data);
 
                 if (res.data.role === 'admin') {
-                    const usersRes = await axios.get('/api/auth/users', {
+                    const usersRes = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     setUsuarios(usersRes.data);
@@ -50,7 +51,7 @@ const Perfil = () => {
 
     const handleRoleChange = async (id, newRole) => {
         try {
-            await axios.post('/api/auth/users/update-role', { userId: id, newRole }, {
+            await axios.post(`${API_BASE_URL}/api/auth/users/update-role`, { userId: id, newRole }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.map(u => (u.id === id ? { ...u, role: newRole } : u)));
@@ -75,11 +76,11 @@ const Perfil = () => {
         }
 
         try {
-            await axios.post('/api/auth/users/create', newUser, {
+            await axios.post(`${API_BASE_URL}/api/auth/users/create`, newUser, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            const res = await axios.get('/api/auth/users', {
+            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -100,7 +101,7 @@ const Perfil = () => {
 
     const handleDeleteConfirmed = async () => {
         try {
-            await axios.delete(`/api/auth/users/${userToDelete}`, {
+            await axios.delete(`${API_BASE_URL}/api/auth/users/${userToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.filter(u => u.id !== userToDelete));
@@ -132,7 +133,7 @@ const Perfil = () => {
         }
 
         try {
-            await axios.put(`/api/auth/users/${id}`, editUserData, {
+            await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, editUserData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -148,6 +149,7 @@ const Perfil = () => {
     const filteredUsuarios = usuarios.filter(u =>
         u.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500">
@@ -159,7 +161,6 @@ const Perfil = () => {
     return (
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 pt-24 pb-12 px-4">
             <div className="max-w-6xl mx-auto bg-white p-10 rounded-2xl shadow-2xl">
-
                 {user.role === 'admin' && (
                     <>
                         <div className="flex justify-between items-center mb-4">
@@ -258,13 +259,11 @@ const Perfil = () => {
                                         <th className="p-3 text-left">Cambiar Rol</th>
                                         <th className="p-3 text-left"></th>
                                         <th className="p-3 text-left"></th>
-
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredUsuarios.map((u) => (
                                         <tr key={u.id} className="border-t hover:bg-gray-50">
-                                            {/* Nombre */}
                                             <td className="p-3">
                                                 {editUserId === u.id ? (
                                                     <input
@@ -276,8 +275,6 @@ const Perfil = () => {
                                                     u.nombre
                                                 )}
                                             </td>
-
-                                            {/* Usuario */}
                                             <td className="p-3">
                                                 {editUserId === u.id ? (
                                                     <input
@@ -289,8 +286,6 @@ const Perfil = () => {
                                                     u.username
                                                 )}
                                             </td>
-
-                                            {/* Email */}
                                             <td className="p-3">
                                                 {editUserId === u.id ? (
                                                     <input
@@ -302,11 +297,7 @@ const Perfil = () => {
                                                     u.email
                                                 )}
                                             </td>
-
-                                            {/* Rol actual */}
                                             <td className="p-3 capitalize">{u.role}</td>
-
-                                            {/* Selector de rol */}
                                             <td className="p-3">
                                                 <select
                                                     value={u.role}
@@ -320,28 +311,17 @@ const Perfil = () => {
                                                     <option value="user">user</option>
                                                 </select>
                                             </td>
-
-                                            {/* Acciones */}
                                             <td className="p-3 flex gap-2">
                                                 {editUserId === u.id ? (
-                                                    <button
-                                                        onClick={() => handleSaveUser(u.id)}
-                                                        className="text-blue-600 hover:text-blue-800"
-                                                    >
+                                                    <button onClick={() => handleSaveUser(u.id)} className="text-blue-600 hover:text-blue-800">
                                                         <Save size={18} />
                                                     </button>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleEditUser(u)}
-                                                        className="text-gray-600 hover:text-gray-800"
-                                                    >
+                                                    <button onClick={() => handleEditUser(u)} className="text-gray-600 hover:text-gray-800">
                                                         <Edit3 size={18} />
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => confirmDeleteUser(u.id)}
-                                                    className="text-red-600 hover:text-red-800"
-                                                >
+                                                <button onClick={() => confirmDeleteUser(u.id)} className="text-red-600 hover:text-red-800">
                                                     <Trash2 size={18} />
                                                 </button>
                                             </td>
