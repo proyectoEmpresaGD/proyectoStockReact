@@ -2,7 +2,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 
-const Notas = dynamic(() => import('../components/notas/Notas'), { ssr: false });
+const Notas = dynamic(() => import('../components/notas/notas'), { ssr: false });
 
 export default function NotasPage() {
     return (
