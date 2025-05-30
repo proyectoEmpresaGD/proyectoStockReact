@@ -1,0 +1,247 @@
+/* Calendario.css */
+
+/* ---------- Estilos para React Big Calendar ---------- */
+
+/* Toolbar (barra de herramientas) */
+.rbc-toolbar {
+  background-color: #f7f9fc;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.rbc-toolbar button {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.rbc-toolbar button:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.rbc-toolbar-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  text-transform: capitalize;
+  margin: 0.25rem;
+}
+
+/* Cabeceras (días de la semana) */
+.rbc-header {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+  text-transform: capitalize;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Días fuera de rango (otros meses) */
+.rbc-off-range-bg {
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
+}
+
+/* Celdas de la vista Mes */
+.rbc-past-day {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+
+.rbc-today-custom {
+  background-color: #fef3c7 !important;
+}
+
+.rbc-future-day {
+  background-color: #dbeafe !important;
+}
+
+/* Contenedor de las vistas */
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Estilo para los slots pasados (vista Día/Semana) */
+.rbc-past-slot {
+  background-color: #fecaca !important;
+}
+
+/* Fuente pequeña para los eventos */
+.rbc-event {
+  font-size: 0.8rem;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-in-out forwards;
+}
+
+/* Alert personalizado */
+.custom-alert-overlay { /* ... */ }
+.custom-alert         { /* ... */ }
+.custom-alert p       { /* ... */ }
+.custom-alert button  { /* ... */ }
+.custom-alert button:hover { /* ... */ }
+
+/* Modal pendientes */
+.pending-modal-overlay { /* ... */ }
+.pending-modal         { /* ... */ }
+.pending-modal h2      { /* ... */ }
+.pending-modal ul      { /* ... */ }
+.pending-modal li      { /* ... */ }
+.pending-modal button  { /* ... */ }
+.pending-modal button:hover { /* ... */ }
+
+/* ==================================================== */
+/*       BLOQUE RESPONSIVE SÓLO PARA PANTALLAS MÓVIL   */
+/* ==================================================== */
+/* ==================================================== */
+/*          OVERRIDES MÓVIL PARA React Big Calendar     */
+/* ==================================================== */
+/* ==================================================== */
+/*          OVERRIDES MÓVIL PARA React Big Calendar     */
+/* ==================================================== */
+/* ==================================================== */
+/*      OVERRIDES MÓVIL PARA React Big Calendar        */
+/* ==================================================== */
+/* ==================================================== */
+/*    Estilos base de React Big Calendar (si los usas)  */
+/* ==================================================== */
+
+/* ----------------- OVERRIDES MÓVIL ------------------ */
+@media (max-width: 767px) {
+  /* 1) Contenedor full-width */
+  .container.mx-auto {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* 2) Toolbar apilada y centrada */
+  .rbc-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 0.5rem 0 !important;
+    gap: 0.25rem !important;
+  }
+  /* 2a) Navegación (Hoy / Anterior / Siguiente) */
+  .rbc-toolbar .rbc-btn-group:first-child {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  .rbc-toolbar .rbc-btn-group:first-child button {
+    flex: 1 0 auto !important;
+    min-width: 3.5rem !important;
+  }
+  /* 2b) Vistas (Mes / Semana / Día / Agenda) */
+  .rbc-toolbar .rbc-btn-group:nth-of-type(3) {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    margin-bottom: 0.5rem !important;
+    overflow-x: auto !important;
+  }
+  .rbc-toolbar .rbc-btn-group:nth-of-type(3) button {
+    flex: 1 0 auto !important;
+    min-width: 4rem !important;
+  }
+  /* 2c) Ocultar el botón “Semana” */
+  .rbc-toolbar .rbc-btn-group:nth-of-type(3) button:nth-child(2) {
+    display: none !important;
+  }
+  .rbc-toolbar-label {
+    font-size: 1rem !important;
+    margin: 0.25rem 0 !important;
+  }
+
+  /* 3) Todas las vistas full-width */
+  .rbc-month-view,
+  .rbc-time-view,
+  .rbc-agenda-view {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0.5rem !important;
+    min-height: 600px !important;
+  }
+
+  /* 4) Vista Mes: esconder cabeceras y agrandar celdas */
+  .rbc-month-view .rbc-header {
+    display: none !important;
+  }
+  .rbc-month-view .rbc-day-slot,
+  .rbc-month-view .rbc-row-bg .rbc-day-bg {
+    min-height: 220px !important;
+    height: 220px !important;
+  }
+
+  /* 5) Vista Día (time-view): full-width, sin scroll horizontal, gutter sticky */
+  .rbc-time-view {
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  .rbc-time-view .rbc-time-content-wrapper {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.5rem !important;
+    max-height: 60vh !important;
+  }
+  .rbc-time-view .rbc-time-gutter {
+    position: sticky !important;
+    top: 2.5rem !important;
+    left: 0 !important;
+    background-color: #fff !important;
+    z-index: 3 !important;
+    flex: 0 0 auto !important;
+    min-width: 40px !important;
+  }
+  .rbc-time-view .rbc-day-slot {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+  .rbc-time-view .rbc-time-slot {
+    height: 50px !important;
+    min-height: 50px !important;
+  }
+}

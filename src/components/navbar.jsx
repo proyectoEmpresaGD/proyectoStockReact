@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
     FaUsers, FaCog, FaRocket, FaBox, FaChevronDown, FaTimes,
     FaCubes, FaBalanceScale, FaTag, FaShoppingCart, FaMoneyBillWave,
-    FaGlobeEurope, FaMapMarkedAlt, FaChartBar,FaUser
+    FaGlobeEurope, FaMapMarkedAlt, FaRegStickyNote, FaUser, FaRegCalendarAlt
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -38,6 +38,13 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'clientes',
             links: [
                 { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
+                { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin'] },
+                {
+                    to: '/notas',
+                    label: 'Notas',
+                    icon: <FaRegStickyNote className="mr-3 text-lg" />,
+                    roles: ['admin']
+                }
             ],
         },
         {
@@ -132,7 +139,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             icon: <FaCog className="mr-3 text-lg" />,
             dropdown: 'configuraciones',
             links: [
-                // { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+                { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
                 {
                     to: '/perfilusuario',
                     label: 'Perfil de Usuario',

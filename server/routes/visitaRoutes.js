@@ -19,6 +19,7 @@ export const createVisitaRouter = () => {
     visitaRouter.post('/client/:cliente_id', authMiddleware, roleMiddleware, visitaController.createVisit.bind(visitaController));
     visitaRouter.delete('/:id', authMiddleware, roleMiddleware, visitaController.deleteVisit.bind(visitaController));
     visitaRouter.patch('/:id/complete', authMiddleware, roleMiddleware, visitaController.markVisitAsCompleted.bind(visitaController));
+    visitaRouter.get('/calendario', authMiddleware, visitaController.getVisitasCalendario.bind(visitaController));
 
     return visitaRouter;
 };

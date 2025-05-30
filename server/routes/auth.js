@@ -12,6 +12,11 @@ authRouter.post('/heartbeat', authMiddleware, AuthController.heartbeat); // Prot
 authRouter.post('/refresh', AuthController.refreshToken); // No necesita autenticación
 authRouter.get('/users/commercial', authMiddleware, AuthController.getCommercialUsers);
 authRouter.get('/me', authMiddleware, AuthController.getPerfilUsuario);
+authRouter.get('/users', authMiddleware, AuthController.getAllUsers);
+authRouter.post('/users/update-role', authMiddleware, AuthController.updateRole);
+authRouter.post('/users/create', authMiddleware, AuthController.createUser);
+authRouter.delete('/users/:id', authMiddleware, AuthController.deleteUser);
+authRouter.put('/users/:id', authMiddleware, AuthController.updateUser);
 
 
 export default authRouter;

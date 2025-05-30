@@ -19,6 +19,8 @@ import { createVisitaRouter } from './routes/visitaRoutes.js';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import { StockModel } from './models/Postgres/stock.js';
+import { createCalendarioRouter } from './routes/calendario.js';
+import { createNotasRouter } from './routes/notas.js';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -51,6 +53,8 @@ app.use('/api/pedventa', authMiddleware, createPedVentaRouter());
 app.use('/api/equivalencias', authMiddleware, createEquivalenciasRouter());
 app.use('/api/libros', authMiddleware, createLibroRouter());
 app.use('/api/visits', authMiddleware, createVisitaRouter());
+app.use('/api/notas', createNotasRouter());
+app.use('/api/calendario', authMiddleware, createCalendarioRouter());
 
 // ----------------------------
 // NOTIFICACIONES POR CORREO

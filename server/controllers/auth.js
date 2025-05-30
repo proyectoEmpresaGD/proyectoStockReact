@@ -121,7 +121,7 @@ export class AuthController {
             res.status(500).json({ message: 'Error fetching commercial users' });
         }
     }
-     static async getPerfilUsuario(req, res) {
+    static async getPerfilUsuario(req, res) {
         try {
             const userId = req.user.id; // esto viene del middleware de autenticación
             const user = await UserModel.findById(userId);
@@ -137,6 +137,69 @@ export class AuthController {
         } catch (error) {
             console.error('Error al obtener el perfil del usuario:', error);
             return res.status(500).json({ message: 'Error al obtener perfil' });
+        }
+    }
+    static async getAllUsers(req, res) {
+        try {
+            const users = await UserModel.getAllUsers();
+            res.json(users);
+        } catch (err) {
+            console.error('Error al obtener usuarios:', err);
+            res.status(500).json({ message: 'Error interno' });
+        }
+    }
+
+    static async updateRole(req, res) {
+        const { userId, newRole } = req.body;
+        try {
+            const result = await UserModel.updateRole(userId, newRole);
+            res.json(result);
+        } catch (err) {
+            console.error('Error al actualizar rol:', err);
+            res.status(500).json({ message: 'Error interno' });
+        }
+    }
+
+
+    static async createUser(req, res) {
+        const { nombre, username, email, password, role } = req.body;
+        try {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const user = await UserModel.createUser({ nombre, username, email, password: hashedPassword, role });
+            res.status(201).json(user);
+        } catch (err) {
+            console.error('Error al crear usuario:', err);
+            res.status(500).json({ message: 'Error interno' });
+        }
+    }
+    static async deleteUser(req, res) {
+        const { id } = req.params;
+        try {
+            await UserModel.deleteUser(id);
+            res.json({ message: 'Usuario eliminado' });
+        } catch (err) {
+            console.error('Error al eliminar usuario:', err);
+            res.status(500).json({ message: 'Error interno' });
+        }
+    }
+
+    static async updateUser(req, res) {
+        const { id } = req.params;
+        const { nombre, username, email } = req.body;
+
+        if (!nombre || !username || !email) {
+            return res.status(400).json({ message: 'Campos incompletos' });
+        }
+
+        try {
+            const updated = await UserModel.updateUser(id, { nombre, username, email });
+            if (!updated) {
+                return res.status(404).json({ message: 'Usuario no encontrado' });
+            }
+            res.json({ message: 'Usuario actualizado correctamente' });
+        } catch (err) {
+            console.error('Error actualizando usuario:', err);
+            res.status(500).json({ message: 'Error interno' });
         }
     }
 }

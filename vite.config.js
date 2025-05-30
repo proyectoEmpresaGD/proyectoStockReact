@@ -1,11 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  include: ['jwt-decode'], // Mantiene el include de jwt-decode
+  include: ['jwt-decode'],
   optimizeDeps: {
-    include: ['qrcode.react'], // Asegura que qrcode.react se incluye en la optimización de dependencias
+    include: ['qrcode.react'],
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:1234',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  }
 });

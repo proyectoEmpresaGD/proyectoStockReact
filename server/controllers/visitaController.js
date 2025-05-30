@@ -1,5 +1,6 @@
 // controllers/visitaController.js
 import { VisitaModel } from '../models/Postgres/visitaModel.js';
+const pool = globalThis.pool;
 
 export class VisitaController {
     async getVisitsByClienteId(req, res) {
@@ -14,20 +15,35 @@ export class VisitaController {
     }
 
     async createVisit(req, res) {
-        const { cliente_id } = req.params; // Cliente ID desde los parámetros de la URL
-        const { date, description, assigned_to } = req.body; // Desestructuramos `assigned_to` del cuerpo de la solicitud
-        const created_by = req.user.id; // ID del usuario autenticado
+        const { cliente_id, date, description, assigned_to } = req.body;
+        const created_by = req.user.id;
 
         try {
-            // Asegurarnos de que `assigned_to` se pasa al modelo para almacenar la visita correctamente
+            if (!cliente_id) {
+                return res.status(400).json({ error: 'cliente_id es obligatorio' });
+            }
+
             const newVisit = await VisitaModel.create({ cliente_id, date, description, created_by, assigned_to });
             res.status(201).json(newVisit);
         } catch (error) {
-            console.error("Error en createVisit:", error); // Registro de errores para depuración
+            console.error("Error en createVisit:", error);
             res.status(500).json({ error: error.message });
         }
     }
 
+
+
+    async getVisitasCalendario(req, res) {
+        const userId = req.user.id;
+
+        try {
+            const visitas = await VisitaModel.getCalendarVisitsByUser(userId);
+            res.json(visitas);
+        } catch (err) {
+            console.error('Error cargando visitas para calendario:', err);
+            res.status(500).json({ error: 'Error cargando visitas' });
+        }
+    }
 
     async deleteVisit(req, res) {
         const { id } = req.params;

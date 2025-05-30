@@ -49,6 +49,7 @@ export class ProductModel {
     }
   }
 
+
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);
     return rows.length > 0 ? rows[0] : null;

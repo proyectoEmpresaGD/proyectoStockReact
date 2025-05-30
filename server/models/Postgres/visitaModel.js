@@ -44,9 +44,10 @@ export class VisitaModel {
             `, [cliente_id, date, description, created_by, assigned_to]); // Incluye assigned_to aquí
             return rows[0];
         } catch (error) {
-            console.error('Error creating visit:', error);
-            throw new Error('Error creating visit');
+            console.error('Error creating visit:', error); // Muestra el error exacto en consola
+            throw error; // ← Propaga el error real al controlador
         }
+
     }
 
 
@@ -98,5 +99,26 @@ export class VisitaModel {
             throw new Error('Error fetching visits by date range');
         }
     }
+    static async getCalendarVisitsByUser(userId) {
+        try {
+            const query = `
+            SELECT v.id,
+                   v.descripcion,
+                   v.fecha,
+                   c.razclien AS cliente_nombre
+            FROM visitas v
+            LEFT JOIN clientes c ON v.cliente_id = c.codclien
+            WHERE v.fecha IS NOT NULL
+              AND (v.assigned_to = $1 OR v.created_by = $1)
+            ORDER BY v.fecha ASC
+        `;
+            const { rows } = await pool.query(query, [userId]);
+            return rows;
+        } catch (error) {
+            console.error('Error fetching calendar visits:', error);
+            throw new Error('Error fetching calendar visits');
+        }
+    }
+
 
 }

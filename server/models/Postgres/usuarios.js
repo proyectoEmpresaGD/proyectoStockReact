@@ -151,4 +151,39 @@ export class UserModel {
             throw new Error('Error fetching commercial users');
         }
     }
+    static async getAllUsers() {
+        const result = await pool.query('SELECT id, nombre, username, email, role FROM usuarios ORDER BY username');
+        return result.rows;
+    }
+
+    static async updateRole(userId, newRole) {
+        const result = await pool.query('UPDATE usuarios SET role = $1 WHERE id = $2 RETURNING *', [newRole, userId]);
+        return result.rows[0];
+    }
+
+    static async createUser({ nombre, username, email, password, role }) {
+        const result = await pool.query(
+            'INSERT INTO usuarios (nombre, username, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [nombre, username, email, password, role]
+        );
+        return result.rows[0];
+    }
+
+
+    static async deleteUser(id) {
+        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+    }
+
+    static async updateUser(id, { nombre, username, email }) {
+        const query = `
+        UPDATE usuarios 
+        SET nombre = $1, username = $2, email = $3 
+        WHERE id = $4
+    `;
+        const values = [nombre, username, email, id];
+
+        const result = await pool.query(query, values);
+        return result.rowCount > 0;
+    }
+
 }
