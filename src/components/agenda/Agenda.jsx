@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, parseISO } from 'date-fns';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
 import es from 'date-fns/locale/es';
 import Select from 'react-select';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../../assets/Calendario.css';
-import { Link, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../../Auth/AuthContext';
 import SearchBar from '../clientes/SearchBarClients';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const localizer = dateFnsLocalizer({
     format: (date, pattern) => format(date, pattern, { locale: es }),
     parse: (str, pattern) => parse(str, pattern, new Date(), { locale: es }),
@@ -31,11 +34,8 @@ const mensajes = {
 };
 
 export default function AgendaPage() {
-    const token = localStorage.getItem('token');
+    const { token } = useAuthContext();
     const [view, setView] = useState('month');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [suggestions, setSuggestions] = useState([]);
-
     const [eventos, setEventos] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
@@ -44,7 +44,7 @@ export default function AgendaPage() {
     const [notificarAlCrear, setNotificarAlCrear] = useState(true);
     const [notiPersonalizada, setNotiPersonalizada] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState(null); // asegúrate de tener este estado
+    const [selectedEvent, setSelectedEvent] = useState(null);
     const [programarNotiManual, setProgramarNotiManual] = useState(null);
     const [newTitle, setNewTitle] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -59,12 +59,10 @@ export default function AgendaPage() {
 
         const storedNotis = JSON.parse(localStorage.getItem('notificaciones_programadas') || '[]');
         const now = Date.now();
-
         const upcoming = storedNotis.filter(n => new Date(n.fecha).getTime() > now);
 
         upcoming.forEach(n => {
             const msUntil = new Date(n.fecha).getTime() - now;
-
             setTimeout(() => {
                 new Notification('📅 Recordatorio de visita', {
                     body: `${n.descripcion}\n${format(new Date(n.fecha), 'PPPPp', { locale: es })}`,
@@ -73,115 +71,71 @@ export default function AgendaPage() {
             }, msUntil);
         });
 
-        // Limpia las pasadas
-        const futuras = upcoming.map(n => ({
-            fecha: n.fecha,
-            descripcion: n.descripcion
-        }));
-
-        localStorage.setItem('notificaciones_programadas', JSON.stringify(futuras));
+        localStorage.setItem('notificaciones_programadas', JSON.stringify(upcoming));
     }, []);
-
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
+
     useEffect(() => {
-        async function fetchClientes() {
-            try {
-                const res = await fetch('/api/clients', {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    },
-                });
-
-                const data = await res.json();
-
-                const listaClientes = Array.isArray(data)
-                    ? data
-                    : Array.isArray(data.clients)
-                        ? data.clients
-                        : [];
-
-                const opciones = listaClientes.map(c => ({
-                    value: c.codclien,
-                    label: c.razclien
-                }));
-
+        if (!token) return;
+        fetch(`${API_BASE_URL}/api/clients`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const listaClientes = Array.isArray(data) ? data : Array.isArray(data.clients) ? data.clients : [];
+                const opciones = listaClientes.map(c => ({ value: c.codclien, label: c.razclien }));
                 setClientes(opciones);
-            } catch (err) {
-                console.error('Error cargando clientes:', err);
-            }
-        }
-
-        if (token) fetchClientes(); // Solo ejecuta si hay token disponible
+            })
+            .catch(err => console.error('Error cargando clientes:', err));
     }, [token]);
 
-
     useEffect(() => {
-        async function fetchEventos() {
-            try {
-                const res = await fetch('/api/visits/calendario', {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+        if (!token) return;
+        fetch(`${API_BASE_URL}/api/visits/calendario`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const evts = data.filter(evt => evt.fecha).map(evt => {
+                    const inicio = new Date(evt.fecha);
+                    const fin = new Date(inicio.getTime() + 60 * 60 * 1000);
+                    return {
+                        ...evt,
+                        start: inicio,
+                        end: fin,
+                        title: evt.descripcion || '(Sin descripción)',
+                        estado: evt.estado || 'pendiente',
+                        cliente_nombre: evt.cliente_nombre || '',
+                    };
                 });
-
-                const data = await res.json();
-                const evts = data
-                    .filter(evt => evt.fecha)
-                    .map(evt => {
-                        const inicio = new Date(evt.fecha);
-                        const fin = new Date(inicio.getTime() + 60 * 60 * 1000); // suma 1 hora
-
-                        return {
-                            ...evt,
-                            start: inicio,
-                            end: fin,
-                            title: evt.descripcion || '(Sin descripción)',
-                            estado: evt.estado || 'pendiente',
-                            cliente_nombre: evt.cliente_nombre || '',
-                        };
-                    });
-
 
                 setEventos(evts);
-
-                localStorage.setItem(
-                    'eventos',
-                    JSON.stringify(evts.map(e => ({
-                        ...e,
-                        start: e.start.toISOString(),
-                        end: e.end.toISOString(),
-                    })))
-                );
-            } catch (err) {
-                console.error('Error cargando eventos desde visitas:', err);
-            }
-        }
-
-        if (token) fetchEventos(); // Solo se llama si hay token
+                localStorage.setItem('eventos', JSON.stringify(evts.map(e => ({
+                    ...e,
+                    start: e.start.toISOString(),
+                    end: e.end.toISOString(),
+                }))));
+            })
+            .catch(err => console.error('Error cargando eventos:', err));
     }, [token]);
 
     useEffect(() => {
-        fetch('/api/notas', {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
+        if (!token) return;
+        fetch(`${API_BASE_URL}/api/notas`, {
+            headers: { Authorization: `Bearer ${token}` }
         })
-            .then(r => r.json())
+            .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data)) {
-                    setNotasEnlazadas(data);
-                } else if (Array.isArray(data.notas)) {
-                    setNotasEnlazadas(data.notas);
-                }
+                if (Array.isArray(data)) setNotasEnlazadas(data);
+                else if (Array.isArray(data.notas)) setNotasEnlazadas(data.notas);
             })
             .catch(() => setNotasEnlazadas([]));
-    }, []);
-
+    }, [token]);
 
     const crearEvento = () => {
         if (!newTitle.trim()) return alert('Debes introducir una descripción');
@@ -191,10 +145,7 @@ export default function AgendaPage() {
         const fechaBase = slot.start;
         const slotStart = new Date(fechaBase);
         slotStart.setHours(+h, +m, 0, 0);
-
-        // Duración fija de 1 hora
         const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
-
 
         const cuerpo = {
             cliente_id: clienteSeleccionado.value,
@@ -212,20 +163,16 @@ export default function AgendaPage() {
         };
 
         setEventos(ev => {
-            const up = [...ev, tempEvt];
-            localStorage.setItem('eventos', JSON.stringify(
-                up.map(e => ({
-                    ...e,
-                    start: e.start.toISOString(),
-                    end: e.end.toISOString(),
-                }))
-            ));
-            return up;
+            const updated = [...ev, tempEvt];
+            localStorage.setItem('eventos', JSON.stringify(updated.map(e => ({
+                ...e,
+                start: e.start.toISOString(),
+                end: e.end.toISOString(),
+            }))));
+            return updated;
         });
 
-        setSlot(null);
-
-        const url = isEditing ? `/api/visits/${tempId}` : '/api/visits/client/0';
+        const url = isEditing ? `${API_BASE_URL}/api/visits/${tempId}` : `${API_BASE_URL}/api/visits/client/0`;
         const method = isEditing ? 'PATCH' : 'POST';
 
         fetch(url, {
@@ -236,24 +183,17 @@ export default function AgendaPage() {
             },
             body: JSON.stringify(cuerpo),
         })
-            .then(r => r.json())
+            .then(res => res.json())
             .then(d => {
-                if (!d || !d.fecha || !d.descripcion) throw new Error('Respuesta inesperada');
-
+                if (!d?.fecha || !d?.descripcion) throw new Error('Respuesta inesperada');
                 const nuevaFecha = new Date(d.fecha);
 
-                setEventos(ev =>
-                    ev.map(e =>
-                        e.id === tempId
-                            ? {
-                                ...e,
-                                start: nuevaFecha,
-                                end: nuevaFecha,
-                                title: d.descripcion,
-                            }
-                            : e
-                    )
-                );
+                setEventos(ev => ev.map(e => e.id === tempId ? {
+                    ...e,
+                    start: nuevaFecha,
+                    end: nuevaFecha,
+                    title: d.descripcion,
+                } : e));
 
                 if (notificarAlCrear) {
                     let tiempo = notiPersonalizada ? new Date(notiPersonalizada) : nuevaFecha;
@@ -276,8 +216,6 @@ export default function AgendaPage() {
             });
     };
 
-
-
     const confirmarBorrar = evt => {
         setToDelete(evt);
         setConfirmOpen(true);
@@ -286,44 +224,28 @@ export default function AgendaPage() {
     const borrarEvento = () => {
         if (!toDelete) return;
 
-        // Actualiza el estado y el localStorage
         setEventos(ev => {
             const up = ev.filter(e => e.id !== toDelete.id);
-            localStorage.setItem('eventos', JSON.stringify(
-                up.map(e => ({
-                    ...e,
-                    start: e.start.toISOString(),
-                    end: e.end.toISOString(),
-                }))
-            ));
+            localStorage.setItem('eventos', JSON.stringify(up.map(e => ({
+                ...e,
+                start: e.start.toISOString(),
+                end: e.end.toISOString(),
+            }))));
             return up;
         });
 
-        // Cierra el diálogo de confirmación y deselecciona el evento
         setConfirmOpen(false);
         setSelectedEvent(null);
 
-        // Realiza la llamada al backend para eliminar el evento
-        fetch(`/api/visits/${toDelete.id}`, {
+        fetch(`${API_BASE_URL}/api/visits/${toDelete.id}`, {
             method: 'DELETE',
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
+            headers: { Authorization: `Bearer ${token}` },
         })
             .catch(() => alert('Error eliminando evento'))
             .finally(() => setToDelete(null));
     };
 
-
     const calendarHeight = isMobile ? window.innerHeight - 160 : 600;
-    const EventComponent = ({ event }) => (
-        <div className="flex flex-col h-full justify-center px-2 text-white">
-            <span className="text-xs font-bold">{format(event.start, 'HH:mm')}</span>
-            <span className="text-sm font-medium truncate">{event.title}</span>
-        </div>
-    );
-
-
     const estiloEvento = () => ({
         style: {
             backgroundColor: '#2563EB',
@@ -343,6 +265,13 @@ export default function AgendaPage() {
         if (chk.getTime() === today.getTime()) return { className: 'rbc-today-custom' };
         return { className: 'rbc-future-day' };
     };
+
+    const EventComponent = ({ event }) => (
+        <div className="flex flex-col h-full justify-center px-2 text-white">
+            <span className="text-xs font-bold">{format(event.start, 'HH:mm')}</span>
+            <span className="text-sm font-medium truncate">{event.title}</span>
+        </div>
+    );
 
     return (
         <div className="container mx-auto p-4">
