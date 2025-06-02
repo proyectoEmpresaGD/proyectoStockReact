@@ -51,6 +51,8 @@ export default function AgendaPage() {
     const [toDelete, setToDelete] = useState(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [notasEnlazadas, setNotasEnlazadas] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
 
     useEffect(() => {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {

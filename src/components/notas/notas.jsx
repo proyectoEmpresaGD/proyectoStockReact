@@ -3,6 +3,9 @@ import { format, parseISO, isValid } from 'date-fns';
 import es from 'date-fns/locale/es';
 import Select from 'react-select';
 import { Pencil, Trash2 } from 'lucide-react';
+import { useAuthContext } from '../../Auth/AuthContext';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ImagenConLoader({ src, alt, onClick }) {
     const [loaded, setLoaded] = useState(false);
@@ -22,12 +25,11 @@ function ImagenConLoader({ src, alt, onClick }) {
 }
 
 export default function NotasPage() {
-    const token = localStorage.getItem('token');
+    const { token } = useAuthContext(); // ← Obtener token desde contexto
 
     const [notas, setNotas] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-
     const [filterName, setFilterName] = useState('');
     const [filterDate, setFilterDate] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
@@ -43,11 +45,12 @@ export default function NotasPage() {
     const [existingImages, setExistingImages] = useState([]);
     const [toRemoveImages, setToRemoveImages] = useState([]);
     const [subiendo, setSubiendo] = useState(false);
-
     const [visibleNotas, setVisibleNotas] = useState(9);
 
     useEffect(() => {
-        fetch('/api/notas', {
+        if (!token) return;
+
+        fetch(`${API_BASE_URL}/api/notas`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(r => r.json())
@@ -72,7 +75,9 @@ export default function NotasPage() {
     }, [token]);
 
     useEffect(() => {
-        fetch('/api/calendario', {
+        if (!token) return;
+
+        fetch(`${API_BASE_URL}/api/calendario`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(r => r.json())
@@ -101,11 +106,7 @@ export default function NotasPage() {
     }, [files]);
 
     const filteredNotas = useMemo(() => {
-        const ordenadas = [...notas].sort((a, b) => {
-            const fechaA = new Date(a.creado_en);
-            const fechaB = new Date(b.creado_en);
-            return fechaB - fechaA;
-        });
+        const ordenadas = [...notas].sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
 
         return ordenadas.filter(n => {
             const title = n.titulo.toLowerCase();
@@ -121,11 +122,7 @@ export default function NotasPage() {
         });
     }, [notas, filterName, filterDate, events]);
 
-    const paginatedNotas = useMemo(() => {
-        return filteredNotas.slice(0, visibleNotas);
-    }, [filteredNotas, visibleNotas]);
-
-    const mostrarMasNotas = () => setVisibleNotas(prev => prev + 9);
+    const paginatedNotas = useMemo(() => filteredNotas.slice(0, visibleNotas), [filteredNotas, visibleNotas]);
 
     const abrirCrear = () => {
         setIsEditing(false);
@@ -138,7 +135,7 @@ export default function NotasPage() {
         setExistingImages([]);
         setToRemoveImages([]);
         setModalOpen(true);
-        window.history.pushState(null, '', window.location.pathname); // Limpiar URL
+        window.history.pushState(null, '', window.location.pathname);
     };
 
     const abrirEditar = (nota) => {
@@ -159,7 +156,7 @@ export default function NotasPage() {
         setModalOpen(false);
         setIsEditing(false);
         setEditId(null);
-        window.location.hash = '#/notas'; // ✅ Esto limpia correctamente la URL
+        window.location.hash = '#/notas';
     };
 
     const guardar = () => {
@@ -190,10 +187,12 @@ export default function NotasPage() {
 
         files.forEach(f => form.append('imagenes', f));
 
-        const url = isEditing ? `/api/notas/${editId}` : '/api/notas';
+        const endpoint = isEditing
+            ? `${API_BASE_URL}/api/notas/${editId}`
+            : `${API_BASE_URL}/api/notas`;
         const method = isEditing ? 'PATCH' : 'POST';
 
-        fetch(url, {
+        fetch(endpoint, {
             method,
             headers: { Authorization: `Bearer ${token}` },
             body: form
@@ -210,16 +209,11 @@ export default function NotasPage() {
                     creado_en: nota.creado_en || new Date().toISOString(),
                     actualizado_en: nota.actualizado_en || null
                 };
-                setNotas(prev => {
-                    const updated = isEditing ? prev.map(n => (n.id === editId ? clean : n)) : [clean, ...prev];
-                    return updated;
-                });
-                setFiles([]);
-                setPreviews([]);
-                setExistingImages(clean.imagenes);
-
-                window.history.pushState(null, '', `#/notas?editar=${clean.id}`);
-
+                setNotas(prev =>
+                    isEditing
+                        ? prev.map(n => (n.id === editId ? clean : n))
+                        : [clean, ...prev]
+                );
                 cerrarModal();
             })
             .catch(() => alert(`Error ${isEditing ? 'editando' : 'creando'} nota`))
@@ -233,7 +227,8 @@ export default function NotasPage() {
 
     const borrar = () => {
         if (!toDelete) return;
-        fetch(`/api/notas/${toDelete.id}`, {
+
+        fetch(`${API_BASE_URL}/api/notas/${toDelete.id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -247,6 +242,7 @@ export default function NotasPage() {
                 setToDelete(null);
             });
     };
+
     useEffect(() => {
         const hash = window.location.hash;
         const params = new URLSearchParams(hash.split('?')[1]);
