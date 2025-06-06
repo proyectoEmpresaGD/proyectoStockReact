@@ -26,13 +26,13 @@ const Perfil = () => {
     useEffect(() => {
         const fetchPerfil = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/auth/me`, {
+                const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setUser(res.data);
 
                 if (res.data.role === 'admin') {
-                    const usersRes = await axios.get(`${API_BASE_URL}/auth/users`, {
+                    const usersRes = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     setUsuarios(usersRes.data);
@@ -60,7 +60,7 @@ const Perfil = () => {
 
     const handleRoleChange = async (id, newRole) => {
         try {
-            await axios.post(`${API_BASE_URL}/auth/users/update-role`, { userId: id, newRole }, {
+            await axios.post(`${API_BASE_URL}/api/auth/users/update-role`, { userId: id, newRole }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.map(u => (u.id === id ? { ...u, role: newRole } : u)));
@@ -98,7 +98,7 @@ const Perfil = () => {
             }
 
             // 2. Enviar al backend con imagen
-            await axios.post(`${API_BASE_URL}/auth/users/create-with-image`, formData, {
+            await axios.post(`${API_BASE_URL}/api/auth/users/create-with-image`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data',
@@ -106,7 +106,7 @@ const Perfil = () => {
             });
 
             // 3. Refrescar usuarios
-            const res = await axios.get(`${API_BASE_URL}/auth/users`, {
+            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -130,7 +130,7 @@ const Perfil = () => {
 
     const handleDeleteConfirmed = async () => {
         try {
-            await axios.delete(`${API_BASE_URL}/auth/users/${userToDelete}`, {
+            await axios.delete(`${API_BASE_URL}/api/auth/users/${userToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.filter(u => u.id !== userToDelete));
@@ -172,7 +172,7 @@ const Perfil = () => {
 
         try {
             // 1. Actualizar datos principales
-            await axios.put(`${API_BASE_URL}/auth/users/${id}`, editUserData, {
+            await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, editUserData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -181,7 +181,7 @@ const Perfil = () => {
                 const formData = new FormData();
                 formData.append('imagen', imagenPerfil);
 
-                await axios.post(`${API_BASE_URL}/auth/users/${id}/upload-imagenperfil`, formData, {
+                await axios.post(`${API_BASE_URL}/api/auth/users/${id}/upload-imagenperfil`, formData, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'multipart/form-data'
@@ -190,7 +190,7 @@ const Perfil = () => {
             }
 
             // 3. Refrescar lista completa (por si cambia la imagen)
-            const res = await axios.get('/api/auth/users', {
+            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setUsuarios(res.data);
