@@ -1,8 +1,26 @@
 import bcrypt from 'bcrypt';
 import moment from 'moment-timezone';
 import { UserModel } from '../models/Postgres/usuarios.js';
-import { AccessModel } from '../models/Postgres/AccessModel.js';
 import jwt from 'jsonwebtoken';
+import { Client } from 'basic-ftp';
+import path from 'path';
+import { Readable } from 'stream';
+
+async function withFtp(fn) {
+    const client = new Client();
+    await client.access({
+        host: process.env.FTP_HOST,
+        port: Number(process.env.FTP_PORT) || 21,
+        user: process.env.FTP_USER,
+        password: process.env.FTP_PASS,
+        secure: process.env.FTP_SECURE === 'true',
+    });
+    try {
+        return await fn(client);
+    } finally {
+        client.close();
+    }
+}
 
 export class AuthController {
 
@@ -123,7 +141,7 @@ export class AuthController {
     }
     static async getPerfilUsuario(req, res) {
         try {
-            const userId = req.user.id; // esto viene del middleware de autenticación
+            const userId = req.user.id;
             const user = await UserModel.findById(userId);
 
             if (!user) {
@@ -133,21 +151,39 @@ export class AuthController {
             // Elimina campos sensibles
             const { password, refresh_token, ...safeUser } = user;
 
+            // Añadir imagenperfil_url si existe
+            if (safeUser.imagenperfil) {
+                safeUser.imagenperfil_url = `${process.env.IMG_PROFILE_URL}/${userId}/${encodeURIComponent(safeUser.imagenperfil)}`;
+            }
+
             return res.json(safeUser);
         } catch (error) {
             console.error('Error al obtener el perfil del usuario:', error);
             return res.status(500).json({ message: 'Error al obtener perfil' });
         }
     }
+
     static async getAllUsers(req, res) {
         try {
             const users = await UserModel.getAllUsers();
-            res.json(users);
+
+            const usersWithImageUrls = users.map((u) => {
+                const imageUrl = u.imagenperfil
+                    ? `${process.env.IMG_PROFILE_URL}/${u.id}/${encodeURIComponent(u.imagenperfil)}`
+                    : null;
+                return {
+                    ...u,
+                    imagenperfil_url: imageUrl
+                };
+            });
+
+            res.json(usersWithImageUrls);
         } catch (err) {
             console.error('Error al obtener usuarios:', err);
             res.status(500).json({ message: 'Error interno' });
         }
     }
+
 
     static async updateRole(req, res) {
         const { userId, newRole } = req.body;
@@ -161,17 +197,61 @@ export class AuthController {
     }
 
 
-    static async createUser(req, res) {
+    static async createUserWithImage(req, res) {
         const { nombre, username, email, password, role } = req.body;
+        const file = req.file;
+
+        if (!nombre || !username || !email || !password || !role) {
+            return res.status(400).json({ message: 'Faltan datos obligatorios' });
+        }
+
         try {
             const hashedPassword = await bcrypt.hash(password, 10);
-            const user = await UserModel.createUser({ nombre, username, email, password: hashedPassword, role });
-            res.status(201).json(user);
+            let imagenperfil = null;
+
+            // 1. Crear usuario (sin imagen aún)
+            const newUser = await UserModel.createUser({
+                nombre,
+                username,
+                email,
+                password: hashedPassword,
+                role,
+            });
+
+            // 2. Subir imagen si fue enviada
+            if (file) {
+                const userId = newUser.id;
+                imagenperfil = file.originalname;
+                const remoteDir = path.posix.join(process.env.FTP_PROFILE_PATH, userId.toString());
+
+                await withFtp(async (client) => {
+                    await client.ensureDir(remoteDir);
+                    await client.uploadFrom(Readable.from(file.buffer), path.posix.join(remoteDir, imagenperfil));
+                });
+
+                // 3. Actualizar campo imagenperfil
+                await UserModel.updateUser(userId, { imagenperfil });
+            }
+
+            // 4. Devolver usuario creado con URL de imagen
+            const publicUrl = imagenperfil
+                ? `${process.env.IMG_PROFILE_URL}/${newUser.id}/${encodeURIComponent(imagenperfil)}`
+                : null;
+
+            res.status(201).json({
+                message: 'Usuario creado correctamente',
+                user: {
+                    ...newUser,
+                    imagenperfil,
+                    imagenperfil_url: publicUrl,
+                },
+            });
         } catch (err) {
-            console.error('Error al crear usuario:', err);
-            res.status(500).json({ message: 'Error interno' });
+            console.error('Error al crear usuario con imagen:', err);
+            res.status(500).json({ message: 'Error al crear usuario', error: err.message });
         }
     }
+
     static async deleteUser(req, res) {
         const { id } = req.params;
         try {
@@ -227,6 +307,45 @@ export class AuthController {
         } catch (err) {
             console.error('Error actualizando usuario:', err);
             res.status(500).json({ message: 'Error interno' });
+        }
+    }
+    static async uploadImagenPerfilById(req, res) {
+        const userId = parseInt(req.params.id); // <-- usar el ID de la URL
+        const file = req.file;
+
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        if (!file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+
+        const filename = file.originalname;
+        const remoteDir = path.posix.join(process.env.FTP_PROFILE_PATH, userId.toString());
+
+        try {
+            const user = await UserModel.findById(userId);
+            const previousFilename = user?.imagenperfil;
+
+            await withFtp(async (client) => {
+                await client.ensureDir(remoteDir);
+                if (previousFilename && previousFilename !== filename) {
+                    try {
+                        await client.remove(path.posix.join(remoteDir, previousFilename));
+                    } catch (e) {
+                        console.warn('No se pudo eliminar imagen anterior:', e.message);
+                    }
+                }
+                await client.uploadFrom(Readable.from(file.buffer), path.posix.join(remoteDir, filename));
+            });
+
+            // ✅ Aquí estaba el problema: se usaba el ID del token en vez del ID del admin seleccionado
+            await UserModel.updateUser(userId, { imagenperfil: filename });
+
+            const publicUrl = `${process.env.IMG_PROFILE_URL}/${userId}/${encodeURIComponent(filename)}`;
+            res.json({ imagenperfil: filename, url: publicUrl });
+        } catch (err) {
+            console.error('Error al subir imagen (admin):', err);
+            res.status(500).json({ error: 'Error al subir imagen', details: err.message });
         }
     }
 

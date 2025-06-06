@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '../Auth/AuthContext';
 import { FaUser, FaEnvelope, FaUserShield, FaSignOutAlt } from 'react-icons/fa';
@@ -78,9 +78,20 @@ const PerfilUsuario = () => {
             <div className="w-full max-w-3xl bg-white p-10 rounded-3xl shadow-2xl transition-transform transform hover:scale-[1.01] hover:shadow-inner animate-fadeIn">
 
                 <div className="flex flex-col items-center mb-10">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-r from-indigo-400 to-blue-500 shadow-lg flex items-center justify-center text-white text-4xl font-bold transform hover:rotate-6 hover:scale-105 transition">
-                        {user?.username?.charAt(0)?.toUpperCase() ?? '?'}
+                    <div className="w-24 h-24 rounded-full shadow-lg overflow-hidden relative group transform hover:scale-105 transition">
+                        {user?.imagenperfil_url ? (
+                            <img
+                                src={user.imagenperfil_url}
+                                alt="Perfil"
+                                className="w-full h-full object-cover rounded-full"
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-r from-indigo-400 to-blue-500 text-white flex items-center justify-center text-4xl font-bold">
+                                {user?.username?.charAt(0)?.toUpperCase() ?? '?'}
+                            </div>
+                        )}
                     </div>
+
                     <h2 className="text-4xl font-extrabold text-center text-gray-800 mt-4 tracking-tight">
                         Mi Perfil
                     </h2>

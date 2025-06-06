@@ -125,7 +125,6 @@ export class UserModel {
         }
     }
 
-    // Recuperar usuario por ID para verificar refresh token
     static async findById(userId) {
         const query = 'SELECT * FROM usuarios WHERE id = $1';
         const values = [userId];
@@ -138,6 +137,7 @@ export class UserModel {
             throw new Error('Error fetching user by ID');
         }
     }
+
 
     static async getCommercialUsers() {
         const query = 'SELECT id, username FROM usuarios WHERE role = $1';
@@ -152,19 +152,19 @@ export class UserModel {
         }
     }
     static async getAllUsers() {
-        const result = await pool.query('SELECT id, nombre, username, email, role FROM usuarios ORDER BY username');
+        const result = await pool.query('SELECT id, nombre, username, email, role, imagenperfil FROM usuarios ORDER BY username');
         return result.rows;
     }
+
 
     static async updateRole(userId, newRole) {
         const result = await pool.query('UPDATE usuarios SET role = $1 WHERE id = $2 RETURNING *', [newRole, userId]);
         return result.rows[0];
     }
-
-    static async createUser({ nombre, username, email, password, role }) {
+    static async createUser({ nombre, username, email, password, role, imagenperfil = null }) {
         const result = await pool.query(
-            'INSERT INTO usuarios (nombre, username, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [nombre, username, email, password, role]
+            'INSERT INTO usuarios (nombre, username, email, password, role, imagenperfil) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [nombre, username, email, password, role, imagenperfil]
         );
         return result.rows[0];
     }
@@ -174,16 +174,23 @@ export class UserModel {
         await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
     }
 
-    static async updateUser(id, { nombre, username, email }) {
+    static async updateUser(id, data) {
+        const keys = Object.keys(data);
+        if (keys.length === 0) return false;
+
+        const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+        const values = Object.values(data);
+
         const query = `
         UPDATE usuarios 
-        SET nombre = $1, username = $2, email = $3 
-        WHERE id = $4
+        SET ${setClause}
+        WHERE id = $${keys.length + 1}
+        RETURNING *
     `;
-        const values = [nombre, username, email, id];
 
-        const result = await pool.query(query, values);
-        return result.rowCount > 0;
+        const result = await pool.query(query, [...values, id]);
+        return result.rows[0] || null;
     }
+
 
 }

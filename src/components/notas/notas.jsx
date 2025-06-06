@@ -384,27 +384,35 @@ export default function NotasPage() {
                                                 src={`${url}?v=${n.actualizado_en || n.creado_en}`}
                                                 alt={`img-${i}`}
                                                 className="w-14 h-14 object-cover rounded shadow-sm hover:scale-105 transition cursor-pointer"
-                                                onClick={() => window.open(url, '_blank')}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // ⛔ evita abrirVista
+                                                    window.open(url, '_blank');
+                                                }}
                                             />
                                         ))}
                                     </div>
                                 )}
+
                                 {/* Eventos */}
-                                {n.eventos.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {n.eventos.map((eid) => {
-                                            const ev = events.find((e) => String(e.id) === String(eid));
-                                            return (
-                                                <span
-                                                    key={eid}
-                                                    className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full"
-                                                >
-                                                    {ev?.label ?? eid}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                {n.eventos
+                                    .map((eid) => events.find((e) => String(e.id) === String(eid)))
+                                    .filter(Boolean).length > 0 && (
+                                        <div className={`flex flex-wrap gap-2 mb-3 ${n.eventos.length > 1 ? 'space-y-1' : ''}`}>
+                                            {n.eventos
+                                                .map((eid) => events.find((e) => String(e.id) === String(eid)))
+                                                .filter(Boolean)
+                                                .map((ev) => (
+                                                    <span
+                                                        key={ev.id}
+                                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full inline-block max-w-[180px] truncate"
+                                                        title={ev.label}
+                                                    >
+                                                        {ev.label}
+                                                    </span>
+                                                ))}
+                                        </div>
+                                    )}
+
                                 {/* Acciones */}
                                 <div className="flex justify-end items-center mt-auto pt-2 gap-3">
                                     <button
@@ -448,10 +456,12 @@ export default function NotasPage() {
                     <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-2xl p-6 w-full max-w-4xl space-y-4 overflow-y-auto max-h-[95vh]">
                         <button
                             onClick={cerrarVista}
-                            className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl"
+                            className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold transition-transform hover:scale-125"
+                            aria-label="Cerrar vista"
                         >
                             ×
                         </button>
+
 
                         {/* Título */}
                         <h2 className="text-2xl font-bold text-gray-800 mb-2 break-words">{vistaNota.titulo}</h2>

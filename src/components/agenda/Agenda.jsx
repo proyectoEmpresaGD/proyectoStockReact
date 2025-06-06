@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import es from 'date-fns/locale/es';
@@ -61,6 +61,8 @@ export default function AgendaPage() {
     const [mostrarCalendario, setMostrarCalendario] = useState(false);
     const [clienteInfo, setClienteInfo] = useState(null);
     const [mostrarModalCliente, setMostrarModalCliente] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const cameraInputRef = useRef(null);
 
 
     const cerrarNotaModal = () => {
@@ -69,28 +71,31 @@ export default function AgendaPage() {
     const crearNota = async () => {
         if (!nuevoTitulo.trim() || !nuevoContenido.trim()) return alert('Completa todos los campos');
 
-        const nuevaNota = {
-            titulo: nuevoTitulo,
-            contenido: nuevoContenido,
-            eventos: [selectedEvent.id], // Vínculo directo
-            imagenes: [] // Si usas imágenes, añade lógica para ello
-        };
+        const formData = new FormData();
+        formData.append('titulo', nuevoTitulo);
+        formData.append('contenido', nuevoContenido);
+        formData.append('eventos[]', selectedEvent.id);
+
+        selectedFiles.forEach(file => {
+            formData.append('imagenes', file);
+        });
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/notas`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify(nuevaNota)
+                body: formData
             });
+
             const data = await res.json();
 
             if (data?.id) {
                 setNotasEnlazadas(prev => [...prev, data]);
                 setNuevoTitulo('');
                 setNuevoContenido('');
+                setSelectedFiles([]);
                 setShowModalNota(false);
             }
         } catch (err) {
@@ -333,40 +338,36 @@ export default function AgendaPage() {
 
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-4">Mi Agenda</h1>
-            <div className="border rounded-lg shadow p-2 mb-4">
-                <Calendar
-                    localizer={localizer}
-                    events={eventos}
-                    startAccessor="start"
-                    endAccessor="end"
-                    messages={mensajes}
-                    style={{ height: calendarHeight }}
-                    selectable
-                    view={view}
-                    onView={setView}
-                    onSelectSlot={si => {
-                        setSlot(si);
-                        setNewTitle('');
-                        setClienteSeleccionado(null);
-                    }}
-                    onSelectEvent={evt => setSelectedEvent(evt)}
-                    components={{
-                        event: ({ event }) => (
-                            <div className="flex flex-col h-full justify-center px-2 text-white">
-                                <span className="text-xs font-bold">{format(event.start, 'HH:mm')}</span>
-                                <span className="text-sm font-medium truncate">{event.title}</span>
-                            </div>
-                        ),
-                    }}
-                    eventPropGetter={estiloEvento}
-                    dayPropGetter={dayPropGetter}
-                    formats={{
-                        eventTimeRangeFormat: () => '', // 🔕 Quitar rango automático "09:00 – 10:00"
-                    }}
-                />
+            <h1 className="text-3xl font-bold mb-4 text-center">Mi Agenda</h1>
 
-
+            <div className="border rounded-lg shadow p-2 mb-4 h-[550px] sm:h-[600px] md:h-[700px] overflow-x-auto">
+                <div className="min-w-[350px] w-full">
+                    <Calendar
+                        localizer={localizer}
+                        events={eventos}
+                        startAccessor="start"
+                        endAccessor="end"
+                        messages={mensajes}
+                        style={{ height: calendarHeight }}
+                        selectable
+                        view={view}
+                        onView={setView}
+                        onSelectSlot={si => {
+                            setSlot(si);
+                            setNewTitle('');
+                            setClienteSeleccionado(null);
+                        }}
+                        onSelectEvent={evt => setSelectedEvent(evt)}
+                        components={{
+                            event: EventComponent
+                        }}
+                        eventPropGetter={estiloEvento}
+                        dayPropGetter={dayPropGetter}
+                        formats={{
+                            eventTimeRangeFormat: () => '',
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Modal Crear */}
@@ -627,7 +628,6 @@ export default function AgendaPage() {
             )}
 
 
-
             {showModalNota && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
                     <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
@@ -649,9 +649,82 @@ export default function AgendaPage() {
                             onChange={e => setNuevoContenido(e.target.value)}
                         />
 
+                        {/* Opciones de imagen */}
+                        <div className="mb-3 space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Añadir imágenes (máx. 3):</label>
+
+                            {/* Botón para tomar foto con cámara */}
+                            <label className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
+                                📸 Tomar foto
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={e => {
+                                        const files = Array.from(e.target.files);
+                                        const total = selectedFiles.length + files.length;
+                                        if (total > 3) {
+                                            alert('Máximo 3 imágenes por nota');
+                                            return;
+                                        }
+                                        setSelectedFiles(prev => [...prev, ...files]);
+                                    }}
+                                    className="hidden"
+                                />
+                            </label>
+
+                            {/* Botón para subir imagen guardada */}
+                            <label className="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer ml-2">
+                                🖼️ Subir imagen
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={e => {
+                                        const files = Array.from(e.target.files);
+                                        const total = selectedFiles.length + files.length;
+                                        if (total > 3) {
+                                            alert('Máximo 3 imágenes por nota');
+                                            return;
+                                        }
+                                        setSelectedFiles(prev => [...prev, ...files]);
+                                    }}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+
+                        {/* Previsualizaciones */}
+                        {selectedFiles.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mb-3">
+                                {selectedFiles.map((file, i) => (
+                                    <div key={i} className="relative">
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={`preview-${i}`}
+                                            className="w-16 h-16 object-cover rounded"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const updated = [...selectedFiles];
+                                                updated.splice(i, 1);
+                                                setSelectedFiles(updated);
+                                            }}
+                                            className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="flex justify-end gap-2">
                             <button
-                                onClick={() => setShowModalNota(false)}
+                                onClick={() => {
+                                    setSelectedFiles([]);
+                                    setShowModalNota(false);
+                                }}
                                 className="bg-gray-300 px-4 py-2 rounded"
                             >
                                 Cancelar
@@ -669,7 +742,6 @@ export default function AgendaPage() {
                     </div>
                 </div>
             )}
-
 
 
             {notaSeleccionada && (
@@ -697,53 +769,78 @@ export default function AgendaPage() {
                             maxHeight: '90vh',
                             overflowY: 'auto',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                            position: 'relative', // necesario para posicionar la "x"
                         }}
                     >
+                        {/* Botón X de cerrar */}
+                        <button
+                            onClick={() => setNotaSeleccionada(null)}
+                            style={{
+                                position: 'absolute',
+                                top: '12px',
+                                right: '16px',
+                                fontSize: '28px',
+                                fontWeight: 'bold',
+                                background: 'none',
+                                border: 'none',
+                                color: '#6b7280',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                            aria-label="Cerrar nota"
+                        >
+                            ×
+                        </button>
+
+                        {/* Título */}
                         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '12px' }}>
                             {notaSeleccionada.titulo}
                         </h2>
 
-                        <p style={{
-                            fontSize: '16px',
-                            color: '#374151',
-                            marginBottom: '16px',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                        }}>
+                        {/* Contenido */}
+                        <p
+                            style={{
+                                fontSize: '16px',
+                                color: '#374151',
+                                marginBottom: '16px',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                            }}
+                        >
                             {notaSeleccionada.contenido}
                         </p>
 
+                        {/* Imágenes */}
                         {notaSeleccionada.imagenes?.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '12px',
+                                    marginBottom: '20px',
+                                }}
+                            >
                                 {notaSeleccionada.imagenes.map((url, i) => (
                                     <img
                                         key={i}
                                         src={url}
                                         alt={`img-${i}`}
-                                        style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px' }}
+                                        style={{
+                                            width: '120px',
+                                            height: '120px',
+                                            objectFit: 'cover',
+                                            borderRadius: '8px',
+                                        }}
                                     />
                                 ))}
                             </div>
                         )}
-
-                        <div style={{ textAlign: 'right' }}>
-                            <button
-                                onClick={() => setNotaSeleccionada(null)}
-                                style={{
-                                    padding: '10px 20px',
-                                    backgroundColor: '#2563eb',
-                                    color: 'white',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Cerrar
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}
+
 
             {/* Modal Confirmación */}
             {confirmOpen && (
