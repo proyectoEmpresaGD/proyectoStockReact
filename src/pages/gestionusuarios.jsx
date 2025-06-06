@@ -1,10 +1,11 @@
+// Perfil.jsx
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '../Auth/AuthContext';
 import { Eye, EyeOff, Trash2, Edit3, Save } from 'lucide-react';
+import { FaUser, FaEnvelope, FaUserShield } from 'react-icons/fa';
 
 const Perfil = () => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const { logout, token } = useAuthContext();
     const [user, setUser] = useState(null);
     const [usuarios, setUsuarios] = useState([]);
@@ -22,13 +23,13 @@ const Perfil = () => {
     useEffect(() => {
         const fetchPerfil = async () => {
             try {
-                const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+                const res = await axios.get('/api/auth/me', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setUser(res.data);
 
                 if (res.data.role === 'admin') {
-                    const usersRes = await axios.get(`${API_BASE_URL}/api/auth/users`, {
+                    const usersRes = await axios.get('/api/auth/users', {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     setUsuarios(usersRes.data);
@@ -51,7 +52,7 @@ const Perfil = () => {
 
     const handleRoleChange = async (id, newRole) => {
         try {
-            await axios.post(`${API_BASE_URL}/api/auth/users/update-role`, { userId: id, newRole }, {
+            await axios.post('/api/auth/users/update-role', { userId: id, newRole }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.map(u => (u.id === id ? { ...u, role: newRole } : u)));
@@ -76,11 +77,11 @@ const Perfil = () => {
         }
 
         try {
-            await axios.post(`${API_BASE_URL}/api/auth/users/create`, newUser, {
+            await axios.post('/api/auth/users/create', newUser, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
+            const res = await axios.get('/api/auth/users', {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -101,7 +102,7 @@ const Perfil = () => {
 
     const handleDeleteConfirmed = async () => {
         try {
-            await axios.delete(`${API_BASE_URL}/api/auth/users/${userToDelete}`, {
+            await axios.delete(`/api/auth/users/${userToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setUsuarios(prev => prev.filter(u => u.id !== userToDelete));
@@ -121,6 +122,12 @@ const Perfil = () => {
             email: user.email,
             nombre: user.nombre
         });
+        setTimeout(() => {
+            const input = document.getElementById(`input-${user.id}`);
+            if (input) {
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
     };
 
     const handleSaveUser = async (id) => {
@@ -133,7 +140,7 @@ const Perfil = () => {
         }
 
         try {
-            await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, editUserData, {
+            await axios.put(`/api/auth/users/${id}`, editUserData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -166,7 +173,7 @@ const Perfil = () => {
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h3>
                             {notification && (
-                                <div className="mb-4 p-3 rounded bg-blue-100 text-blue-800 shadow">
+                                <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 text-blue-800 px-6 py-3 rounded shadow-lg">
                                     {notification}
                                 </div>
                             )}
@@ -182,48 +189,16 @@ const Perfil = () => {
                         {showCreateForm && (
                             <div className="bg-gray-100 p-4 rounded-lg mb-6">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Nombre"
-                                        className="p-2 border rounded"
-                                        value={newUser.nombre}
-                                        onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Usuario"
-                                        className="p-2 border rounded uppercase"
-                                        value={newUser.username}
-                                        onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toUpperCase() })}
-                                    />
-                                    <input
-                                        type="email"
-                                        placeholder="Email"
-                                        className="p-2 border rounded"
-                                        value={newUser.email}
-                                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                                    />
+                                    <input type="text" placeholder="Nombre" className="p-2 border rounded" value={newUser.nombre} onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })} />
+                                    <input type="text" placeholder="Usuario" className="p-2 border rounded uppercase" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toUpperCase() })} />
+                                    <input type="email" placeholder="Email" className="p-2 border rounded" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
                                     <div className="relative">
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            placeholder="Contraseña"
-                                            className="p-2 border rounded w-full uppercase"
-                                            value={newUser.password}
-                                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value.toUpperCase() })}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
+                                        <input type={showPassword ? 'text' : 'password'} placeholder="Contraseña" className="p-2 border rounded w-full uppercase" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value.toUpperCase() })} />
+                                        <button type="button" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600" onClick={() => setShowPassword(!showPassword)}>
                                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                         </button>
                                     </div>
-                                    <select
-                                        className="p-2 border rounded"
-                                        value={newUser.role}
-                                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                                    >
+                                    <select className="p-2 border rounded" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
                                         <option value="admin">admin</option>
                                         <option value="comercial">comercial</option>
                                         <option value="almacen">almacen</option>
@@ -231,22 +206,11 @@ const Perfil = () => {
                                         <option value="user">user</option>
                                     </select>
                                 </div>
-                                <button
-                                    onClick={handleCreateUser}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-                                >
-                                    Guardar Usuario
-                                </button>
+                                <button onClick={handleCreateUser} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">Guardar Usuario</button>
                             </div>
                         )}
 
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre de usuario..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="mb-4 w-full p-3 border border-gray-300 rounded shadow-sm"
-                        />
+                        <input type="text" placeholder="Buscar por nombre de usuario..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-4 w-full p-3 border border-gray-300 rounded shadow-sm" />
 
                         <div className="overflow-auto rounded-lg shadow">
                             <table className="min-w-full border border-gray-300 text-sm text-gray-700 bg-white table-auto">
@@ -257,53 +221,18 @@ const Perfil = () => {
                                         <th className="p-3 text-left">Email</th>
                                         <th className="p-3 text-left">Rol</th>
                                         <th className="p-3 text-left">Cambiar Rol</th>
-                                        <th className="p-3 text-left"></th>
-                                        <th className="p-3 text-left"></th>
+                                        <th className="p-3 text-left">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredUsuarios.map((u) => (
                                         <tr key={u.id} className="border-t hover:bg-gray-50">
-                                            <td className="p-3">
-                                                {editUserId === u.id ? (
-                                                    <input
-                                                        className="border p-1 rounded w-full"
-                                                        value={editUserData.nombre !== undefined ? editUserData.nombre : u.nombre}
-                                                        onChange={(e) => setEditUserData({ ...editUserData, nombre: e.target.value })}
-                                                    />
-                                                ) : (
-                                                    u.nombre
-                                                )}
-                                            </td>
-                                            <td className="p-3">
-                                                {editUserId === u.id ? (
-                                                    <input
-                                                        className="border p-1 rounded w-full"
-                                                        value={editUserData.username !== undefined ? editUserData.username : u.username}
-                                                        onChange={(e) => setEditUserData({ ...editUserData, username: e.target.value })}
-                                                    />
-                                                ) : (
-                                                    u.username
-                                                )}
-                                            </td>
-                                            <td className="p-3">
-                                                {editUserId === u.id ? (
-                                                    <input
-                                                        className="border p-1 rounded w-full"
-                                                        value={editUserData.email !== undefined ? editUserData.email : u.email}
-                                                        onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
-                                                    />
-                                                ) : (
-                                                    u.email
-                                                )}
-                                            </td>
+                                            <td className="p-3">{u.nombre}</td>
+                                            <td className="p-3">{u.username}</td>
+                                            <td className="p-3">{u.email}</td>
                                             <td className="p-3 capitalize">{u.role}</td>
                                             <td className="p-3">
-                                                <select
-                                                    value={u.role}
-                                                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                                    className="p-2 border rounded w-full"
-                                                >
+                                                <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} className="p-2 border rounded w-full">
                                                     <option value="admin">admin</option>
                                                     <option value="comercial">comercial</option>
                                                     <option value="almacen">almacen</option>
@@ -312,18 +241,8 @@ const Perfil = () => {
                                                 </select>
                                             </td>
                                             <td className="p-3 flex gap-2">
-                                                {editUserId === u.id ? (
-                                                    <button onClick={() => handleSaveUser(u.id)} className="text-blue-600 hover:text-blue-800">
-                                                        <Save size={18} />
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => handleEditUser(u)} className="text-gray-600 hover:text-gray-800">
-                                                        <Edit3 size={18} />
-                                                    </button>
-                                                )}
-                                                <button onClick={() => confirmDeleteUser(u.id)} className="text-red-600 hover:text-red-800">
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                <button onClick={() => handleEditUser(u)} className="text-gray-600 hover:text-gray-800"><Edit3 size={18} /></button>
+                                                <button onClick={() => confirmDeleteUser(u.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -331,24 +250,50 @@ const Perfil = () => {
                             </table>
                         </div>
 
+                        {editUserId && (
+                            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/40">
+                                <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+                                    <h2 className="text-xl font-semibold text-gray-800 mb-6">Editar Usuario</h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-700 text-sm">
+                                        <div className="flex items-center gap-3">
+                                            <FaUser className="text-gray-500 text-lg" />
+                                            <input type="text" placeholder="Nombre" className="border p-2 rounded w-full" value={editUserData.nombre} onChange={(e) => setEditUserData({ ...editUserData, nombre: e.target.value })} />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <FaUserShield className="text-gray-500 text-lg" />
+                                            <input type="text" placeholder="Usuario" className="border p-2 rounded w-full" value={editUserData.username} onChange={(e) => setEditUserData({ ...editUserData, username: e.target.value })} />
+                                        </div>
+                                        <div className="flex items-center gap-3 sm:col-span-2">
+                                            <FaEnvelope className="text-gray-500 text-lg" />
+                                            <input type="email" placeholder="Email" className="border p-2 rounded w-full" value={editUserData.email} onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })} />
+                                        </div>
+                                        <div className="flex items-center gap-3 sm:col-span-2">
+                                            <FaUserShield className="text-gray-500 text-lg" />
+                                            <select className="border p-2 rounded w-full" value={editUserData.role} onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}>
+                                                <option value="admin">admin</option>
+                                                <option value="comercial">comercial</option>
+                                                <option value="almacen">almacen</option>
+                                                <option value="ventas">ventas</option>
+                                                <option value="user">user</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-3 mt-6">
+                                        <button onClick={() => setEditUserId(null)} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">Cancelar</button>
+                                        <button onClick={() => handleSaveUser(editUserId)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Guardar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {showConfirmModal && (
                             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
                                 <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
                                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Confirmar eliminación</h2>
                                     <p className="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este usuario?</p>
                                     <div className="flex justify-end space-x-4">
-                                        <button
-                                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-                                            onClick={() => setShowConfirmModal(false)}
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                                            onClick={handleDeleteConfirmed}
-                                        >
-                                            Eliminar
-                                        </button>
+                                        <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded" onClick={() => setShowConfirmModal(false)}>Cancelar</button>
+                                        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded" onClick={handleDeleteConfirmed}>Eliminar</button>
                                     </div>
                                 </div>
                             </div>
@@ -358,6 +303,7 @@ const Perfil = () => {
             </div>
         </div>
     );
+
 };
 
 export default Perfil;

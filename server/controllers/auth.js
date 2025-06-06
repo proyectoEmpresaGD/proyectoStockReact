@@ -182,24 +182,52 @@ export class AuthController {
             res.status(500).json({ message: 'Error interno' });
         }
     }
-
     static async updateUser(req, res) {
         const { id } = req.params;
         const { nombre, username, email } = req.body;
 
-        if (!nombre || !username || !email) {
-            return res.status(400).json({ message: 'Campos incompletos' });
+        // Si no se envió ningún campo, devolvemos error
+        if (!nombre && !username && !email) {
+            return res.status(400).json({ message: 'No se enviaron datos para actualizar' });
         }
 
         try {
-            const updated = await UserModel.updateUser(id, { nombre, username, email });
-            if (!updated) {
+            const campos = [];
+            const valores = [];
+            let idx = 1;
+
+            if (nombre !== undefined) {
+                campos.push(`nombre = $${idx++}`);
+                valores.push(nombre);
+            }
+            if (username !== undefined) {
+                campos.push(`username = $${idx++}`);
+                valores.push(username);
+            }
+            if (email !== undefined) {
+                campos.push(`email = $${idx++}`);
+                valores.push(email);
+            }
+
+            valores.push(id);
+
+            const query = `
+            UPDATE usuarios 
+            SET ${campos.join(', ')}
+            WHERE id = $${idx}
+        `;
+
+            const result = await pool.query(query, valores);
+
+            if (result.rowCount === 0) {
                 return res.status(404).json({ message: 'Usuario no encontrado' });
             }
+
             res.json({ message: 'Usuario actualizado correctamente' });
         } catch (err) {
             console.error('Error actualizando usuario:', err);
             res.status(500).json({ message: 'Error interno' });
         }
     }
+
 }

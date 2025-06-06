@@ -2,15 +2,27 @@
 
 export class CalendarioModel {
     static async getCitasDeUsuario(userId) {
-        const { rows } = await globalThis.pool.query( // 👈 aquí
-            `SELECT id, descripcion, fecha
-       FROM visitas
-       WHERE created_by = $1 OR assigned_to = $1
-       ORDER BY fecha ASC`,
+        const { rows } = await globalThis.pool.query(
+            `SELECT 
+            v.id, 
+            v.descripcion, 
+            v.fecha, 
+            v.estado, 
+            v.cliente_id,  -- 👈 NECESARIO PARA EL TOOLTIP
+            c.razclien AS cliente_nombre
+         FROM visitas v
+         LEFT JOIN clientes c ON c.codclien = v.cliente_id
+         WHERE v.created_by = $1 OR v.assigned_to = $1
+         ORDER BY v.fecha ASC`,
             [userId]
         );
+
+        console.log('📤 Filas desde la BD con cliente_id:', rows);
+
         return rows;
     }
+
+
 
     static async crearCita({ descripcion, fecha, created_by }) {
         const { rows } = await globalThis.pool.query(

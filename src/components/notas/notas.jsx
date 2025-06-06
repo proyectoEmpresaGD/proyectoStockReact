@@ -25,7 +25,7 @@ function ImagenConLoader({ src, alt, onClick }) {
 }
 
 export default function NotasPage() {
-    const { token } = useAuthContext(); // ← Obtener token desde contexto
+    const { token } = useAuthContext();
 
     const [notas, setNotas] = useState([]);
     const [events, setEvents] = useState([]);
@@ -46,6 +46,23 @@ export default function NotasPage() {
     const [toRemoveImages, setToRemoveImages] = useState([]);
     const [subiendo, setSubiendo] = useState(false);
     const [visibleNotas, setVisibleNotas] = useState(9);
+    const [vistaNota, setVistaNota] = useState(null);
+    // Dentro de tu componente de citas o calendario
+    const [eventoRelacionado, setEventoRelacionado] = useState(null);
+
+    const abrirModalNota = (evento) => {
+        setEventoRelacionado(evento.id);  // 👈 Pasas el ID de la cita actual
+        setModalOpen(true);
+    };
+
+    const abrirVista = (nota) => setVistaNota(nota);
+    const cerrarVista = () => setVistaNota(null);
+    useEffect(() => {
+        if (modalOpen && eventoRelacionado) {
+            setLinkedEventIds([eventoRelacionado]);
+        }
+    }, [modalOpen, eventoRelacionado]);
+
 
     useEffect(() => {
         if (!token) return;
@@ -59,8 +76,8 @@ export default function NotasPage() {
                     ...n,
                     eventos: Array.isArray(n.eventos) ? n.eventos : [],
                     imagenes: Array.isArray(n.imagenes) ? n.imagenes : [],
-                    creado_en: typeof n.creado_en === 'string' ? n.creado_en : '',
-                    actualizado_en: typeof n.actualizado_en === 'string' ? n.actualizado_en : null
+                    creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
+                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
                 }));
                 const ordenadas = normNotas.sort((a, b) => {
                     const fechaA = new Date(a.actualizado_en || a.creado_en);
@@ -74,16 +91,26 @@ export default function NotasPage() {
             .finally(() => setLoading(false));
     }, [token]);
 
-    useEffect(() => {
-        if (!token) return;
 
-        fetch(`${API_BASE_URL}/api/calendario`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(r => r.json())
-            .then(eventosData => {
-                const regs = Array.isArray(eventosData) ? eventosData : eventosData.registros || [];
-                const evs = regs
+    useEffect(() => {
+        if (!token || token.length < 10) return;
+
+        const fetchEventos = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/calendario`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('⚠️ Error HTTP:', response.status, errorText);
+                    return;
+                }
+
+                const eventosData = await response.json();
+                const registros = Array.isArray(eventosData) ? eventosData : eventosData.registros || [];
+
+                const evs = registros
                     .filter(evt => typeof evt.fecha === 'string' && isValid(parseISO(evt.fecha)))
                     .map(evt => {
                         const fechaISO = parseISO(evt.fecha);
@@ -94,9 +121,14 @@ export default function NotasPage() {
                             label: `${evt.descripcion} – ${format(fechaISO, "d 'de' MMMM yyyy", { locale: es })}`
                         };
                     });
+
                 setEvents(evs);
-            })
-            .catch(console.error);
+            } catch (error) {
+                console.error('❌ Error al obtener citas:', error);
+            }
+        };
+
+        fetchEventos();
     }, [token]);
 
     useEffect(() => {
@@ -168,6 +200,21 @@ export default function NotasPage() {
 
         setSubiendo(true);
 
+        // Carga optimista
+        const tempId = Date.now();
+        const notaTemporal = {
+            id: tempId,
+            titulo,
+            contenido,
+            eventos: linkedEventIds,
+            imagenes: previews,
+            creado_en: new Date().toISOString(),
+            actualizado_en: null
+        };
+        if (!isEditing) {
+            setNotas(prev => [notaTemporal, ...prev]);
+        }
+
         const form = new FormData();
         form.append('titulo', titulo);
         form.append('contenido', contenido);
@@ -206,19 +253,20 @@ export default function NotasPage() {
                     ...nota,
                     eventos: Array.isArray(nota.eventos) ? nota.eventos : [],
                     imagenes: Array.isArray(nota.imagenes) ? nota.imagenes : [],
-                    creado_en: nota.creado_en || new Date().toISOString(),
-                    actualizado_en: nota.actualizado_en || null
+                    creado_en: nota.fechacreado || new Date().toISOString(),
+                    actualizado_en: nota.fechaactualizado || null
                 };
                 setNotas(prev =>
                     isEditing
                         ? prev.map(n => (n.id === editId ? clean : n))
-                        : [clean, ...prev]
+                        : [clean, ...prev.filter(n => n.id !== tempId)]
                 );
                 cerrarModal();
             })
             .catch(() => alert(`Error ${isEditing ? 'editando' : 'creando'} nota`))
             .finally(() => setSubiendo(false));
     };
+
 
     const confirmarBorrar = (nota) => {
         setToDelete(nota);
@@ -255,29 +303,38 @@ export default function NotasPage() {
 
 
     return (
-        <div className="relative p-6">
-            {/* Header */}
-            <div className="bg-white shadow rounded-lg p-6 mb-6">
-                <h1 className="text-2xl font-bold">Mis Notas</h1>
-            </div>
+        <div className="relative min-h-screen px-6 py-10 bg-gradient-to-br from-yellow-100 via-orange-100 to-yellow-50">
+            {/* Encabezado */}
+            <div className="bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200 rounded-xl px-6 py-4 mb-6 flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-800">📝 Mis Notas</h1>
+                <button
+                    onClick={abrirCrear}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 rounded-full shadow-md text-xl flex items-center justify-center transition-transform hover:scale-110 self-center"
+                >
+                    +
+                </button>
 
+            </div>
             {/* Filtros */}
             <div className="flex flex-wrap items-center gap-4 mb-6">
-                <input
-                    type="text"
-                    placeholder="🔍 Filtrar por título"
-                    className="border rounded px-3 py-2"
-                    value={filterName}
-                    onChange={e => setFilterName(e.target.value)}
-                />
+                <div className="flex items-center gap-2 border rounded-lg px-3 py-1 bg-white shadow-sm">
+                    <span className="text-gray-500">🔍</span>
+                    <input
+                        type="text"
+                        placeholder="Filtrar por título"
+                        className="outline-none bg-transparent"
+                        value={filterName}
+                        onChange={(e) => setFilterName(e.target.value)}
+                    />
+                </div>
                 <input
                     type="date"
-                    className="border rounded px-3 py-2"
+                    className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
                     value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
+                    onChange={(e) => setFilterDate(e.target.value)}
                 />
                 <button
-                    className="text-sm text-gray-500 underline"
+                    className="text-sm text-indigo-600 underline"
                     onClick={() => {
                         setFilterName('');
                         setFilterDate('');
@@ -286,6 +343,8 @@ export default function NotasPage() {
                     Limpiar filtros
                 </button>
             </div>
+
+            {/* Estado de carga / sin resultados */}
             {loading ? (
                 <div className="text-center text-gray-400 py-20 animate-pulse">Cargando tus notas...</div>
             ) : paginatedNotas.length === 0 ? (
@@ -295,80 +354,152 @@ export default function NotasPage() {
                         : 'No hay notas que coincidan con los filtros.'}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {paginatedNotas.map(n => (
-                        <div key={n.id} className="bg-white rounded-lg shadow p-4 flex flex-col">
-                            <div className="flex justify-between items-start">
-                                <h2 className="font-semibold text-lg mb-2 w-full truncate" title={n.titulo}>
-                                    {n.titulo}
-                                </h2>
-                                <div className="space-x-2 flex items-center">
-                                    <button onClick={() => abrirEditar(n)} className="text-blue-600 hover:text-blue-800">
-                                        <Pencil size={16} />
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {paginatedNotas.map((n) => (
+                            <div
+                                key={n.id}
+                                className="bg-white border border-gray-200 rounded-xl shadow-lg p-4 flex flex-col justify-between hover:shadow-xl hover:scale-[1.01] transition cursor-pointer"
+                                onClick={(e) => {
+                                    if (e.target.closest('button')) return;
+                                    abrirVista(n);
+                                }}
+                            >
+                                {/* Fecha */}
+                                {n.creado_en && isValid(parseISO(n.creado_en)) && (
+                                    <small className="text-gray-400 text-xs mb-2">
+                                        {format(parseISO(n.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", { locale: es })}
+                                    </small>
+                                )}
+                                {/* Título */}
+                                <h2 className="font-bold text-lg text-gray-800 break-words line-clamp-2 mb-1">{n.titulo}</h2>
+                                {/* Contenido */}
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-3">{n.contenido}</p>
+                                {/* Imágenes */}
+                                {n.imagenes.length > 0 && (
+                                    <div className="flex gap-2 mb-2">
+                                        {n.imagenes.map((url, i) => (
+                                            <img
+                                                key={i}
+                                                src={`${url}?v=${n.actualizado_en || n.creado_en}`}
+                                                alt={`img-${i}`}
+                                                className="w-14 h-14 object-cover rounded shadow-sm hover:scale-105 transition cursor-pointer"
+                                                onClick={() => window.open(url, '_blank')}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                                {/* Eventos */}
+                                {n.eventos.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mb-3">
+                                        {n.eventos.map((eid) => {
+                                            const ev = events.find((e) => String(e.id) === String(eid));
+                                            return (
+                                                <span
+                                                    key={eid}
+                                                    className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full"
+                                                >
+                                                    {ev?.label ?? eid}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {/* Acciones */}
+                                <div className="flex justify-end items-center mt-auto pt-2 gap-3">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            abrirEditar(n);
+                                        }}
+                                        className="text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        <Pencil size={18} />
                                     </button>
-                                    <button onClick={() => confirmarBorrar(n)} className="text-red-600 hover:text-red-800">
-                                        <Trash2 size={16} />
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            confirmarBorrar(n);
+                                        }}
+                                        className="text-red-500 hover:text-red-700"
+                                    >
+                                        <Trash2 size={18} />
                                     </button>
                                 </div>
                             </div>
-                            <p className="flex-1 mb-2 overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                                {n.contenido}
-                            </p>
-                            {n.imagenes.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {n.imagenes.map((url, i) => (
-                                        <ImagenConLoader
-                                            key={i}
-                                            src={`${url}?v=${n.actualizado_en || n.creado_en}`}
-                                            alt={`img-${i}`}
-                                            onClick={() => window.open(url, '_blank')}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {n.eventos.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                    {n.eventos.map(eid => {
-                                        const ev = events.find(e => String(e.id) === String(eid));
-                                        return (
-                                            <span key={eid} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                                {ev?.label ?? eid}
-                                            </span>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                            {n.creado_en && isValid(parseISO(n.creado_en)) && (
-                                <small className="text-gray-400">
-                                    {format(parseISO(n.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", { locale: es })}
-                                </small>
-                            )}
+                        ))}
+                    </div>
+
+                    {/* Botón Ver más */}
+                    {filteredNotas.length > visibleNotas && (
+                        <div className="text-center mt-8">
+                            <button
+                                onClick={() => setVisibleNotas(prev => prev + 6)}
+                                className="bg-indigo-600 text-white px-4 py-2 rounded-full shadow hover:bg-indigo-700 transition"
+                            >
+                                Ver más notas
+                            </button>
                         </div>
-                    ))}
+                    )}
+                </>
+            )}
+            {vistaNota && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-2xl p-6 w-full max-w-4xl space-y-4 overflow-y-auto max-h-[95vh]">
+                        <button
+                            onClick={cerrarVista}
+                            className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl"
+                        >
+                            ×
+                        </button>
+
+                        {/* Título */}
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2 break-words">{vistaNota.titulo}</h2>
+
+                        {/* Contenido */}
+                        <div className="text-sm text-gray-700 mb-4 whitespace-pre-wrap break-words">{vistaNota.contenido}</div>
+
+                        {/* Imágenes */}
+                        {vistaNota.imagenes.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {vistaNota.imagenes.map((url, i) => (
+                                    <img
+                                        key={i}
+                                        src={url}
+                                        alt={`preview-${i}`}
+                                        className="w-32 h-32 object-cover rounded shadow cursor-pointer hover:scale-105 transition"
+                                        onClick={() => window.open(url, '_blank')}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Eventos */}
+                        {vistaNota.eventos.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {vistaNota.eventos.map((eid) => {
+                                    const ev = events.find((e) => String(e.id) === String(eid));
+                                    return (
+                                        <span
+                                            key={eid}
+                                            className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
+                                        >
+                                            {ev?.label ?? eid}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Fecha */}
+                        <p className="mt-auto text-xs text-gray-400">
+                            Creado el: {format(parseISO(vistaNota.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", { locale: es })}
+                        </p>
+                    </div>
                 </div>
             )}
 
-            {/* Botón ver más */}
-            {visibleNotas < filteredNotas.length && (
-                <div className="text-center mt-6">
-                    <button
-                        onClick={mostrarMasNotas}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-                    >
-                        Ver más notas
-                    </button>
-                </div>
-            )}
 
-            {/* Botón crear */}
-            <button
-                onClick={abrirCrear}
-                className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-3xl"
-            >
-                +
-            </button>
-
-            {/* Modal Crear/Editar */}
             {modalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl space-y-4 overflow-y-auto max-h-[95vh]">
@@ -395,7 +526,7 @@ export default function NotasPage() {
                                 isMulti
                                 options={Array.from(
                                     events.reduce((acc, ev) => {
-                                        if (!acc.has(ev.mes)) acc.set(ev.mes, []); // ✅ CAMPO CORRECTO
+                                        if (!acc.has(ev.mes)) acc.set(ev.mes, []);
                                         acc.get(ev.mes).push({
                                             value: ev.id,
                                             label: ev.label
@@ -405,7 +536,9 @@ export default function NotasPage() {
                                 ).map(([mes, opciones]) => ({ label: mes, options: opciones }))}
 
                                 value={events
-                                    .filter(ev => linkedEventIds.includes(ev.id))
+                                    .filter(ev =>
+                                        (eventoRelacionado ? [eventoRelacionado] : linkedEventIds).includes(ev.id)
+                                    )
                                     .map(ev => ({
                                         value: ev.id,
                                         label: `${format(parseISO(ev.fecha), "d 'de' MMMM yyyy", { locale: es })} – ${ev.label.split('–')[0]}`
@@ -436,7 +569,6 @@ export default function NotasPage() {
                                 }}
                             />
 
-                            {/* Previsualización de nuevas imágenes */}
                             {previews.length > 0 && (
                                 <div className="flex gap-2 mt-2">
                                     {previews.map((url, i) => (
@@ -462,7 +594,6 @@ export default function NotasPage() {
                                 </div>
                             )}
 
-                            {/* Imágenes existentes */}
                             {existingImages.length > 0 && (
                                 <div className="flex gap-2 mt-2">
                                     {existingImages.map((url, i) => (
@@ -497,22 +628,6 @@ export default function NotasPage() {
                 </div>
             )}
 
-            {/* Confirmación borrado */}
-            {confirmOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-xs text-center">
-                        <p className="mb-4 text-lg">¿Deseas eliminar esta nota?</p>
-                        <div className="flex justify-center space-x-3">
-                            <button onClick={() => setConfirmOpen(false)} className="px-4 py-2 bg-gray-300 text-gray-800 rounded">
-                                Cancelar
-                            </button>
-                            <button onClick={borrar} className="px-4 py-2 bg-red-500 text-white rounded">
-                                Sí, eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 

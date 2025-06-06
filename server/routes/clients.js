@@ -68,9 +68,15 @@ export const createClienteRouter = () => {
         next();
     }, clienteController.delete.bind(clienteController));
 
-    // Ruta para obtener los detalles de un cliente específico (debe estar al final)
+    // Rutas más específicas deben ir primero
+    clienteRouter.get('/detalle/:codclien', authMiddleware, (req, res, next) => {
+        req.requiredRole = 'comercial';
+        next();
+    }, clienteController.getByCodclien.bind(clienteController));
+
+    // Luego las más generales
     clienteRouter.get('/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
+        req.requiredRole = 'comercial';
         next();
     }, clienteController.getById.bind(clienteController));
 

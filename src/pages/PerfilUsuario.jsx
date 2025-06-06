@@ -6,6 +6,9 @@ import { FaUser, FaEnvelope, FaUserShield, FaSignOutAlt } from 'react-icons/fa';
 const PerfilUsuario = () => {
     const { logout } = useAuthContext();
     const [user, setUser] = useState(null);
+    const [showModalEdit, setShowModalEdit] = useState(false);
+    const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
+
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -35,6 +38,39 @@ const PerfilUsuario = () => {
             </div>
         );
     }
+    const handleEditUser = (user) => {
+        setSelectedUserToEdit({
+            id: user.id,
+            nombre: user.nombre || '',
+            username: user.username || '',
+            email: user.email || ''
+        });
+        setShowModalEdit(true);
+    };
+    const handleSaveUserFromModal = async () => {
+        const { id, nombre, username, email } = selectedUserToEdit;
+
+        try {
+            await axios.put(`/api/auth/users/${id}`, {
+                nombre: nombre.trim(),
+                username: username.trim(),
+                email: email.trim()
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const res = await axios.get('/api/auth/users', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setUsuarios(res.data);
+            setShowModalEdit(false);
+            setNotification('Usuario actualizado correctamente');
+        } catch (err) {
+            console.error('Error al actualizar usuario:', err);
+            showNotif('Error al actualizar el usuario');
+        }
+    };
 
 
     return (

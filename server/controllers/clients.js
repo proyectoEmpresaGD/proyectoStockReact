@@ -51,20 +51,25 @@ export class ClienteController {
             res.status(500).json({ error: 'Error searching clients' });
         }
     }
-
     async getByCodclien(req, res) {
         try {
             const { codclien } = req.params;
+            console.log('[GET Cliente] codclien recibido:', codclien); // ✅ Añade este log
+
             const cliente = await ClienteModel.getByCodclien({ codclien });
+
             if (cliente) {
                 res.json(cliente);
             } else {
-                res.status(404).json({ message: 'Client not found' });
+                res.status(404).json({ message: 'Client not found' }); // ✅ Devuelve JSON
             }
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('❌ Error en getByCodclien:', error);
+            res.status(500).json({ error: 'Internal server error' }); // ✅ Siempre JSON
         }
     }
+
+
 
     async create(req, res) {
         try {

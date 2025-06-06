@@ -102,10 +102,13 @@ export class VisitaModel {
     static async getCalendarVisitsByUser(userId) {
         try {
             const query = `
-            SELECT v.id,
-                   v.descripcion,
-                   v.fecha,
-                   c.razclien AS cliente_nombre
+            SELECT 
+                v.id,
+                v.descripcion,
+                v.fecha,
+                v.estado, 
+                v.cliente_id,
+                c.razclien AS cliente_nombre
             FROM visitas v
             LEFT JOIN clientes c ON v.cliente_id = c.codclien
             WHERE v.fecha IS NOT NULL
@@ -119,6 +122,7 @@ export class VisitaModel {
             throw new Error('Error fetching calendar visits');
         }
     }
+
 
 
 }

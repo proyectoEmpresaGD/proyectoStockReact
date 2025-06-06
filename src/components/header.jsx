@@ -11,7 +11,7 @@ function Header({ toggleSidebar }) {
                 <FaBars />
             </button>
             <Link to="/" className="h-full flex items-center">
-                <img src="https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJM_group.png" alt="Logo" className="h-14 w-auto" />
+                <img src="https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoCJM_group.png" alt="Logo" className="h-14 w-auto" />
 
             </Link>
             <button onClick={logout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700 duration-200 mr-4">

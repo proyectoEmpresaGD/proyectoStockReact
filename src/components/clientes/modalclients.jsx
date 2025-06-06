@@ -3,7 +3,6 @@ import { Tab } from '@headlessui/react';
 import { AiOutlineClose } from 'react-icons/ai';
 import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
 import * as XLSX from 'xlsx'; // <-- import para generar Excel
-
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }

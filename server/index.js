@@ -30,6 +30,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+globalThis.pool = pool; // ✅ Añade esta línea aquí
 
 const app = express();
 app.use(json());

@@ -1,19 +1,21 @@
 import { CalendarioModel } from '../models/Postgres/calendario.js';
 
 export class CalendarioController {
-    // GET /api/calendario
     async getAll(req, res) {
         try {
-            const userId = req.user.id;
+            const userId = req.user?.id;
+            if (!userId) return res.status(401).json({ error: 'Token sin userId' });
 
             const registros = await CalendarioModel.getCitasDeUsuario(userId);
+            console.log('🚨 registros con estado:', registros);
 
-            return res.json({ registros });
+            return res.json(registros);
         } catch (err) {
-            console.error('Error Neon getAll:', err);
+            console.error('💥 Error en getAll calendario:', err);
             return res.status(500).json({ error: 'Error cargando eventos desde PostgreSQL' });
         }
     }
+
 
     // POST /api/calendario
     async create(req, res) {
