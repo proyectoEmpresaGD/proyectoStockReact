@@ -27,6 +27,8 @@ import PerfilUsuario from './pages/PerfilUsuario.jsx';
 import AgendaPage from './pages/paginaagenda.jsx';
 import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
+import FicharPage from './pages/Fichar.jsx'
+
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -70,7 +72,7 @@ function App() {
                       <Route path="/agenda" element={<AgendaPage />} />
                       <Route path="/notas" element={<NotasPage />} />
                       <Route path="/gestionusuarios" element={<Perfil />} />
-
+                      <Route path="/fichar" element={<FicharPage />} />
                     </Routes>
                   </div>
                 </div>

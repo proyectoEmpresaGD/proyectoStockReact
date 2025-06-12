@@ -69,15 +69,15 @@ function SearchBar({
     };
 
     return (
-        <div ref={wrapperRef} className="relative mx-auto w-3/4" role="search">
+        <div ref={wrapperRef} className="relative w-full" role="search">
             <input
                 type="text"
                 aria-label="Buscar por nombre o código de cliente"
-                placeholder="Buscar por Nombre o Código"
+                placeholder="Buscar cliente por nombre"
                 value={searchTerm}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                className="w-full p-2 border rounded text-center border-gray-300 text-gray-700 font-bold bg-gray-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded text-sm border-gray-300 text-gray-800 font-medium bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {showSuggestions && suggestions.length > 0 && (
                 <ul

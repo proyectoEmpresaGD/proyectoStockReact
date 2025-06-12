@@ -140,6 +140,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'configuraciones',
             links: [
                 { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+                { to: '/fichar', label: 'Fichar', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
                 {
                     to: '/perfilusuario',
                     label: 'Perfil de Usuario',

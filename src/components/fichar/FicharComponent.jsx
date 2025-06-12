@@ -10,6 +10,7 @@ const FicharComponent = () => {
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
     const [totalHoras, setTotalHoras] = useState(0);
+
     var nada;
 
     useEffect(() => {
@@ -43,6 +44,7 @@ const FicharComponent = () => {
             console.error('Error fetching fichajes:', error);
         }
     };
+
 
     const getMadridTime = () => {
         return moment().tz('Europe/Madrid').format();
@@ -166,10 +168,10 @@ const FicharComponent = () => {
 
         // Crear tabla manualmente
         doc.text('Día', 20, startY);
-        doc.text('Hora Entrada Mañana', 20 + columnWidth, startY);
-        doc.text('Hora Salida Mañana', 20 + 2 * columnWidth, startY);
-        doc.text('Hora Entrada Tarde', 20 + 3 * columnWidth, startY);
-        doc.text('Hora Salida Tarde', 20 + 4 * columnWidth, startY);
+        doc.text('Entrada Mañana', 20 + columnWidth, startY);
+        doc.text('Salida Mañana', 20 + 2 * columnWidth, startY);
+        doc.text('Entrada Tarde', 20 + 3 * columnWidth, startY);
+        doc.text('Salida Tarde', 20 + 4 * columnWidth, startY);
         doc.text('Firma', 20 + 5 * columnWidth, startY);
 
         let rowY = startY + 10;
@@ -190,10 +192,10 @@ const FicharComponent = () => {
                 doc.addPage();
                 rowY = 20; // Reiniciar la posición Y en la nueva página
                 doc.text('Día', 20, rowY);
-                doc.text('Hora Entrada Mañana', 20 + columnWidth, rowY);
-                doc.text('Hora Salida Mañana', 20 + 2 * columnWidth, rowY);
-                doc.text('Hora Entrada Tarde', 20 + 3 * columnWidth, rowY);
-                doc.text('Hora Salida Tarde', 20 + 4 * columnWidth, rowY);
+                doc.text('Entrada Mañana', 20 + columnWidth, rowY);
+                doc.text('Salida Mañana', 20 + 2 * columnWidth, rowY);
+                doc.text('Entrada Tarde', 20 + 3 * columnWidth, rowY);
+                doc.text('Salida Tarde', 20 + 4 * columnWidth, rowY);
                 doc.text('Firma', 20 + 5 * columnWidth, rowY);
                 rowY += 10;
             }
@@ -217,6 +219,77 @@ const FicharComponent = () => {
         doc.save('registro_horas.pdf');
     };
 
+    const renderFichajesTable = () => {
+        if (fichajes.length === 0) {
+            return <p className="text-center text-gray-500">No hay fichajes registrados.</p>;
+        }
+
+        const daysInMonth = new Date().getDate(); // Días hasta hoy
+        const groupedByDay = {};
+
+        // Agrupar fichajes por día
+        fichajes.forEach(fichaje => {
+            const day = new Date(fichaje.timestamp).getDate();
+            if (!groupedByDay[day]) {
+                groupedByDay[day] = [];
+            }
+            groupedByDay[day].push(fichaje);
+        });
+
+        return (
+            <div className="overflow-x-auto">
+                <table className="min-w-full table-auto border border-collapse border-gray-300 text-sm">
+                    <thead className="bg-gray-200">
+                        <tr className="text-center">
+                            <th className="border px-2 py-1">Día</th>
+                            <th className="border px-2 py-1">Entrada Mañana</th>
+                            <th className="border px-2 py-1">Salida Mañana</th>
+                            <th className="border px-2 py-1">Entrada Tarde</th>
+                            <th className="border px-2 py-1">Salida Tarde</th>
+                            <th className="border px-2 py-1">Firma</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {[...Array(daysInMonth).keys()].map(i => {
+                            const day = i + 1;
+                            const fichajesDia = groupedByDay[day] || [];
+
+                            const morningEntrada = fichajesDia.find(f => f.tipo === 'entrada' && new Date(f.timestamp).getHours() < 12);
+                            const morningSalida = fichajesDia.find(f => f.tipo === 'salida' && new Date(f.timestamp).getHours() < 12);
+                            const afternoonEntrada = fichajesDia.find(f => f.tipo === 'entrada' && new Date(f.timestamp).getHours() >= 12);
+                            const afternoonSalida = fichajesDia.find(f => f.tipo === 'salida' && new Date(f.timestamp).getHours() >= 12);
+
+                            const firma = afternoonSalida?.firma || morningSalida?.firma;
+
+                            return (
+                                <tr key={day} className="text-center">
+                                    <td className="border px-2 py-1">{day}</td>
+                                    <td className="border px-2 py-1">
+                                        {morningEntrada ? moment(morningEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}
+                                    </td>
+                                    <td className="border px-2 py-1">
+                                        {morningSalida ? moment(morningSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}
+                                    </td>
+                                    <td className="border px-2 py-1">
+                                        {afternoonEntrada ? moment(afternoonEntrada.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}
+                                    </td>
+                                    <td className="border px-2 py-1">
+                                        {afternoonSalida ? moment(afternoonSalida.timestamp).tz('Europe/Madrid').format('HH:mm:ss') : ''}
+                                    </td>
+                                    <td className="border px-2 py-1">
+                                        {firma ? (
+                                            <img src={firma} alt="Firma" className="h-8 mx-auto" />
+                                        ) : ''}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4 text-center">Registro de Horas</h1>
@@ -228,6 +301,7 @@ const FicharComponent = () => {
             <div className="mt-4">
                 <h2 className="text-xl font-bold mb-2 text-center">Historial de Fichajes</h2>
                 {renderFichajesTable()}
+
             </div>
             <FirmaModal
                 isOpen={showSignatureModal}

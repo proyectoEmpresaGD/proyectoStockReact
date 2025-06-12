@@ -1,4 +1,4 @@
-import FicharComponent from '../components/FicharComponent.jsx';
+import FicharComponent from '../components/fichar/FicharComponent';
 
 const FicharPage = () => {
     return (

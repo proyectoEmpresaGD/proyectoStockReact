@@ -146,7 +146,9 @@ export default function NotasPage() {
             const dateMatch = filterDate
                 ? n.eventos.some(eid => {
                     const ev = events.find(e => String(e.id) === String(eid));
-                    return ev?.fecha === filterDate;
+                    if (!ev?.fecha) return false;
+                    const fechaEvento = format(parseISO(ev.fecha), 'yyyy-MM-dd');
+                    return fechaEvento === filterDate;
                 })
                 : false;
             if (!filterName && !filterDate) return true;
@@ -303,7 +305,7 @@ export default function NotasPage() {
 
 
     return (
-        <div className="relative min-h-screen px-6 py-10 bg-gradient-to-br from-yellow-100 via-orange-100 to-yellow-50">
+        <div className="relative min-h-screen px-6 py-10 ">
             {/* Encabezado */}
             <div className="bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200 rounded-xl px-6 py-4 mb-6 flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-800">📝 Mis Notas</h1>
@@ -563,21 +565,50 @@ export default function NotasPage() {
                         {/* Imágenes */}
                         <div>
                             <label className="block mb-1 font-medium">Imágenes (max 3):</label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={e => {
-                                    const selected = Array.from(e.target.files);
-                                    const total = files.length + existingImages.length + selected.length;
-                                    if (total > 3) {
-                                        alert('Máximo 3 imágenes por nota');
-                                        return;
-                                    }
-                                    setFiles(prev => [...prev, ...selected]);
-                                    setPreviews(prev => [...prev, ...selected.map(f => URL.createObjectURL(f))]);
-                                }}
-                            />
+                            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                                {/* Botón para tomar foto con la cámara (móviles) */}
+                                <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow cursor-pointer">
+                                    📷 Tomar foto
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        onChange={e => {
+                                            const files = Array.from(e.target.files);
+                                            const total = files.length + existingImages.length + previews.length;
+                                            if (total > 3) {
+                                                alert('Máximo 3 imágenes por nota');
+                                                return;
+                                            }
+                                            setFiles(prev => [...prev, ...files]);
+                                            setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                                        }}
+                                    />
+                                </label>
+
+                                {/* Botón para subir desde galería */}
+                                <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow cursor-pointer">
+                                    🖼️ Subir imagen
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={e => {
+                                            const files = Array.from(e.target.files);
+                                            const total = files.length + existingImages.length + previews.length;
+                                            if (total > 3) {
+                                                alert('Máximo 3 imágenes por nota');
+                                                return;
+                                            }
+                                            setFiles(prev => [...prev, ...files]);
+                                            setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                                        }}
+                                    />
+                                </label>
+                            </div>
+
 
                             {previews.length > 0 && (
                                 <div className="flex gap-2 mt-2">

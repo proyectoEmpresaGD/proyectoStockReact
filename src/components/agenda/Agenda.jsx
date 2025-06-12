@@ -6,8 +6,9 @@ import Select from 'react-select';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../../assets/Calendario.css';
 import { useAuthContext } from '../../Auth/AuthContext';
-import SearchBar from '../clientes/SearchBarClients';
+import SearchBar from './SearchBarClientsNotas';
 import ClientModal from '../clientes/modalclients';
+import { FiCamera, FiUpload } from 'react-icons/fi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -62,6 +63,8 @@ export default function AgendaPage() {
     const [clienteInfo, setClienteInfo] = useState(null);
     const [mostrarModalCliente, setMostrarModalCliente] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState([]);
+    const [mostrarProximos, setMostrarProximos] = useState(false);
+
     const cameraInputRef = useRef(null);
 
 
@@ -132,19 +135,25 @@ export default function AgendaPage() {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
+    const fetchClientes = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/clients`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            const listaClientes = Array.isArray(data) ? data : Array.isArray(data.clients) ? data.clients : [];
+            const opciones = listaClientes.map(c => ({ value: c.codclien, label: c.razclien }));
+            setClientes(opciones);
+        } catch (err) {
+            console.error('Error cargando clientes:', err);
+        }
+    };
+
     useEffect(() => {
         if (!token) return;
-        fetch(`${API_BASE_URL}/api/clients`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(res => res.json())
-            .then(data => {
-                const listaClientes = Array.isArray(data) ? data : Array.isArray(data.clients) ? data.clients : [];
-                const opciones = listaClientes.map(c => ({ value: c.codclien, label: c.razclien }));
-                setClientes(opciones);
-            })
-            .catch(err => console.error('Error cargando clientes:', err));
+        fetchClientes();
     }, [token]);
+
 
     useEffect(() => {
         if (!token) return;
@@ -154,7 +163,6 @@ export default function AgendaPage() {
         })
             .then(res => res.json())
             .then(data => {
-
                 const evts = data
                     .filter(evt => evt.fecha)
                     .map(evt => {
@@ -168,10 +176,9 @@ export default function AgendaPage() {
                             title: evt.descripcion || '(Sin descripción)',
                             estado: evt.estado || 'pendiente',
                             cliente_nombre: evt.cliente_nombre || '',
-                            codclien: evt.codclien || evt.cliente_id || null  // 👈 AÑADE ESTA LÍNEA
+                            codclien: evt.codclien || evt.cliente_id || null // 👈
                         };
                     });
-
 
                 setEventos(evts);
 
@@ -180,7 +187,7 @@ export default function AgendaPage() {
                     start: e.start.toISOString(),
                     end: e.end.toISOString(),
                 }))));
-            })
+            });
     }, [token]);
 
 
@@ -254,9 +261,14 @@ export default function AgendaPage() {
                 setEventos(ev => ev.map(e => e.id === tempId ? {
                     ...e,
                     start: nuevaFecha,
-                    end: nuevaFecha,
-                    title: d.descripcion,
+                    end: new Date(nuevaFecha.getTime() + 60 * 60 * 1000),
+                    title: d.descripcion || newTitle,
+                    descripcion: d.descripcion || newTitle,
+                    cliente_nombre: clienteSeleccionado.label,
+                    codclien: clienteSeleccionado.value
                 } : e));
+
+                setSlot(null);
 
                 if (notificarAlCrear) {
                     let tiempo = notiPersonalizada ? new Date(notiPersonalizada) : nuevaFecha;
@@ -338,7 +350,15 @@ export default function AgendaPage() {
 
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-4 text-center">Mi Agenda</h1>
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-3xl font-bold text-center">Mi Agenda</h1>
+                <button
+                    onClick={() => setMostrarProximos(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm shadow"
+                >
+                    📆 Eventos próximos
+                </button>
+            </div>
 
             <div className="border rounded-lg shadow p-2 mb-4 h-[550px] sm:h-[600px] md:h-[700px] overflow-x-auto">
                 <div className="min-w-[350px] w-full">
@@ -352,11 +372,15 @@ export default function AgendaPage() {
                         selectable
                         view={view}
                         onView={setView}
-                        onSelectSlot={si => {
+                        onSelectSlot={async (si) => {
+                            if (clientes.length === 0) {
+                                await fetchClientes();
+                            }
                             setSlot(si);
                             setNewTitle('');
                             setClienteSeleccionado(null);
                         }}
+
                         onSelectEvent={evt => setSelectedEvent(evt)}
                         components={{
                             event: EventComponent
@@ -373,69 +397,131 @@ export default function AgendaPage() {
             {/* Modal Crear */}
             {slot && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-                        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Editar visita' : 'Nueva visita'}</h2>
-                        <input
-                            type="text"
-                            className="w-full border rounded px-3 py-2 mb-4"
-                            placeholder="Descripción de la visita"
-                            value={newTitle}
-                            onChange={e => setNewTitle(e.target.value)}
-                        />
-                        <input
-                            type="time"
-                            className="w-full border rounded px-3 py-2 mb-4"
-                            value={horaSeleccionada}
-                            onChange={e => setHoraSeleccionada(e.target.value)}
-                        />
-                        {/* SearchBar en lugar de Select */}
-                        <SearchBar
-                            searchTerm={searchTerm}
-                            setSearchTerm={setSearchTerm}
-                            suggestions={suggestions}
-                            setSuggestions={setSuggestions}
-                            handleSuggestionClick={(client) =>
-                                setClienteSeleccionado({ value: client.codclien, label: client.razclien })
-                            }
-                            handleSearchEnter={() => { }}
-                        />
-                        <label className="flex items-center mb-2">
+                    {clientes.length === 0 ? (
+                        <div className="bg-white p-6 rounded shadow text-center">
+                            <p className="text-gray-700 text-lg">⏳ Cargando clientes...</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+                            <h2 className="text-xl font-bold mb-4">
+                                {isEditing ? 'Editar visita' : 'Nueva visita'}
+                            </h2>
+
                             <input
-                                type="checkbox"
-                                className="mr-2"
-                                checked={notificarAlCrear}
-                                onChange={e => setNotificarAlCrear(e.target.checked)}
+                                type="text"
+                                className="w-full border rounded px-3 py-2 mb-4"
+                                placeholder="Descripción de la visita"
+                                value={newTitle}
+                                onChange={e => setNewTitle(e.target.value)}
                             />
-                            Notificarme a la hora del evento
-                        </label>
-                        {notificarAlCrear && (
-                            <div className="mb-4">
-                                <label className="block mb-1 text-sm">Opcional: Notificar en otra hora</label>
+
+                            <input
+                                type="time"
+                                className="w-full border rounded px-3 py-2 mb-4"
+                                value={horaSeleccionada}
+                                onChange={e => setHoraSeleccionada(e.target.value)}
+                            />
+
+                            {/* SearchBar en lugar de Select */}
+                            <SearchBar
+                                searchTerm={searchTerm}
+                                setSearchTerm={setSearchTerm}
+                                suggestions={suggestions}
+                                setSuggestions={setSuggestions}
+                                handleSuggestionClick={(client) =>
+                                    setClienteSeleccionado({ value: client.codclien, label: client.razclien })
+                                }
+                                handleSearchEnter={() => { }}
+                            />
+
+                            <label className="flex items-center mb-2">
                                 <input
-                                    type="datetime-local"
-                                    className="w-full border px-3 py-2 rounded"
-                                    value={notiPersonalizada || ''}
-                                    onChange={e => setNotiPersonalizada(e.target.value)}
+                                    type="checkbox"
+                                    className="mr-2"
+                                    checked={notificarAlCrear}
+                                    onChange={e => setNotificarAlCrear(e.target.checked)}
                                 />
+                                Notificarme a la hora del evento
+                            </label>
+
+                            {notificarAlCrear && (
+                                <div className="mb-4">
+                                    <label className="block mb-1 text-sm">
+                                        Opcional: Notificar en otra hora
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        className="w-full border px-3 py-2 rounded"
+                                        value={notiPersonalizada || ''}
+                                        onChange={e => setNotiPersonalizada(e.target.value)}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="flex justify-end space-x-2">
+                                <button
+                                    onClick={() => setSlot(null)}
+                                    className="px-4 py-2 bg-gray-400 text-white rounded"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={crearEvento}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                                >
+                                    {isEditing ? 'Actualizar' : 'Crear'}
+                                </button>
                             </div>
-                        )}
-                        <div className="flex justify-end space-x-2">
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {mostrarProximos && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">📅 Eventos próximos (2 meses)</h2>
                             <button
-                                onClick={() => setSlot(null)}
-                                className="px-4 py-2 bg-gray-400 text-white rounded"
+                                onClick={() => setMostrarProximos(false)}
+                                className="text-gray-500 hover:text-red-600 font-bold text-2xl"
                             >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={crearEvento}
-                                className="px-4 py-2 bg-blue-600 text-white rounded"
-                            >
-                                {isEditing ? 'Actualizar' : 'Crear'}
+                                ×
                             </button>
                         </div>
+
+                        {eventos.filter(e => {
+                            const now = new Date();
+                            const dosMeses = new Date();
+                            dosMeses.setMonth(now.getMonth() + 2);
+                            return e.start >= now && e.start <= dosMeses;
+                        }).length === 0 ? (
+                            <p className="text-gray-500">No hay eventos próximos registrados.</p>
+                        ) : (
+                            <ul className="divide-y divide-gray-200">
+                                {eventos
+                                    .filter(e => {
+                                        const now = new Date();
+                                        const dosMeses = new Date();
+                                        dosMeses.setMonth(now.getMonth() + 2);
+                                        return e.start >= now && e.start <= dosMeses;
+                                    })
+                                    .sort((a, b) => a.start - b.start)
+                                    .map((e, i) => (
+                                        <li key={i} className="py-2">
+                                            <p className="text-sm font-medium text-gray-800">{format(e.start, 'PPPpp', { locale: es })}</p>
+                                            <p className="text-sm text-gray-600">{e.title}</p>
+                                            {e.cliente_nombre && (
+                                                <p className="text-xs text-gray-500">👤 {e.cliente_nombre}</p>
+                                            )}
+                                        </li>
+                                    ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
             )}
+
             {selectedEvent && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
                     <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-4xl min-h-[400px] max-h-[90vh] overflow-hidden">
@@ -608,8 +694,13 @@ export default function AgendaPage() {
                         </div>
 
                         <div className="flex justify-end space-x-2 mt-6">
-                            <button onClick={() => setConfirmOpen(true)} className="px-4 py-2 bg-red-500 text-white rounded">
-                                Eliminar
+                            <button
+                                onClick={() => {
+                                    setToDelete(selectedEvent);   // 👈 Esto es crucial
+                                    setConfirmOpen(true);
+                                }}
+                                className="px-4 py-2 bg-red-500 text-white rounded"
+                            >                                Eliminar
                             </button>
                             <button onClick={() => setSelectedEvent(null)} className="px-4 py-2 bg-gray-400 text-white rounded">
                                 Cerrar
@@ -653,9 +744,9 @@ export default function AgendaPage() {
                         <div className="mb-3 space-y-2">
                             <label className="block text-sm font-medium text-gray-700">Añadir imágenes (máx. 3):</label>
 
-                            {/* Botón para tomar foto con cámara */}
-                            <label className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
-                                📸 Tomar foto
+                            <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow cursor-pointer">
+                                <FiCamera className="text-lg" />
+                                Tomar foto
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -673,9 +764,10 @@ export default function AgendaPage() {
                                 />
                             </label>
 
-                            {/* Botón para subir imagen guardada */}
-                            <label className="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer ml-2">
-                                🖼️ Subir imagen
+                            {/* Botón para subir imagen desde galería */}
+                            <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow cursor-pointer">
+                                <FiUpload className="text-lg" />
+                                Subir imagen
                                 <input
                                     type="file"
                                     accept="image/*"
