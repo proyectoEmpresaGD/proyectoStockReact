@@ -28,7 +28,8 @@ import AgendaPage from './pages/paginaagenda.jsx';
 import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
 import FicharPage from './pages/Fichar.jsx'
-
+import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx'
+import CatalogoPage from './pages/Catalogo.jsx'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -57,6 +58,8 @@ function App() {
                       <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
                       <Route path="/etiquetas" element={<Etiquetas />} />
                       <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
+                      <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
+                      <Route path="/catalogo" element={<CatalogoPage />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
                       <Route path="/perchas" element={< EtiquetaPerchas />} />

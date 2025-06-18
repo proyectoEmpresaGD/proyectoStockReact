@@ -9,28 +9,21 @@ import { useAuthContext } from '../Auth/AuthContext';
 
 function Sidebar({ sidebarOpen, closeSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState('');
-    const [searchTerm, setSearchTerm] = useState(''); // Estado para la búsqueda
+    const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuthContext();
 
-    // Función para alternar dropdowns
     const toggleDropdown = (section) => {
         setDropdownOpen(dropdownOpen === section ? '' : section);
     };
 
-    // Función para filtrar enlaces según roles
     const filterLinksByRole = (links) => {
-        return links.filter(link => {
-            if (!link.roles) return true; // Enlace disponible para todos
-            return user && link.roles.includes(user.role); // Enlace según el rol del usuario
-        });
+        return links.filter(link => !link.roles || (user && link.roles.includes(user.role)));
     };
 
-    // Función para filtrar enlaces por término de búsqueda
     const filterLinksBySearchTerm = (links) => {
         return links.filter(link => link.label.toLowerCase().includes(searchTerm.toLowerCase()));
     };
 
-    // Secciones del sidebar
     const sections = [
         {
             label: 'Clientes',
@@ -39,12 +32,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             links: [
                 { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
                 { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin'] },
-                {
-                    to: '/notas',
-                    label: 'Notas',
-                    icon: <FaRegStickyNote className="mr-3 text-lg" />,
-                    roles: ['admin']
-                }
+                { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin'] }
             ],
         },
         {
@@ -71,12 +59,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             icon: <FaShoppingCart className="mr-3 text-lg" />,
             dropdown: 'ventas',
             links: [
-                {
-                    to: 'entradas',
-                    label: 'Entradas',
-                    icon: <FaMoneyBillWave className="mr-3 text-lg" />,
-                    roles: ['admin', 'ventas']
-                },
+                { to: 'entradas', label: 'Entradas', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] },
+                { to: 'catalogo', label: 'Catalogos', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin'] },
             ],
         },
         {
@@ -96,6 +80,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     sublinks: [
                         { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/estiquetaSinQR', label: 'Etiqueta sin QR', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin'] },
                     ],
                 },
@@ -163,15 +148,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
 
     return (
         <>
-            {/* Fondo oscuro para cerrar el sidebar */}
-            <div
-                className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`}
-                onClick={closeSidebar}
-            ></div>
+            <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`} onClick={closeSidebar}></div>
 
-            <nav
-                className={`fixed mt-20 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300`}
-            >
+            <nav className={`fixed mt-20 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg h-full z-50 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300`}>
                 <button
                     onClick={closeSidebar}
                     className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4"
@@ -179,7 +158,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     <FaTimes />
                 </button>
 
-                {/* Campo de búsqueda */}
                 <div className="p-4">
                     <input
                         type="text"
@@ -190,7 +168,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     />
                 </div>
 
-                <div className="h-screen overflow-y-auto pb-10">
+                <div className="h-screen overflow-y-auto pb-[150px]">
                     <ul className="mt-4 space-y-2">
                         {sections.map((section, index) => {
                             const visibleLinks = filterLinksBySearchTerm(filterLinksByRole(section.links));
@@ -205,23 +183,30 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                         {section.icon}
                                         <span>{section.label}</span>
                                         <FaChevronDown
-                                            className={`ml-auto transform ${dropdownOpen === section.dropdown ? 'rotate-180' : ''}`}
+                                            className={`ml-auto transition-all duration-[800ms] ease-in-out transform ${dropdownOpen === section.dropdown ? 'rotate-180' : ''}`}
                                         />
                                     </div>
-                                    {dropdownOpen === section.dropdown && (
-                                        <ul className="pl-8 mt-2 space-y-2">
-                                            {visibleLinks.map((link, idx) => (
-                                                link.subheader ? (
-                                                    <li key={idx} className="mb-2">
+
+                                    <ul
+                                        className={`pl-8 mt-2 space-y-2 overflow-hidden transition-all duration-500 ease-in-out transform origin-top ${dropdownOpen === section.dropdown
+                                            ? 'max-h-[1000px] opacity-100 scale-y-100'
+                                            : 'max-h-0 opacity-0 scale-y-90 pointer-events-none'
+                                            }`}
+                                    >
+                                        {visibleLinks.map((link, idx) => {
+                                            if (link.subheader) {
+                                                return (
+                                                    <li key={idx}>
                                                         <h3 className="text-gray-500 uppercase text-sm font-semibold mb-2">{link.label}</h3>
-                                                        {link.sublinks.length > 0 ? (
+                                                        {Array.isArray(link.sublinks) && link.sublinks.length > 0 ? (
                                                             <ul className="pl-4 space-y-2">
                                                                 {filterLinksByRole(link.sublinks).map((sublink, subIdx) => (
                                                                     <li key={subIdx}>
                                                                         <NavLink
                                                                             to={sublink.to}
                                                                             className={({ isActive }) =>
-                                                                                `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'} duration-200`
+                                                                                `flex items-center p-4 ${isActive ? 'bg-gray-300 text-black' : 'text-gray-700 hover:bg-gray-200 hover:text-black'
+                                                                                } duration-200`
                                                                             }
                                                                             onClick={closeSidebar}
                                                                         >
@@ -232,17 +217,19 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 ))}
                                                             </ul>
                                                         ) : (
-                                                            <p className="text-gray-600 italic">Sin enlaces disponibles.</p>
+                                                            <p className="text-gray-600 italic ml-4">Sin enlaces disponibles.</p>
                                                         )}
                                                     </li>
-                                                ) : (
+                                                );
+                                            } else {
+                                                return (
                                                     <li key={idx}>
                                                         {link.external ? (
                                                             <a
                                                                 href={link.to}
-                                                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
+                                                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
                                                                 onClick={closeSidebar}
                                                             >
                                                                 {link.icon}
@@ -261,10 +248,11 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                             </NavLink>
                                                         )}
                                                     </li>
-                                                )
-                                            ))}
-                                        </ul>
-                                    )}
+                                                );
+                                            }
+                                        })}
+                                    </ul>
+
                                 </li>
                             );
                         })}
