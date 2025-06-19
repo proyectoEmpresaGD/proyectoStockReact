@@ -50,6 +50,15 @@ export async function generarCatalogoPdf(req, res) {
         const portadaBase64 = await convertirImagenURLaBase64(portadaURL);
         const ultimaBase64 = await convertirImagenURLaBase64(ultimaURL);
 
+        // ✅ Cargar iconos dentro de la función
+        const iconos = {
+            mantenimiento: await convertirLoteIconos(mantenimientoImages),
+            uso: await convertirLoteIconos(usoImages),
+            direccion: await convertirLoteIconos(direccionLogos)
+        };
+
+        console.log('🔍 Claves disponibles en iconos.uso:', Object.keys(iconos.uso));
+
         const productosProcesados = await Promise.all(productos.map(async (p) => {
             const mantenimiento = await extraerValores(p.mantenimiento);
             const uso = await extraerValores(p.uso);
@@ -59,19 +68,23 @@ export async function generarCatalogoPdf(req, res) {
                 ...p,
                 mantenimiento: mantenimiento.join(';'),
                 uso: uso.join(';'),
-                direcciontela: direccion[0] || '' // solo uno normalmente
+                direcciontela: direccion[0] || ''
             };
         }));
 
-
-        const html = generarHTMLCatalogo({ productos: productosProcesados, formatos, portadaBase64, ultimaBase64, marca, iconos });
-
-
+        const html = generarHTMLCatalogo({
+            productos: productosProcesados,
+            formatos,
+            portadaBase64,
+            ultimaBase64,
+            marca,
+            iconos
+        });
 
         const pdfBuffer = await generarPDFdesdeHTML(html);
 
-        // ✅ GUARDAR PDF TEMPORAL PARA VERIFICACIÓN
-        fs.writeFileSync(`./${marca}_catalogo_debug.pdf`, pdfBuffer);
+        // ❌ Elimina esta línea si estás en Vercel
+        // fs.writeFileSync(`./${marca}_catalogo_debug.pdf`, pdfBuffer);
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${marca}_catalogo.pdf"`);
@@ -82,6 +95,7 @@ export async function generarCatalogoPdf(req, res) {
         res.status(500).json({ error: 'Error generando el catálogo PDF' });
     }
 }
+
 
 // Función para convertir múltiples URLs a base64
 const convertirLoteIconos = async (mapaOriginal) => {
