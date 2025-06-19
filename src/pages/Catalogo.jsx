@@ -4,12 +4,14 @@ const marcasDisponibles = ['CJM', 'BAS', 'FLA', 'ARE', 'HAR'];
 
 export default function CatalogoPage() {
     const [marcaSeleccionada, setMarcaSeleccionada] = useState('');
-
+    const [generando, setGenerando] = useState(false);
     const descargarPDF = async () => {
         if (!marcaSeleccionada) {
             alert('Selecciona una marca primero');
             return;
         }
+
+        setGenerando(true);
 
         try {
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/catalogo/${marcaSeleccionada}/pdf`);
@@ -50,9 +52,10 @@ export default function CatalogoPage() {
 
             <button
                 onClick={descargarPDF}
+                disabled={generando}
                 className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-300"
             >
-                Descargar Catálogo PDF
+                {generando ? 'Generando PDF...' : 'Descargar Catálogo PDF'}
             </button>
         </div>
     );

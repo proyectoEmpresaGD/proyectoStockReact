@@ -41,28 +41,37 @@ async function extraerValores(valorCrudo) {
 export async function generarCatalogoPdf(req, res) {
     try {
         const marca = req.params.marca.toUpperCase();
+        console.log('📦 Marca recibida:', marca);
+
         const productos = await ProductModel.getByMarca(marca);
+        console.log('📦 Productos encontrados:', productos.length);
+
         const formatos = otherFormatsByBrand[marca] || { libros: [], otrosFormatos: [] };
+        console.log('📘 Formatos:', formatos);
 
         const portadaURL = 'https://bassari.eu/IMAGENES%20TARIFA/PORTADA%20Y%20CONTRAPORTADA%20TARIFA/CJM_TARIFAS_PORTADA-rect.jpg';
         const ultimaURL = 'https://bassari.eu/IMAGENES%20TARIFA/PORTADA%20Y%20CONTRAPORTADA%20TARIFA/CJM_TARIFAS_CONTRAPORTADA.jpg';
 
+        console.log('🖼️ Descargando portada...');
         const portadaBase64 = await convertirImagenURLaBase64(portadaURL);
+        console.log('🖼️ Descargando contraportada...');
         const ultimaBase64 = await convertirImagenURLaBase64(ultimaURL);
 
-        // ✅ Cargar iconos dentro de la función
+        console.log('📥 Cargando iconos...');
         const iconos = {
             mantenimiento: await convertirLoteIconos(mantenimientoImages),
             uso: await convertirLoteIconos(usoImages),
             direccion: await convertirLoteIconos(direccionLogos)
         };
 
-        console.log('🔍 Claves disponibles en iconos.uso:', Object.keys(iconos.uso));
+        console.log('📎 Iconos cargados:', Object.keys(iconos.uso).length, 'usos /', Object.keys(iconos.mantenimiento).length, 'mantenimientos');
 
-        const productosProcesados = await Promise.all(productos.map(async (p) => {
+        const productosProcesados = await Promise.all(productos.map(async (p, i) => {
             const mantenimiento = await extraerValores(p.mantenimiento);
             const uso = await extraerValores(p.uso);
             const direccion = await extraerValores(p.direcciontela);
+
+            if (i === 0) console.log('📋 Producto de ejemplo procesado:', p.nombre, mantenimiento, uso, direccion);
 
             return {
                 ...p,
@@ -72,6 +81,7 @@ export async function generarCatalogoPdf(req, res) {
             };
         }));
 
+        console.log('🛠️ Generando HTML...');
         const html = generarHTMLCatalogo({
             productos: productosProcesados,
             formatos,
@@ -81,22 +91,23 @@ export async function generarCatalogoPdf(req, res) {
             iconos
         });
 
+        console.log('🧾 HTML generado con éxito');
+
+        console.log('🖨️ Generando PDF...');
         const pdfBuffer = await generarPDFdesdeHTML(html);
-
-        // if (process.env.NODE_ENV !== 'production') {
-        //     fs.writeFileSync(`./${marca}_catalogo_debug.pdf`, pdfBuffer);
-        // }
-
+        console.log('✅ PDF generado correctamente');
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${marca}_catalogo.pdf"`);
         res.setHeader('Content-Length', pdfBuffer.length);
         res.end(pdfBuffer);
     } catch (error) {
-        console.error('❌ Error generando PDF:', error);
+        console.error('❌ Error generando PDF:', error.message);
+        console.error(error.stack);
         res.status(500).json({ error: 'Error generando el catálogo PDF' });
     }
 }
+
 
 
 // Función para convertir múltiples URLs a base64
