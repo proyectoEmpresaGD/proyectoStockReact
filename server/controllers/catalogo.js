@@ -83,8 +83,10 @@ export async function generarCatalogoPdf(req, res) {
 
         const pdfBuffer = await generarPDFdesdeHTML(html);
 
-        // ❌ Elimina esta línea si estás en Vercel
-        // fs.writeFileSync(`./${marca}_catalogo_debug.pdf`, pdfBuffer);
+        // if (process.env.NODE_ENV !== 'production') {
+        //     fs.writeFileSync(`./${marca}_catalogo_debug.pdf`, pdfBuffer);
+        // }
+
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${marca}_catalogo.pdf"`);
@@ -114,12 +116,3 @@ const convertirLoteIconos = async (mapaOriginal) => {
     }
     return resultado;
 };
-
-// Cargar y convertir los iconos
-const iconos = {
-    mantenimiento: await convertirLoteIconos(mantenimientoImages),
-    uso: await convertirLoteIconos(usoImages),
-    direccion: await convertirLoteIconos(direccionLogos)
-};
-console.log('🔍 Claves disponibles en iconos.uso:', Object.keys(iconos.uso));
-
