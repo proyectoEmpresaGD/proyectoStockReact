@@ -114,47 +114,70 @@ export class StockController {
         }
     }
 
-    // controllers/stock.js
-    // controllers/stock.js
-
-    // controllers/stock.js
     async getLowStockAlerts(req, res) {
         try {
             const all = await StockModel.getLowStockAlerts();
 
-            // Expresiones regulares y configuraciones
-            const reExcludeTela = /LIBRO|QUALITY|TAPILLA|PERCHA|CUTTING(?:S)?|RIEL/i;
-            const reLibro = /LIBRO/i;
-            const rePercha = /PERCHA/i;
+            // Lista completa de términos a excluir (frontend + index.js)
+            const EXCLUDE_TERMS = [
+                'QUALITY', 'TAPILLA', 'CUTTINGS?', 'RIEL', 'RIELES', 'HERRAJES', 'SOBRES', 'CARGO', 'RELLENO',
+                'CERTIFICADO', 'TRABAJOS', 'COJIN', 'CUBRE', 'ESTOR', 'CAIDA', 'PLAID', 'CABECERO', 'ETAMIN',
+                'CARTULINA', 'PORTES', 'COSTE DEL TRANSPORTE', 'MECANISMOS', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
+                'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'VARIOS', 'CARRE GAME', 'LIENZO', 'BOLONIA',
+                'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA', 'POISON', 'TUNDRA', 'AGATA', 'CUARZO',
+                'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD', 'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU',
+                'PARLOUR', 'BENNELONG', 'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
+                'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES', 'SENES', 'ESPERANZA',
+                'INMACULADA', 'ATLAS', 'MIRROR', 'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'NIMBOSILVA',
+                'PERSIAN MOOD', 'RINPA', 'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU',
+                'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA', 'ITALY', 'SWITZERLAND', 'TRANSPORT', 'AUSTRIA',
+                'BELGIUM', 'FRANCE', 'UNITED KINGDOM', 'ARRENDAMIENTOS', 'IGNIFUGACIÓN'
+            ];
+            const excludeRegex = new RegExp(EXCLUDE_TERMS.join('|'), 'i');
+
+            // Prefijos válidos para telas (marcas)
             const marcasTela = /^(CJM|HAR|BAS|ARE|FLA)/i;
+            // Colecciones específicas
             const colecciones = [
-                'stratos', 'diamante', 'urban contemporary',
-                'revoltoso vol i', 'revoltoso vol ii'
+                'stratos', 'diamante', 'urban contemporary', 'revoltoso vol i', 'revoltoso vol ii'
             ];
 
-            const lowTelas = all.filter(item => {
-                const des = String(item.desprodu || '');
-                const codp = String(item.codprodu || '');
-                const cole = String(item.coleccion || '').toLowerCase();
+            // Filtrar y ordenar alfabéticamente
+            const lowTelas = all
+                .filter(item => {
+                    const des = item.desprodu || '';
+                    const codp = item.codprodu || '';
+                    const cole = (item.coleccion || '').toLowerCase();
+                    return (
+                        parseFloat(item.stockactual) < 30 &&
+                        marcasTela.test(codp) &&
+                        !excludeRegex.test(des) &&
+                        (colecciones.length === 0 || colecciones.includes(cole))
+                    );
+                })
+                .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
-                return (
-                    parseFloat(item.stockactual) < 30 &&
-                    marcasTela.test(codp) &&
-                    !reExcludeTela.test(des) &&
-                    // si colecciones definidas, filtrar por ellas:
-                    (colecciones.length === 0 || colecciones.includes(cole))
-                );
-            });
+            const lowLibros = all
+                .filter(item => {
+                    const des = item.desprodu || '';
+                    return (
+                        parseFloat(item.stockactual) < 30 &&
+                        /(?:LIBRO|CARRE GAME)/i.test(des) &&
+                        !excludeRegex.test(des)
+                    );
+                })
+                .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
-            const lowLibros = all.filter(item =>
-                parseFloat(item.stockactual) < 30 &&
-                reLibro.test(item.desprodu)
-            );
-
-            const lowPerchas = all.filter(item =>
-                parseFloat(item.stockactual) < 10 &&
-                rePercha.test(item.desprodu)
-            );
+            const lowPerchas = all
+                .filter(item => {
+                    const des = item.desprodu || '';
+                    return (
+                        parseFloat(item.stockactual) < 10 &&
+                        /PERCHA/i.test(des) &&
+                        !excludeRegex.test(des)
+                    );
+                })
+                .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
             res.json({ telas: lowTelas, libros: lowLibros, perchas: lowPerchas });
         } catch (error) {
@@ -162,6 +185,8 @@ export class StockController {
             res.status(500).json({ error: error.message });
         }
     }
+
+
 
 
 

@@ -23,7 +23,6 @@ import { createCalendarioRouter } from './routes/calendario.js';
 import { createNotasRouter } from './routes/notas.js';
 import { CatalogoRoutes } from './routes/catalogo.js';
 
-
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,20 +31,18 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-globalThis.pool = pool; // ✅ Añade esta línea aquí
+globalThis.pool = pool;
 
 const app = express();
 app.use(json());
 app.use(corsMiddleware());
 app.disable('x-powered-by');
-
-// Sirviendo archivos estáticos
 app.use(express.static(join(__dirname, 'web')));
 
-// --- RUTAS PÚBLICAS ---
+// Public routes
 app.use('/api/auth', authRouter);
 
-// --- RUTAS PROTEGIDAS ---
+// Protected routes
 app.use('/api/products', authMiddleware, createProductRouter({ pool }));
 app.use('/api/images', authMiddleware, createImagenRouter({ pool }));
 app.use('/api/stock', authMiddleware, createStockRouter({ pool }));
@@ -60,11 +57,7 @@ app.use('/api/notas', createNotasRouter());
 app.use('/api/calendario', authMiddleware, createCalendarioRouter());
 app.use('/api/catalogo', CatalogoRoutes());
 
-
-
-// ----------------------------
-// NOTIFICACIONES POR CORREO
-// ----------------------------
+// Email transporter
 const transporter = nodemailer.createTransport({
   host: "send.one.com",
   port: 465,
@@ -75,48 +68,28 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// ------------------------------------------------------------
-// 1) Normalización + lista completa de términos a excluir
-// ------------------------------------------------------------
+// Filters matching frontend and index.js
 const EXCLUDE_TERMS = [
   'QUALITY', 'TAPILLA', 'CUTTING', 'CUTTINGS', 'RIEL', 'RIELES', 'HERRAJES',
   'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN', 'CUBRE',
   'ESTOR', 'CAIDA', 'PLAID', 'CABECERO', 'ETAMIN', 'CARTULINA', 'PORTES',
   'COSTE DEL TRANSPORTE', 'MECANISMOS', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
-  'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'PORTES', 'CARGA', 'CORTINA',
-  'VARIOS', 'CARRE GAME',
-  // tejidos:
+  'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'VARIOS', 'CARRE GAME',
   'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
   'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
   'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
   'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
   'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
-  'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR',
-  'ANTILLA', 'ANTILLA VELVET', 'LUMIERE', 'MIGRATION', 'PERSIAN MOOD', 'RINPA',
-  'SURIRI', 'XUBEC', 'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU',
-  'PERRAULT', 'PUMMERIN', 'TOPKAPI', 'TULUM', 'ZAHARA',
-  // países:
-  'ITALY', 'SWITZERLAND', 'TRANSPORT', 'AUSTRIA', 'BELGIUM', 'FRANCE',
-  'UNITED KINGDOM', 'ARRENDAMIENTOS'
+  'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR', 'ANTILLA', 'ANTILLA VELVET',
+  'LUMIERE', 'MIGRATION', 'NIMBOSILVA', 'PERSIAN MOOD', 'RINPA', 'SURIRI', 'XUBEC',
+  'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU', 'PERRAULT', 'PUMMERIN',
+  'TOPKAPI', 'TULUM', 'ZAHARA'
 ];
+const excludeRegex = new RegExp(EXCLUDE_TERMS.join('|'), 'i');
+const marcasTela = /^(CJM|HAR|BAS|ARE|FLA)/i;
+const colecciones = ['stratos', 'diamante', 'urban contemporary', 'revoltoso vol i', 'revoltoso vol ii'];
 
-// normaliza a mayúsculas y sin tildes
-function normalize(text = '') {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase();
-}
-
-// devuelve true si la descripción contiene alguno de los términos
-function containsExcluded(description) {
-  const d = normalize(description);
-  return EXCLUDE_TERMS.some(term => d.includes(term));
-}
-
-// ------------------------------------------------------------
-// 2) VISITAS SEMANALES (domingo 15:00 CET)
-// ------------------------------------------------------------
+// Weekly visits (Sunday 15:00 CET)
 async function getNextWeekVisits() {
   const start = new Date();
   start.setDate(start.getDate() + (7 - start.getDay()));
@@ -130,15 +103,14 @@ async function getNextWeekVisits() {
            clientes.razclien AS cliente_nombre,
            u1.username AS creado_por,
            u2.username AS completado_por,
-           u3.username AS assigned_to_username,
            u3.email AS assigned_to_email
-    FROM visitas
-    LEFT JOIN usuarios u1 ON visitas.created_by   = u1.id
-    LEFT JOIN usuarios u2 ON visitas.completed_by = u2.id
-    LEFT JOIN usuarios u3 ON visitas.assigned_to  = u3.id
-    LEFT JOIN clientes ON visitas.cliente_id      = clientes.codclien
-    WHERE visitas.fecha BETWEEN $1 AND $2
-    ORDER BY visitas.fecha ASC
+      FROM visitas
+      LEFT JOIN usuarios u1 ON visitas.created_by = u1.id
+      LEFT JOIN usuarios u2 ON visitas.completed_by = u2.id
+      LEFT JOIN usuarios u3 ON visitas.assigned_to = u3.id
+      LEFT JOIN clientes ON visitas.cliente_id = clientes.codclien
+     WHERE visitas.fecha BETWEEN $1 AND $2
+     ORDER BY visitas.fecha ASC
   `, [start, end]);
   return rows;
 }
@@ -146,166 +118,132 @@ async function getNextWeekVisits() {
 async function sendWeeklyVisitsEmail() {
   try {
     const visits = await getNextWeekVisits();
-    if (!visits.length) return console.log("No hay visitas la próxima semana.");
+    if (!visits.length) return console.log('No hay visitas la próxima semana.');
 
     const byEmail = visits.reduce((acc, v) => {
       if (v.assigned_to_email) (acc[v.assigned_to_email] ||= []).push(v);
       return acc;
     }, {});
 
-    for (const [email, userVisits] of Object.entries(byEmail)) {
-      let html = `<h1>Visitas Programadas Próxima Semana</h1>`;
-      userVisits.forEach(v => {
-        html += `
-          <p>
-            <strong>Cliente:</strong> ${v.cliente_nombre}<br/>
-            <strong>Fecha:</strong> ${new Date(v.fecha).toLocaleString()}<br/>
-            <strong>Descripción:</strong> ${v.descripcion}<br/>
-            <strong>Creado por:</strong> ${v.creado_por}<br/>
-            <hr/>
-          </p>`;
+    for (const [email, list] of Object.entries(byEmail)) {
+      let html = `<h1>Visitas Próxima Semana</h1>`;
+      list.forEach(v => {
+        html += `<p><strong>Cliente:</strong> ${v.cliente_nombre}<br/>
+                 <strong>Fecha:</strong> ${new Date(v.fecha).toLocaleString()}<br/>
+                 <strong>Creado por:</strong> ${v.creado_por}</p><hr/>`;
       });
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: "Visitas Próxima Semana",
+        subject: 'Visitas Próxima Semana',
         html
       });
-      console.log(`Email de visitas enviado a ${email}`);
     }
   } catch (err) {
-    console.error("Error enviando email de visitas:", err);
+    console.error('Error enviando email de visitas:', err);
   }
 }
 
-// ------------------------------------------------------------
-// 3) ALERTAS SEMANALES DE STOCK BAJO (viernes 09:00 CET)
-// ------------------------------------------------------------
-async function sendWeeklyStockAlerts() {
+// Weekly stock alerts (Friday 09:00 CET)
+async function sendWeeklyStockAlerts(force = false) {
+  const today = new Date();
+  if (!force && today.getDay() !== 5) return;
+
   try {
     const all = await StockModel.getLowStockAlerts();
 
-    // Telas: excluye TODO término de EXCLUDE_TERMS
     const lowTelas = all
-      .filter(r => r.desprodu && !containsExcluded(r.desprodu))
-      .filter(r => parseFloat(r.stockactual) < 30);
+      .filter(i =>
+        parseFloat(i.stockactual) < 30 &&
+        marcasTela.test(i.codprodu) &&
+        !excludeRegex.test(i.desprodu) &&
+        (colecciones.length === 0 || colecciones.includes((i.coleccion || '').toLowerCase()))
+      )
+      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
-    // Libros
     const lowLibros = all
-      .filter(r => /(?:LIBRO|CARRE GAME)/i.test(r.desprodu))
-      .filter(r => parseFloat(r.stockactual) < 30);
+      .filter(i =>
+        parseFloat(i.stockactual) < 30 &&
+        /(?:LIBRO|CARRE GAME)/i.test(i.desprodu) &&
+        !excludeRegex.test(i.desprodu)
+      )
+      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
-    // Perchas
     const lowPerchas = all
-      .filter(r => /PERCHA/i.test(r.desprodu))
-      .filter(r => parseFloat(r.stockactual) < 10)
-      .filter(r => !/(LIBRO|CUTTING)/i.test(r.desprodu));
+      .filter(i =>
+        parseFloat(i.stockactual) < 10 &&
+        /PERCHA/i.test(i.desprodu) &&
+        !excludeRegex.test(i.desprodu)
+      )
+      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
 
-    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) {
-      return console.log("No hay stock bajo hoy.");
-    }
+    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) return;
 
     const html = `
-      <div style="font-family:Arial,sans-serif;line-height:1.4;padding:20px;">
-        <h1 style="color:#2D9CDB;text-align:center;">Alerta Semanal de Stock Bajo</h1>
-        <p>Hola Agustín, estos productos están bajos de stock:</p>
-        <table style="width:100%;border-collapse:collapse;margin-top:20px;">
+      <div style="font-family:Arial,sans-serif;padding:20px;">
+        <h1 style="text-align:center;color:#2D9CDB;">Alerta Semanal de Stock Bajo</h1>
+        <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <th style="background:#FDE68A;padding:10px;border:1px solid #FCD34D;color:#92400E;">Telas (&lt;30m)</th>
-            <th style="background:#BBF7D0;padding:10px;border:1px solid #34D399;color:#065F46;">Libros (&lt;30)</th>
-            <th style="background:#FECACA;padding:10px;border:1px solid #F87171;color:#991B1B;">Perchas (&lt;10)</th>
+            <th style="background:#FDE68A;padding:8px;border:1px solid #FCD34D;">Telas</th>
+            <th style="background:#BBF7D0;padding:8px;border:1px solid #34D399;">Libros</th>
+            <th style="background:#FECACA;padding:8px;border:1px solid #F87171;">Perchas</th>
           </tr>
           <tr>
-            <td style="vertical-align:top;padding:10px;border:1px solid #FCD34D;">
-              ${lowTelas.length === 0
-        ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowTelas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>`).join('')}
-            </ul>`}
+            <td style="padding:8px;border:1px solid #FCD34D;">
+              ${lowTelas.length ? '<ul>' + lowTelas.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #34D399;">
-              ${lowLibros.length === 0
-        ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowLibros.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>`).join('')}
-            </ul>`}
+            <td style="padding:8px;border:1px solid #34D399;">
+              ${lowLibros.length ? '<ul>' + lowLibros.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
-            <td style="vertical-align:top;padding:10px;border:1px solid #F87171;">
-              ${lowPerchas.length === 0
-        ? '<p>No hay alertas.</p>'
-        : `<ul style="margin:0;padding-left:20px;">
-              ${lowPerchas.map(i => `
-                <li style="margin-bottom:4px;">
-                  <strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
-                  <span style="font-size:0.9em;color:#555;">Stock: ${parseFloat(i.stockactual).toFixed(2)}</span>
-                </li>`).join('')}
-            </ul>`}
+            <td style="padding:8px;border:1px solid #F87171;">
+              ${lowPerchas.length ? '<ul>' + lowPerchas.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
           </tr>
         </table>
-        <p style="margin-top:20px;font-style:italic;color:#555;">
-          Este email se envía automáticamente cada viernes a las 09:00 AM (CET).
-        </p>
       </div>
     `;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: "agustin@cjmw.eu",
-      subject: "Alerta de Stock Bajo",
+      to: process.env.STOCK_ALERT_EMAIL || process.env.EMAIL_USER,
+      subject: 'Alerta de Stock Bajo',
       html
     });
-    console.log("Email de stock enviado.");
+    console.log('Email de stock enviado.');
   } catch (err) {
-    console.error("Error enviando email de stock bajo:", err);
+    console.error('Error enviando email de stock bajo:', err);
   }
 }
 
-// Cron schedules
-cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
-// Viernes 09:00 CET
-cron.schedule('0 9 * * 5', sendWeeklyStockAlerts, { timezone: "Europe/Madrid" });
+// Schedule tasks
+cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: 'Europe/Madrid' });
+cron.schedule('0 9 * * 5', sendWeeklyStockAlerts, { timezone: 'Europe/Madrid' });
 
-// ----------------------------
-// ENDPOINTS DE PRUEBA
-// ----------------------------
+// Test endpoints
 app.get('/api/test-send-visits-email', async (req, res) => {
   try {
     await sendWeeklyVisitsEmail();
-    res.send("Visitas semanal enviadas (prueba).");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error en prueba de visitas.");
+    res.send('Visitas enviadas (prueba).');
+  } catch {
+    res.status(500).send('Error prueba visitas.');
   }
 });
-
 app.get('/api/test-send-stock-alerts', async (req, res) => {
   try {
-    await sendWeeklyStockAlerts();
-    res.send("Alertas de stock enviadas (prueba).");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error en prueba de stock.");
+    await sendWeeklyStockAlerts(true);
+    res.send('Alertas de stock enviadas (prueba).');
+  } catch {
+    res.status(500).send('Error prueba stock.');
   }
 });
 
-// ----------------------------
-// MIDDLEWARE GLOBAL DE ERRORES
-// ----------------------------
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
 
-// INICIAR SERVIDOR
+// Start server
 const PORT = process.env.PORT || 1234;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

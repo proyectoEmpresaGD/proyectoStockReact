@@ -1,29 +1,74 @@
-import { FaArrowLeft, FaArrowRight } from 'react-icons/fa'; // Importamos los iconos de flecha
+// src/components/PaginationControls.jsx
+import React from 'react';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-function PaginationControls({ currentPage, handlePageChange, totalPages }) {
+const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
+    // Ventana de páginas centrada ±2
+    const windowSize = 5;
+    const half = Math.floor(windowSize / 2);
+    let start = Math.max(1, currentPage - half);
+    let end = Math.min(totalPages, currentPage + half);
+    if (end - start < windowSize - 1) {
+        start = Math.max(1, end - windowSize + 1);
+        end = Math.min(totalPages, start + windowSize - 1);
+    }
+    const pageNumbers = [];
+    for (let i = start; i <= end; i++) pageNumbers.push(i);
+
     return (
-        <div className="mt-3 flex md:justify-center md:items-center md:mr-0 mr-3 md:space-x-2 space-x-0">
+        <nav className="flex items-center justify-center mt-4 space-x-1">
             <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="flex items-center px-4 py-0 bg-blue-500 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="p-2 bg-white border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <FaArrowLeft className="md:mr-2 mr-0" />
-                Anterior
+                <FaChevronLeft />
             </button>
-            <span className="mx-3 px-3 text-gray-700">
-                <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
-            </span>
+
+            {start > 1 && (
+                <>
+                    <button
+                        onClick={() => handlePageChange(1)}
+                        className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
+                    >
+                        1
+                    </button>
+                    {start > 2 && <span className="px-2">…</span>}
+                </>
+            )}
+
+            {pageNumbers.map(num => (
+                <button
+                    key={num}
+                    onClick={() => handlePageChange(num)}
+                    className={`px-3 py-1 border rounded ${num === currentPage ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'
+                        }`}
+                >
+                    {num}
+                </button>
+            ))}
+
+            {end < totalPages && (
+                <>
+                    {end < totalPages - 1 && <span className="px-2">…</span>}
+                    <button
+                        onClick={() => handlePageChange(totalPages)}
+                        className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
+                    >
+                        {totalPages}
+                    </button>
+                </>
+            )}
+
             <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="flex items-center px-4 md:py-2 py-0 bg-blue-500 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="p-2 bg-white border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                Siguiente
-                <FaArrowRight className="md:mr-2 mr-0" />
+                <FaChevronRight />
             </button>
-        </div>
+        </nav>
     );
-}
+};
 
 export default PaginationControls;

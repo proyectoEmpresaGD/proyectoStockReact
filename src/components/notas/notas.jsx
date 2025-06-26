@@ -1,16 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+// src/components/notas/NotasPage.jsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import es from 'date-fns/locale/es';
 import Select from 'react-select';
 import { Pencil, Trash2 } from 'lucide-react';
+import { AiOutlineClose } from 'react-icons/ai';
 import { useAuthContext } from '../../Auth/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// Carga progresiva de imágenes
 function ImagenConLoader({ src, alt, onClick }) {
     const [loaded, setLoaded] = useState(false);
     return (
-        <div className="relative w-16 h-16">
+        <div className="relative w-20 h-20">
             {!loaded && <div className="absolute inset-0 bg-gray-200 animate-pulse rounded" />}
             <img
                 src={src}
@@ -18,7 +21,7 @@ function ImagenConLoader({ src, alt, onClick }) {
                 loading="lazy"
                 onLoad={() => setLoaded(true)}
                 onClick={onClick}
-                className={`w-16 h-16 object-cover rounded cursor-pointer transition duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-20 h-20 object-cover rounded cursor-pointer transition-opacity duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
             />
         </div>
     );
@@ -27,16 +30,18 @@ function ImagenConLoader({ src, alt, onClick }) {
 export default function NotasPage() {
     const { token } = useAuthContext();
 
+    // --- Estados principales ---
     const [notas, setNotas] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterName, setFilterName] = useState('');
     const [filterDate, setFilterDate] = useState('');
+
+    // Crear/editar
     const [modalOpen, setModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [toDelete, setToDelete] = useState(null);
+    // Campos nota
     const [titulo, setTitulo] = useState('');
     const [contenido, setContenido] = useState('');
     const [files, setFiles] = useState([]);
@@ -45,239 +50,119 @@ export default function NotasPage() {
     const [existingImages, setExistingImages] = useState([]);
     const [toRemoveImages, setToRemoveImages] = useState([]);
     const [subiendo, setSubiendo] = useState(false);
-    const [visibleNotas, setVisibleNotas] = useState(9);
+
+    // Borrar
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [toDelete, setToDelete] = useState(null);
+
+    // Vista previa
     const [vistaNota, setVistaNota] = useState(null);
-    // Dentro de tu componente de citas o calendario
-    const [eventoRelacionado, setEventoRelacionado] = useState(null);
+    const modalRef = useRef(null);
 
-    const abrirModalNota = (evento) => {
-        setEventoRelacionado(evento.id);  // 👈 Pasas el ID de la cita actual
-        setModalOpen(true);
-    };
+    // Mostrar más
+    const [visibleNotas, setVisibleNotas] = useState(9);
 
-    const abrirVista = (nota) => setVistaNota(nota);
-    const cerrarVista = () => setVistaNota(null);
-    useEffect(() => {
-        if (modalOpen && eventoRelacionado) {
-            setLinkedEventIds([eventoRelacionado]);
-        }
-    }, [modalOpen, eventoRelacionado]);
-
-
+    // --- Fetch inicial de notas ---
     useEffect(() => {
         if (!token) return;
-
         fetch(`${API_BASE_URL}/api/notas`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(r => r.json())
-            .then(notasData => {
-                const normNotas = notasData.map(n => ({
+            .then(data => {
+                const norm = data.map(n => ({
                     ...n,
                     eventos: Array.isArray(n.eventos) ? n.eventos : [],
                     imagenes: Array.isArray(n.imagenes) ? n.imagenes : [],
                     creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
                     actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
                 }));
-                const ordenadas = normNotas.sort((a, b) => {
-                    const fechaA = new Date(a.actualizado_en || a.creado_en);
-                    const fechaB = new Date(b.actualizado_en || b.creado_en);
-                    return fechaB - fechaA;
-                });
-                setNotas(ordenadas);
-                localStorage.setItem('cachedNotas', JSON.stringify(ordenadas));
+                norm.sort((a, b) => new Date(b.actualizado_en || b.creado_en) - new Date(a.actualizado_en || a.creado_en));
+                setNotas(norm);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, [token]);
 
-
+    // --- Fetch de eventos para el Select ---
     useEffect(() => {
-        if (!token || token.length < 10) return;
-
-        const fetchEventos = async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/calendario`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('⚠️ Error HTTP:', response.status, errorText);
-                    return;
-                }
-
-                const eventosData = await response.json();
-                const registros = Array.isArray(eventosData) ? eventosData : eventosData.registros || [];
-
+        if (!token) return;
+        fetch(`${API_BASE_URL}/api/calendario`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                const registros = Array.isArray(data) ? data : data.registros || [];
                 const evs = registros
                     .filter(evt => typeof evt.fecha === 'string' && isValid(parseISO(evt.fecha)))
                     .map(evt => {
-                        const fechaISO = parseISO(evt.fecha);
+                        const f = parseISO(evt.fecha);
                         return {
                             id: String(evt.id),
                             fecha: evt.fecha,
-                            mes: format(fechaISO, 'MMMM yyyy', { locale: es }),
-                            label: `${evt.descripcion} – ${format(fechaISO, "d 'de' MMMM yyyy", { locale: es })}`
+                            mes: format(f, 'MMMM yyyy', { locale: es }),
+                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`
                         };
                     });
-
                 setEvents(evs);
-            } catch (error) {
-                console.error('❌ Error al obtener citas:', error);
-            }
-        };
-
-        fetchEventos();
+            })
+            .catch(console.error);
     }, [token]);
 
+    // --- Previsualizaciones de imágenes nuevas ---
     useEffect(() => {
         const urls = files.map(f => URL.createObjectURL(f));
         setPreviews(urls);
         return () => urls.forEach(URL.revokeObjectURL);
     }, [files]);
 
+    // --- Filtrado de notas según inputs ---
     const filteredNotas = useMemo(() => {
-        const ordenadas = [...notas].sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
-
-        return ordenadas.filter(n => {
+        return notas.filter(n => {
             const title = n.titulo.toLowerCase();
-            const nameMatch = filterName ? title.includes(filterName.trim().toLowerCase()) : false;
+            const nameMatch = filterName ? title.includes(filterName.toLowerCase()) : true;
             const dateMatch = filterDate
                 ? n.eventos.some(eid => {
                     const ev = events.find(e => String(e.id) === String(eid));
-                    if (!ev?.fecha) return false;
-                    const fechaEvento = format(parseISO(ev.fecha), 'yyyy-MM-dd');
-                    return fechaEvento === filterDate;
+                    return ev && format(parseISO(ev.fecha), 'yyyy-MM-dd') === filterDate;
                 })
-                : false;
-            if (!filterName && !filterDate) return true;
-            return nameMatch || dateMatch;
+                : true;
+            return nameMatch && dateMatch;
         });
     }, [notas, filterName, filterDate, events]);
 
-    const paginatedNotas = useMemo(() => filteredNotas.slice(0, visibleNotas), [filteredNotas, visibleNotas]);
+    const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
+    // --- Handlers básicos ---
     const abrirCrear = () => {
         setIsEditing(false);
         setEditId(null);
-        setTitulo('');
-        setContenido('');
-        setFiles([]);
-        setPreviews([]);
-        setLinkedEventIds([]);
-        setExistingImages([]);
-        setToRemoveImages([]);
+        setTitulo(''); setContenido(''); setFiles([]); setPreviews([]);
+        setLinkedEventIds([]); setExistingImages([]); setToRemoveImages([]);
         setModalOpen(true);
-        window.history.pushState(null, '', window.location.pathname);
     };
-
-    const abrirEditar = (nota) => {
-        window.history.pushState(null, '', `#/notas?editar=${nota.id}`);
+    const abrirEditar = nota => {
         setIsEditing(true);
         setEditId(nota.id);
         setTitulo(nota.titulo);
         setContenido(nota.contenido);
-        setFiles([]);
-        setPreviews([]);
+        setFiles([]); setPreviews([]);
         setLinkedEventIds(nota.eventos);
         setExistingImages(nota.imagenes);
         setToRemoveImages([]);
         setModalOpen(true);
     };
-
     const cerrarModal = () => {
         setModalOpen(false);
         setIsEditing(false);
         setEditId(null);
-        window.location.hash = '#/notas';
     };
-
-    const guardar = () => {
-        if (!titulo.trim() || !contenido.trim()) return alert('Título y contenido son obligatorios');
-
-        const keepImages = existingImages.filter(url => !toRemoveImages.includes(url));
-        const totalImages = keepImages.length + files.length;
-        if (totalImages > 3) return alert('Máximo 3 imágenes por nota');
-
-        setSubiendo(true);
-
-        // Carga optimista
-        const tempId = Date.now();
-        const notaTemporal = {
-            id: tempId,
-            titulo,
-            contenido,
-            eventos: linkedEventIds,
-            imagenes: previews,
-            creado_en: new Date().toISOString(),
-            actualizado_en: null
-        };
-        if (!isEditing) {
-            setNotas(prev => [notaTemporal, ...prev]);
-        }
-
-        const form = new FormData();
-        form.append('titulo', titulo);
-        form.append('contenido', contenido);
-        linkedEventIds.forEach(id => form.append('eventos[]', id));
-
-        if (isEditing) {
-            keepImages.forEach(url => {
-                try {
-                    const cleanUrl = url.split('?')[0];
-                    const filename = decodeURIComponent(cleanUrl.split('/').pop());
-                    form.append('keep_imagenes[]', filename);
-                } catch (err) {
-                    console.warn('Error procesando imagen existente:', url);
-                }
-            });
-        }
-
-        files.forEach(f => form.append('imagenes', f));
-
-        const endpoint = isEditing
-            ? `${API_BASE_URL}/api/notas/${editId}`
-            : `${API_BASE_URL}/api/notas`;
-        const method = isEditing ? 'PATCH' : 'POST';
-
-        fetch(endpoint, {
-            method,
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
-        })
-            .then(r => {
-                if (!r.ok) throw new Error();
-                return r.json();
-            })
-            .then(nota => {
-                const clean = {
-                    ...nota,
-                    eventos: Array.isArray(nota.eventos) ? nota.eventos : [],
-                    imagenes: Array.isArray(nota.imagenes) ? nota.imagenes : [],
-                    creado_en: nota.fechacreado || new Date().toISOString(),
-                    actualizado_en: nota.fechaactualizado || null
-                };
-                setNotas(prev =>
-                    isEditing
-                        ? prev.map(n => (n.id === editId ? clean : n))
-                        : [clean, ...prev.filter(n => n.id !== tempId)]
-                );
-                cerrarModal();
-            })
-            .catch(() => alert(`Error ${isEditing ? 'editando' : 'creando'} nota`))
-            .finally(() => setSubiendo(false));
-    };
-
-
-    const confirmarBorrar = (nota) => {
+    const confirmarBorrar = nota => {
         setToDelete(nota);
         setConfirmOpen(true);
     };
-
     const borrar = () => {
         if (!toDelete) return;
-
         fetch(`${API_BASE_URL}/api/notas/${toDelete.id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
@@ -292,48 +177,89 @@ export default function NotasPage() {
                 setToDelete(null);
             });
     };
-
-    useEffect(() => {
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.split('?')[1]);
-        const notaId = params.get('editar');
-        if (notaId && notas.length > 0) {
-            const nota = notas.find(n => String(n.id) === notaId);
-            if (nota) abrirEditar(nota);
+    const guardar = () => {
+        if (!titulo.trim() || !contenido.trim()) {
+            return alert('Título y contenido son obligatorios');
         }
-    }, [notas]);
+        const keep = existingImages.filter(url => !toRemoveImages.includes(url));
+        if (keep.length + files.length > 3) {
+            return alert('Máximo 3 imágenes');
+        }
+        setSubiendo(true);
+        const form = new FormData();
+        form.append('titulo', titulo);
+        form.append('contenido', contenido);
+        linkedEventIds.forEach(id => form.append('eventos[]', id));
+        keep.forEach(url => {
+            const filename = decodeURIComponent(url.split('/').pop().split('?')[0]);
+            form.append('keep_imagenes[]', filename);
+        });
+        files.forEach(f => form.append('imagenes', f));
+        const url = isEditing
+            ? `${API_BASE_URL}/api/notas/${editId}`
+            : `${API_BASE_URL}/api/notas`;
+        fetch(url, {
+            method: isEditing ? 'PATCH' : 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        })
+            .then(r => {
+                if (!r.ok) throw new Error();
+                return r.json();
+            })
+            .then(nota => {
+                const norm = {
+                    ...nota,
+                    eventos: Array.isArray(nota.eventos) ? nota.eventos : [],
+                    imagenes: Array.isArray(nota.imagenes) ? nota.imagenes : [],
+                    creado_en: nota.fechacreado || new Date().toISOString(),
+                    actualizado_en: nota.fechaactualizado || null
+                };
+                setNotas(prev =>
+                    isEditing
+                        ? prev.map(n => (n.id === editId ? norm : n))
+                        : [norm, ...prev]
+                );
+                cerrarModal();
+            })
+            .catch(() => alert('Error guardando nota'))
+            .finally(() => setSubiendo(false));
+    };
 
+    // --- Apertura de la vista previa ---
+    const cerrarVista = () => setVistaNota(null);
+    const abrirVista = nota => setVistaNota(nota);
 
     return (
-        <div className="relative min-h-screen px-6 py-10 ">
-            {/* Encabezado */}
-            <div className="bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200 rounded-xl px-6 py-4 mb-6 flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-800">📝 Mis Notas</h1>
+        <div className="relative min-h-screen px-6 py-10 bg-gray-50">
+            {/* HEADER */}
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow mb-6">
+                <h1 className="text-2xl font-bold">📝 Mis Notas</h1>
                 <button
                     onClick={abrirCrear}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 rounded-full shadow-md text-xl flex items-center justify-center transition-transform hover:scale-110 self-center"
+                    className="w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-full shadow hover:scale-110 transition"
                 >
                     +
                 </button>
-
             </div>
-            {/* Filtros */}
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-                <div className="flex items-center gap-2 border rounded-lg px-3 py-1 bg-white shadow-sm">
-                    <span className="text-gray-500">🔍</span>
+
+            {/* FILTROS */}
+            <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded shadow">
+                    🔍
                     <input
                         type="text"
-                        placeholder="Filtrar por título"
-                        className="outline-none bg-transparent"
+                        placeholder="Filtrar título"
+                        className="outline-none"
                         value={filterName}
-                        onChange={(e) => setFilterName(e.target.value)}
+                        onChange={e => setFilterName(e.target.value)}
                     />
                 </div>
                 <input
                     type="date"
-                    className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                    className="bg-white px-4 py-2 rounded shadow focus:ring-2 focus:ring-indigo-300"
                     value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
+                    onChange={e => setFilterDate(e.target.value)}
                 />
                 <button
                     className="text-sm text-indigo-600 underline"
@@ -346,79 +272,50 @@ export default function NotasPage() {
                 </button>
             </div>
 
-            {/* Estado de carga / sin resultados */}
+            {/* CONTENIDO */}
             {loading ? (
-                <div className="text-center text-gray-400 py-20 animate-pulse">Cargando tus notas...</div>
+                <div className="text-center py-20 text-gray-400 animate-pulse">
+                    Cargando notas…
+                </div>
             ) : paginatedNotas.length === 0 ? (
-                <div className="text-center text-gray-500 py-20">
+                <div className="text-center py-20 text-gray-500">
                     {notas.length === 0
                         ? 'Aún no tienes notas. Pulsa + para crear una.'
-                        : 'No hay notas que coincidan con los filtros.'}
+                        : 'No hay notas que coincidan.'}
                 </div>
             ) : (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {paginatedNotas.map((n) => (
+                        {paginatedNotas.map(n => (
                             <div
                                 key={n.id}
-                                className="bg-white border border-gray-200 rounded-xl shadow-lg p-4 flex flex-col justify-between hover:shadow-xl hover:scale-[1.01] transition cursor-pointer"
-                                onClick={(e) => {
-                                    if (e.target.closest('button')) return;
-                                    abrirVista(n);
-                                }}
+                                className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer flex flex-col"
+                                onClick={() => abrirVista(n)}
                             >
-                                {/* Fecha */}
-                                {n.creado_en && isValid(parseISO(n.creado_en)) && (
-                                    <small className="text-gray-400 text-xs mb-2">
-                                        {format(parseISO(n.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", { locale: es })}
-                                    </small>
-                                )}
-                                {/* Título */}
-                                <h2 className="font-bold text-lg text-gray-800 break-words line-clamp-2 mb-1">{n.titulo}</h2>
-                                {/* Contenido */}
-                                <p className="text-sm text-gray-600 mb-2 line-clamp-3">{n.contenido}</p>
-                                {/* Imágenes */}
+                                <small className="text-gray-400 text-xs mb-1">
+                                    {format(parseISO(n.creado_en), "d 'de' MMMM yyyy", { locale: es })}
+                                </small>
+                                <h2 className="font-semibold text-lg text-gray-800 mb-2 line-clamp-2">
+                                    {n.titulo}
+                                </h2>
+                                <p className="text-gray-600 text-sm mb-3 line-clamp-3">
+                                    {n.contenido}
+                                </p>
                                 {n.imagenes.length > 0 && (
-                                    <div className="flex gap-2 mb-2">
+                                    <div className="flex gap-2 mb-3">
                                         {n.imagenes.map((url, i) => (
                                             <img
                                                 key={i}
-                                                src={`${url}?v=${n.actualizado_en || n.creado_en}`}
-                                                alt={`img-${i}`}
-                                                className="w-14 h-14 object-cover rounded shadow-sm hover:scale-105 transition cursor-pointer"
-                                                onClick={(e) => {
-                                                    e.stopPropagation(); // ⛔ evita abrirVista
-                                                    window.open(url, '_blank');
-                                                }}
+                                                src={url}
+                                                alt=""
+                                                className="w-16 h-16 object-cover rounded"
                                             />
                                         ))}
                                     </div>
                                 )}
-
-                                {/* Eventos */}
-                                {n.eventos
-                                    .map((eid) => events.find((e) => String(e.id) === String(eid)))
-                                    .filter(Boolean).length > 0 && (
-                                        <div className={`flex flex-wrap gap-2 mb-3 ${n.eventos.length > 1 ? 'space-y-1' : ''}`}>
-                                            {n.eventos
-                                                .map((eid) => events.find((e) => String(e.id) === String(eid)))
-                                                .filter(Boolean)
-                                                .map((ev) => (
-                                                    <span
-                                                        key={ev.id}
-                                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full inline-block max-w-[180px] truncate"
-                                                        title={ev.label}
-                                                    >
-                                                        {ev.label}
-                                                    </span>
-                                                ))}
-                                        </div>
-                                    )}
-
-                                {/* Acciones */}
-                                <div className="flex justify-end items-center mt-auto pt-2 gap-3">
+                                <div className="mt-auto flex justify-end gap-2">
                                     <button
-                                        onClick={(e) => {
+                                        onClick={e => {
                                             e.stopPropagation();
                                             abrirEditar(n);
                                         }}
@@ -427,7 +324,7 @@ export default function NotasPage() {
                                         <Pencil size={18} />
                                     </button>
                                     <button
-                                        onClick={(e) => {
+                                        onClick={e => {
                                             e.stopPropagation();
                                             confirmarBorrar(n);
                                         }}
@@ -440,11 +337,10 @@ export default function NotasPage() {
                         ))}
                     </div>
 
-                    {/* Botón Ver más */}
                     {filteredNotas.length > visibleNotas && (
                         <div className="text-center mt-8">
                             <button
-                                onClick={() => setVisibleNotas(prev => prev + 6)}
+                                onClick={() => setVisibleNotas(v => v + 6)}
                                 className="bg-indigo-600 text-white px-4 py-2 rounded-full shadow hover:bg-indigo-700 transition"
                             >
                                 Ver más notas
@@ -453,178 +349,205 @@ export default function NotasPage() {
                     )}
                 </>
             )}
-            {vistaNota && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-2xl p-6 w-full max-w-4xl space-y-4 overflow-y-auto max-h-[95vh]">
-                        <button
-                            onClick={cerrarVista}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold transition-transform hover:scale-125"
-                            aria-label="Cerrar vista"
-                        >
-                            ×
-                        </button>
 
-
-                        {/* Título */}
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2 break-words">{vistaNota.titulo}</h2>
-
-                        {/* Contenido */}
-                        <div className="text-sm text-gray-700 mb-4 whitespace-pre-wrap break-words">{vistaNota.contenido}</div>
-
-                        {/* Imágenes */}
-                        {vistaNota.imagenes.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {vistaNota.imagenes.map((url, i) => (
-                                    <img
-                                        key={i}
-                                        src={url}
-                                        alt={`preview-${i}`}
-                                        className="w-32 h-32 object-cover rounded shadow cursor-pointer hover:scale-105 transition"
-                                        onClick={() => window.open(url, '_blank')}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Eventos */}
-                        {vistaNota.eventos.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {vistaNota.eventos.map((eid) => {
-                                    const ev = events.find((e) => String(e.id) === String(eid));
-                                    return (
-                                        <span
-                                            key={eid}
-                                            className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
-                                        >
-                                            {ev?.label ?? eid}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* Fecha */}
-                        <p className="mt-auto text-xs text-gray-400">
-                            Creado el: {format(parseISO(vistaNota.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", { locale: es })}
-                        </p>
+            {/* BOTÓN CONFIRMAR BORRAR */}
+            {confirmOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg">
+                        <p className="mb-4">¿Eliminar esta nota?</p>
+                        <div className="flex justify-end gap-4">
+                            <button onClick={() => setConfirmOpen(false)} className="px-4 py-2">
+                                Cancelar
+                            </button>
+                            <button onClick={borrar} className="px-4 py-2 bg-red-500 text-white rounded">
+                                Eliminar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
+            {/* VISTA PREVIA MODAL */}
+            {vistaNota && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    style={{ animation: 'fadeIn 0.3s ease-out' }}
+                    onClick={cerrarVista}
+                >
+                    <div
+                        ref={modalRef}
+                        className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden"
+                        style={{ animation: 'scaleIn 0.3s ease-out' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* HEADER */}
+                        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <h2 className="text-2xl font-semibold text-gray-800">{vistaNota.titulo}</h2>
+                            <button
+                                onClick={cerrarVista}
+                                className="text-gray-500 hover:text-gray-700 transition-colors"
+                                aria-label="Cerrar vista"
+                            >
+                                <AiOutlineClose size={24} />
+                            </button>
+                        </header>
 
+                        {/* BODY */}
+                        <main className="px-6 py-4 space-y-6">
+                            <section className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                {vistaNota.contenido}
+                            </section>
+
+                            {vistaNota.imagenes.length > 0 && (
+                                <section>
+                                    <h3 className="text-lg font-medium mb-2 text-gray-800">Imágenes</h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        {vistaNota.imagenes.map((url, i) => (
+                                            <ImagenConLoader
+                                                key={i}
+                                                src={url}
+                                                alt={`img-${i}`}
+                                                onClick={() => window.open(url, '_blank')}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
+                            {vistaNota.eventos.length > 0 && (
+                                <section>
+                                    <h3 className="text-lg font-medium mb-2 text-gray-800">
+                                        Citas relacionadas
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {vistaNota.eventos.map(eid => {
+                                            const ev = events.find(e => String(e.id) === String(eid));
+                                            return ev ? (
+                                                <span
+                                                    key={eid}
+                                                    className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
+                                                >
+                                                    {ev.label}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+                        </main>
+
+                        {/* FOOTER */}
+                        <footer className="px-6 py-3 border-t border-gray-200 text-right text-gray-500 text-sm">
+                            Creado el{' '}
+                            {format(parseISO(vistaNota.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", {
+                                locale: es
+                            })}
+                        </footer>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL CREAR/EDITAR */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl space-y-4 overflow-y-auto max-h-[95vh]">
-                        <h2 className="text-xl font-bold">{isEditing ? 'Editar nota' : 'Crear nota'}</h2>
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    onClick={cerrarModal}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl overflow-y-auto max-h-[90vh]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold mb-4">
+                            {isEditing ? 'Editar nota' : 'Crear nota'}
+                        </h2>
 
                         <input
                             type="text"
                             placeholder="Título"
-                            className="w-full border border-gray-300 rounded px-3 py-2"
+                            className="w-full border px-3 py-2 rounded mb-4"
                             value={titulo}
                             onChange={e => setTitulo(e.target.value)}
                         />
                         <textarea
                             placeholder="Contenido"
-                            className="w-full border border-gray-300 rounded px-3 py-2 h-24"
+                            className="w-full border px-3 py-2 rounded h-24 mb-4"
                             value={contenido}
                             onChange={e => setContenido(e.target.value)}
                         />
 
-                        {/* Selector citas agrupado */}
-                        <div>
-                            <label className="block mb-1 font-medium">Relacionar con citas:</label>
+                        {/* Select de citas agrupado por mes */}
+                        <div className="mb-4">
+                            <label className="block mb-1 font-medium">Citas relacionadas</label>
                             <Select
                                 isMulti
-                                options={Array.from(
-                                    events.reduce((acc, ev) => {
-                                        if (!acc.has(ev.mes)) acc.set(ev.mes, []);
-                                        acc.get(ev.mes).push({
-                                            value: ev.id,
-                                            label: ev.label
-                                        });
-                                        return acc;
-                                    }, new Map())
-                                ).map(([mes, opciones]) => ({ label: mes, options: opciones }))}
-
+                                options={(() => {
+                                    const m = new Map();
+                                    events.forEach(ev => {
+                                        const arr = m.get(ev.mes) || [];
+                                        arr.push({ value: ev.id, label: ev.label });
+                                        m.set(ev.mes, arr);
+                                    });
+                                    return Array.from(m, ([mes, opts]) => ({ label: mes, options: opts }));
+                                })()}
                                 value={events
-                                    .filter(ev =>
-                                        (eventoRelacionado ? [eventoRelacionado] : linkedEventIds).includes(ev.id)
-                                    )
-                                    .map(ev => ({
-                                        value: ev.id,
-                                        label: `${format(parseISO(ev.fecha), "d 'de' MMMM yyyy", { locale: es })} – ${ev.label.split('–')[0]}`
-                                    }))}
-                                onChange={selected => setLinkedEventIds(selected.map(opt => opt.value))}
+                                    .filter(ev => linkedEventIds.includes(ev.id))
+                                    .map(ev => ({ value: ev.id, label: ev.label }))}
+                                onChange={sel => setLinkedEventIds(sel.map(o => o.value))}
                                 className="react-select-container"
                                 classNamePrefix="react-select"
-                                placeholder="Buscar y seleccionar citas por mes..."
+                                placeholder="Busca por mes…"
                             />
                         </div>
 
                         {/* Imágenes */}
-                        <div>
-                            <label className="block mb-1 font-medium">Imágenes (max 3):</label>
-                            <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                                {/* Botón para tomar foto con la cámara (móviles) */}
-                                <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow cursor-pointer">
-                                    📷 Tomar foto
+                        <div className="mb-4">
+                            <label className="block mb-1 font-medium">Imágenes (max 3)</label>
+                            <div className="flex gap-2 mb-2">
+                                {/* Tomar foto */}
+                                <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
+                                    📷
                                     <input
                                         type="file"
                                         accept="image/*"
                                         capture="environment"
                                         className="hidden"
                                         onChange={e => {
-                                            const files = Array.from(e.target.files);
-                                            const total = files.length + existingImages.length + previews.length;
-                                            if (total > 3) {
-                                                alert('Máximo 3 imágenes por nota');
-                                                return;
+                                            const f = Array.from(e.target.files);
+                                            if (f.length + existingImages.length + previews.length > 3) {
+                                                return alert('Máximo 3 imágenes');
                                             }
-                                            setFiles(prev => [...prev, ...files]);
-                                            setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                                            setFiles(prev => [...prev, ...f]);
                                         }}
                                     />
                                 </label>
-
-                                {/* Botón para subir desde galería */}
-                                <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow cursor-pointer">
-                                    🖼️ Subir imagen
+                                {/* Galería */}
+                                <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer">
+                                    🖼️
                                     <input
                                         type="file"
                                         accept="image/*"
                                         multiple
                                         className="hidden"
                                         onChange={e => {
-                                            const files = Array.from(e.target.files);
-                                            const total = files.length + existingImages.length + previews.length;
-                                            if (total > 3) {
-                                                alert('Máximo 3 imágenes por nota');
-                                                return;
+                                            const f = Array.from(e.target.files);
+                                            if (f.length + existingImages.length + previews.length > 3) {
+                                                return alert('Máximo 3 imágenes');
                                             }
-                                            setFiles(prev => [...prev, ...files]);
-                                            setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
+                                            setFiles(prev => [...prev, ...f]);
                                         }}
                                     />
                                 </label>
                             </div>
-
-
+                            {/* Previews nuevas */}
                             {previews.length > 0 && (
-                                <div className="flex gap-2 mt-2">
+                                <div className="flex gap-2 mb-2">
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="w-16 h-16 object-cover rounded" alt={`preview-${i}`} />
+                                            <img src={url} className="w-16 h-16 rounded object-cover" alt="" />
                                             <button
-                                                type="button"
                                                 onClick={() => {
-                                                    const newPrevs = [...previews];
-                                                    newPrevs.splice(i, 1);
-                                                    setPreviews(newPrevs);
-
-                                                    const newFiles = [...files];
-                                                    newFiles.splice(i, 1);
-                                                    setFiles(newFiles);
+                                                    setPreviews(p => p.filter((_, idx) => idx !== i));
+                                                    setFiles(f => f.filter((_, idx) => idx !== i));
                                                 }}
                                                 className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                                             >
@@ -634,17 +557,16 @@ export default function NotasPage() {
                                     ))}
                                 </div>
                             )}
-
+                            {/* Existing images */}
                             {existingImages.length > 0 && (
-                                <div className="flex gap-2 mt-2">
+                                <div className="flex gap-2 mb-2">
                                     {existingImages.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="w-16 h-16 object-cover rounded" alt={`existing-${i}`} />
+                                            <img src={url} className="w-16 h-16 rounded object-cover" alt="" />
                                             <button
-                                                type="button"
                                                 onClick={() => {
-                                                    setToRemoveImages(prev => [...prev, url]);
-                                                    setExistingImages(prev => prev.filter(u => u !== url));
+                                                    setToRemoveImages(t => [...t, url]);
+                                                    setExistingImages(e => e.filter(u => u !== url));
                                                 }}
                                                 className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                                             >
@@ -656,20 +578,22 @@ export default function NotasPage() {
                             )}
                         </div>
 
-                        <div className="flex justify-end space-x-2">
+                        {/* Acciones */}
+                        <div className="flex justify-end gap-2">
                             <button onClick={cerrarModal} className="px-4 py-2 bg-gray-300 rounded">
                                 Cancelar
                             </button>
-                            <button onClick={guardar} className="px-4 py-2 bg-blue-600 text-white rounded">
+                            <button
+                                onClick={guardar}
+                                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                                disabled={subiendo}
+                            >
                                 {isEditing ? 'Actualizar' : 'Guardar'}
                             </button>
                         </div>
-
                     </div>
                 </div>
             )}
-
         </div>
     );
-
 }

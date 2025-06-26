@@ -31,8 +31,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'clientes',
             links: [
                 { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
-                { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin'] },
-                { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin'] }
+                { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
+                { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin', 'comercial'] }
             ],
         },
         {
