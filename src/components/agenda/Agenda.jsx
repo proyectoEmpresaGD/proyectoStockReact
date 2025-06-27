@@ -21,18 +21,10 @@ const localizer = dateFnsLocalizer({
 });
 
 const mensajes = {
-    today: 'Hoy',
-    previous: 'Anterior',
-    next: 'Siguiente',
-    month: 'Mes',
-    week: 'Semana',
-    day: 'Día',
-    agenda: 'Agenda',
-    date: 'Fecha',
-    time: 'Hora',
-    event: 'Evento',
-    allDay: 'Todo el día',
-    noEventsInRange: 'No hay eventos',
+    today: 'Hoy', previous: 'Anterior', next: 'Siguiente',
+    month: 'Mes', week: 'Semana', day: 'Día', agenda: 'Agenda',
+    date: 'Fecha', time: 'Hora', event: 'Evento',
+    allDay: 'Todo el día', noEventsInRange: 'No hay eventos',
 };
 
 export default function AgendaPage() {
@@ -48,7 +40,7 @@ export default function AgendaPage() {
     const [searchParams] = useSearchParams();
     const paramEventId = searchParams.get('eventId');
 
-    // 1️⃣ Carga visitas
+    // 1️⃣ Fetch visitas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/visits/calendario`, {
@@ -74,7 +66,7 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // 2️⃣ Carga notas
+    // 2️⃣ Fetch notas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/notas`, {
@@ -87,7 +79,7 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // 3️⃣ Abrir modal si viene eventId
+    // 3️⃣ Si viene eventId en URL, abrimos modal
     useEffect(() => {
         if (paramEventId && eventos.length > 0) {
             const evt = eventos.find(e => String(e.id) === paramEventId);
@@ -95,8 +87,8 @@ export default function AgendaPage() {
         }
     }, [paramEventId, eventos]);
 
-    // CRUD handlers
-    const handleCreate = evt => {
+    // Handlers de creación/actualización/borrado
+    const handleCreateVisit = evt => {
         setEventos(ev => [...ev, evt]);
         setSlot(null);
     };
@@ -109,23 +101,15 @@ export default function AgendaPage() {
         setSelectedEvent(null);
     };
 
-    // Wrapper para capturar touch y click
-    const EventWrapper = ({ event, children }) => (
-        <div
-            onClick={() => setSelectedEvent(event)}
-            onTouchEnd={() => setSelectedEvent(event)}
-        >
-            {children}
-        </div>
-    );
-
-    // Componente de evento con contador notas
+    // Componente de evento custom, con contador de notas
     const EventComponent = ({ event }) => {
         const notaCount = allNotas.filter(n =>
             Array.isArray(n.eventos) && n.eventos.includes(String(event.id))
         ).length;
+        const bg = event.type === 'event' ? 'bg-green-600' : 'bg-blue-600';
+
         return (
-            <div className="flex flex-col justify-between h-full p-2 bg-blue-600 rounded-md shadow-md">
+            <div className={`flex flex-col justify-between h-full p-2 rounded-md shadow-md ${bg}`}>
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] font-bold text-white">
                         {format(event.start, 'HH:mm')}
@@ -138,17 +122,42 @@ export default function AgendaPage() {
                 </div>
                 <div className="mt-1">
                     <p className="text-[12px] text-white font-medium truncate">
-                        {event.descripcion || '(Sin descripción)'}
+                        {event.type === 'event' ? event.title : event.descripcion}
                     </p>
-                    <p className="text-[10px] text-white/80 truncate">
-                        {event.cliente_nombre}
-                    </p>
+                    {event.type === 'visit' && (
+                        <p className="text-[10px] text-white/80 truncate">
+                            {event.cliente_nombre}
+                        </p>
+                    )}
                 </div>
             </div>
         );
     };
 
-    // Selector de mes
+    // Wrapper para captar toques sobre un evento
+    const EventWrapper = ({ event, children }) =>
+        <div
+            onClick={() => setSelectedEvent(event)}
+            onTouchEnd={() => setSelectedEvent(event)}
+        >
+            {children}
+        </div>;
+
+    // Wrapper para captar toques sobre una celda de fecha
+    const DateCellWrapper = ({ value, children }) =>
+        <div
+            onTouchEnd={e => {
+                e.preventDefault();
+                setSlot({
+                    start: value,
+                    end: new Date(value.getTime() + 3600000),
+                });
+            }}
+        >
+            {children}
+        </div>;
+
+    // Selector mensual
     const handleMonthChange = e => {
         const [year, month] = e.target.value.split('-');
         setCurrentDate(new Date(year, month - 1, 1));
@@ -163,7 +172,7 @@ export default function AgendaPage() {
                 📆 Mi Agenda
             </h1>
 
-            {/* Selector mes */}
+            {/* Selector de mes */}
             <div className="flex justify-center mb-4">
                 <input
                     type="month"
@@ -184,12 +193,13 @@ export default function AgendaPage() {
                     onView={setView}
                     onNavigate={date => setCurrentDate(date)}
                     selectable
-                    onSelectSlot={s => setSlot(s)}
-                    // quitamos onSelectEvent directo, lo manejamos en el wrapper
+                    onSelectSlot={slot => setSlot(slot)}
+                    onSelectEvent={evt => setSelectedEvent(evt)}
                     messages={mensajes}
                     components={{
                         event: EventComponent,
-                        eventWrapper: EventWrapper
+                        eventWrapper: EventWrapper,
+                        dateCellWrapper: DateCellWrapper
                     }}
                     toolbar={false}
                     eventPropGetter={() => ({
@@ -213,11 +223,11 @@ export default function AgendaPage() {
                     token={token}
                     slot={slot}
                     onClose={() => setSlot(null)}
-                    onCreate={handleCreate}
+                    onCreate={handleCreateVisit}
                 />
             )}
 
-            {selectedEvent && (
+            {selectedEvent && selectedEvent.type === 'visit' && (
                 <VisitDetailsModal
                     token={token}
                     event={selectedEvent}
