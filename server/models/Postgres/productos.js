@@ -49,18 +49,7 @@ export class ProductModel {
     }
   }
 
-  static async getByMarca(codmarca) {
-    const query = `
-      SELECT DISTINCT ON (nombre) nombre, ancho, composicion, mantenimiento, direcciontela, uso, pufv
-    FROM productos
-    WHERE codmarca = $1 AND nombre IS NOT NULL AND nombre != ''
-    ORDER BY nombre ASC;
 
-
-    `;
-    const { rows } = await pool.query(query, [codmarca]);
-    return rows;
-  }
 
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);

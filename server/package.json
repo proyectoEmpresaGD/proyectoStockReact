@@ -32,8 +32,6 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
     "pg": "^8.11.5",
-    "puppeteer": "^24.10.2",
-    "puppeteer-core": "^24.10.2",
     "qrcode.react": "^4.1.0",
     "react-simple-maps": "^1.0.0",
     "react-tooltip": "^5.27.1",
