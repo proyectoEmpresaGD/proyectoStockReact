@@ -59,7 +59,6 @@ function App() {
                       <Route path="/etiquetas" element={<Etiquetas />} />
                       <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
                       <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
-                      <Route path="/catalogo" element={<CatalogoPage />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
                       <Route path="/perchas" element={< EtiquetaPerchas />} />

@@ -60,7 +60,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'ventas',
             links: [
                 { to: 'entradas', label: 'Entradas', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] },
-                { to: 'catalogo', label: 'Catalogos', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin'] },
             ],
         },
         {
