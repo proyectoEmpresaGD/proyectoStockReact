@@ -5,7 +5,6 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import es from 'date-fns/locale/es';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../../assets/Calendario.css';
-
 import { useAuthContext } from '../../Auth/AuthContext';
 import CreateVisitModal from './CreateVisitModal';
 import VisitDetailsModal from './VisitDetailsModal';
@@ -37,13 +36,16 @@ const mensajes = {
 
 export default function AgendaPage() {
     const { token } = useAuthContext();
+
+    // Controlamos la fecha actual del calendario
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState('month');
     const [eventos, setEventos] = useState([]);
     const [allNotas, setAllNotas] = useState([]);
     const [slot, setSlot] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
-    // 1️⃣ Fetch visitas con cliente_nombre
+    // Carga visitas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/visits/calendario`, {
@@ -59,6 +61,7 @@ export default function AgendaPage() {
                             ...evt,
                             start,
                             end: new Date(start.getTime() + 3600000),
+                            descripcion: evt.descripcion,
                             cliente_nombre: evt.cliente_nombre || evt.razclien || 'Sin asignar',
                             codclien: evt.codclien || evt.cliente_id || null,
                         };
@@ -67,7 +70,7 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // 2️⃣ Fetch notas
+    // Carga notas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/notas`, {
@@ -80,7 +83,7 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // 🔄 Handlers modal
+    // Handlers de crear/actualizar/borrar
     const handleCreate = evt => {
         setEventos(ev => [...ev, evt]);
         setSlot(null);
@@ -94,12 +97,11 @@ export default function AgendaPage() {
         setSelectedEvent(null);
     };
 
-    // 📌 Evento con cliente + contador notas
+    // Componente de evento con contador de notas
     const EventComponent = ({ event }) => {
         const notaCount = allNotas.filter(n =>
             Array.isArray(n.eventos) && n.eventos.includes(String(event.id))
         ).length;
-
         return (
             <div className="flex flex-col justify-between h-full p-2 bg-blue-600 rounded-md shadow-md">
                 <div className="flex justify-between items-center">
@@ -113,16 +115,44 @@ export default function AgendaPage() {
                     )}
                 </div>
                 <div className="mt-1">
-                    <p className="text-[12px] text-white font-medium truncate">{event.descripcion || '(Sin descripción)'}</p>
-                    <p className="text-[10px] text-white/80 truncate">{event.cliente_nombre}</p>
+                    <p className="text-[12px] text-white font-medium truncate">
+                        {event.descripcion || '(Sin descripción)'}
+                    </p>
+                    <p className="text-[10px] text-white/80 truncate">
+                        {event.cliente_nombre}
+                    </p>
                 </div>
             </div>
         );
     };
 
+    // Al cambiar el selector de mes:
+    const handleMonthChange = e => {
+        const [year, month] = e.target.value.split('-');
+        setCurrentDate(new Date(year, month - 1, 1));
+    };
+
+    // Valor para el input type="month"
+    const monthValue = `${currentDate.getFullYear()}-${String(
+        currentDate.getMonth() + 1
+    ).padStart(2, '0')}`;
+
     return (
         <div className="px-4 py-6 md:px-8 md:py-10">
-            <h1 className="text-2xl md:text-3xl font-bold text-center mb-6">📆 Mi Agenda</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-center mb-6">
+                📆 Mi Agenda
+            </h1>
+
+            {/* Selector de mes */}
+            <div className="flex justify-center mb-4">
+                <input
+                    type="month"
+                    value={monthValue}
+                    onChange={handleMonthChange}
+                    className="border px-3 py-2 rounded shadow focus:outline-none"
+                />
+            </div>
+
             <div className="border rounded-lg shadow-sm overflow-hidden h-[70vh] md:h-[80vh]">
                 <Calendar
                     localizer={localizer}
@@ -130,12 +160,15 @@ export default function AgendaPage() {
                     startAccessor="start"
                     endAccessor="end"
                     view={view}
+                    date={currentDate}
                     onView={setView}
+                    onNavigate={date => setCurrentDate(date)}
                     selectable
                     onSelectSlot={s => setSlot(s)}
                     onSelectEvent={e => setSelectedEvent(e)}
                     messages={mensajes}
                     components={{ event: EventComponent }}
+                    toolbar={false}
                     eventPropGetter={() => ({
                         style: { backgroundColor: 'transparent', border: 'none', padding: 0 },
                     })}

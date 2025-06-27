@@ -1,5 +1,4 @@
-// src/components/agenda/NoteModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FiCamera, FiUpload, FiTrash2 } from 'react-icons/fi';
 
 export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
@@ -9,24 +8,26 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     const [existingImages, setExistingImages] = useState(nota?.imagenes || []);
     const [removedImages, setRemovedImages] = useState([]);
     const [newFiles, setNewFiles] = useState([]);
+    const [saving, setSaving] = useState(false);
 
-    // manejar selección de nuevas imágenes
-    const handleNewFiles = (files) => {
+    const handleNewFiles = files => {
         const arr = Array.from(files);
-        if (existingImages.length - removedImages.length + newFiles.length + arr.length > 3) {
+        if (
+            existingImages.length - removedImages.length +
+            newFiles.length +
+            arr.length > 3
+        ) {
             return alert('Máximo 3 imágenes por nota');
         }
         setNewFiles(prev => [...prev, ...arr]);
     };
 
-    // eliminar imagen existente
-    const removeExisting = (url) => {
+    const removeExisting = url => {
         setRemovedImages(prev => [...prev, url]);
         setExistingImages(prev => prev.filter(u => u !== url));
     };
 
-    // eliminar nueva imagen
-    const removeNew = (idx) => {
+    const removeNew = idx => {
         setNewFiles(prev => prev.filter((_, i) => i !== idx));
     };
 
@@ -34,19 +35,17 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
         if (!titulo.trim() || !contenido.trim()) {
             return alert('Completa título y contenido');
         }
-
+        if (!window.confirm('¿Seguro que quieres guardar la nota?')) {
+            return;
+        }
+        setSaving(true);
         const form = new FormData();
         form.append('titulo', titulo);
         form.append('contenido', contenido);
-        // para creación / edición vinculamos la nota al evento
         form.append('eventos[]', String(eventId));
-
-        // si estamos editando, decimos al backend qué URLs borrar
         if (isEditing) {
             removedImages.forEach(url => form.append('removed_images[]', url));
         }
-
-        // adjuntamos nuevas imágenes
         newFiles.forEach(file => form.append('imagenes', file));
 
         try {
@@ -54,12 +53,9 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                 ? `${import.meta.env.VITE_API_BASE_URL}/api/notas/${nota.id}`
                 : `${import.meta.env.VITE_API_BASE_URL}/api/notas`;
             const method = isEditing ? 'PATCH' : 'POST';
-
             const res = await fetch(url, {
                 method,
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: form
             });
             if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -68,6 +64,8 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
         } catch (err) {
             console.error(err);
             alert('Error al guardar la nota');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -79,25 +77,24 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                         {isEditing ? 'Editar nota' : 'Nueva nota'}
                     </h3>
 
-                    {/* Título */}
                     <input
                         type="text"
                         placeholder="Título"
                         className="w-full border rounded px-3 py-2 mb-3"
                         value={titulo}
                         onChange={e => setTitulo(e.target.value)}
+                        disabled={saving}
                     />
 
-                    {/* Contenido */}
                     <textarea
                         rows={4}
                         placeholder="Contenido"
                         className="w-full border rounded px-3 py-2 mb-3"
                         value={contenido}
                         onChange={e => setContenido(e.target.value)}
+                        disabled={saving}
                     />
 
-                    {/* Imágenes existentes */}
                     {existingImages.length > 0 && (
                         <div className="mb-3">
                             <p className="font-medium mb-2">Imágenes actuales:</p>
@@ -112,6 +109,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                         <button
                                             onClick={() => removeExisting(url)}
                                             className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                                            disabled={saving}
                                         >
                                             <FiTrash2 size={12} />
                                         </button>
@@ -121,7 +119,6 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                         </div>
                     )}
 
-                    {/* Botones para añadir nuevas imágenes */}
                     <div className="mb-3 space-y-2">
                         <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
                             <FiCamera />
@@ -132,6 +129,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                 capture="environment"
                                 className="hidden"
                                 onChange={e => handleNewFiles(e.target.files)}
+                                disabled={saving}
                             />
                         </label>
                         <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer">
@@ -143,11 +141,11 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                 multiple
                                 className="hidden"
                                 onChange={e => handleNewFiles(e.target.files)}
+                                disabled={saving}
                             />
                         </label>
                     </div>
 
-                    {/* Previsualización de nuevas imágenes */}
                     {newFiles.length > 0 && (
                         <div className="mb-3">
                             <p className="font-medium mb-2">Imágenes por añadir:</p>
@@ -162,6 +160,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                         <button
                                             onClick={() => removeNew(i)}
                                             className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                                            disabled={saving}
                                         >
                                             <FiTrash2 size={12} />
                                         </button>
@@ -171,19 +170,20 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                         </div>
                     )}
 
-                    {/* Botones de acción */}
                     <div className="flex justify-end gap-2 mt-4">
                         <button
                             onClick={onClose}
                             className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
+                            disabled={saving}
                         >
                             Cancelar
                         </button>
                         <button
                             onClick={handleSubmit}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                            disabled={saving}
                         >
-                            {isEditing ? 'Actualizar' : 'Guardar'}
+                            {saving ? 'Guardando...' : isEditing ? 'Actualizar' : 'Guardar'}
                         </button>
                     </div>
                 </div>

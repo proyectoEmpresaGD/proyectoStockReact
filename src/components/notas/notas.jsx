@@ -21,7 +21,8 @@ function ImagenConLoader({ src, alt, onClick }) {
                 loading="lazy"
                 onLoad={() => setLoaded(true)}
                 onClick={onClick}
-                className={`w-20 h-20 object-cover rounded cursor-pointer transition-opacity duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-20 h-20 object-cover rounded cursor-pointer transition-opacity duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'
+                    }`}
             />
         </div>
     );
@@ -54,7 +55,7 @@ export default function NotasPage() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [toDelete, setToDelete] = useState(null);
 
-    // Vista previa
+    // Vista previa nota
     const [vistaNota, setVistaNota] = useState(null);
     const modalRef = useRef(null);
 
@@ -62,17 +63,12 @@ export default function NotasPage() {
     const [visibleNotas, setVisibleNotas] = useState(9);
 
     // IDs de eventos del usuario (para filtrar notas)
-    const userEventIds = useMemo(
-        () => new Set(events.map(e => String(e.id))),
-        [events]
-    );
+    const userEventIds = useMemo(() => new Set(events.map(e => String(e.id))), [events]);
 
     // Fetch inicial de notas
     useEffect(() => {
         if (!token) return;
-        fetch(`${API_BASE_URL}/api/notas`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        fetch(`${API_BASE_URL}/api/notas`, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.json())
             .then(data => {
                 const norm = data.map(n => ({
@@ -80,11 +76,10 @@ export default function NotasPage() {
                     eventos: Array.isArray(n.eventos) ? n.eventos : [],
                     imagenes: Array.isArray(n.imagenes) ? n.imagenes : [],
                     creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
-                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
+                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null,
                 }));
                 norm.sort((a, b) =>
-                    new Date(b.actualizado_en || b.creado_en) -
-                    new Date(a.actualizado_en || a.creado_en)
+                    new Date(b.actualizado_en || b.creado_en) - new Date(a.actualizado_en || a.creado_en)
                 );
                 setNotas(norm);
             })
@@ -92,12 +87,10 @@ export default function NotasPage() {
             .finally(() => setLoading(false));
     }, [token]);
 
-    // Fetch de eventos para el Select y filtrado
+    // Fetch de eventos para el Select y para enlazar
     useEffect(() => {
         if (!token) return;
-        fetch(`${API_BASE_URL}/api/calendario`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        fetch(`${API_BASE_URL}/api/calendario`, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.json())
             .then(data => {
                 const registros = Array.isArray(data) ? data : data.registros || [];
@@ -109,7 +102,7 @@ export default function NotasPage() {
                             id: String(evt.id),
                             fecha: evt.fecha,
                             mes: format(f, 'MMMM yyyy', { locale: es }),
-                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`
+                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`,
                         };
                     });
                 setEvents(evs);
@@ -124,17 +117,13 @@ export default function NotasPage() {
         return () => urls.forEach(URL.revokeObjectURL);
     }, [files]);
 
-    // Filtrado de notas según inputs y asociación a este usuario
-    const filteredNotas = useMemo(() => {
-        return notas
-            .filter(n => {
-                // Solo notas vinculadas a eventos de este usuario
-                if (!n.eventos.some(eid => userEventIds.has(String(eid)))) {
-                    return false;
-                }
-                const title = n.titulo.toLowerCase();
+    // Filtrado de notas
+    const filteredNotas = useMemo(
+        () =>
+            notas.filter(n => {
+                if (!n.eventos.some(eid => userEventIds.has(String(eid)))) return false;
                 const nameMatch = filterName
-                    ? title.includes(filterName.toLowerCase())
+                    ? n.titulo.toLowerCase().includes(filterName.toLowerCase())
                     : true;
                 const dateMatch = filterDate
                     ? n.eventos.some(eid => {
@@ -143,18 +132,23 @@ export default function NotasPage() {
                     })
                     : true;
                 return nameMatch && dateMatch;
-            });
-    }, [notas, filterName, filterDate, events, userEventIds]);
+            }),
+        [notas, filterName, filterDate, events, userEventIds]
+    );
 
     const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
-    // Handlers básicos
+    // Handlers de CRUD
     const abrirCrear = () => {
         setIsEditing(false);
         setEditId(null);
-        setTitulo(''); setContenido('');
-        setFiles([]); setPreviews([]);
-        setLinkedEventIds([]); setExistingImages([]); setToRemoveImages([]);
+        setTitulo('');
+        setContenido('');
+        setFiles([]);
+        setPreviews([]);
+        setLinkedEventIds([]);
+        setExistingImages([]);
+        setToRemoveImages([]);
         setModalOpen(true);
     };
     const abrirEditar = nota => {
@@ -162,7 +156,8 @@ export default function NotasPage() {
         setEditId(nota.id);
         setTitulo(nota.titulo);
         setContenido(nota.contenido);
-        setFiles([]); setPreviews([]);
+        setFiles([]);
+        setPreviews([]);
         setLinkedEventIds(nota.eventos);
         setExistingImages(nota.imagenes);
         setToRemoveImages([]);
@@ -176,7 +171,7 @@ export default function NotasPage() {
         if (!toDelete) return;
         fetch(`${API_BASE_URL}/api/notas/${toDelete.id}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         })
             .then(r => {
                 if (!r.ok) throw new Error();
@@ -196,6 +191,7 @@ export default function NotasPage() {
         if (keep.length + files.length > 3) {
             return alert('Máximo 3 imágenes');
         }
+        if (!window.confirm('¿Seguro que quieres guardar la nota?')) return;
         setSubiendo(true);
         const form = new FormData();
         form.append('titulo', titulo);
@@ -206,30 +202,29 @@ export default function NotasPage() {
             form.append('keep_imagenes[]', filename);
         });
         files.forEach(f => form.append('imagenes', f));
+
         const url = isEditing
             ? `${API_BASE_URL}/api/notas/${editId}`
             : `${API_BASE_URL}/api/notas`;
         fetch(url, {
             method: isEditing ? 'PATCH' : 'POST',
             headers: { Authorization: `Bearer ${token}` },
-            body: form
+            body: form,
         })
             .then(r => {
                 if (!r.ok) throw new Error();
                 return r.json();
             })
-            .then(nota => {
+            .then(newNota => {
                 const norm = {
-                    ...nota,
-                    eventos: Array.isArray(nota.eventos) ? nota.eventos : [],
-                    imagenes: Array.isArray(nota.imagenes) ? nota.imagenes : [],
-                    creado_en: nota.fechacreado || new Date().toISOString(),
-                    actualizado_en: nota.fechaactualizado || null
+                    ...newNota,
+                    eventos: Array.isArray(newNota.eventos) ? newNota.eventos : [],
+                    imagenes: Array.isArray(newNota.imagenes) ? newNota.imagenes : [],
+                    creado_en: newNota.fechacreado || new Date().toISOString(),
+                    actualizado_en: newNota.fechaactualizado || null,
                 };
                 setNotas(prev =>
-                    isEditing
-                        ? prev.map(n => (n.id === editId ? norm : n))
-                        : [norm, ...prev]
+                    isEditing ? prev.map(n => (n.id === editId ? norm : n)) : [norm, ...prev]
                 );
                 setModalOpen(false);
             })
@@ -241,7 +236,7 @@ export default function NotasPage() {
 
     return (
         <div className="relative min-h-screen px-6 py-10 bg-gray-50">
-            {/* HEADER */}
+            {/* Header */}
             <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow mb-6">
                 <h1 className="text-2xl font-bold">📝 Mis Notas</h1>
                 <button
@@ -252,7 +247,7 @@ export default function NotasPage() {
                 </button>
             </div>
 
-            {/* FILTROS */}
+            {/* Filtros */}
             <div className="flex flex-wrap gap-4 mb-6">
                 <div className="flex items-center gap-2 bg-white px-3 py-1 rounded shadow">
                     🔍
@@ -281,11 +276,9 @@ export default function NotasPage() {
                 </button>
             </div>
 
-            {/* CONTENIDO */}
+            {/* Contenido */}
             {loading ? (
-                <div className="text-center py-20 text-gray-400 animate-pulse">
-                    Cargando notas…
-                </div>
+                <div className="text-center py-20 text-gray-400 animate-pulse">Cargando notas…</div>
             ) : paginatedNotas.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                     {notas.length === 0
@@ -307,9 +300,7 @@ export default function NotasPage() {
                                 <h2 className="font-semibold text-lg text-gray-800 mb-2 line-clamp-2">
                                     {n.titulo}
                                 </h2>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-3">
-                                    {n.contenido}
-                                </p>
+                                <p className="text-gray-600 text-sm mb-3 line-clamp-3">{n.contenido}</p>
                                 {n.imagenes.length > 0 && (
                                     <div className="flex gap-2 mb-3">
                                         {n.imagenes.map((url, i) => (
@@ -359,7 +350,7 @@ export default function NotasPage() {
                 </>
             )}
 
-            {/* CONFIRMAR BORRAR */}
+            {/* Confirmar borrar */}
             {confirmOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg">
@@ -376,7 +367,7 @@ export default function NotasPage() {
                 </div>
             )}
 
-            {/* VISTA PREVIA */}
+            {/* Vista previa */}
             {vistaNota && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -420,14 +411,19 @@ export default function NotasPage() {
                                     <div className="flex flex-wrap gap-2">
                                         {vistaNota.eventos.map(eid => {
                                             const ev = events.find(e => String(e.id) === String(eid));
-                                            return ev ? (
+                                            if (!ev) return null;
+                                            return (
                                                 <span
                                                     key={eid}
-                                                    className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full"
+                                                    className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full cursor-pointer hover:bg-indigo-200"
+                                                    onClick={() => {
+                                                        // redirige usando hash para que React Router funcione
+                                                        window.location.hash = `#/agenda?eventId=${ev.id}`;
+                                                    }}
                                                 >
                                                     {ev.label}
                                                 </span>
-                                            ) : null;
+                                            );
                                         })}
                                     </div>
                                 </section>
@@ -443,7 +439,7 @@ export default function NotasPage() {
                 </div>
             )}
 
-            {/* MODAL CREAR/EDITAR */}
+            {/* Modal crear/editar */}
             {modalOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -486,7 +482,6 @@ export default function NotasPage() {
                                     .filter(ev => linkedEventIds.includes(ev.id))
                                     .map(ev => ({ value: ev.id, label: ev.label }))}
                                 onChange={sel => setLinkedEventIds(sel.map(o => o.value))}
-                                className="react-select-container"
                                 classNamePrefix="react-select"
                                 placeholder="Busca por mes…"
                             />

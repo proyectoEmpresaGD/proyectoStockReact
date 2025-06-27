@@ -1,7 +1,7 @@
-// src/components/agenda/VisitDetailsModal.jsx
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import es from 'date-fns/locale/es';
+import { NavLink } from 'react-router-dom';
 import { useAuthContext } from '../../Auth/AuthContext';
 import ClientModal from '../clientes/modalclients';
 import NoteModal from './NoteModal';
@@ -24,7 +24,7 @@ export default function VisitDetailsModal({
     const [viewingNote, setViewingNote] = useState(null);
     const [scheduleAlertAt, setScheduleAlertAt] = useState('');
 
-    // 1) Al montar, traemos toda la info de la visita (incluye mensaje_completado y cliente_id)
+    // 1) Al montar, traemos toda la info de la visita
     useEffect(() => {
         fetch(
             `${API_BASE_URL}/api/visits/client/${event.codclien || event.cliente_id}?showCompleted=true`,
@@ -35,19 +35,10 @@ export default function VisitDetailsModal({
             .then(res => res.json())
             .then(arr => {
                 const found = arr.find(v => v.id === event.id);
-                if (found) {
-                    setFullEvent({
-                        ...found,
-                        // garantizamos cliente_nombre
-                        cliente_nombre: found.cliente_nombre || event.cliente_nombre || 'Sin asignar'
-                    });
-                } else {
-                    // fallback mínimo
-                    setFullEvent({
-                        ...event,
-                        cliente_nombre: event.cliente_nombre || 'Sin asignar'
-                    });
-                }
+                setFullEvent({
+                    ...(found || event),
+                    cliente_nombre: (found?.cliente_nombre || event.cliente_nombre) ?? 'Sin asignar'
+                });
             })
             .catch(err => {
                 console.error('Error cargando visita completa:', err);
@@ -58,14 +49,14 @@ export default function VisitDetailsModal({
             });
     }, [event, token]);
 
-    if (!fullEvent) return null; // hasta que cargue
+    if (!fullEvent) return null;
 
-    // Filtramos las notas de esta visita
+    // Notas propias de esta visita
     const misNotas = notasEnlazadas.filter(n =>
         Array.isArray(n.eventos) && n.eventos.includes(String(fullEvent.id))
     );
 
-    // 2) Cargar info del cliente con cliente_id
+    // 2) Cargar info del cliente
     const loadCliente = async () => {
         try {
             const clienteId = fullEvent.cliente_id || fullEvent.codclien;
@@ -121,7 +112,7 @@ export default function VisitDetailsModal({
                     },
                     body: JSON.stringify({
                         mensaje_completado: msg,
-                        completado_por: user.id
+                        completed_by: user.id
                     })
                 }
             );
@@ -262,6 +253,37 @@ export default function VisitDetailsModal({
                         )}
                     </section>
 
+                    {/* Citas relacionadas */}
+                    <section className="mb-6">
+                        <h3 className="text-lg font-semibold mb-2">📌 Citas relacionadas</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {fullEvent.eventos?.map(eid => {
+                                // búsqueda local de label
+                                const ev = notasEnlazadas.find(n =>
+                                    Array.isArray(n.eventos) && n.eventos.includes(String(eid))
+                                )
+                                    ? null
+                                    : null;
+                                // en realidad conviene recibir todos los eventos en props
+                                // aquí asumimos que “event” tiene lista de todos, sustituye si hace falta
+                                const related = [event].find(e => String(e.id) === String(eid));
+                                if (!related) return null;
+                                return (
+                                    <NavLink
+                                        key={eid}
+                                        to={`/agenda?eventId=${related.id}`}
+                                        onClick={onClose}
+                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full hover:bg-indigo-200"
+                                    >
+                                        {format(new Date(related.start), "d 'de' MMM yyyy HH:mm", {
+                                            locale: es
+                                        })}
+                                    </NavLink>
+                                );
+                            })}
+                        </div>
+                    </section>
+
                     {/* Footer */}
                     <footer className="flex justify-end gap-3">
                         {fullEvent.estado !== 'completada' && (
@@ -312,7 +334,14 @@ export default function VisitDetailsModal({
             )}
 
             {/* Ver Nota */}
-            {viewingNote && <NoteModal nota={viewingNote} onClose={() => setViewingNote(null)} />}
+            {viewingNote && (
+                <NoteModal
+                    token={token}
+                    nota={viewingNote}
+                    onClose={() => setViewingNote(null)}
+                    onSaved={() => setViewingNote(null)}
+                />
+            )}
         </>
     );
 }

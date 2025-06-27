@@ -1,34 +1,35 @@
+// src/components/agenda/SearchBarClientsNotas.jsx
 import { useRef, useEffect, useState } from 'react';
-import { useAuthContext } from '../../Auth/AuthContext'; // Importa el contexto de autenticación
+import { useAuthContext } from '../../Auth/AuthContext';
 
-function SearchBar({
-    searchTerm,
+export default function SearchBar({
+    searchTerm = '',
     setSearchTerm,
-    suggestions,
+    suggestions = [],
     setSuggestions,
     handleSuggestionClick,
-    handleSearchEnter
+    handleSearchEnter = () => { },
 }) {
-    const { token } = useAuthContext(); // Obtén el token del contexto de autenticación
+    const { token } = useAuthContext();
     const wrapperRef = useRef(null);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    // Cerrar dropdown al clicar fuera
+    // Close dropdown when clicking outside
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        const onClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
                 setShowSuggestions(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
     }, []);
 
-    // Filtrado difuso: todas las palabras que escribas pueden ir en cualquier parte del nombre o código
+    // Fuzzy filter helper
     const fuzzyFilter = (client, term) => {
         const tokens = term.toLowerCase().split(/\s+/).filter(Boolean);
         const haystack = (client.razclien + ' ' + client.codclien).toLowerCase();
-        return tokens.every(t => haystack.includes(t));
+        return tokens.every((t) => haystack.includes(t));
     };
 
     const handleInputChange = async (e) => {
@@ -39,18 +40,19 @@ function SearchBar({
             setShowSuggestions(true);
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${encodeURIComponent(value)}`,
+                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${encodeURIComponent(
+                        value
+                    )}`,
                     {
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            Authorization: `Bearer ${token}`,
                             'Content-Type': 'application/json',
                         },
                     }
                 );
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                // Aplica aquí el filtrado difuso
-                setSuggestions(data.filter(c => fuzzyFilter(c, value)));
+                setSuggestions(data.filter((c) => fuzzyFilter(c, value)));
             } catch (err) {
                 console.error('Error fetching suggestions:', err);
                 setSuggestions([]);
@@ -63,6 +65,7 @@ function SearchBar({
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') {
+            e.preventDefault();
             setShowSuggestions(false);
             handleSearchEnter();
         }
@@ -72,37 +75,33 @@ function SearchBar({
         <div ref={wrapperRef} className="relative w-full" role="search">
             <input
                 type="text"
-                aria-label="Buscar por nombre o código de cliente"
+                aria-label="Buscar cliente por nombre o código"
                 placeholder="Buscar cliente por nombre"
                 value={searchTerm}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                className="w-full px-3 py-2 border rounded text-sm border-gray-300 text-gray-800 font-medium bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded text-sm border-gray-300 text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
+
             {showSuggestions && suggestions.length > 0 && (
                 <ul
-                    className="absolute left-0 w-full mt-2 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto z-10"
+                    className="absolute left-0 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto z-10"
                     role="listbox"
                 >
-                    {suggestions.map(client => (
+                    {suggestions.map((client, idx) => (
                         <li
-                            key={client.codclien}
+                            key={`${client.codclien}-${idx}`}
                             role="option"
-                            aria-selected="false"
                             className="p-2 hover:bg-gray-100 cursor-pointer"
                             onClick={() => {
-                                // 1) Actualizamos el searchTerm
                                 setSearchTerm(client.razclien);
-                                // 2) Cerramos el desplegable
                                 setShowSuggestions(false);
-                                // 3) Indicamos al padre que seleccione SOLO ese cliente
                                 handleSuggestionClick(client);
-                                // 4) Lanzamos la búsqueda para que la vista muestre únicamente el seleccionado
                                 handleSearchEnter();
                             }}
                         >
-                            <div className="font-bold">{client.razclien}</div>
-                            <div className="text-sm text-gray-600">{client.codclien}</div>
+                            <div className="font-medium text-gray-800">{client.razclien}</div>
+                            <div className="text-xs text-gray-500">{client.codclien}</div>
                         </li>
                     ))}
                 </ul>
@@ -110,5 +109,3 @@ function SearchBar({
         </div>
     );
 }
-
-export default SearchBar;
