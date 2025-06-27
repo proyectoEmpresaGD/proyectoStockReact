@@ -6,6 +6,7 @@ import Select from 'react-select';
 import { Pencil, Trash2 } from 'lucide-react';
 import { AiOutlineClose } from 'react-icons/ai';
 import { useAuthContext } from '../../Auth/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -30,6 +31,7 @@ function ImagenConLoader({ src, alt, onClick }) {
 
 export default function NotasPage() {
     const { token } = useAuthContext();
+    const navigate = useNavigate();
 
     // Estados principales
     const [notas, setNotas] = useState([]);
@@ -62,7 +64,7 @@ export default function NotasPage() {
     // Mostrar más
     const [visibleNotas, setVisibleNotas] = useState(9);
 
-    // IDs de eventos del usuario (para filtrar notas)
+    // IDs de eventos del usuario
     const userEventIds = useMemo(() => new Set(events.map(e => String(e.id))), [events]);
 
     // Fetch inicial de notas
@@ -138,7 +140,7 @@ export default function NotasPage() {
 
     const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
-    // Handlers de CRUD
+    // CRUD handlers
     const abrirCrear = () => {
         setIsEditing(false);
         setEditId(null);
@@ -304,12 +306,7 @@ export default function NotasPage() {
                                 {n.imagenes.length > 0 && (
                                     <div className="flex gap-2 mb-3">
                                         {n.imagenes.map((url, i) => (
-                                            <img
-                                                key={i}
-                                                src={url}
-                                                alt=""
-                                                className="w-16 h-16 object-cover rounded"
-                                            />
+                                            <img key={i} src={url} alt="" className="w-16 h-16 object-cover rounded" />
                                         ))}
                                     </div>
                                 )}
@@ -417,8 +414,8 @@ export default function NotasPage() {
                                                     key={eid}
                                                     className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full cursor-pointer hover:bg-indigo-200"
                                                     onClick={() => {
-                                                        // redirige usando hash para que React Router funcione
-                                                        window.location.hash = `#/agenda?eventId=${ev.id}`;
+                                                        cerrarVista();
+                                                        navigate(`/agenda?eventId=${ev.id}`);
                                                     }}
                                                 >
                                                     {ev.label}
@@ -432,7 +429,7 @@ export default function NotasPage() {
                         <footer className="px-6 py-3 border-t border-gray-200 text-right text-gray-500 text-sm">
                             Creado el{' '}
                             {format(parseISO(vistaNota.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", {
-                                locale: es
+                                locale: es,
                             })}
                         </footer>
                     </div>
@@ -452,6 +449,8 @@ export default function NotasPage() {
                         <h2 className="text-xl font-bold mb-4">
                             {isEditing ? 'Editar nota' : 'Crear nota'}
                         </h2>
+
+                        {/* Título */}
                         <input
                             type="text"
                             placeholder="Título"
@@ -459,12 +458,16 @@ export default function NotasPage() {
                             value={titulo}
                             onChange={e => setTitulo(e.target.value)}
                         />
+
+                        {/* Contenido */}
                         <textarea
                             placeholder="Contenido"
                             className="w-full border px-3 py-2 rounded h-24 mb-4"
                             value={contenido}
                             onChange={e => setContenido(e.target.value)}
                         />
+
+                        {/* Select citas relacionadas */}
                         <div className="mb-4">
                             <label className="block mb-1 font-medium">Citas relacionadas</label>
                             <Select
@@ -486,6 +489,8 @@ export default function NotasPage() {
                                 placeholder="Busca por mes…"
                             />
                         </div>
+
+                        {/* Imágenes */}
                         <div className="mb-4">
                             <label className="block mb-1 font-medium">Imágenes (max 3)</label>
                             <div className="flex gap-2 mb-2">
@@ -522,6 +527,8 @@ export default function NotasPage() {
                                     />
                                 </label>
                             </div>
+
+                            {/* Previews nuevas */}
                             {previews.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {previews.map((url, i) => (
@@ -540,6 +547,8 @@ export default function NotasPage() {
                                     ))}
                                 </div>
                             )}
+
+                            {/* Imágenes existentes */}
                             {existingImages.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {existingImages.map((url, i) => (
@@ -559,6 +568,8 @@ export default function NotasPage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Botones acción */}
                         <div className="flex justify-end gap-2">
                             <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded">
                                 Cancelar

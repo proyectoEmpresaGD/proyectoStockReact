@@ -1,4 +1,3 @@
-// src/components/agenda/AgendaPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -6,6 +5,7 @@ import es from 'date-fns/locale/es';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../../assets/Calendario.css';
 import { useAuthContext } from '../../Auth/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import CreateVisitModal from './CreateVisitModal';
 import VisitDetailsModal from './VisitDetailsModal';
 
@@ -45,6 +45,10 @@ export default function AgendaPage() {
     const [slot, setSlot] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
+    // Para auto-abrir según ?eventId=
+    const [searchParams] = useSearchParams();
+    const paramEventId = searchParams.get('eventId');
+
     // Carga visitas
     useEffect(() => {
         if (!token) return;
@@ -83,7 +87,15 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // Handlers de crear/actualizar/borrar
+    // Si hay eventId en la URL, abrimos su modal
+    useEffect(() => {
+        if (paramEventId && eventos.length > 0) {
+            const evt = eventos.find(e => String(e.id) === paramEventId);
+            if (evt) setSelectedEvent(evt);
+        }
+    }, [paramEventId, eventos]);
+
+    // Handlers de CRUD
     const handleCreate = evt => {
         setEventos(ev => [...ev, evt]);
         setSlot(null);
@@ -97,7 +109,7 @@ export default function AgendaPage() {
         setSelectedEvent(null);
     };
 
-    // Componente de evento con contador de notas
+    // Evento con contador de notas
     const EventComponent = ({ event }) => {
         const notaCount = allNotas.filter(n =>
             Array.isArray(n.eventos) && n.eventos.includes(String(event.id))
@@ -126,13 +138,11 @@ export default function AgendaPage() {
         );
     };
 
-    // Al cambiar el selector de mes:
+    // Selector de mes
     const handleMonthChange = e => {
         const [year, month] = e.target.value.split('-');
         setCurrentDate(new Date(year, month - 1, 1));
     };
-
-    // Valor para el input type="month"
     const monthValue = `${currentDate.getFullYear()}-${String(
         currentDate.getMonth() + 1
     ).padStart(2, '0')}`;
