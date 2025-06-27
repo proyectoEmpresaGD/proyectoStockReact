@@ -30,7 +30,7 @@ function ImagenConLoader({ src, alt, onClick }) {
 export default function NotasPage() {
     const { token } = useAuthContext();
 
-    // --- Estados principales ---
+    // Estados principales
     const [notas, setNotas] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -41,7 +41,6 @@ export default function NotasPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
-    // Campos nota
     const [titulo, setTitulo] = useState('');
     const [contenido, setContenido] = useState('');
     const [files, setFiles] = useState([]);
@@ -62,7 +61,13 @@ export default function NotasPage() {
     // Mostrar más
     const [visibleNotas, setVisibleNotas] = useState(9);
 
-    // --- Fetch inicial de notas ---
+    // IDs de eventos del usuario (para filtrar notas)
+    const userEventIds = useMemo(
+        () => new Set(events.map(e => String(e.id))),
+        [events]
+    );
+
+    // Fetch inicial de notas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/notas`, {
@@ -77,14 +82,17 @@ export default function NotasPage() {
                     creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
                     actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
                 }));
-                norm.sort((a, b) => new Date(b.actualizado_en || b.creado_en) - new Date(a.actualizado_en || a.creado_en));
+                norm.sort((a, b) =>
+                    new Date(b.actualizado_en || b.creado_en) -
+                    new Date(a.actualizado_en || a.creado_en)
+                );
                 setNotas(norm);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, [token]);
 
-    // --- Fetch de eventos para el Select ---
+    // Fetch de eventos para el Select y filtrado
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/calendario`, {
@@ -109,35 +117,43 @@ export default function NotasPage() {
             .catch(console.error);
     }, [token]);
 
-    // --- Previsualizaciones de imágenes nuevas ---
+    // Previsualizaciones de imágenes nuevas
     useEffect(() => {
         const urls = files.map(f => URL.createObjectURL(f));
         setPreviews(urls);
         return () => urls.forEach(URL.revokeObjectURL);
     }, [files]);
 
-    // --- Filtrado de notas según inputs ---
+    // Filtrado de notas según inputs y asociación a este usuario
     const filteredNotas = useMemo(() => {
-        return notas.filter(n => {
-            const title = n.titulo.toLowerCase();
-            const nameMatch = filterName ? title.includes(filterName.toLowerCase()) : true;
-            const dateMatch = filterDate
-                ? n.eventos.some(eid => {
-                    const ev = events.find(e => String(e.id) === String(eid));
-                    return ev && format(parseISO(ev.fecha), 'yyyy-MM-dd') === filterDate;
-                })
-                : true;
-            return nameMatch && dateMatch;
-        });
-    }, [notas, filterName, filterDate, events]);
+        return notas
+            .filter(n => {
+                // Solo notas vinculadas a eventos de este usuario
+                if (!n.eventos.some(eid => userEventIds.has(String(eid)))) {
+                    return false;
+                }
+                const title = n.titulo.toLowerCase();
+                const nameMatch = filterName
+                    ? title.includes(filterName.toLowerCase())
+                    : true;
+                const dateMatch = filterDate
+                    ? n.eventos.some(eid => {
+                        const ev = events.find(e => String(e.id) === String(eid));
+                        return ev && format(parseISO(ev.fecha), 'yyyy-MM-dd') === filterDate;
+                    })
+                    : true;
+                return nameMatch && dateMatch;
+            });
+    }, [notas, filterName, filterDate, events, userEventIds]);
 
     const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
-    // --- Handlers básicos ---
+    // Handlers básicos
     const abrirCrear = () => {
         setIsEditing(false);
         setEditId(null);
-        setTitulo(''); setContenido(''); setFiles([]); setPreviews([]);
+        setTitulo(''); setContenido('');
+        setFiles([]); setPreviews([]);
         setLinkedEventIds([]); setExistingImages([]); setToRemoveImages([]);
         setModalOpen(true);
     };
@@ -151,11 +167,6 @@ export default function NotasPage() {
         setExistingImages(nota.imagenes);
         setToRemoveImages([]);
         setModalOpen(true);
-    };
-    const cerrarModal = () => {
-        setModalOpen(false);
-        setIsEditing(false);
-        setEditId(null);
     };
     const confirmarBorrar = nota => {
         setToDelete(nota);
@@ -220,15 +231,13 @@ export default function NotasPage() {
                         ? prev.map(n => (n.id === editId ? norm : n))
                         : [norm, ...prev]
                 );
-                cerrarModal();
+                setModalOpen(false);
             })
             .catch(() => alert('Error guardando nota'))
             .finally(() => setSubiendo(false));
     };
-
-    // --- Apertura de la vista previa ---
-    const cerrarVista = () => setVistaNota(null);
     const abrirVista = nota => setVistaNota(nota);
+    const cerrarVista = () => setVistaNota(null);
 
     return (
         <div className="relative min-h-screen px-6 py-10 bg-gray-50">
@@ -350,7 +359,7 @@ export default function NotasPage() {
                 </>
             )}
 
-            {/* BOTÓN CONFIRMAR BORRAR */}
+            {/* CONFIRMAR BORRAR */}
             {confirmOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg">
@@ -367,37 +376,27 @@ export default function NotasPage() {
                 </div>
             )}
 
-            {/* VISTA PREVIA MODAL */}
+            {/* VISTA PREVIA */}
             {vistaNota && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                    style={{ animation: 'fadeIn 0.3s ease-out' }}
                     onClick={cerrarVista}
                 >
                     <div
                         ref={modalRef}
                         className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden"
-                        style={{ animation: 'scaleIn 0.3s ease-out' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* HEADER */}
-                        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                        <header className="flex items-center justify-between px-6 py-4 border-b">
                             <h2 className="text-2xl font-semibold text-gray-800">{vistaNota.titulo}</h2>
-                            <button
-                                onClick={cerrarVista}
-                                className="text-gray-500 hover:text-gray-700 transition-colors"
-                                aria-label="Cerrar vista"
-                            >
+                            <button onClick={cerrarVista} className="text-gray-500 hover:text-gray-700">
                                 <AiOutlineClose size={24} />
                             </button>
                         </header>
-
-                        {/* BODY */}
                         <main className="px-6 py-4 space-y-6">
                             <section className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                                 {vistaNota.contenido}
                             </section>
-
                             {vistaNota.imagenes.length > 0 && (
                                 <section>
                                     <h3 className="text-lg font-medium mb-2 text-gray-800">Imágenes</h3>
@@ -413,7 +412,6 @@ export default function NotasPage() {
                                     </div>
                                 </section>
                             )}
-
                             {vistaNota.eventos.length > 0 && (
                                 <section>
                                     <h3 className="text-lg font-medium mb-2 text-gray-800">
@@ -435,8 +433,6 @@ export default function NotasPage() {
                                 </section>
                             )}
                         </main>
-
-                        {/* FOOTER */}
                         <footer className="px-6 py-3 border-t border-gray-200 text-right text-gray-500 text-sm">
                             Creado el{' '}
                             {format(parseISO(vistaNota.creado_en), "d 'de' MMMM yyyy, HH:mm:ss", {
@@ -451,7 +447,7 @@ export default function NotasPage() {
             {modalOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                    onClick={cerrarModal}
+                    onClick={() => setModalOpen(false)}
                 >
                     <div
                         className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl overflow-y-auto max-h-[90vh]"
@@ -460,7 +456,6 @@ export default function NotasPage() {
                         <h2 className="text-xl font-bold mb-4">
                             {isEditing ? 'Editar nota' : 'Crear nota'}
                         </h2>
-
                         <input
                             type="text"
                             placeholder="Título"
@@ -474,8 +469,6 @@ export default function NotasPage() {
                             value={contenido}
                             onChange={e => setContenido(e.target.value)}
                         />
-
-                        {/* Select de citas agrupado por mes */}
                         <div className="mb-4">
                             <label className="block mb-1 font-medium">Citas relacionadas</label>
                             <Select
@@ -498,12 +491,9 @@ export default function NotasPage() {
                                 placeholder="Busca por mes…"
                             />
                         </div>
-
-                        {/* Imágenes */}
                         <div className="mb-4">
                             <label className="block mb-1 font-medium">Imágenes (max 3)</label>
                             <div className="flex gap-2 mb-2">
-                                {/* Tomar foto */}
                                 <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
                                     📷
                                     <input
@@ -520,7 +510,6 @@ export default function NotasPage() {
                                         }}
                                     />
                                 </label>
-                                {/* Galería */}
                                 <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer">
                                     🖼️
                                     <input
@@ -538,7 +527,6 @@ export default function NotasPage() {
                                     />
                                 </label>
                             </div>
-                            {/* Previews nuevas */}
                             {previews.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {previews.map((url, i) => (
@@ -557,7 +545,6 @@ export default function NotasPage() {
                                     ))}
                                 </div>
                             )}
-                            {/* Existing images */}
                             {existingImages.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {existingImages.map((url, i) => (
@@ -577,10 +564,8 @@ export default function NotasPage() {
                                 </div>
                             )}
                         </div>
-
-                        {/* Acciones */}
                         <div className="flex justify-end gap-2">
-                            <button onClick={cerrarModal} className="px-4 py-2 bg-gray-300 rounded">
+                            <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded">
                                 Cancelar
                             </button>
                             <button
