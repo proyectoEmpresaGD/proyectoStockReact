@@ -29,7 +29,7 @@ import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
 import FicharPage from './pages/Fichar.jsx'
 import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx'
-import CatalogoPage from './pages/Catalogo.jsx'
+
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
