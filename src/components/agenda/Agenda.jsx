@@ -1,3 +1,4 @@
+// src/components/agenda/AgendaPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
@@ -37,7 +38,6 @@ const mensajes = {
 export default function AgendaPage() {
     const { token } = useAuthContext();
 
-    // Controlamos la fecha actual del calendario
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState('month');
     const [eventos, setEventos] = useState([]);
@@ -45,11 +45,10 @@ export default function AgendaPage() {
     const [slot, setSlot] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
-    // Para auto-abrir según ?eventId=
     const [searchParams] = useSearchParams();
     const paramEventId = searchParams.get('eventId');
 
-    // Carga visitas
+    // 1️⃣ Carga visitas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/visits/calendario`, {
@@ -68,13 +67,14 @@ export default function AgendaPage() {
                             descripcion: evt.descripcion,
                             cliente_nombre: evt.cliente_nombre || evt.razclien || 'Sin asignar',
                             codclien: evt.codclien || evt.cliente_id || null,
+                            type: 'visit',
                         };
                     });
                 setEventos(evts);
             });
     }, [token]);
 
-    // Carga notas
+    // 2️⃣ Carga notas
     useEffect(() => {
         if (!token) return;
         fetch(`${API_BASE_URL}/api/notas`, {
@@ -87,7 +87,7 @@ export default function AgendaPage() {
             });
     }, [token]);
 
-    // Si hay eventId en la URL, abrimos su modal
+    // 3️⃣ Abrir modal si viene eventId
     useEffect(() => {
         if (paramEventId && eventos.length > 0) {
             const evt = eventos.find(e => String(e.id) === paramEventId);
@@ -95,7 +95,7 @@ export default function AgendaPage() {
         }
     }, [paramEventId, eventos]);
 
-    // Handlers de CRUD
+    // CRUD handlers
     const handleCreate = evt => {
         setEventos(ev => [...ev, evt]);
         setSlot(null);
@@ -109,7 +109,17 @@ export default function AgendaPage() {
         setSelectedEvent(null);
     };
 
-    // Evento con contador de notas
+    // Wrapper para capturar touch y click
+    const EventWrapper = ({ event, children }) => (
+        <div
+            onClick={() => setSelectedEvent(event)}
+            onTouchEnd={() => setSelectedEvent(event)}
+        >
+            {children}
+        </div>
+    );
+
+    // Componente de evento con contador notas
     const EventComponent = ({ event }) => {
         const notaCount = allNotas.filter(n =>
             Array.isArray(n.eventos) && n.eventos.includes(String(event.id))
@@ -153,7 +163,7 @@ export default function AgendaPage() {
                 📆 Mi Agenda
             </h1>
 
-            {/* Selector de mes */}
+            {/* Selector mes */}
             <div className="flex justify-center mb-4">
                 <input
                     type="month"
@@ -175,9 +185,12 @@ export default function AgendaPage() {
                     onNavigate={date => setCurrentDate(date)}
                     selectable
                     onSelectSlot={s => setSlot(s)}
-                    onSelectEvent={e => setSelectedEvent(e)}
+                    // quitamos onSelectEvent directo, lo manejamos en el wrapper
                     messages={mensajes}
-                    components={{ event: EventComponent }}
+                    components={{
+                        event: EventComponent,
+                        eventWrapper: EventWrapper
+                    }}
                     toolbar={false}
                     eventPropGetter={() => ({
                         style: { backgroundColor: 'transparent', border: 'none', padding: 0 },
