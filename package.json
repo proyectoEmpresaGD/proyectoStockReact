@@ -46,7 +46,7 @@
     "react-signature-canvas": "^1.0.6",
     "react-simple-maps": "^3.0.0",
     "react-toastify": "^11.0.5",
-    "react-tooltip": "^5.27.1",
+    "react-tooltip": "^5.29.1",
     "uuid": "^11.0.2",
     "xlsx": "^0.18.5"
   },
