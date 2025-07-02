@@ -3,6 +3,7 @@ import { Tab } from '@headlessui/react';
 import { AiOutlineClose } from 'react-icons/ai';
 import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
 import * as XLSX from 'xlsx'; // <-- import para generar Excel
+import { provinces } from '../../Constants/constants.jsx';
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
 }
@@ -262,6 +263,12 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
         XLSX.writeFile(wb, `Ventas_${selectedClientDetails.codclien}_${selectedYear}.xlsx`);
     };
 
+    // Obtiene label de provincia
+    const provinceLabel = (() => {
+        const prov = provinces.find(p => p.value === String(selectedClientDetails?.codprovi));
+        return prov?.label || selectedClientDetails?.codprovi || '–';
+    })();
+
     return (
         modalVisible && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 overflow-y-auto">
@@ -352,6 +359,10 @@ function ClientModal({ modalVisible, selectedClientDetails, closeModal, updateCl
                                                 <tr className="border-b">
                                                     <td className="px-4 py-2">Localidad</td>
                                                     <td className="px-4 py-2">{selectedClientDetails.localidad}</td>
+                                                </tr>
+                                                <tr className="border-b">
+                                                    <td className="px-4 py-2">Provincia</td>
+                                                    <td className="px-4 py-2">{provinceLabel}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
