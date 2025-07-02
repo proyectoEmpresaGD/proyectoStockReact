@@ -1,28 +1,93 @@
 // src/components/agenda/AgendaPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    Calendar,
-    dateFnsLocalizer,
-    Views
-} from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import {
     format,
     parse,
     startOfWeek,
     getDay,
     isSameDay,
-    isSameWeek
+    subMonths,
+    addMonths,
+    subWeeks,
+    addWeeks,
+    subDays,
+    addDays,
+    addHours
 } from 'date-fns';
 import es from 'date-fns/locale/es';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-tooltip/dist/react-tooltip.css';
 import '../../assets/Calendario.css';
 import { useAuthContext } from '../../Auth/AuthContext';
-import { useSearchParams } from 'react-router-dom';
 import CreateVisitModal from './CreateVisitModal';
 import VisitDetailsModal from './VisitDetailsModal';
+import DayEventsModal from './DayEventsModal';
 import { Tooltip } from 'react-tooltip';
 
+////////////////////////////////////////////////////////////////////////////////
+// Custom Toolbar
+////////////////////////////////////////////////////////////////////////////////
+function CustomToolbar({ date, view, onNavigate, onView, onNew }) {
+    return (
+        <div className="bg-white px-4 py-3 shadow flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+            {/* Navegación */}
+            <div className="flex flex-wrap items-center gap-2">
+                <button
+                    onClick={() => onNavigate('TODAY')}
+                    className="w-14 h-10 bg-blue-600 text-white rounded-lg active:scale-95"
+                >
+                    Hoy
+                </button>
+                <button
+                    onClick={() => onNavigate('PREV')}
+                    className="w-10 h-10 bg-gray-200 rounded-lg active:scale-95"
+                >
+                    ‹
+                </button>
+                <button
+                    onClick={() => onNavigate('NEXT')}
+                    className="w-10 h-10 bg-gray-200 rounded-lg active:scale-95"
+                >
+                    ›
+                </button>
+                <span className="ml-2 text-lg font-semibold whitespace-nowrap">
+                    {format(date, 'MMMM yyyy', { locale: es })}
+                </span>
+            </div>
+
+            {/* Vista / Nueva visita */}
+            <div className="flex flex-wrap gap-2">
+                {[
+                    { label: 'Mes', v: Views.MONTH },
+                    { label: 'Semana', v: Views.WEEK },
+                    { label: 'Día', v: Views.DAY }
+                ].map(btn => (
+                    <button
+                        key={btn.v}
+                        onClick={() => onView(btn.v)}
+                        className={`w-20 h-10 rounded-lg active:scale-95 ${view === btn.v
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                    >
+                        {btn.label}
+                    </button>
+                ))}
+                <button
+                    onClick={onNew}
+                    className="w-32 h-10 bg-red-500 text-white rounded-lg active:scale-95"
+                >
+                    + Nueva visita
+                </button>
+            </div>
+        </div>
+    );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Main AgendaPage
+////////////////////////////////////////////////////////////////////////////////
 const localizer = dateFnsLocalizer({
     format: (d, fmt) => format(d, fmt, { locale: es }),
     parse: (str, fmt) => parse(str, fmt, new Date(), { locale: es }),
@@ -31,27 +96,25 @@ const localizer = dateFnsLocalizer({
     locales: { es }
 });
 
-const mensajes = {
+const messages = {
     today: 'Hoy', previous: '<', next: '>',
-    month: 'Mes', week: 'Semana', day: 'Día', agenda: 'Agenda',
-    date: 'Fecha', time: 'Hora', event: 'Evento',
-    allDay: 'Todo el día', noEventsInRange: 'No hay eventos',
+    month: 'Mes', week: 'Semana', day: 'Día',
+    agenda: 'Agenda', date: 'Fecha', time: 'Hora',
+    event: 'Evento', allDay: 'Todo el día',
+    noEventsInRange: 'No hay eventos'
 };
-
-// Detecta si es dispositivo táctil
-const isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 export default function AgendaPage() {
     const { token } = useAuthContext();
-    const [searchParams] = useSearchParams();
-    const paramEventId = searchParams.get('eventId');
 
     const [view, setView] = useState(Views.MONTH);
     const [date, setDate] = useState(new Date());
     const [eventos, setEventos] = useState([]);
     const [allNotas, setAllNotas] = useState([]);
+
     const [slot, setSlot] = useState(null);
-    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [dayEvents, setDayEvents] = useState(null);
+    const [selectedVisit, setSelectedVisit] = useState(null);
 
     // 1️⃣ Carga visitas
     useEffect(() => {
@@ -61,21 +124,22 @@ export default function AgendaPage() {
         })
             .then(r => r.json())
             .then(data => {
-                const evts = data
-                    .filter(evt => evt.fecha)
-                    .map(evt => {
-                        const start = new Date(evt.fecha);
-                        return {
-                            ...evt,
-                            id: evt.id,
-                            start,
-                            end: new Date(start.getTime() + 3600000),
-                            descripcion: evt.descripcion,
-                            cliente_nombre: evt.cliente_nombre || evt.razclien || 'Sin asignar',
-                            type: 'visit'
-                        };
-                    });
-                setEventos(evts);
+                setEventos(
+                    data
+                        .filter(e => e.fecha)
+                        .map(e => {
+                            const start = new Date(e.fecha);
+                            return {
+                                ...e,
+                                id: e.id,
+                                start,
+                                end: new Date(start.getTime() + 3600000),
+                                descripcion: e.descripcion,
+                                cliente: e.cliente_nombre || e.razclien || 'Sin asignar',
+                                type: 'visit'
+                            };
+                        })
+                );
             });
     }, [token]);
 
@@ -86,99 +150,108 @@ export default function AgendaPage() {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(r => r.json())
-            .then(data => {
-                setAllNotas(Array.isArray(data) ? data : data.notas || []);
-            });
+            .then(data => setAllNotas(Array.isArray(data) ? data : data.notas || []));
     }, [token]);
 
-    // 3️⃣ Auto-abre modal si viene eventId
-    useEffect(() => {
-        if (paramEventId && eventos.length > 0) {
-            const ev = eventos.find(e => String(e.id) === paramEventId);
-            if (ev) setSelectedEvent(ev);
-        }
-    }, [paramEventId, eventos]);
+    // 3️⃣ Click/tap en un día
+    const handleDayClick = useCallback(
+        dayDate => {
+            const visitas = eventos.filter(ev => isSameDay(ev.start, dayDate));
+            if (visitas.length) {
+                setDayEvents({ date: dayDate, visits: visitas });
+            } else {
+                setSlot({ start: dayDate, end: addHours(dayDate, 1) });
+            }
+        },
+        [eventos]
+    );
 
-    // CRUD handlers
+    // 4️⃣ CRUD visitas
     const handleCreateVisit = useCallback(evt => {
-        setEventos(ev => [...ev, evt]);
+        setEventos(prev => [...prev, evt]);
         setSlot(null);
     }, []);
-    const handleUpdate = useCallback(updated => {
-        setEventos(ev => ev.map(e => e.id === updated.id ? updated : e));
-        setSelectedEvent(null);
+    const handleSelectVisit = useCallback(evt => {
+        setSelectedVisit(evt);
+        setDayEvents(null);
     }, []);
-    const handleDelete = useCallback(id => {
-        setEventos(ev => ev.filter(e => e.id !== id));
-        setSelectedEvent(null);
+    const handleUpdateVisit = useCallback(updated => {
+        setEventos(prev => prev.map(e => (e.id === updated.id ? updated : e)));
+        setSelectedVisit(null);
+    }, []);
+    const handleDeleteVisit = useCallback(id => {
+        setEventos(prev => prev.filter(e => e.id !== id));
+        setSelectedVisit(null);
     }, []);
 
-    // Render de cada evento con tooltip solo en MES + escritorio
+    // 5️⃣ Navegación custom
+    const handleNavigate = action => {
+        if (action === 'TODAY') return setDate(new Date());
+        if (action === 'PREV') {
+            if (view === Views.MONTH) return setDate(d => subMonths(d, 1));
+            if (view === Views.WEEK) return setDate(d => subWeeks(d, 1));
+            if (view === Views.DAY) return setDate(d => subDays(d, 1));
+        }
+        if (action === 'NEXT') {
+            if (view === Views.MONTH) return setDate(d => addMonths(d, 1));
+            if (view === Views.WEEK) return setDate(d => addWeeks(d, 1));
+            if (view === Views.DAY) return setDate(d => addDays(d, 1));
+        }
+    };
+
+    // 6️⃣ Render de cada visita + tooltip
     const EventComponent = ({ event }) => {
-        const notaCount = allNotas.filter(n =>
-            Array.isArray(n.eventos) && n.eventos.includes(String(event.id))
-        ).length;
-        const bg = event.type === 'event' ? 'bg-green-600' : 'bg-blue-600';
-        const time = (event.start instanceof Date && !isNaN(event.start))
-            ? format(event.start, 'HH:mm') : '';
-        const html = `
-      <strong>${event.type === 'event' ? event.title : event.descripcion}</strong><br/>
+        const time =
+            event.start instanceof Date && !isNaN(event.start)
+                ? format(event.start, 'HH:mm')
+                : '';
+        const tooltipHtml = `
+      <strong>${event.descripcion}</strong><br/>
       ${time}<br/>
-      ${event.type === 'visit' ? '👤 ' + event.cliente_nombre : ''}
+      👤 ${event.cliente}
     `;
-        const showTooltip = !isTouchDevice && view === Views.MONTH;
-
         return (
             <>
                 <div
-                    className={`p-2 rounded text-white text-xs md:text-sm truncate ${bg}`}
-                    onClick={() => setSelectedEvent(event)}
-                    {...(showTooltip
-                        ? {
-                            'data-tooltip-id': `evt-${event.id}`,
-                            'data-tooltip-html': html
-                        }
-                        : {}
-                    )}
+                    data-tooltip-id={`evt-${event.id}`}
+                    data-tooltip-html={tooltipHtml}
+                    className="bg-blue-600 text-white text-[10px] p-1 rounded truncate"
                 >
-                    <div className="font-bold">{time}</div>
-                    <div className="truncate">
-                        {event.type === 'event' ? event.title : event.descripcion}
-                    </div>
-                    {notaCount > 0 && (
-                        <span className="ml-1 bg-white text-blue-600 rounded-full px-1 text-[10px]">
-                            📝{notaCount}
-                        </span>
-                    )}
+                    {time} – {event.descripcion}
                 </div>
-                {showTooltip && <Tooltip id={`evt-${event.id}`} place="top" />}
+                <Tooltip id={`evt-${event.id}`} place="top" />
             </>
         );
     };
 
-    // Wrappers táctiles
-    const EventWrapper = ({ event, children }) => (
-        <div
-            onTouchEnd={() => setSelectedEvent(event)}
-        >
+    // 7️⃣ Wrappers interacción
+    const DateCellWrapper = ({ value, children }) => (
+        <div onClick={() => handleDayClick(value)} onTouchEnd={() => handleDayClick(value)}>
             {children}
         </div>
     );
-    const DateCellWrapper = ({ value, children }) => (
+    const EventWrapper = ({ event, children }) => (
         <div
-            onTouchEnd={e => {
-                e.preventDefault();
-                setSlot({ start: value, end: new Date(value.getTime() + 3600000) });
-            }}
+            onClick={() => handleDayClick(event.start)}
+            onTouchEnd={() => handleDayClick(event.start)}
         >
             {children}
         </div>
     );
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="max-w-full lg:max-w-4xl mx-auto px-4 py-6 space-y-4">
+            {/* Toolbar */}
+            <CustomToolbar
+                date={date}
+                view={view}
+                onNavigate={handleNavigate}
+                onView={setView}
+                onNew={() => setSlot({ start: date, end: addHours(date, 1) })}
+            />
+
             {/* Calendario */}
-            <div className="w-full border rounded-lg shadow-lg h-[65vh] sm:h-[70vh] lg:h-[80vh]">
+            <div className="h-[55vh] sm:h-[65vh] md:h-[75vh] lg:h-[85vh] border rounded-lg shadow overflow-hidden">
                 <Calendar
                     localizer={localizer}
                     events={eventos}
@@ -189,55 +262,30 @@ export default function AgendaPage() {
                     onView={setView}
                     onNavigate={setDate}
                     selectable
-                    onSelectSlot={setSlot}
-                    onSelectEvent={setSelectedEvent}
+                    onSelectSlot={({ start }) => handleDayClick(start)}
                     components={{
-                        toolbar: CustomToolbar,
+                        toolbar: () => null,            // usamos nuestro CustomToolbar
                         event: EventComponent,
-                        eventWrapper: EventWrapper,
-                        dateCellWrapper: DateCellWrapper
+                        dateCellWrapper: DateCellWrapper,  // CORRECTO
+                        eventWrapper: EventWrapper
                     }}
                     views={[Views.MONTH, Views.WEEK, Views.DAY]}
-                    popup
-                    popupOffset={{ x: 20, y: 10 }}
-                    dayLayoutAlgorithm="no-overlap"
-                    formats={{
-                        weekdayFormat: dt => format(dt, 'EEEEEE', { locale: es })
-                    }}
-                    messages={mensajes}
+                    messages={messages}
                 />
             </div>
 
-            {/* Fallback lista en móvil para Semana/Día */}
-            {(view === Views.WEEK || view === Views.DAY) && (
-                <div className="md:hidden space-y-3">
-                    {eventos
-                        .filter(e =>
-                            view === Views.DAY
-                                ? isSameDay(e.start, date)
-                                : isSameWeek(e.start, date)
-                        )
-                        .map(e => (
-                            <div
-                                key={e.id}
-                                onClick={() => setSelectedEvent(e)}
-                                className="p-3 border rounded-lg hover:shadow cursor-pointer"
-                            >
-                                <div className="font-semibold text-sm">
-                                    {(e.start instanceof Date && !isNaN(e.start))
-                                        ? format(e.start, 'PPPp', { locale: es })
-                                        : ''}
-                                </div>
-                                <div className="text-sm">
-                                    {e.type === 'visit' ? e.descripcion : e.title}
-                                </div>
-                            </div>
-                        ))
-                    }
-                </div>
+            {/* Modal: día con visitas */}
+            {dayEvents && (
+                <DayEventsModal
+                    date={dayEvents.date}
+                    visits={dayEvents.visits}
+                    onClose={() => setDayEvents(null)}
+                    onSelect={handleSelectVisit}
+                    onNew={() => handleDayClick(dayEvents.date)}
+                />
             )}
 
-            {/* Modales con scroll en móvil */}
+            {/* Modal: crear visita */}
             {slot && (
                 <CreateVisitModal
                     token={token}
@@ -246,67 +294,18 @@ export default function AgendaPage() {
                     onCreate={handleCreateVisit}
                 />
             )}
-            {selectedEvent && selectedEvent.type === 'visit' && (
+
+            {/* Modal: detalle visita */}
+            {selectedVisit && (
                 <VisitDetailsModal
                     token={token}
-                    event={selectedEvent}
+                    event={selectedVisit}
                     notasEnlazadas={allNotas}
-                    onClose={() => setSelectedEvent(null)}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
+                    onClose={() => setSelectedVisit(null)}
+                    onUpdate={handleUpdateVisit}
+                    onDelete={handleDeleteVisit}
                 />
             )}
-        </div>
-    );
-}
-
-// ----------------------------------------------------------------------------
-// Toolbar personalizado
-// ----------------------------------------------------------------------------
-function CustomToolbar({ date, view, onNavigate, onView }) {
-    return (
-        <div className="bg-white shadow sticky top-0 z-20 px-4 py-3 flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-                <button
-                    onClick={() => onNavigate('TODAY')}
-                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                    Hoy
-                </button>
-                <button
-                    onClick={() => onNavigate('PREV')}
-                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                    &lt;
-                </button>
-                <button
-                    onClick={() => onNavigate('NEXT')}
-                    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                    &gt;
-                </button>
-                <span className="mx-4 font-semibold text-lg">
-                    {format(date, 'MMMM yyyy', { locale: es })}
-                </span>
-            </div>
-            <div className="flex items-center gap-2">
-                {[
-                    { label: 'Mes', v: Views.MONTH },
-                    { label: 'Semana', v: Views.WEEK },
-                    { label: 'Día', v: Views.DAY }
-                ].map(b => (
-                    <button
-                        key={b.v}
-                        onClick={() => onView(b.v)}
-                        className={`px-3 py-1 rounded ${view === b.v
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                    >
-                        {b.label}
-                    </button>
-                ))}
-            </div>
         </div>
     );
 }

@@ -52,9 +52,11 @@ export default function VisitDetailsModal({
     if (!fullEvent) return null;
 
     // Notas propias de esta visita
-    const misNotas = notasEnlazadas.filter(n =>
+    // Después
+    const misNotas = (notasEnlazadas || []).filter(n =>
         Array.isArray(n.eventos) && n.eventos.includes(String(fullEvent.id))
     );
+
 
     // 2) Cargar info del cliente
     const loadCliente = async () => {
