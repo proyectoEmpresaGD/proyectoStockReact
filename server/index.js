@@ -67,26 +67,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Filters matching frontend and index.js
-const EXCLUDE_TERMS = [
-  'QUALITY', 'TAPILLA', 'CUTTING', 'CUTTINGS', 'RIEL', 'RIELES', 'HERRAJES',
-  'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN', 'CUBRE',
-  'ESTOR', 'CAIDA', 'PLAID', 'CABECERO', 'ETAMIN', 'CARTULINA', 'PORTES',
-  'COSTE DEL TRANSPORTE', 'MECANISMOS', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
-  'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'VARIOS', 'CARRE GAME',
-  'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
-  'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
-  'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
-  'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
-  'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
-  'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR', 'ANTILLA', 'ANTILLA VELVET',
-  'LUMIERE', 'MIGRATION', 'NIMBOSILVA', 'PERSIAN MOOD', 'RINPA', 'SURIRI', 'XUBEC',
-  'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU', 'PERRAULT', 'PUMMERIN',
-  'TOPKAPI', 'TULUM', 'ZAHARA'
-];
-const excludeRegex = new RegExp(EXCLUDE_TERMS.join('|'), 'i');
-const marcasTela = /^(CJM|HAR|BAS|ARE|FLA)/i;
-const colecciones = ['stratos', 'diamante', 'urban contemporary', 'revoltoso vol i', 'revoltoso vol ii'];
 
 // Weekly visits (Sunday 15:00 CET)
 async function getNextWeekVisits() {
@@ -142,42 +122,21 @@ async function sendWeeklyVisitsEmail() {
     console.error('Error enviando email de visitas:', err);
   }
 }
-
-// Weekly stock alerts (Friday 09:00 CET)
 async function sendWeeklyStockAlerts(force = false) {
   const today = new Date();
   if (!force && today.getDay() !== 5) return;
 
   try {
-    const all = await StockModel.getLowStockAlerts();
+    // ✅ Llamar al modelo que ya filtra y organiza
+    const { telas: lowTelas, libros: lowLibros, perchas: lowPerchas } = await StockModel.getLowStockAlertsFiltered();
 
-    const lowTelas = all
-      .filter(i =>
-        parseFloat(i.stockactual) < 30 &&
-        marcasTela.test(i.codprodu) &&
-        !excludeRegex.test(i.desprodu) &&
-        (colecciones.length === 0 || colecciones.includes((i.coleccion || '').toLowerCase()))
-      )
-      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
+    // ✅ Si no hay alertas, salir
+    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) {
+      console.log('No hay alertas de stock bajo.');
+      return;
+    }
 
-    const lowLibros = all
-      .filter(i =>
-        parseFloat(i.stockactual) < 30 &&
-        /(?:LIBRO|CARRE GAME)/i.test(i.desprodu) &&
-        !excludeRegex.test(i.desprodu)
-      )
-      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
-
-    const lowPerchas = all
-      .filter(i =>
-        parseFloat(i.stockactual) < 10 &&
-        /PERCHA/i.test(i.desprodu) &&
-        !excludeRegex.test(i.desprodu)
-      )
-      .sort((a, b) => a.desprodu.localeCompare(b.desprodu, 'es', { sensitivity: 'base' }));
-
-    if (![lowTelas, lowLibros, lowPerchas].some(arr => arr.length)) return;
-
+    // ✅ Generar HTML para el correo
     const html = `
       <div style="font-family:Arial,sans-serif;padding:20px;">
         <h1 style="text-align:center;color:#2D9CDB;">Alerta Semanal de Stock Bajo</h1>
@@ -189,30 +148,39 @@ async function sendWeeklyStockAlerts(force = false) {
           </tr>
           <tr>
             <td style="padding:8px;border:1px solid #FCD34D;">
-              ${lowTelas.length ? '<ul>' + lowTelas.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
+              ${lowTelas.length ? '<ul>' + lowTelas.map(i => `
+                <li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                <small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
             <td style="padding:8px;border:1px solid #34D399;">
-              ${lowLibros.length ? '<ul>' + lowLibros.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
+              ${lowLibros.length ? '<ul>' + lowLibros.map(i => `
+                <li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                <small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
             <td style="padding:8px;border:1px solid #F87171;">
-              ${lowPerchas.length ? '<ul>' + lowPerchas.map(i => `<li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/><small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
+              ${lowPerchas.length ? '<ul>' + lowPerchas.map(i => `
+                <li><strong>${i.codprodu}</strong> – ${i.desprodu}<br/>
+                <small>Stock: ${parseFloat(i.stockactual).toFixed(2)}</small></li>`).join('') + '</ul>' : '<p>No hay alertas.</p>'}
             </td>
           </tr>
         </table>
       </div>
     `;
 
+    // ✅ Enviar el correo
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.STOCK_ALERT_EMAIL || process.env.EMAIL_USER,
       subject: 'Alerta de Stock Bajo',
       html
     });
+
     console.log('Email de stock enviado.');
   } catch (err) {
     console.error('Error enviando email de stock bajo:', err);
   }
 }
+
 
 // Schedule tasks
 cron.schedule('0 15 * * 0', sendWeeklyVisitsEmail, { timezone: 'Europe/Madrid' });
