@@ -9,10 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import html2canvas from 'html2canvas';
 import piexif from 'piexifjs';
 
-"NON_DIRECTIONAL"
-"RAILROADED"
-"NON_RAILROADED"
-
 function EtiquetaPerchas() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,7 +19,6 @@ function EtiquetaPerchas() {
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const [showIconMeaning, setShowIconMeaning] = useState(null);
-    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [flechaLogos, setFlechaLogos] = useState({});
     const [flecha, setFlecha] = useState("flechaAbajo");
@@ -143,69 +138,69 @@ function EtiquetaPerchas() {
         }
     };
 
-    const allowedMantenimientos = ['EASYCLEAN'];
-    const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
+    // const allowedMantenimientos = ['EASYCLEAN'];
+    // const allowedUsos = ['FR', 'OUTDOOR', 'IMO'];
 
-    const getMantenimientoImagesImportantes = (mantenimiento) => {
-        if (!mantenimiento) return "";
+    // const getMantenimientoImagesImportantes = (mantenimiento) => {
+    //     if (!mantenimiento) return "";
 
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
+    //     const parser = new DOMParser();
+    //     const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
 
-        const valores = xmlDoc.getElementsByTagName("Valor");
-        const mantenimientoList = Array.from(valores)
-            .map(node => node.textContent.trim())
-            .filter(mantenimiento => allowedMantenimientos.includes(mantenimiento));
+    //     const valores = xmlDoc.getElementsByTagName("Valor");
+    //     const mantenimientoList = Array.from(valores)
+    //         .map(node => node.textContent.trim())
+    //         .filter(mantenimiento => allowedMantenimientos.includes(mantenimiento));
 
-        return mantenimientoList
-            .filter(mantenimiento => loadBrandLogosMantenimiento[mantenimiento])
-            .map((mantenimiento, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosMantenimiento[mantenimiento]}
-                    alt={mantenimiento}
-                    className="w-9 h-4 mx-0 md:mx-1 cursor-pointer"
-                    title={`Click para ver el significado de ${mantenimiento}`}
-                    onClick={() => setShowIconMeaning(mantenimiento)}
-                />
-            ));
-    };
+    //     return mantenimientoList
+    //         .filter(mantenimiento => loadBrandLogosMantenimiento[mantenimiento])
+    //         .map((mantenimiento, index) => (
+    //             <img
+    //                 key={index}
+    //                 src={loadBrandLogosMantenimiento[mantenimiento]}
+    //                 alt={mantenimiento}
+    //                 className="w-9 h-4 mx-0 md:mx-1 cursor-pointer"
+    //                 title={`Click para ver el significado de ${mantenimiento}`}
+    //                 onClick={() => setShowIconMeaning(mantenimiento)}
+    //             />
+    //         ));
+    // };
 
-    const getUsoImagesImportantes = (usos) => {
-        if (!usos) return "";
+    // const getUsoImagesImportantes = (usos) => {
+    //     if (!usos) return "";
 
-        const usoList = usos.split(';')
-            .map(uso => uso.trim())
-            .filter(uso => allowedUsos.includes(uso));
+    //     const usoList = usos.split(';')
+    //         .map(uso => uso.trim())
+    //         .filter(uso => allowedUsos.includes(uso));
 
-        return usoList
-            .filter(uso => loadBrandLogosUsos[uso])
-            .map((uso, index) => (
-                <div
-                    key={index}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginRight: "3px"
-                    }}
-                >
-                    <img
-                        src={loadBrandLogosUsos[uso]}
-                        alt={uso}
-                        className="cursor-pointer"
-                        style={{
-                            width: "16px",
-                            height: "16px",
-                            objectFit: "contain",
-                            marginRight: "2px"
-                        }}
-                        title={`Click para ver el significado de ${uso}`}
-                        onClick={() => setShowIconMeaning(uso)}
-                    />
-                    <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{uso}</span>
-                </div>
-            ));
-    };
+    //     return usoList
+    //         .filter(uso => loadBrandLogosUsos[uso])
+    //         .map((uso, index) => (
+    //             <div
+    //                 key={index}
+    //                 style={{
+    //                     display: "flex",
+    //                     alignItems: "center",
+    //                     marginRight: "3px"
+    //                 }}
+    //             >
+    //                 <img
+    //                     src={loadBrandLogosUsos[uso]}
+    //                     alt={uso}
+    //                     className="cursor-pointer"
+    //                     style={{
+    //                         width: "16px",
+    //                         height: "16px",
+    //                         objectFit: "contain",
+    //                         marginRight: "2px"
+    //                     }}
+    //                     title={`Click para ver el significado de ${uso}`}
+    //                     onClick={() => setShowIconMeaning(uso)}
+    //                 />
+    //                 <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{uso}</span>
+    //             </div>
+    //         ));
+    // };
 
     const formatNumber = (number, decimals = 2) => {
         return parseFloat(number).toFixed(decimals);
@@ -316,14 +311,15 @@ function EtiquetaPerchas() {
                         <span className="font-light items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
-                <div className="w-[40px] relative right-[55px]  top-[4px] flex flex-col items-center">
+                <div className="w-[40px] relative right-[55px] top-[4px] flex flex-col items-center">
                     <img
                         className="w-[40px]"
-                        src={getLogoUrl(nombre)}
-                        alt={nombre}
+                        src={getLogoUrl(selectedProduct.direcciontela)}
+                        alt={selectedProduct.direcciontela}
                     />
-                    <p className="text-[4px]">{nombre}</p>
+                    <p className="text-[4px]">{selectedProduct.direcciontela}</p>
                 </div>
+
                 <div>
                     <div className="text-content relative right-[52px] text-[10px]">
                         <h3 className="text-[10px]"><strong>Usages:</strong></h3>

@@ -295,7 +295,7 @@ function EtiquetasLibro35Tipo2() {
     };
 
 
-    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON_DIRECTIONAL']; // Lista de direcciones importantes
+    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL']; // Lista de direcciones importantes
 
     const getDireccionImagesImportantes = (direcciones) => {
         if (!direcciones) return "";
@@ -332,7 +332,6 @@ function EtiquetasLibro35Tipo2() {
                 </div>
             ));
     };
-
 
     const renderEtiquetaFormato1 = () => (
         <div

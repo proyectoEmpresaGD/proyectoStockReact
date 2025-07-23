@@ -293,7 +293,7 @@ function EtiquetaLibro() {
     };
 
 
-    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON_DIRECTIONAL']; // Lista de direcciones importantes
+    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL']; // Lista de direcciones importantes
 
     const getDireccionImagesImportantes = (direcciones) => {
         if (!direcciones) return "";
