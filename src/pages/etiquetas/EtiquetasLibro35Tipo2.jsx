@@ -21,7 +21,6 @@ function EtiquetasLibro35Tipo2() {
     const [showIconMeaning, setShowIconMeaning] = useState(null);
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
-    const [nombre, setNombre] = useState("NON_RAILROADED");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [downloadCounter, setDownloadCounter] = useState(1);
 
@@ -301,30 +300,30 @@ function EtiquetasLibro35Tipo2() {
     const getDireccionImagesImportantes = (direcciones) => {
         if (!direcciones) return "";
 
-        const direccionList = direcciones.split(';') // Supongamos que las direcciones están separadas por ";"
-            .map(direccion => direccion.trim()) // Elimina espacios en blanco
-            .filter(direccion => allowedDirecciones.includes(direccion)); // Filtra solo las importantes
+        const direccionList = direcciones.split(';')
+            .map(direccion => direccion.trim())
+            .filter(direccion => allowedDirecciones.includes(direccion));
 
         return direccionList
-            .filter(direccion => loadBrandLogosUsos[direccion]) // Asegúrate de que tengan un logo asociado
+            .filter(direccion => direccionLogos[direccion]) // Cambiado aquí
             .map((direccion, index) => (
                 <div
                     key={index}
                     style={{
                         display: "flex",
                         alignItems: "center",
-                        marginRight: "3px", // Espacio entre cada logo y texto
+                        marginRight: "3px",
                     }}
                 >
                     <img
-                        src={loadBrandLogosUsos[direccion]} // Usa un logo específico si existe
+                        src={direccionLogos[direccion]} // Cambiado aquí
                         alt={direccion}
                         className="cursor-pointer"
                         style={{
                             width: "16px",
                             height: "16px",
                             objectFit: "contain",
-                            marginRight: "2px", // Espacio entre el logo y el nombre
+                            marginRight: "2px",
                         }}
                         title={`Click para ver el significado de ${direccion}`}
                         onClick={() => setShowIconMeaning(direccion)}
@@ -333,6 +332,7 @@ function EtiquetasLibro35Tipo2() {
                 </div>
             ));
     };
+
 
     const renderEtiquetaFormato1 = () => (
         <div
@@ -366,15 +366,7 @@ function EtiquetasLibro35Tipo2() {
                 <div className='flex justify-end items-start gap-2 relative left-[23px]'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
                     <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
-                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
-                    <div className="w-[33px] flex justify-end pt-[7px] items-end ml-5">
-                        <img
-                            className="w-[15px]"
-                            src={getLogoUrl(nombre)}
-                            alt={nombre}
-                        />
-                        <p className="text-[6px] ml-1">{nombre}</p>
-                    </div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
             <div className="text-content text-[9px] grid grid-cols-3">

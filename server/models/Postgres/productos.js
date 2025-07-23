@@ -336,7 +336,8 @@ export class ProductModel {
           tipo AS "fabricType",
           estilo AS "fabricPattern",
           colorprincipal AS "primaryColor",
-          coleccion AS "collection"
+          coleccion AS "collection",
+          direcciontela
         FROM productos 
         WHERE "codprodu" = $1
       `;
