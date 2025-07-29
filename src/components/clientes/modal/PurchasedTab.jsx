@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
-
+import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import KPIGrid from './KPIGrid';
 import ColumnMenu from './ColumnMenu';
 
@@ -19,7 +18,7 @@ export const ALL_COLUMNS = [
 const FILTERS = ['LIBRO', 'PERCHA', 'QUALITY', 'TELAS'];
 
 export default function PurchasedTab({ client, updateClientBilling }) {
-    const token = window.localStorage.getItem('token'); // o tu hook useAuthContext
+    const token = window.localStorage.getItem('token');
     const [purchased, setPurchased] = useState([]);
     const [stockData, setStockData] = useState([]);
     const [stockFetched, setStockFetched] = useState(false);
@@ -32,11 +31,9 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     const [filtered, setFiltered] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
 
-    const [visibleCols, setVisibleCols] = useState(
-        ALL_COLUMNS.map(c => c.key)
-    );
+    const [visibleCols, setVisibleCols] = useState(ALL_COLUMNS.map(c => c.key));
 
-    // Fetch stock once
+    // 1) Fetch stock once
     useEffect(() => {
         if (!stockFetched) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
@@ -50,42 +47,49 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         }
     }, [stockFetched, token]);
 
-    // Fetch ventas
+    // 2) Fetch ventas del cliente
     const fetchSales = useCallback(async () => {
         if (!client) return;
-        try {
-            const res = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (!res.ok) return setPurchased([]);
-            const data = await res.json();
-            // aplica descuentos
-            const withDisc = data.map(p => {
-                let imp = +p.importe || 0;
-                [p.dt1, p.dt2, p.dt3].forEach(d => {
-                    if (d > 0) imp *= 1 - Math.floor(d) / 100;
-                });
-                return { ...p, importeDescuento: imp.toFixed(2), dt1: Math.floor(p.dt1 || 0) };
+        const res = await fetch(
+            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) {
+            setPurchased([]);
+            setYearOptions(['All']);
+            return;
+        }
+        const data = await res.json();
+        const withDisc = data.map(p => {
+            let imp = +p.importe || 0;
+            [p.dt1, p.dt2, p.dt3].forEach(d => {
+                if (d > 0) imp *= 1 - Math.floor(d) / 100;
             });
-            setPurchased(withDisc);
-            // años
-            const yrs = Array.from(new Set(withDisc.map(x => new Date(x.fecha).getFullYear())))
-                .sort((a, b) => b - a)
-                .map(String);
-            setYearOptions(['All', ...yrs]);
-        } catch { }
+            return {
+                ...p,
+                importeDescuento: imp.toFixed(2),
+                dt1: Math.floor(p.dt1 || 0),
+            };
+        });
+        setPurchased(withDisc);
+
+        const yrs = Array.from(
+            new Set(withDisc.map(x => new Date(x.fecha).getFullYear()))
+        )
+            .sort((a, b) => b - a)
+            .map(String);
+        setYearOptions(['All', ...yrs]);
     }, [client, token]);
 
     useEffect(() => {
         fetchSales();
     }, [fetchSales]);
 
-    // Merge stock
+    // 3) Merge stock into cada venta
     useEffect(() => {
         if (stockFetched) {
-            setPurchased(p =>
-                p.map(x => ({
+            setPurchased(ps =>
+                ps.map(x => ({
                     ...x,
                     stockactual:
                         stockData.find(s => s.codprodu === x.codprodu)?.stockactual || '0',
@@ -94,19 +98,23 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         }
     }, [stockFetched, stockData]);
 
-    // compute totals
+    // 4) Calcular facturación total
     useEffect(() => {
         const total = purchased.reduce((s, p) => s + +p.importeDescuento, 0);
         setTotalBilling(total);
         updateClientBilling?.(client.codclien, total);
     }, [purchased, client, updateClientBilling]);
 
-    // local filtering
+    // 5) Filtrado local: año, búsqueda, tipo y orden
     useEffect(() => {
         let tmp = [...purchased];
+
         if (selectedYear !== 'All') {
-            tmp = tmp.filter(p => new Date(p.fecha).getFullYear().toString() === selectedYear);
+            tmp = tmp.filter(
+                p => new Date(p.fecha).getFullYear().toString() === selectedYear
+            );
         }
+
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             tmp = tmp.filter(
@@ -115,6 +123,7 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     p.npedventa?.toString().includes(q)
             );
         }
+
         if (selectedFilter) {
             tmp =
                 selectedFilter === 'TELAS'
@@ -124,17 +133,29 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                                 p.desprodu?.toUpperCase().includes(w)
                             )
                     )
-                    : tmp.filter(p => p.desprodu?.toUpperCase().includes(selectedFilter));
+                    : tmp.filter(p =>
+                        p.desprodu?.toUpperCase().includes(selectedFilter)
+                    );
         }
+
         tmp.sort((a, b) => {
-            if (sortOrder === 'newest') return new Date(b.fecha) - new Date(a.fecha);
-            if (sortOrder === 'oldest') return new Date(a.fecha) - new Date(b.fecha);
+            if (sortOrder === 'newest')
+                return new Date(b.fecha) - new Date(a.fecha);
+            if (sortOrder === 'oldest')
+                return new Date(a.fecha) - new Date(b.fecha);
             return b.cantidad - a.cantidad;
         });
-        setFiltered(tmp);
-    }, [purchased, selectedYear, searchQuery, selectedFilter, sortOrder]);
 
-    // export
+        setFiltered(tmp);
+    }, [
+        purchased,
+        selectedYear,
+        searchQuery,
+        selectedFilter,
+        sortOrder,
+    ]);
+
+    // 6) Exportar a Excel
     const exportToExcel = () => {
         const ws = XLSX.utils.json_to_sheet(
             filtered.map(p => ({
@@ -149,14 +170,32 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         );
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-        XLSX.writeFile(wb, `Ventas_${client.codclien}_${selectedYear}.xlsx`);
+        XLSX.writeFile(
+            wb,
+            `Ventas_${client.codclien}_${selectedYear}.xlsx`
+        );
     };
 
     return (
         <>
+            {/* KPIs */}
             <KPIGrid purchased={purchased} totalBilling={totalBilling} />
 
+            {/* Barra de controles: búsqueda + filtros */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
+                {/* Buscador interno */}
+                <div className="relative flex-1 min-w-[200px]">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Buscar en resultados…"
+                        className="w-full border rounded-lg px-3 py-2 text-sm pr-10"
+                    />
+                    <FiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+
+                {/* Año */}
                 <select
                     value={selectedYear}
                     onChange={e => setSelectedYear(e.target.value)}
@@ -167,12 +206,11 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     ))}
                 </select>
 
+                {/* Filtros de tipo */}
                 {FILTERS.map(f => (
                     <button
                         key={f}
-                        onClick={() =>
-                            setSelectedFilter(s => (s === f ? '' : f))
-                        }
+                        onClick={() => setSelectedFilter(s => (s === f ? '' : f))}
                         className={`px-3 py-2 rounded-lg text-sm font-medium ${selectedFilter === f
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-200 hover:bg-gray-300'
@@ -182,14 +220,22 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     </button>
                 ))}
 
+                {/* Orden (fecha/cantidad) */}
                 <button
-                    onClick={() => setSortOrder(o => (o === 'newest' ? 'oldest' : 'newest'))}
-                    className="ml-auto flex items-center gap-1 px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm"
+                    onClick={() =>
+                        setSortOrder(o => (o === 'newest' ? 'oldest' : 'newest'))
+                    }
+                    className="flex items-center gap-1 px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm ml-auto"
                 >
                     {sortOrder === 'newest' ? 'Recientes' : 'Antiguas'}
-                    {sortOrder === 'newest' ? <FiChevronDown /> : <FiChevronUp />}
+                    {sortOrder === 'newest' ? (
+                        <FiChevronDown />
+                    ) : (
+                        <FiChevronUp />
+                    )}
                 </button>
 
+                {/* Exportar Excel */}
                 <button
                     onClick={exportToExcel}
                     className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
@@ -197,6 +243,7 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     Exportar Excel
                 </button>
 
+                {/* Menú de columnas */}
                 <ColumnMenu
                     allColumns={ALL_COLUMNS}
                     visibleCols={visibleCols}
@@ -204,11 +251,14 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 />
             </div>
 
+            {/* Tabla con scroll */}
             <div className="overflow-auto" style={{ maxHeight: '50vh' }}>
                 <table className="min-w-full text-sm bg-white">
                     <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                            {ALL_COLUMNS.filter(c => visibleCols.includes(c.key)).map(c => (
+                            {ALL_COLUMNS.filter(c =>
+                                visibleCols.includes(c.key)
+                            ).map(c => (
                                 <th key={c.key} className="px-3 py-2 text-left">
                                     {c.label}
                                 </th>
