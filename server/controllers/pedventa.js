@@ -20,8 +20,9 @@ export class PedVentaController {
     async getByClient(req, res) {
         try {
             const { codclien } = req.params;
-            const ventas = await PedVentaModel.getByClient({ codclien });
-            if (ventas) {
+            const { ejercicio } = req.query;           // <-- nuevo
+            const ventas = await PedVentaModel.getByClient({ codclien, ejercicio });
+            if (ventas.length) {
                 res.json(ventas);
             } else {
                 res.status(404).json({ message: 'No sales found for this client' });
@@ -30,6 +31,7 @@ export class PedVentaController {
             res.status(500).json({ error: error.message });
         }
     }
+
 
     async create(req, res) {
         try {

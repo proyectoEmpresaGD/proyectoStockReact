@@ -22,22 +22,23 @@ export class PedVentaModel {
     // Ejemplo de modificación en el modelo
     static async getByClient({ codclien, ejercicio }) {
         let query = `
-        SELECT codprodu, fecha, desprodu, cantidad, precio, importe, dt1, dt2, dt3, npedventa
-        FROM pedventa 
-        WHERE codclien = $1
-    `;
+    SELECT codprodu, fecha, desprodu, cantidad,
+           precio, importe, dt1, dt2, dt3, npedventa
+    FROM pedventa 
+    WHERE codclien = $1
+  `;
         const params = [codclien];
 
         if (ejercicio && ejercicio.trim() !== '') {
             query += ` AND ejercicio = $2`;
             params.push(ejercicio);
-        } else {
-            query += ` ORDER BY fecha DESC`;
         }
+        query += ` ORDER BY fecha DESC`;
 
         const { rows } = await pool.query(query, params);
         return rows;
     }
+
 
 
 
