@@ -4,17 +4,17 @@ import Select from 'react-select';
 import { FiLoader, FiGrid, FiList } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
-import SearchBar from '../components/clientes/SearchBarClients.jsx';
+import SearchBar from '../components/clientes/SearchBarClients';
 import ClientTable from '../components/clientes/clientstable.jsx';
-import ClientCard from '../components/clientes/ClientCard.jsx';
-import ClientModal from '../components/clientes/modal/ClientModal.jsx';
+import ClientCard from '../components/clientes/ClientCard';
+import ClientModal from '../components/clientes/modal/ClientModal';
 import PaginationControls from '../components/PaginationControls';
 
 export default function Clients() {
     const { token } = useAuthContext();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // datos principales
+    // datos + loading
     const [clients, setClients] = useState([]);
     const [clientBillings, setClientBillings] = useState({});
     const [loading, setLoading] = useState(false);
@@ -23,21 +23,21 @@ export default function Clients() {
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [totalClients, setTotalClients] = useState(0);
 
     const [selectedCountry, setSelectedCountry] = useState(null);
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [sortByBilling, setSortByBilling] = useState(false);
 
-    // vista ('table' sólo en móvil)
+    // vista
     const [viewMode, setViewMode] = useState('table');
 
     // modal detalle
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
 
-    // leer params al montar
+    // leer URL params
     useEffect(() => {
         const cp = searchParams.get('codpais');
         const cv = searchParams.get('codprov');
@@ -48,7 +48,7 @@ export default function Clients() {
         }
     }, [searchParams]);
 
-    // fetch clientes + facturaciones
+    // fetch clients + billings
     useEffect(() => {
         const fetchAll = async () => {
             setLoading(true);
@@ -64,24 +64,21 @@ export default function Clients() {
                 setClients(data.clients || []);
                 setTotalClients(data.total || 0);
 
-                // facturaciones
                 const map = {};
-                await Promise.all(
-                    (data.clients || []).map(async c => {
-                        const r2 = await fetch(
-                            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${c.codclien}`,
-                            { headers: { Authorization: `Bearer ${token}` } }
-                        );
-                        if (r2.ok) {
-                            const pd = await r2.json();
-                            map[c.codclien] = pd.reduce((s, p) => {
-                                let imp = +p.importe || 0;
-                                [p.dt1, p.dt2, p.dt3].forEach(d => { if (d > 0) imp *= 1 - d / 100; });
-                                return s + Math.max(imp, 0);
-                            }, 0);
-                        }
-                    })
-                );
+                await Promise.all((data.clients || []).map(async c => {
+                    const r2 = await fetch(
+                        `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${c.codclien}`,
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    if (r2.ok) {
+                        const pd = await r2.json();
+                        map[c.codclien] = pd.reduce((s, p) => {
+                            let imp = +p.importe || 0;
+                            [p.dt1, p.dt2, p.dt3].forEach(d => { if (d > 0) imp *= 1 - d / 100; });
+                            return s + Math.max(imp, 0);
+                        }, 0);
+                    }
+                }));
                 setClientBillings(map);
             } catch (e) {
                 console.error(e);
@@ -97,7 +94,7 @@ export default function Clients() {
         searchTerm,
         selectedCountry,
         selectedProvince,
-        sortByBilling,
+        sortByBilling
     ]);
 
     const handleClearFilters = () => {
@@ -114,19 +111,19 @@ export default function Clients() {
     const endItem = Math.min(startItem + itemsPerPage - 1, totalClients);
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-16 px-4">
+        <div className="min-h-screen bg-gray-50 pt-16 py-8 px-4">
             <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-xl overflow-hidden">
                 {/* Header */}
                 <div className="bg-white px-6 md:px-8 py-6 border-b">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
                         Gestión de Clientes
                     </h1>
-                    <p className="mt-2 text-gray-600">
+                    <p className="mt-1 md:mt-2 text-gray-600">
                         Explora y gestiona la información de tus clientes.
                     </p>
                 </div>
 
-                {/* Controles */}
+                {/* Controls */}
                 <div className="px-6 md:px-8 py-6 space-y-4">
                     <SearchBar
                         searchTerm={searchTerm}
@@ -143,7 +140,7 @@ export default function Clients() {
                     />
 
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        {/* País & Provincia */}
+                        {/* Country & Province */}
                         <div className="flex gap-4 flex-wrap">
                             <Select
                                 options={countryCodes}
@@ -159,9 +156,8 @@ export default function Clients() {
                                 }}
                                 placeholder="País..."
                                 isClearable
-                                className="w-full md:w-48"
+                                className="w-48"
                             />
-
                             <Select
                                 options={provinces}
                                 value={selectedProvince}
@@ -176,16 +172,16 @@ export default function Clients() {
                                 }}
                                 placeholder="Provincia..."
                                 isClearable
-                                className="w-full md:w-48"
+                                className="w-48"
                             />
                         </div>
 
-                        {/* Botones */}
-                        <div className="flex gap-3 flex-wrap">
+                        {/* Sort, clear, itemsPerPage & view toggle */}
+                        <div className="flex items-center gap-3 flex-wrap">
                             <button
                                 onClick={() => { setSortByBilling(!sortByBilling); setCurrentPage(1); }}
-                                className={`px-4 py-2 rounded-lg font-medium shadow-sm text-white transition ${sortByBilling ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'
-                                    }`}
+                                className={`px-4 py-2 rounded-lg font-medium shadow-sm text-white transition 
+                  ${sortByBilling ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                             >
                                 {sortByBilling ? 'Ver por Código' : 'Ver por Facturación'}
                             </button>
@@ -197,17 +193,18 @@ export default function Clients() {
                                 Limpiar Filtros
                             </button>
 
-                            {/* selector items por página: oculto en móvil */}
+                            {/* Mostrar sólo en pantallas ≥md */}
                             <select
                                 value={itemsPerPage}
-                                onChange={e => { /* no cambia en móvil, siempre 10 */ }}
+                                onChange={e => { setItemsPerPage(+e.target.value); setCurrentPage(1); }}
                                 className="hidden md:block border rounded-lg px-3 py-2"
-                                disabled
                             >
-                                <option>10 / página</option>
+                                {[10, 25, 50].map(n => (
+                                    <option key={n} value={n}>{n} / página</option>
+                                ))}
                             </select>
 
-                            {/* toggle vista: oculto en móvil */}
+                            {/* Toggle table/cards, en ≥md */}
                             <div className="hidden md:flex items-center bg-gray-100 rounded-full p-2 space-x-2">
                                 <button
                                     onClick={() => setViewMode('table')}
@@ -231,13 +228,15 @@ export default function Clients() {
                         </div>
 
                         {/* Contador */}
-                        <p className="text-gray-600 text-sm w-full md:w-auto">
-                            Mostrando <span className="font-semibold">{startItem}</span>–<span className="font-semibold">{endItem}</span> de <span className="font-semibold">{totalClients}</span>
+                        <p className="text-gray-600 text-sm">
+                            Mostrando <span className="font-semibold">{startItem}</span>–
+                            <span className="font-semibold">{endItem}</span> de
+                            <span className="font-semibold"> {totalClients}</span>
                         </p>
                     </div>
                 </div>
 
-                {/* Contenido */}
+                {/* Content */}
                 <div className="px-6 md:px-8 pb-8">
                     {loading ? (
                         <div className="flex justify-center py-12 text-gray-500">
@@ -257,9 +256,10 @@ export default function Clients() {
                                         b <= 5000 ? 'bg-green-400' : 'bg-blue-400'
                             }
                             handleClientClick={async codclien => {
-                                const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`, {
-                                    headers: { Authorization: `Bearer ${token}` }
-                                });
+                                const r = await fetch(
+                                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`,
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                );
                                 const d = await r.json();
                                 setSelectedClientDetails(d);
                                 setModalVisible(true);
@@ -279,9 +279,10 @@ export default function Clients() {
                                                 (clientBillings[c.codclien] || 0) <= 5000 ? 'bg-green-400' : 'bg-blue-400'
                                     }
                                     onClick={async () => {
-                                        const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients/${c.codclien}`, {
-                                            headers: { Authorization: `Bearer ${token}` }
-                                        });
+                                        const r = await fetch(
+                                            `${import.meta.env.VITE_API_BASE_URL}/api/clients/${c.codclien}`,
+                                            { headers: { Authorization: `Bearer ${token}` } }
+                                        );
                                         const d = await r.json();
                                         setSelectedClientDetails(d);
                                         setModalVisible(true);
@@ -291,7 +292,6 @@ export default function Clients() {
                         </div>
                     )}
 
-                    {/* PAGINACIÓN SIEMPRE VISIBLE */}
                     {totalPages > 1 && (
                         <div className="mt-8">
                             <PaginationControls
