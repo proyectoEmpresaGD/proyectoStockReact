@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import es from 'date-fns/locale/es';
 import { NavLink } from 'react-router-dom';
 import { useAuthContext } from '../../Auth/AuthContext';
-import ClientModal from '../clientes/modalclients';
+import ClientModal from '../clientes/modal/ClientModal.jsx';
 import NoteModal from './NoteModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;

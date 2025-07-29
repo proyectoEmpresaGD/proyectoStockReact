@@ -4,10 +4,10 @@ import Select from 'react-select';
 import { FiLoader, FiGrid, FiList } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
-import SearchBar from '../components/clientes/SearchBarClients';
+import SearchBar from '../components/clientes/SearchBarClients.jsx';
 import ClientTable from '../components/clientes/clientstable.jsx';
-import ClientCard from '../components/clientes/ClientCard';
-import ClientModal from '../components/clientes/modal/ClientModal';
+import ClientCard from '../components/clientes/ClientCard.jsx';
+import ClientModal from '../components/clientes/modal/ClientModal.jsx';
 import PaginationControls from '../components/PaginationControls';
 
 export default function Clients() {
