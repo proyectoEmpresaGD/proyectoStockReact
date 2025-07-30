@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
-import { FiLoader, FiGrid, FiList } from 'react-icons/fi';
+import { FiLoader, FiList } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
 import SearchBar from '../components/clientes/SearchBarClients';
 import ClientTable from '../components/clientes/clientstable.jsx';
-import ClientCard from '../components/clientes/ClientCard';
 import ClientModal from '../components/clientes/modal/ClientModal';
 import PaginationControls from '../components/PaginationControls';
 
@@ -48,6 +47,14 @@ export default function Clients() {
         }
     }, [searchParams]);
 
+    // cada vez que cambias búsqueda, país, provincia o página: volver a "ver por código"
+    useEffect(() => {
+        if (sortByBilling) {
+            setSortByBilling(false);
+            setCurrentPage(1);
+        }
+    }, [searchTerm, selectedCountry, selectedProvince, itemsPerPage]);
+
     // fetch clients + billings
     useEffect(() => {
         const fetchAll = async () => {
@@ -64,6 +71,7 @@ export default function Clients() {
                 setClients(data.clients || []);
                 setTotalClients(data.total || 0);
 
+                // calcula facturación por cliente
                 const map = {};
                 await Promise.all((data.clients || []).map(async c => {
                     const r2 = await fetch(
@@ -176,7 +184,7 @@ export default function Clients() {
                             />
                         </div>
 
-                        {/* Sort, clear, itemsPerPage & view toggle */}
+                        {/* Sort + Clear + (itemsPerPage hidden en móvil) */}
                         <div className="flex items-center gap-3 flex-wrap">
                             <button
                                 onClick={() => { setSortByBilling(!sortByBilling); setCurrentPage(1); }}
@@ -193,7 +201,7 @@ export default function Clients() {
                                 Limpiar Filtros
                             </button>
 
-                            {/* Mostrar sólo en pantallas ≥md */}
+                            {/* ítems/page solo en md+ */}
                             <select
                                 value={itemsPerPage}
                                 onChange={e => { setItemsPerPage(+e.target.value); setCurrentPage(1); }}
@@ -203,32 +211,10 @@ export default function Clients() {
                                     <option key={n} value={n}>{n} / página</option>
                                 ))}
                             </select>
-
-                            {/* Toggle table/cards, en ≥md */}
-                            <div className="hidden md:flex items-center bg-gray-100 rounded-full p-2 space-x-2">
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`p-1 rounded-full transition ${viewMode === 'table'
-                                        ? 'bg-white shadow text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700'}`}
-                                    aria-label="Vista Tabla"
-                                >
-                                    <FiList size={20} />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('cards')}
-                                    className={`p-1 rounded-full transition ${viewMode === 'cards'
-                                        ? 'bg-white shadow text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700'}`}
-                                    aria-label="Vista Tarjetas"
-                                >
-                                    <FiGrid size={20} />
-                                </button>
-                            </div>
                         </div>
 
                         {/* Contador */}
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-600 text-sm whitespace-nowrap">
                             Mostrando <span className="font-semibold">{startItem}</span>–
                             <span className="font-semibold">{endItem}</span> de
                             <span className="font-semibold"> {totalClients}</span>
@@ -242,11 +228,7 @@ export default function Clients() {
                         <div className="flex justify-center py-12 text-gray-500">
                             <FiLoader className="animate-spin mr-2" /> Cargando clientes…
                         </div>
-                    ) : clients.length === 0 ? (
-                        <div className="text-center text-gray-500 py-12">
-                            No hay clientes disponibles.
-                        </div>
-                    ) : viewMode === 'table' ? (
+                    ) : (
                         <ClientTable
                             clients={clients}
                             clientBillings={clientBillings}
@@ -266,34 +248,11 @@ export default function Clients() {
                             }}
                             setClients={setClients}
                         />
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {clients.map(c => (
-                                <ClientCard
-                                    key={c.codclien}
-                                    client={c}
-                                    billing={clientBillings[c.codclien] || 0}
-                                    colorClass={
-                                        (clientBillings[c.codclien] || 0) <= 1000 ? 'bg-yellow-400' :
-                                            (clientBillings[c.codclien] || 0) <= 3000 ? 'bg-orange-400' :
-                                                (clientBillings[c.codclien] || 0) <= 5000 ? 'bg-green-400' : 'bg-blue-400'
-                                    }
-                                    onClick={async () => {
-                                        const r = await fetch(
-                                            `${import.meta.env.VITE_API_BASE_URL}/api/clients/${c.codclien}`,
-                                            { headers: { Authorization: `Bearer ${token}` } }
-                                        );
-                                        const d = await r.json();
-                                        setSelectedClientDetails(d);
-                                        setModalVisible(true);
-                                    }}
-                                />
-                            ))}
-                        </div>
                     )}
 
+                    {/* Paginación SIEMPRE visible */}
                     {totalPages > 1 && (
-                        <div className="mt-8">
+                        <div className="mt-6">
                             <PaginationControls
                                 currentPage={currentPage}
                                 handlePageChange={setCurrentPage}
@@ -304,6 +263,7 @@ export default function Clients() {
                 </div>
             </div>
 
+            {/* Detail Modal */}
             {modalVisible && (
                 <ClientModal
                     modalVisible={modalVisible}

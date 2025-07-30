@@ -136,10 +136,12 @@ export default function SearchBar({
                 {searchTerm && (
                     <button
                         onClick={() => {
+                            // Limpia el buscador y dispara la búsqueda vacía
                             setSearchTerm('');
                             setSuggestions([]);
                             setShowSuggestions(false);
                             setActiveIndex(-1);
+                            handleSearchEnter();
                         }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         aria-label="Limpiar búsqueda"

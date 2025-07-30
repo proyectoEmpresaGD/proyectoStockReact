@@ -393,7 +393,7 @@ function EtiquetaPerchas() {
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
 
-            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
             setDownloadCounter(prev => prev + 1);
 
             link.click();

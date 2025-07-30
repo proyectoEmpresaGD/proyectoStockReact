@@ -26,15 +26,24 @@ function EtiquetaLibro() {
         const loadDireccionLogos = async () => {
             try {
                 const response = await fetch('/LogosBase64/direccionLogos.json');
-                if (!response.ok) throw new Error('Error fetching direction logos');
                 const logos = await response.json();
-                setDireccionLogos(logos);
+
+                // Normalizar claves: guiones, mayúsculas
+                const normalizados = {};
+                Object.entries(logos).forEach(([key, value]) => {
+                    const normalizedKey = key.trim().toUpperCase().replace(/-/g, '_');
+                    normalizados[normalizedKey] = value;
+
+                });
+
+                setDireccionLogos(normalizados);
             } catch (error) {
                 console.error("Error loading direction logos:", error);
             }
         };
         loadDireccionLogos();
     }, []);
+
 
     const getLogoUrl = (name) => {
         return direccionLogos[name]
@@ -175,7 +184,7 @@ function EtiquetaLibro() {
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
 
-            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
             setDownloadCounter(prev => prev + 1);
 
             link.click();
@@ -293,42 +302,41 @@ function EtiquetaLibro() {
     };
 
 
-    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL']; // Lista de direcciones importantes
+    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL'];
 
     const getDireccionImagesImportantes = (direcciones) => {
         if (!direcciones) return "";
 
         const direccionList = direcciones.split(';')
-            .map(direccion => direccion.trim())
-            .filter(direccion => allowedDirecciones.includes(direccion));
+            .map(d => d.trim())
+            .filter(d => allowedDirecciones.includes(d));
 
-        return direccionList
-            .filter(direccion => direccionLogos[direccion]) // Cambiado aquí
-            .map((direccion, index) => (
-                <div
-                    key={index}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginRight: "3px",
-                    }}
-                >
+        return direccionList.map((direccion, index) => {
+            const normalizedKey = direccion.replace(/-/g, '_').toUpperCase();
+            const logo = direccionLogos[normalizedKey];
+
+            if (!logo) return null;
+
+            const isRailroaded = direccion === 'RAILROADED';
+            const imgClass = isRailroaded
+                ? "w-[20px] h-[15px] object-contain mr-[4px]"
+                : "w-[15px] h-[18px] object-contain mr-[4px]";
+
+            return (
+                <div key={index} className="flex items-center mr-[3px]">
                     <img
-                        src={direccionLogos[direccion]} // Cambiado aquí
+                        src={logo}
                         alt={direccion}
-                        className="cursor-pointer"
-                        style={{
-                            width: "16px",
-                            height: "16px",
-                            objectFit: "contain",
-                            marginRight: "2px",
-                        }}
+                        className={`${imgClass} cursor-pointer`}
                         title={`Click para ver el significado de ${direccion}`}
                         onClick={() => setShowIconMeaning(direccion)}
                     />
-                    <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{direccion}</span>
+                    <span className="text-[6px] mt-[6px] mb-[7px] leading-none">
+                        {direccion.replace(/-/g, '_')}
+                    </span>
                 </div>
-            ));
+            );
+        });
     };
 
 
@@ -395,7 +403,12 @@ function EtiquetaLibro() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale} cycles</span>
+                        Martindale:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale?.toString().trim()
+                                ? `${selectedProduct.martindale} cycles`
+                                : 'N/A'}
+                        </span>
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
@@ -443,7 +456,7 @@ function EtiquetaLibro() {
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
-                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -458,8 +471,15 @@ function EtiquetaLibro() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="mb-[1px] leading-tight text-justify">
+                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
+                    </p>
+
+
+
+
+
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
@@ -523,6 +543,7 @@ function EtiquetaLibro() {
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -537,8 +558,10 @@ function EtiquetaLibro() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
+                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                    </p>
+
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
@@ -602,6 +625,7 @@ function EtiquetaLibro() {
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -616,8 +640,10 @@ function EtiquetaLibro() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
+                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                    </p>
+
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">

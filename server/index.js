@@ -195,6 +195,28 @@ app.get('/api/test-send-visits-email', async (req, res) => {
     res.status(500).send('Error prueba visitas.');
   }
 });
+
+// Proxy para imágenes externas (con CORS permitido para base64)
+app.get('/api/proxy', async (req, res) => {
+  const imageUrl = req.query.url;
+  if (!imageUrl) return res.status(400).send('URL is required');
+
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return res.status(404).send('Image not found');
+
+    const contentType = response.headers.get('content-type');
+    const buffer = await response.arrayBuffer(); // ✅ convierte a buffer
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', buffer.byteLength);
+    res.send(Buffer.from(buffer)); // ✅ envía buffer como respuesta
+  } catch (err) {
+    console.error('❌ Error en /api/proxy:', err);
+    res.status(500).send('Error proxying image');
+  }
+});
+
+
 app.get('/api/test-send-stock-alerts', async (req, res) => {
   try {
     await sendWeeklyStockAlerts(true);

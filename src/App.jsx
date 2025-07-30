@@ -29,7 +29,7 @@ import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
 import FicharPage from './pages/Fichar.jsx'
 import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx'
-
+import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -73,6 +73,7 @@ function App() {
                       <Route path="/perfilusuario" element={<PerfilUsuario />} />
                       <Route path="/agenda" element={<AgendaPage />} />
                       <Route path="/notas" element={<NotasPage />} />
+                      <Route path="/EtiquetaCameo" element={< EtiquetaCameo />} />
                       <Route path="/gestionusuarios" element={<Perfil />} />
                       <Route path="/fichar" element={<FicharPage />} />
                     </Routes>
