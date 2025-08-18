@@ -83,8 +83,9 @@ export default function ClientTable({
                                 <tr
                                     key={client.codclien}
                                     className="border-b hover:bg-blue-50 cursor-pointer transition-colors"
+
                                 >
-                                    <td className="px-3 py-2 text-center relative">
+                                    <td className="px-3 py-2 text-center relative" >
                                         <span
                                             className={`inline-block w-3 h-3 rounded-full ${getClientColor(
                                                 billing
@@ -97,11 +98,14 @@ export default function ClientTable({
                                             <div
                                                 className="absolute bg-black text-white text-xs rounded py-1 px-2 pointer-events-none animate-fadeIn"
                                                 style={{
-                                                    top: tooltip.y,
-                                                    left: tooltip.x,
-                                                    transform: 'translate(-50%, -100%)',
+                                                    bottom: '100%',
+                                                    zIndex: '40',
+                                                    left: '60%',
+                                                    transform: 'translateX(-50%)',
+                                                    marginBottom: '3px',
                                                     whiteSpace: 'nowrap'
                                                 }}
+
                                             >
                                                 {tooltip.content}
                                             </div>
@@ -153,22 +157,46 @@ export default function ClientTable({
             <div className={`
           space-y-4 overflow-y-auto max-h-[60vh] p-2 transition-all duration-500 ease-in-out
           ${vista === 'carta' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}
-        `}>
+        `}
+            >
                 {clients.map((client) => {
                     const billing = clientBillings[client.codclien] || 0;
                     return (
                         <div
+                            onClick={() => handleClientClick(client.codclien)}
                             key={client.codclien}
-                            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition"
+                            className="bg-white p-4 rounded-lg cursor-pointer cur shadow hover:shadow-md transition"
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <span className="flex items-center gap-2">
                                     <span
-                                        className={`inline-block w-3 h-3 rounded-full ${getClientColor(
-                                            billing
-                                        )}`}
+                                        className={`relative inline-block w-3 h-3 rounded-full ${getClientColor(billing)}`}
+                                        onMouseEnter={() =>
+                                            setTooltip({
+                                                show: true,
+                                                content: `€ ${billing.toFixed(2)}`,
+                                                clientId: client.codclien
+                                            })
+                                        }
+                                        onMouseLeave={hideTooltip}
                                         aria-label={`Facturación ${billing.toFixed(2)}€`}
-                                    />
+                                    >
+                                        {/* Tooltip encima del punto */}
+                                        {tooltip.show && tooltip.clientId === client.codclien && (
+                                            <div
+                                                className="absolute bg-black text-white text-xs rounded py-1 px-2 pointer-events-none animate-fadeIn"
+                                                style={{
+                                                    bottom: '100%',
+                                                    left: '100%',
+                                                    transform: 'translateX(-20%)',
+                                                    marginBottom: '6px',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {tooltip.content}
+                                            </div>
+                                        )}
+                                    </span>
                                     <span
                                         className="text-lg font-semibold"
                                         onClick={() => handleClientClick(client.codclien)}
@@ -176,10 +204,14 @@ export default function ClientTable({
                                         {client.razclien}
                                     </span>
                                 </span>
+
                                 {user &&
                                     (user.role === 'comercial' || user.role === 'admin') && (
                                         <button
-                                            onClick={() => openVisitModal(client.codclien)}
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Evita que se dispare el onClick del contenedor
+                                                openVisitModal(client.codclien);
+                                            }}
                                             aria-label="Ver/Agregar visita"
                                             className="text-blue-500 hover:text-blue-700 transition"
                                         >

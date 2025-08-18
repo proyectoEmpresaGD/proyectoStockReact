@@ -30,6 +30,8 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     const [sortOrder, setSortOrder] = useState('newest');
     const [filtered, setFiltered] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
+    const yearlyBilling = filtered.reduce((sum, p) => sum + +p.importeDescuento, 0);
+
 
     const [visibleCols, setVisibleCols] = useState(ALL_COLUMNS.map(c => c.key));
 
@@ -179,7 +181,8 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     return (
         <>
             {/* KPIs */}
-            <KPIGrid purchased={purchased} totalBilling={totalBilling} />
+            <KPIGrid purchased={filtered} totalBilling={yearlyBilling} />
+
 
             {/* Barra de controles: búsqueda + filtros */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
