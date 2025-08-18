@@ -5,10 +5,10 @@ export default function KPIGrid({ purchased, totalBilling }) {
     const avg = (totalBilling / (purchased.length || 1)).toFixed(2);
 
     const items = [
-        ['Total Líneas', purchased.length],
-        ['Únicos', uniqueProducts],
+        // ['Total Líneas', purchased.length],
+        // ['Únicos', uniqueProducts],
         ['Facturación', totalBilling.toFixed(2)],
-        ['Importe Medio', avg],
+        // ['Importe Medio', avg],
     ];
 
     return (

@@ -20,6 +20,7 @@ export default function ClientTable({
         y: 0,
         clientId: null
     });
+    const [vista, setVista] = useState('tabla');
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
 
@@ -47,10 +48,25 @@ export default function ClientTable({
 
     return (
         <div className="relative shadow-md rounded-lg">
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto max-h-[60vh]">
+            <div className="flex justify-end p-2">
+                <button
+                    onClick={() =>
+                        setVista((prev) =>
+                            prev === 'auto' ? 'tabla' : prev === 'tabla' ? 'carta' : 'tabla'
+                        )
+                    }
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm"
+                >
+                    Vista: {vista}
+                </button>
+            </div>
+            {/* tabla Table */}
+            <div className={`
+          overflow-x-auto max-h-[60vh] transition-all duration-500 ease-in-out
+          ${vista === 'tabla' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}
+        `}>
                 <table className="min-w-full bg-white text-sm">
-                    <thead className="sticky top-0 bg-gray-100 border-b">
+                    <thead className="sticky top-0 bg-gray-100 border-b z-10">
                         <tr>
                             <th className="px-3 py-2">Estado</th>
                             <th className="px-3 py-2 text-left">Código</th>
@@ -133,8 +149,11 @@ export default function ClientTable({
                 </table>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="block md:hidden space-y-4 overflow-y-auto max-h-[60vh] p-2">
+            {/* carta Cards */}
+            <div className={`
+          space-y-4 overflow-y-auto max-h-[60vh] p-2 transition-all duration-500 ease-in-out
+          ${vista === 'carta' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}
+        `}>
                 {clients.map((client) => {
                     const billing = clientBillings[client.codclien] || 0;
                     return (
