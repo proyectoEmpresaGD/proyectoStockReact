@@ -125,7 +125,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'configuraciones',
             links: [
                 { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
-                { to: '/fichar', label: 'Fichar', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
                 {
                     to: '/perfilusuario',
                     label: 'Perfil de Usuario',
@@ -140,8 +139,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             dropdown: 'aplicaciones',
             links: [
                 { to: 'https://www.cjmw.eu/#/', label: 'Página Web', external: true },
-                { to: '/app2', label: 'Aplicación 2', roles: ['admin', 'comercial'] },
-                { to: '/app3', label: 'Aplicación 3', roles: ['admin', 'comercial'] },
             ],
         },
     ];

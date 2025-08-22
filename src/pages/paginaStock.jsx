@@ -245,7 +245,7 @@ function Stock() {
 
     return (
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6">
-            <div className="container mx-auto bg-white p-6 rounded-lg shadow-lg max-w-screen-lg mt-8">
+            <div className="container mx-auto bg-white p-6 rounded-lg shadow-lg max-w-screen-lg mt-20">
                 <h1 className="text-3xl font-bold text-center mb-4">Stock</h1>
                 <p className="text-center text-gray-600 mb-6">
                     Gestiona y consulta el inventario de productos y sus lotes.

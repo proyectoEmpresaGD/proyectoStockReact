@@ -119,8 +119,8 @@ export default function Clients() {
     const endItem = Math.min(startItem + itemsPerPage - 1, totalClients);
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-16 py-8 px-4">
-            <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 pt-16 py-8 px-4">
+            <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-xl overflow-hidden mt-12">
                 {/* Header */}
                 <div className="bg-white px-6 md:px-8 py-6 border-b">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
