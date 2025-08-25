@@ -165,14 +165,14 @@ function MapaClientes() {
         }
     };
 
-    const limpiarSeleccion = () => {
-        setPaisSeleccionado("");
-        setBusqueda("");
-        setSugerencias([]);
-        setCenter([0, 0]);
-        setZoom(1);
-        setSelectedFromSearch(false);
-    };
+    // const limpiarSeleccion = () => {
+    //     setPaisSeleccionado("");
+    //     setBusqueda("");
+    //     setSugerencias([]);
+    //     setCenter([0, 0]);
+    //     setZoom(1);
+    //     setSelectedFromSearch(false);
+    // };
 
     const getBoundsFromCoordinates = (coordinates) => {
         let flatCoords = coordinates.flat(2);

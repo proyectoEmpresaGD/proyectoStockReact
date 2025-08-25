@@ -16,6 +16,7 @@ export default function Clients() {
     // datos + loading
     const [clients, setClients] = useState([]);
     const [clientBillings, setClientBillings] = useState({});
+    const [clientBillingsYear, setClientBillingsYear] = useState({});
     const [loading, setLoading] = useState(false);
 
     // filtros / paginación / búsqueda
@@ -71,29 +72,59 @@ export default function Clients() {
                 setClients(data.clients || []);
                 setTotalClients(data.total || 0);
 
-                // calcula facturación por cliente
-                const map = {};
-                await Promise.all((data.clients || []).map(async c => {
+                // Año actual a 2 dígitos: 2025 -> "25"
+                const yy = String(new Date().getFullYear() % 100).padStart(2, '0');
+
+                const mapAll = {};
+                const mapYear = {};
+
+                await Promise.all((data.clients || []).map(async (c) => {
                     const r2 = await fetch(
                         `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${c.codclien}`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
-                    if (r2.ok) {
-                        const pd = await r2.json();
-                        map[c.codclien] = pd.reduce((s, p) => {
-                            let imp = +p.importe || 0;
-                            [p.dt1, p.dt2, p.dt3].forEach(d => { if (d > 0) imp *= 1 - d / 100; });
-                            return s + Math.max(imp, 0);
-                        }, 0);
+                    if (!r2.ok) {
+                        mapAll[c.codclien] = 0;
+                        mapYear[c.codclien] = 0;
+                        return;
                     }
+
+                    const pd = await r2.json();
+
+                    let totalAll = 0;
+                    let totalYear = 0;
+
+                    pd.forEach(p => {
+                        // importe con descuentos encadenados
+                        let imp = +p.importe || 0;
+                        [p.dt1, p.dt2, p.dt3].forEach(d => {
+                            const dd = Math.floor(d || 0);
+                            if (dd > 0) imp *= 1 - dd / 100;
+                        });
+                        imp = Math.max(imp, 0);
+
+                        totalAll += imp;
+
+                        // ejercicio: 25 o 2025 → compara últimos 2 dígitos
+                        const ej = String(p.ejercicio ?? '').trim();
+                        if (ej && ej.slice(-2) === yy) {
+                            totalYear += imp;
+                        }
+                    });
+
+                    mapAll[c.codclien] = +totalAll.toFixed(2);
+                    mapYear[c.codclien] = +totalYear.toFixed(2);
                 }));
-                setClientBillings(map);
+
+                setClientBillings(mapAll);       // total histórico
+                setClientBillingsYear(mapYear);  // solo año actual
             } catch (e) {
                 console.error(e);
             } finally {
                 setLoading(false);
             }
         };
+
         fetchAll();
     }, [
         token,
@@ -120,7 +151,7 @@ export default function Clients() {
 
     return (
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 pt-16 py-8 px-4">
-            <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-xl overflow-hidden mt-12">
+            <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-2xl overflow-hidden mt-12">
                 {/* Header */}
                 <div className="bg-white px-6 md:px-8 py-6 border-b">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
@@ -231,13 +262,15 @@ export default function Clients() {
                     ) : (
                         <ClientTable
                             clients={clients}
-                            clientBillings={clientBillings}
-                            getClientColor={b =>
-                                b <= 1000 ? 'bg-yellow-400' :
-                                    b <= 3000 ? 'bg-orange-400' :
-                                        b <= 5000 ? 'bg-green-400' : 'bg-blue-400'
+                            // 👇 clave: la tabla recibe el mapa del AÑO ACTUAL para color y cifra
+                            clientBillings={clientBillingsYear}
+                            getClientColor={(b) =>
+                                b <= 1000 ? 'bg-yellow-400'
+                                    : b <= 3000 ? 'bg-orange-400'
+                                        : b <= 5000 ? 'bg-green-400'
+                                            : 'bg-blue-400'
                             }
-                            handleClientClick={async codclien => {
+                            handleClientClick={async (codclien) => {
                                 const r = await fetch(
                                     `${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`,
                                     { headers: { Authorization: `Bearer ${token}` } }

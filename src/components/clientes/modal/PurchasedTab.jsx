@@ -30,7 +30,21 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     const [sortOrder, setSortOrder] = useState('newest');
     const [filtered, setFiltered] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
-    const yearlyBilling = filtered.reduce((sum, p) => sum + +p.importeDescuento, 0);
+    // Facturación total (solo depende del año)
+    const totalBillingFixed =
+        selectedYear === 'All'
+            ? purchased.reduce((sum, p) => sum + +p.importeDescuento, 0)
+            : purchased
+                .filter(p => new Date(p.fecha).getFullYear().toString() === selectedYear)
+                .reduce((sum, p) => sum + +p.importeDescuento, 0);
+
+
+    // Facturación filtrada (la que ya tienes)
+    const yearlyBilling = filtered.reduce(
+        (sum, p) => sum + +p.importeDescuento,
+        0
+    );
+
 
 
     const [visibleCols, setVisibleCols] = useState(ALL_COLUMNS.map(c => c.key));
@@ -181,7 +195,11 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     return (
         <>
             {/* KPIs */}
-            <KPIGrid purchased={filtered} totalBilling={yearlyBilling} />
+            <KPIGrid
+                purchased={filtered}
+                totalBilling={totalBillingFixed}          // total global (sin filtros)
+                billingWithFilters={yearlyBilling}        // total con filtros
+            />
 
 
             {/* Barra de controles: búsqueda + filtros */}
