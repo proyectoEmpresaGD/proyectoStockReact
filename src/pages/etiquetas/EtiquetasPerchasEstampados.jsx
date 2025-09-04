@@ -5,7 +5,7 @@ import { useAuthContext } from '../../Auth/AuthContext';
 import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
-import html2canvas from 'html2canvas'; // Importa html2canvas aquí
+import html2canvas from 'html2canvas';
 import piexif from 'piexifjs';
 
 function EtiquetaPerchasEstampados() {
@@ -21,13 +21,19 @@ function EtiquetaPerchasEstampados() {
     const [direccionLogos, setDireccionLogos] = useState({});
     const [downloadCounter, setDownloadCounter] = useState(1);
 
+    // --- Direcciones (normalizado como en el 1º) ---
     useEffect(() => {
         const loadDireccionLogos = async () => {
             try {
                 const response = await fetch('/LogosBase64/direccionLogos.json');
                 if (!response.ok) throw new Error('Error fetching direction logos');
                 const logos = await response.json();
-                setDireccionLogos(logos);
+                const normalizados = {};
+                Object.entries(logos).forEach(([key, value]) => {
+                    const normalizedKey = key.trim().toUpperCase().replace(/-/g, '_');
+                    normalizados[normalizedKey] = value;
+                });
+                setDireccionLogos(normalizados);
             } catch (error) {
                 console.error("Error loading direction logos:", error);
             }
@@ -35,10 +41,11 @@ function EtiquetaPerchasEstampados() {
         loadDireccionLogos();
     }, []);
 
-    const getLogoUrl = (name) => {
-        return direccionLogos[name]
-    };
+    const normalizeDireccionKey = (raw) =>
+        (raw || '').trim().toUpperCase().replace(/-/g, '_');
+    const getLogoUrl = (name) => direccionLogos[normalizeDireccionKey(name)];
 
+    // --- Logos marcas / mantenimiento / usos ---
     useEffect(() => {
         const loadBrandLogos = async () => {
             try {
@@ -78,6 +85,7 @@ function EtiquetaPerchasEstampados() {
         loadBrandLogosUsos();
     }, []);
 
+    // --- Buscador ---
     const handleSearchInputChange = (e) => {
         setSearchTerm(e.target.value);
         if (e.target.value.length >= 3) {
@@ -117,6 +125,7 @@ function EtiquetaPerchasEstampados() {
         }
     };
 
+    // --- QR / export ---
     const encryptProductId = (productId) => {
         const secretKey = 'R2tyY1|YO.Bp!bK£BCl7l*?ZC1dT+q~6cAT-4|nx2z`0l3}78U';
         const encrypted = CryptoJS.AES.encrypt(productId, secretKey).toString();
@@ -125,8 +134,7 @@ function EtiquetaPerchasEstampados() {
     };
 
     const handlePrint = () => {
-        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_]/g, '_');
-
+        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_');
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
@@ -135,93 +143,62 @@ function EtiquetaPerchasEstampados() {
             html2canvas: { scale: 6, useCORS: true, allowTaint: false },
             jsPDF: { unit: 'cm', format: [25, 10], orientation: 'landscape' },
         };
-
-        html2pdf()
-            .set(options)
-            .from(element)
-            .save()
-            .catch(error => console.error('Error generating PDF:', error));
+        html2pdf().set(options).from(element).save().catch(err => console.error('Error generating PDF:', err));
     };
-    // Exportar como JPG (nuevo)
+
     const handleExportAsJPGDirect = async () => {
         try {
             const element = printRef.current;
             if (!element) return;
-
-            const canvas = await html2canvas(element, {
-                useCORS: true,
-                scale: 15,
-            });
+            const canvas = await html2canvas(element, { useCORS: true, scale: 15 });
             const dataURL = canvas.toDataURL("image/jpeg", 1.0);
-
-            // EXIF: 300 DPI, unidad = pulgadas (2)
             const exifObj = { "0th": {}, "Exif": {}, "GPS": {}, "Interop": {}, "1st": {} };
             exifObj["0th"][piexif.ImageIFD.XResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.YResolution] = [1500, 1];
             exifObj["0th"][piexif.ImageIFD.ResolutionUnit] = 2;
             const exifBytes = piexif.dump(exifObj);
             const newDataURL = piexif.insert(exifBytes, dataURL);
-
             const byteString = atob(newDataURL.split(",")[1]);
             const mimeString = newDataURL.split(",")[0].split(":")[1].split(";")[0];
             const buffer = new ArrayBuffer(byteString.length);
             const intArray = new Uint8Array(buffer);
-            for (let i = 0; i < byteString.length; i++) {
-                intArray[i] = byteString.charCodeAt(i);
-            }
+            for (let i = 0; i < byteString.length; i++) intArray[i] = byteString.charCodeAt(i);
             const blob = new Blob([buffer], { type: mimeString });
-
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-
             link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
             setDownloadCounter(prev => prev + 1);
-
             link.click();
         } catch (error) {
             console.error("Error generating JPG:", error);
         }
     };
 
-    const formatNumber = (number, decimals = 2) => {
-        return parseFloat(number).toFixed(decimals);
-    };
+    const formatNumber = (number, decimals = 2) => parseFloat(number).toFixed(decimals);
 
     const getMantenimientoImages = (mantenimiento) => {
         if (!mantenimiento) return null;
-
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
         const valores = xmlDoc.getElementsByTagName("Valor");
-
         return Array.from(valores)
             .map(node => node.textContent.trim())
             .filter(m => loadBrandLogosMantenimiento[m])
             .map((m, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosMantenimiento[m]}
-                    alt={m}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-                    title={m}
-                />
+                <img key={index} src={loadBrandLogosMantenimiento[m]} alt={m}
+                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]" title={m} />
             ));
     };
 
     const getUsoImages = (usos) => {
         if (!usos) return null;
-
         return usos.split(';')
             .map(uso => uso.trim())
             .map((uso, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosUsos[uso]}
-                    alt={uso}
+                <img key={index} src={loadBrandLogosUsos[uso]} alt={uso}
                     className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
                     title={`Click para ver el significado de ${uso}`}
-                    onClick={() => setShowIconMeaning(uso)}
-                />
+                    onClick={() => setShowIconMeaning(uso)} />
             ));
     };
 
@@ -230,134 +207,77 @@ function EtiquetaPerchasEstampados() {
 
     const getMantenimientoImagesImportantes = (mantenimiento) => {
         if (!mantenimiento) return "";
-
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
-
         const valores = xmlDoc.getElementsByTagName("Valor");
         const mantenimientoList = Array.from(valores)
             .map(node => node.textContent.trim())
-            .filter(mantenimiento => allowedMantenimientos.includes(mantenimiento));
-
+            .filter(m => allowedMantenimientos.includes(m));
         return mantenimientoList
-            .filter(mantenimiento => loadBrandLogosMantenimiento[mantenimiento])
-            .map((mantenimiento, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosMantenimiento[mantenimiento]}
-                    alt={mantenimiento}
+            .filter(m => loadBrandLogosMantenimiento[m])
+            .map((m, index) => (
+                <img key={index} src={loadBrandLogosMantenimiento[m]} alt={m}
                     className="w-9 h-4 mx-0 md:mx-1 cursor-pointer"
-                    title={`Click para ver el significado de ${mantenimiento}`}
-                    onClick={() => setShowIconMeaning(mantenimiento)}
-                />
+                    title={`Click para ver el significado de ${m}`}
+                    onClick={() => setShowIconMeaning(m)} />
             ));
     };
 
-
-
     const getUsoImagesImportantes = (usos) => {
         if (!usos) return "";
-
-        const usoList = usos.split(';')
-            .map(uso => uso.trim())
-            .filter(uso => allowedUsos.includes(uso));
-
+        const usoList = usos.split(';').map(uso => uso.trim()).filter(uso => allowedUsos.includes(uso));
         return usoList
             .filter(uso => loadBrandLogosUsos[uso])
             .map((uso, index) => (
-                <div
-                    key={index}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginRight: "3px"
-                    }}
-                >
-                    <img
-                        src={loadBrandLogosUsos[uso]}
-                        alt={uso}
-                        className="cursor-pointer"
-                        style={{
-                            width: "16px",
-                            height: "16px",
-                            objectFit: "contain",
-                            marginRight: "2px"
-                        }}
+                <div key={index} style={{ display: "flex", alignItems: "center", marginRight: "3px" }}>
+                    <img src={loadBrandLogosUsos[uso]} alt={uso} className="cursor-pointer"
+                        style={{ width: "16px", height: "16px", objectFit: "contain", marginRight: "2px" }}
                         title={`Click para ver el significado de ${uso}`}
-                        onClick={() => setShowIconMeaning(uso)}
-                    />
+                        onClick={() => setShowIconMeaning(uso)} />
                     <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{uso}</span>
                 </div>
             ));
     };
 
-
-    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL']; // Lista de direcciones importantes
+    const allowedDirecciones = ['NON-RAILROADED', 'RAILROADED', 'NON-DIRECTIONAL'];
 
     const getDireccionImagesImportantes = (direcciones) => {
         if (!direcciones) return "";
-
-        const direccionList = direcciones.split(';')
-            .map(direccion => direccion.trim())
-            .filter(direccion => allowedDirecciones.includes(direccion));
-
-        return direccionList
-            .filter(direccion => direccionLogos[direccion]) // Cambiado aquí
-            .map((direccion, index) => (
-                <div
-                    key={index}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginRight: "3px",
-                    }}
-                >
-                    <img
-                        src={direccionLogos[direccion]} // Cambiado aquí
-                        alt={direccion}
-                        className="cursor-pointer"
-                        style={{
-                            width: "16px",
-                            height: "16px",
-                            objectFit: "contain",
-                            marginRight: "2px",
-                        }}
+        const direccionList = direcciones.split(';').map(d => d.trim()).filter(d => allowedDirecciones.includes(d));
+        return direccionList.map((direccion, index) => {
+            const normalizedKey = normalizeDireccionKey(direccion);
+            const logo = direccionLogos[normalizedKey];
+            if (!logo) return null;
+            const isRailroaded = direccion === 'RAILROADED';
+            const imgClass = isRailroaded
+                ? "w-[20px] h-[15px] object-contain mr-[4px]"
+                : "w-[15px] h-[18px] object-contain mr-[4px]";
+            return (
+                <div key={index} className="flex items-center mr-[3px]">
+                    <img src={logo} alt={direccion} className={`${imgClass} cursor-pointer`}
                         title={`Click para ver el significado de ${direccion}`}
-                        onClick={() => setShowIconMeaning(direccion)}
-                    />
-                    <span style={{ fontSize: "10px", marginBottom: "12px", marginTop: "6px" }}>{direccion}</span>
+                        onClick={() => setShowIconMeaning(direccion)} />
+                    <span className="text-[6px] mt-[6px] mb-[7px] leading-none">
+                        {direccion.replace(/-/g, '_')}
+                    </span>
                 </div>
-            ));
+            );
+        });
     };
 
     const renderEtiquetaFormato1 = () => (
-        <div
-            ref={printRef}
-            className="bg-white p-4 rounded-lg flex flex-col justify-center"
-            style={{
-                width: '14cm',
-                height: '4cm',
-                fontSize: '6px',
-                boxSizing: 'border-box',
-                color: 'black',
-                fontFamily: 'Arial, sans-serif',
-                fontWeight: 'bold',
-                textAlign: 'start',
-            }}
-        >
+        <div ref={printRef} className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{ width: '14cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
-                        src={brandLogos[selectedProduct.codmarca]}
-                        alt="Logo de Marca"
+                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
                 </div>
                 <div className='flex justify-end items-start gap-2 relative left-[23px]'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
@@ -376,20 +296,19 @@ function EtiquetaPerchasEstampados() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
+                    {/* Composition como el 1º: título + línea siguiente */}
                     <p className="font-extrabold flex items-center">Composition:</p>
                     <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminhor)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminhor)} cm` : '-'}
                         </span>
                         , V:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminver)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminver)} cm` : '-'}
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -397,9 +316,9 @@ function EtiquetaPerchasEstampados() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[13.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[13.5px] mt-[13.5px]"><strong>Cares:</strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="flex justify-end mt-[5px]">
@@ -410,38 +329,24 @@ function EtiquetaPerchasEstampados() {
     );
 
     const renderEtiquetaFormato2 = () => (
-        <div
-            ref={printRef}
-            className="bg-white p-4 rounded-lg flex flex-col justify-center"
-            style={{
-                width: '15cm',
-                height: '4cm',
-                fontSize: '6px',
-                boxSizing: 'border-box',
-                color: 'black',
-                fontFamily: 'Arial, sans-serif',
-                fontWeight: 'bold',
-                textAlign: 'start',
-            }}
-        >
+        <div ref={printRef} className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
-                        src={brandLogos[selectedProduct.codmarca]}
-                        alt="Logo de Marca"
+                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
-                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
+                    {/* Corregido: usar direcciontela */}
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -456,24 +361,30 @@ function EtiquetaPerchasEstampados() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    {/* Igual que el 1º Formato 2 */}
+                    <p className="mb-[1px] leading-tight text-justify">
+                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
+                    </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminhor)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminhor)} cm` : '-'}
                         </span>
                         , V:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminver)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminver)} cm` : '-'}
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale?.toString().trim()
+                                ? `${selectedProduct.martindale} cycles`
+                                : "N/A"}
+                        </span>
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
@@ -490,40 +401,25 @@ function EtiquetaPerchasEstampados() {
     );
 
     const renderEtiquetaFormato3 = () => (
-        <div
-            ref={printRef}
-            className="bg-white p-4 rounded-lg flex flex-col justify-center"
-            style={{
-                width: '15cm',
-                height: '4cm',
-                fontSize: '6px',
-                boxSizing: 'border-box',
-                color: 'black',
-                fontFamily: 'Arial, sans-serif',
-                fontWeight: 'bold',
-                textAlign: 'start',
-            }}
-        >
+        <div ref={printRef} className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
-                        src={brandLogos[selectedProduct.codmarca]}
-                        alt="Logo de Marca"
+                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
-
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
                     <p className="font-extrabold flex items-center">
@@ -535,25 +431,31 @@ function EtiquetaPerchasEstampados() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    {/* Igual que el 1º Formato 3 */}
+                    <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
+                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                    </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminhor)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminhor)} cm` : '-'}
                         </span>
                         , V:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminver)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminver)} cm` : '-'}
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale?.toString().trim()
+                                ? `${selectedProduct.martindale} cycles`
+                                : "N/A"}
+                        </span>
                     </p>
+
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
@@ -569,37 +471,23 @@ function EtiquetaPerchasEstampados() {
     );
 
     const renderEtiquetaFormato4 = () => (
-        <div
-            ref={printRef}
-            className="bg-white p-4 rounded-lg flex flex-col justify-center"
-            style={{
-                width: '15cm',
-                height: '4cm',
-                fontSize: '6px',
-                boxSizing: 'border-box',
-                color: 'black',
-                fontFamily: 'Arial, sans-serif',
-                fontWeight: 'bold',
-                textAlign: 'start',
-            }}
-        >
+        <div ref={printRef} className="bg-white p-4 rounded-lg flex flex-col justify-center"
+            style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
-                        src={brandLogos[selectedProduct.codmarca]}
-                        alt="Logo de Marca"
+                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -614,27 +502,28 @@ function EtiquetaPerchasEstampados() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    {/* Igual que el 1º Formato 4 */}
+                    <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
+                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                    </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminhor && !isNaN(Number(selectedProduct.repminhor)) && selectedProduct.repminhor !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminhor)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminhor)} cm` : '-'}
                         </span>
                         , V:
                         <span className="font-light ml-1 mb-[2px]">
                             {selectedProduct.repminver && !isNaN(Number(selectedProduct.repminver)) && selectedProduct.repminver !== 'NaN'
-                                ? `${formatNumber(selectedProduct.repminver)} cm`
-                                : '-'}
+                                ? `${formatNumber(selectedProduct.repminver)} cm` : '-'}
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale: <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ? `${selectedProduct.martindale} cycles` : "N/A"}
+                        </span>
                     </p>
                 </div>
-
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
@@ -653,15 +542,10 @@ function EtiquetaPerchasEstampados() {
         const mantenimientoCount = (selectedProduct?.mantenimiento?.split(';') || []).length;
         const usosCount = (selectedProduct?.uso?.split(';') || []).length;
 
-        if (composicionLength > 30 && (mantenimientoCount > 6 || usosCount > 6)) {
-            return renderEtiquetaFormato3();
-        } else if (composicionLength > 30) {
-            return renderEtiquetaFormato2();
-        } else if (mantenimientoCount > 6 || usosCount > 6) {
-            return renderEtiquetaFormato4();
-        } else {
-            return renderEtiquetaFormato1();
-        }
+        if (composicionLength > 30 && (mantenimientoCount > 6 || usosCount > 6)) return renderEtiquetaFormato3();
+        if (composicionLength > 30) return renderEtiquetaFormato2();
+        if (mantenimientoCount > 6 || usosCount > 6) return renderEtiquetaFormato4();
+        return renderEtiquetaFormato1();
     };
 
     return (
@@ -681,16 +565,12 @@ function EtiquetaPerchasEstampados() {
 
             {selectedProduct && getEtiquetaFormato()}
 
-            <button
-                onClick={handlePrint}
-                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
-            >
+            <button onClick={handlePrint}
+                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">
                 Descargar Etiqueta de Libro
             </button>
-            <button
-                onClick={handleExportAsJPGDirect}
-                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200"
-            >
+            <button onClick={handleExportAsJPGDirect}
+                className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">
                 Descargar como JPG
             </button>
         </div>
