@@ -34,10 +34,10 @@ const pool = new Pool({
 globalThis.pool = pool;
 
 const app = express();
-app.use(json());
-app.use(corsMiddleware());
 app.disable('x-powered-by');
 app.use(express.static(join(__dirname, 'web')));
+app.use(json());
+app.use(corsMiddleware());
 
 // Public routes
 app.use('/api/auth', authRouter);

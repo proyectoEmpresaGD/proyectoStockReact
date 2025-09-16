@@ -5,11 +5,11 @@
         {
             "src": "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJMlogo%2064x64.png",
             "sizes": "64x64 32x32 24x24 16x16",
-            "type": "image/x-icon"
+            "type": "image/png"
         },
         {
             "src": "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/CJMlogo%20192x192.png",
-            "type": "image/svg+xml",
+            "type": "image/png",
             "sizes": "192x192"
         },
         {

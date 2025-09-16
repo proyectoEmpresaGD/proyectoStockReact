@@ -10,12 +10,16 @@ import { AiOutlineLoading3Quarters, AiOutlineCloseCircle } from 'react-icons/ai'
 function Stock() {
     const { token } = useAuthContext();
 
+    // Límite alto para traer todos los resultados de búsqueda (la paginación se hace en cliente)
+    const SEARCH_FETCH_LIMIT = 5000; // ajusta si esperas más/menos resultados máximos
+
     // --- Estados de datos y carga/errores ---
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
     const [stockLotes, setStockLotes] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [loadingStock, setLoadingStock] = useState(false);
+    const [loadingSearch, setLoadingSearch] = useState(false);
     const [error, setError] = useState(null);
 
     // --- Productos combinados y filtrados ---
@@ -31,6 +35,7 @@ function Stock() {
     const [suggestions, setSuggestions] = useState([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [lastSearch, setLastSearch] = useState('');
+    const [lastSearchResultsRaw, setLastSearchResultsRaw] = useState([]);
     const [singleProductView, setSingleProductView] = useState(false);
 
     // --- Modal de lotes ---
@@ -39,7 +44,27 @@ function Stock() {
 
     const wrapperRef = useRef(null);
 
-    // --- Filtro de productos válidos ---
+    // Refs para abortar peticiones en curso (sugerencias / búsqueda)
+    const suggestAbortRef = useRef(null);
+    const searchAbortRef = useRef(null);
+
+    // --- Índices O(1) por codprodu para computar más rápido ---
+    const stockByProd = useMemo(() => {
+        const map = new Map();
+        for (const s of stocks) map.set(s.codprodu, s);
+        return map;
+    }, [stocks]);
+
+    const lotsByProd = useMemo(() => {
+        const map = new Map();
+        for (const l of stockLotes) {
+            if (!map.has(l.codprodu)) map.set(l.codprodu, []);
+            map.get(l.codprodu).push(l);
+        }
+        return map;
+    }, [stockLotes]);
+
+    // --- Filtro de productos válidos (se mantiene sin cambios) ---
     const isValidProduct = useCallback(
         p =>
             ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(p.codmarca) &&
@@ -54,21 +79,21 @@ function Stock() {
     const computeCombined = useCallback(
         prods =>
             prods.filter(isValidProduct).map(p => {
-                const s = stocks.find(x => x.codprodu === p.codprodu);
-                const lots = stockLotes.filter(l => l.codprodu === p.codprodu);
+                const s = stockByProd.get(p.codprodu);
+                const lots = lotsByProd.get(p.codprodu) ?? [];
                 const total = lots.length
-                    ? lots.reduce((sum, l) => sum + parseFloat(l.stockactual), 0)
+                    ? lots.reduce((sum, l) => sum + parseFloat(l.stockactual || 0), 0)
                     : s
-                        ? parseFloat(s.stockactual)
+                        ? parseFloat(s.stockactual || 0)
                         : 0;
                 return {
                     ...p,
                     stockactual: total.toFixed(2),
-                    canpenrecib: s ? parseFloat(s.canpenrecib).toFixed(2) : '0.00',
-                    canpenservir: s ? parseFloat(s.canpenservir).toFixed(2) : '0.00'
+                    canpenrecib: s ? parseFloat(s.canpenrecib || 0).toFixed(2) : '0.00',
+                    canpenservir: s ? parseFloat(s.canpenservir || 0).toFixed(2) : '0.00'
                 };
             }),
-        [stocks, stockLotes, isValidProduct]
+        [stockByProd, lotsByProd, isValidProduct]
     );
 
     const combinedProducts = useMemo(() => {
@@ -78,8 +103,15 @@ function Stock() {
 
     // Actualizamos los filtrados cuando cambia la combinación
     useEffect(() => {
-        setFilteredProducts(combinedProducts);
-    }, [combinedProducts]);
+        if (!isSearchActive) setFilteredProducts(combinedProducts);
+    }, [combinedProducts, isSearchActive]);
+
+    // Si estoy en modo búsqueda y llegan (o cambian) stocks/lotes, recomputo
+    useEffect(() => {
+        if (isSearchActive && lastSearchResultsRaw.length) {
+            setFilteredProducts(computeCombined(lastSearchResultsRaw));
+        }
+    }, [isSearchActive, lastSearchResultsRaw, computeCombined]);
 
     // --- Cálculo de qué mostrar en la tabla ---
     const pagedProducts = useMemo(() => {
@@ -152,80 +184,115 @@ function Stock() {
         []
     );
 
-    // --- Sugerencias de búsqueda ---
+    // --- Sugerencias de búsqueda con debounce y abort ---
     useEffect(() => {
-        if (searchTerm.length < 3) {
+        if (searchTerm.length < 3 || !token) {
+            // Cancelar en curso y limpiar
+            suggestAbortRef.current?.abort?.();
             setSuggestions([]);
             return;
         }
-        fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
-                searchTerm
-            )}&limit=40`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        )
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data =>
-                setSuggestions(
-                    data.filter(isValidProduct).filter(p => fuzzyFilter(p, searchTerm))
-                )
-            )
-            .catch(() => setSuggestions([]));
-    }, [searchTerm, token, isValidProduct, fuzzyFilter]);
 
-    // --- Ejecutar búsqueda ---
-    const performSearch = useCallback(
-        query => {
+        const controller = new AbortController();
+        suggestAbortRef.current?.abort?.();
+        suggestAbortRef.current = controller;
+
+        const timeout = setTimeout(() => {
             fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
-                    query
-                )}&limit=${itemsPerPage}`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                    searchTerm
+                )}&limit=200`,
+                { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
+            )
+                .then(res => {
+                    if (!res.ok) throw new Error();
+                    return res.json();
+                })
+                .then(data =>
+                    setSuggestions(
+                        data.filter(isValidProduct).filter(p => fuzzyFilter(p, searchTerm))
+                    )
+                )
+                .catch(() => {
+                    /* ignoramos aborts/errores silenciosamente */
+                });
+        }, 250); // debounce 250ms
+
+        return () => {
+            clearTimeout(timeout);
+            controller.abort();
+        };
+    }, [searchTerm, token, isValidProduct, fuzzyFilter]);
+
+    // --- Ejecutar búsqueda (traemos muchos resultados y paginamos en cliente) ---
+    const performSearch = useCallback(
+        query => {
+            const q = (query || '').trim();
+            if (!q) return;
+
+            setLoadingSearch(true);
+            // Cancelar búsqueda previa
+            searchAbortRef.current?.abort?.();
+            const controller = new AbortController();
+            searchAbortRef.current = controller;
+
+            fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
+                    q
+                )}&limit=${SEARCH_FETCH_LIMIT}`,
+                { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
             )
                 .then(res => {
                     if (!res.ok) throw new Error();
                     return res.json();
                 })
                 .then(data => {
+                    setLastSearchResultsRaw(data);
                     const combined = computeCombined(data);
                     setFilteredProducts(combined);
                     setSingleProductView(combined.length === 1);
                     setIsSearchActive(true);
-                    setLastSearch(query);
+                    setLastSearch(q);
                     setCurrentPage(1);
                 })
-                .catch(err => console.error('Search error', err));
+                .catch(() => {
+                    /* ignoramos aborts/errores silenciosamente */
+                })
+                .finally(() => setLoadingSearch(false));
         },
-        [token, computeCombined, itemsPerPage]
+        [token, computeCombined, SEARCH_FETCH_LIMIT]
     );
 
-    // Manejadores
+    // --- Manejadores (Enter solo lanza tu búsqueda) ---
     const handleSearchKeyPress = e => {
         if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
             performSearch(searchTerm);
             setSuggestions([]);
             setSearchTerm('');
         }
     };
+
     const handleSuggestionClickLocal = p => {
         performSearch(p.desprodu);
         setSuggestions([]);
         setSearchTerm('');
     };
+
     const clearSearch = () => {
-        // Ya no reseteamos lastSearch para mantener el botón visible
         setFilteredProducts(combinedProducts);
         setIsSearchActive(false);
+        setLastSearchResultsRaw([]);
         setSearchTerm('');
         setCurrentPage(1);
     };
+
     const handlePageChange = pageNum => {
         const p = Math.max(1, Math.min(pageNum, totalPages));
         setCurrentPage(p);
     };
+
     const handleProductClick = async p => {
         try {
             const res = await fetch(
@@ -240,6 +307,35 @@ function Stock() {
             console.error('Error fetching lots');
         }
     };
+
+    // --- Hook para capturar Enter y desactivar autocomplete del navegador sin tocar SearchBar ---
+    useEffect(() => {
+        const root = wrapperRef.current;
+        if (!root) return;
+
+        const input = root.querySelector('input');
+        if (!input) return;
+
+        input.setAttribute('autocomplete', 'off');
+
+        const onKeyDown = e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                const value = input.value ?? '';
+                if (value.trim().length > 0) {
+                    performSearch(value.trim());
+                    setSuggestions([]);
+                    setSearchTerm('');
+                }
+            }
+            // Si tu lista de sugerencias "captura" flechas y te molesta, puedes bloquearlas:
+            // if (e.key === 'ArrowDown' || e.key === 'ArrowUp') e.preventDefault();
+        };
+
+        input.addEventListener('keydown', onKeyDown);
+        return () => input.removeEventListener('keydown', onKeyDown);
+    }, [performSearch]);
 
     const anyLoading = loadingProducts || loadingStock;
 
@@ -262,11 +358,12 @@ function Stock() {
                         handleSearchKeyPress={handleSearchKeyPress}
                         handleSuggestionClick={handleSuggestionClickLocal}
                     />
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                         {lastSearch && (
                             <button
                                 onClick={() => performSearch(lastSearch)}
-                                className="inline-flex items-center px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-white rounded-full shadow-sm transition"
+                                disabled={loadingSearch}
+                                className="inline-flex items-center px-4 py-2 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-white rounded-full shadow-sm transition"
                             >
                                 Última búsqueda:&nbsp;
                                 <span className="italic">“{lastSearch}”</span>
@@ -275,16 +372,29 @@ function Stock() {
                         {isSearchActive && (
                             <button
                                 onClick={clearSearch}
-                                className="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-sm transition"
+                                disabled={loadingSearch}
+                                className="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white rounded-full shadow-sm transition"
                             >
                                 <AiOutlineCloseCircle className="mr-2 text-lg" />
                                 Limpiar búsqueda
                             </button>
                         )}
+                        {isSearchActive && (
+                            <span className="text-sm text-gray-600 ml-auto">
+                                {filteredProducts.length} resultado{filteredProducts.length === 1 ? '' : 's'}
+                            </span>
+                        )}
+                        {loadingSearch && (
+                            <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                                <AiOutlineLoading3Quarters className="animate-spin" />
+                                Buscando…
+                            </span>
+                        )}
                     </div>
                 </div>
 
                 {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+
                 {anyLoading ? (
                     <div className="flex justify-center py-10">
                         <AiOutlineLoading3Quarters className="animate-spin text-3xl text-blue-500" />
@@ -300,6 +410,11 @@ function Stock() {
                             totalPages={totalPages}
                             handlePageChange={handlePageChange}
                         />
+                        {isSearchActive && !pagedProducts.length && (
+                            <p className="text-center text-gray-600 my-6">
+                                No hay resultados para “{lastSearch}”.
+                            </p>
+                        )}
                     </>
                 )}
 
