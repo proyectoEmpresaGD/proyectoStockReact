@@ -379,8 +379,10 @@ function EtiquetasLibro35Tipo2() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="mb-[1px] leading-tight text-justify">
+                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
+                    </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
@@ -461,8 +463,10 @@ function EtiquetasLibro35Tipo2() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
-                    <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
+                    <p className="mb-[1px] leading-tight text-justify">
+                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
+                    </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
                         <span className="font-light ml-1 mb-[2px]">
