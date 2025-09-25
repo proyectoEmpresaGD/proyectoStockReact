@@ -12,29 +12,49 @@ const pool = new Pool({
 });
 
 export class NotasModel {
-  static async getAll({ offset, limit, query }) {
+  // ✅ getAll: ahora acepta idusuario (opcional) y busca también por título
+  static async getAll({ offset = 0, limit = 100, query = null, idusuario = null }) {
     let text = 'SELECT * FROM notas WHERE 1=1';
     const params = [];
+
+    if (idusuario != null) {
+      text += ` AND idusuario = $${params.length + 1}`;
+      params.push(idusuario);
+    }
+
     if (query) {
-      text += ` AND contenido ILIKE $${params.length + 1}`;
+      // Busca en contenido (como antes) y también en título
+      text += ` AND (titulo ILIKE $${params.length + 1} OR contenido ILIKE $${params.length + 1})`;
       params.push(`%${query}%`);
     }
+
     text += ` ORDER BY fechacreado DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
+    params.push(Number(limit), Number(offset));
+
     const { rows } = await pool.query(text, params);
     return rows;
   }
 
-  static async getCount({ query }) {
+
+  // ✅ getCount: idem a getAll, con idusuario (opcional) y búsqueda por título o contenido
+  static async getCount({ query = null, idusuario = null }) {
     let text = 'SELECT COUNT(*) FROM notas WHERE 1=1';
     const params = [];
+
+    if (idusuario != null) {
+      text += ` AND idusuario = $${params.length + 1}`;
+      params.push(idusuario);
+    }
+
     if (query) {
-      text += ` AND contenido ILIKE $${params.length + 1}`;
+      text += ` AND (titulo ILIKE $${params.length + 1} OR contenido ILIKE $${params.length + 1})`;
       params.push(`%${query}%`);
     }
+
     const { rows } = await pool.query(text, params);
     return parseInt(rows[0].count, 10);
   }
+
 
   static async getById({ id }) {
     const { rows } = await pool.query('SELECT * FROM notas WHERE id = $1', [id]);

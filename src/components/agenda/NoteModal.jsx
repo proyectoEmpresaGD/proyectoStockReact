@@ -1,35 +1,47 @@
-import React, { useState } from 'react';
+// src/components/notas/NoteModal.jsx
+import React, { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiUpload, FiTrash2 } from 'react-icons/fi';
 
 export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     const isEditing = Boolean(nota);
     const [titulo, setTitulo] = useState(nota?.titulo || '');
     const [contenido, setContenido] = useState(nota?.contenido || '');
-    const [existingImages, setExistingImages] = useState(nota?.imagenes || []);
-    const [removedImages, setRemovedImages] = useState([]);
+    const [existingImages, setExistingImages] = useState(nota?.imagenes || []); // URLs
     const [newFiles, setNewFiles] = useState([]);
+    const [previews, setPreviews] = useState([]);
     const [saving, setSaving] = useState(false);
+    const abortRef = useRef(null);
 
-    const handleNewFiles = files => {
-        const arr = Array.from(files);
-        if (
-            existingImages.length - removedImages.length +
-            newFiles.length +
-            arr.length > 3
-        ) {
-            return alert('Máximo 3 imágenes por nota');
-        }
-        setNewFiles(prev => [...prev, ...arr]);
+    const MB = 6;
+    const urlToFilename = (url) =>
+        decodeURIComponent(url.split('/').pop().split('?')[0]);
+
+    const handleNewFiles = (files) => {
+        const arr = Array.from(files || [])
+            .filter((f) => /^image\//.test(f.type))
+            .filter((f) => f.size <= MB * 1024 * 1024);
+        const total = existingImages.length + newFiles.length + arr.length;
+        if (total > 3) return alert('Máximo 3 imágenes por nota');
+        const dedup = arr.filter(
+            (nf) => !newFiles.some((f) => f.name === nf.name && f.size === nf.size)
+        );
+        setNewFiles((prev) => [...prev, ...dedup]);
     };
 
-    const removeExisting = url => {
-        setRemovedImages(prev => [...prev, url]);
-        setExistingImages(prev => prev.filter(u => u !== url));
+    const removeExisting = (url) => {
+        setExistingImages((prev) => prev.filter((u) => u !== url));
+    };
+    const removeNew = (idx) => {
+        setNewFiles((prev) => prev.filter((_, i) => i !== idx));
     };
 
-    const removeNew = idx => {
-        setNewFiles(prev => prev.filter((_, i) => i !== idx));
-    };
+    useEffect(() => {
+        const urls = newFiles.map((f) => URL.createObjectURL(f));
+        setPreviews(urls);
+        return () => urls.forEach(URL.revokeObjectURL);
+    }, [newFiles]);
+
+    useEffect(() => () => abortRef.current?.abort(), []);
 
     const handleSubmit = async () => {
         if (!titulo.trim() || !contenido.trim()) {
@@ -38,32 +50,43 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
         if (!window.confirm('¿Seguro que quieres guardar la nota?')) {
             return;
         }
+        if (saving) return;
         setSaving(true);
+
         const form = new FormData();
         form.append('titulo', titulo);
         form.append('contenido', contenido);
-        form.append('eventos[]', String(eventId));
+        // soporta uno o varios ids
+        [].concat(eventId).filter(Boolean).forEach((id) => form.append('eventos[]', String(id)));
+
+        // En PATCH, enviar keep_imagenes[] (filenames de las que se quedan)
         if (isEditing) {
-            removedImages.forEach(url => form.append('removed_images[]', url));
+            existingImages.forEach((url) => form.append('keep_imagenes[]', urlToFilename(url)));
         }
-        newFiles.forEach(file => form.append('imagenes', file));
+        newFiles.forEach((f) => form.append('imagenes', f));
 
         try {
-            const url = isEditing
-                ? `${import.meta.env.VITE_API_BASE_URL}/api/notas/${nota.id}`
-                : `${import.meta.env.VITE_API_BASE_URL}/api/notas`;
+            abortRef.current = new AbortController();
+            const base = import.meta.env.VITE_API_BASE_URL;
+            const url = isEditing ? `${base}/api/notas/${nota.id}` : `${base}/api/notas`;
             const method = isEditing ? 'PATCH' : 'POST';
+
             const res = await fetch(url, {
                 method,
                 headers: { Authorization: `Bearer ${token}` },
-                body: form
+                body: form,
+                signal: abortRef.current.signal
             });
-            if (!res.ok) throw new Error(`Error ${res.status}`);
+
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                throw new Error(errBody?.error || `Error ${res.status}`);
+            }
             const saved = await res.json();
             onSaved(saved);
         } catch (err) {
             console.error(err);
-            alert('Error al guardar la nota');
+            alert(err.message || 'Error al guardar la nota');
         } finally {
             setSaving(false);
         }
@@ -82,7 +105,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                         placeholder="Título"
                         className="w-full border rounded px-3 py-2 mb-3"
                         value={titulo}
-                        onChange={e => setTitulo(e.target.value)}
+                        onChange={(e) => setTitulo(e.target.value)}
                         disabled={saving}
                     />
 
@@ -91,7 +114,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                         placeholder="Contenido"
                         className="w-full border rounded px-3 py-2 mb-3"
                         value={contenido}
-                        onChange={e => setContenido(e.target.value)}
+                        onChange={(e) => setContenido(e.target.value)}
                         disabled={saving}
                     />
 
@@ -128,7 +151,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                 accept="image/*"
                                 capture="environment"
                                 className="hidden"
-                                onChange={e => handleNewFiles(e.target.files)}
+                                onChange={(e) => handleNewFiles(e.target.files)}
                                 disabled={saving}
                             />
                         </label>
@@ -140,23 +163,19 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                                 accept="image/*"
                                 multiple
                                 className="hidden"
-                                onChange={e => handleNewFiles(e.target.files)}
+                                onChange={(e) => handleNewFiles(e.target.files)}
                                 disabled={saving}
                             />
                         </label>
                     </div>
 
-                    {newFiles.length > 0 && (
+                    {previews.length > 0 && (
                         <div className="mb-3">
                             <p className="font-medium mb-2">Imágenes por añadir:</p>
                             <div className="flex flex-wrap gap-2">
-                                {newFiles.map((file, i) => (
+                                {previews.map((url, i) => (
                                     <div key={i} className="relative">
-                                        <img
-                                            src={URL.createObjectURL(file)}
-                                            alt={`new-${i}`}
-                                            className="w-16 h-16 object-cover rounded"
-                                        />
+                                        <img src={url} alt={`new-${i}`} className="w-16 h-16 object-cover rounded" />
                                         <button
                                             onClick={() => removeNew(i)}
                                             className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
