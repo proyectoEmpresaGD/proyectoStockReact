@@ -12,80 +12,91 @@ export class StockLotesModel {
 
     static async getAll({ canal }) {
         let query = `
-        SELECT codprodu, SUM(stockactual) as stockactual
-        FROM stocklotes
-        WHERE codalmac = '0'
-    `;
-        let params = [];
+    SELECT codprodu, SUM(stockactual) AS stockactual
+    FROM stocklotes
+    WHERE CAST(codalmac AS int) = 0
+  `;
+        const params = [];
 
-        if (canal) {
+        if (canal !== undefined && canal !== null) {
             query += ' AND canal = $1';
             params.push(canal);
         }
 
         query += ' GROUP BY codprodu';
 
-        try {
-            const { rows } = await pool.query(query, params);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching stock lots:', error);
-            throw new Error('Error fetching stock lots');
-        }
+        const { rows } = await pool.query(query, params);
+        return rows;
     }
 
+
+
+    // models/Postgres/stockLotes.js
     static async getById({ codProdu }) {
+        const upper = String(codProdu ?? '').trim().toUpperCase();
         const { rows } = await pool.query(`
-            SELECT *
-            FROM stocklotes
-            WHERE codProdu = $1
-        AND codalmac = '0'`, [codProdu]);
-        return rows.length > 0 ? rows[0] : null;
+    SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
+    FROM stocklotes sl
+    WHERE sl.codprodu_upper = $1
+      AND CAST(sl.codalmac AS int) = 0   -- ✅ SOLO almacén 00
+    ORDER BY sl.codlote
+  `, [upper]);
+        return rows;
     }
 
-    static async getByCodProdu({ codProdu }) {
-        try {
-            const { rows } = await pool.query(`
-                SELECT *
-                FROM stocklotes
-                WHERE codProdu = $1 AND codalmac = '0'
-            `, [codProdu]);
-            return rows;  // Devuelve todas las filas coincidentes
-        } catch (error) {
-            console.error('Error fetching stock lot:', error);
-            throw new Error('Error fetching stock lot');
-        }
+
+    // models/Postgres/stockLotes.js
+    static async getByCodProdu({ codProdu, almacenes }) {
+        // Por defecto sólo almacén 00 (codalmac = '00' => CAST(...) = 0)
+        const almList = (Array.isArray(almacenes) && almacenes.length)
+            ? almacenes
+            : [0];
+
+        const upper = String(codProdu ?? '').trim().toUpperCase();
+
+        // Coincidencia ESTRICTA por codprodu y filtro por almacén
+        const query = `
+    SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
+    FROM stocklotes sl
+    WHERE CAST(sl.codalmac AS int) = ANY($1)
+      AND UPPER(sl.codprodu) = $2
+    ORDER BY sl.codlote;
+  `;
+        const params = [almList, upper];
+
+        const { rows } = await pool.query(query, params);
+        return rows;  // siempre array
     }
 
-    static async create({ input }) {
-        const { canal, codAlmac, codProdu, codLote, stockActual } = input;
-
-        const { rows } = await pool.query(`
-            INSERT INTO stocklotes (canal, codAlmac, codProdu, codLote, stockActual)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;
-        `, [canal, codAlmac, codProdu, codLote, stockActual]);
-
-        return rows[0];
-    }
 
     static async update({ codProdu, input }) {
-        const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 2}`).join(", ");
+        const fields = Object.keys(input)
+            .map((key, index) => `"${key}" = $${index + 2}`)
+            .join(', ');
         const values = Object.values(input);
 
-        const { rows } = await pool.query(`
-            UPDATE stocklotes
-            SET ${fields}
-            WHERE codProdu = $1
-            RETURNING *;
-        `, [codProdu, ...values]);
+        const { rows } = await pool.query(
+            `
+      UPDATE stocklotes
+      SET ${fields}
+      WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+      RETURNING *;
+      `,
+            [codProdu, ...values]
+        );
 
         return rows[0];
     }
 
     static async delete({ codProdu }) {
-        const { rows } = await pool.query('DELETE FROM stocklotes WHERE codProdu = $1 RETURNING *;', [codProdu]);
-
+        const { rows } = await pool.query(
+            `
+      DELETE FROM stocklotes
+      WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+      RETURNING *;
+      `,
+            [codProdu]
+        );
         return rows[0];
     }
 }

@@ -12,11 +12,11 @@ export class StockModel {
 
     static async getAll({ empresa, ejercicio }) {
         let query = `
-            SELECT s.*, p.desprodu 
-            FROM stock s
-            LEFT JOIN productos p ON s.codprodu = p.codprodu
-            WHERE s.codalmac = '00'
-        `;
+        SELECT s.*, p.desprodu 
+        FROM stock s
+        LEFT JOIN productos p ON s.codprodu = p.codprodu
+        WHERE CAST(s.codalmac AS int) = 0
+    `;
         let params = [];
 
         if (empresa) {
@@ -42,30 +42,35 @@ export class StockModel {
         }
     }
 
+
     static async getById({ codprodu }) {
         const { rows } = await pool.query(`
-            SELECT s.*, p.desprodu 
-            FROM stock s
-            LEFT JOIN productos p ON s.codprodu = p.codprodu
-            WHERE s.codprodu = $1
-        `, [codprodu]);
+        SELECT s.*, p.desprodu 
+        FROM stock s
+        LEFT JOIN productos p ON s.codprodu = p.codprodu
+        WHERE s.codprodu = $1
+          AND CAST(s.codalmac AS int) = 0
+    `, [codprodu]);
         return rows.length > 0 ? rows[0] : null;
     }
+
 
     static async getByCodprodu({ codprodu }) {
         try {
             const { rows } = await pool.query(`
-                SELECT s.*, p.desprodu 
-                FROM stock s
-                LEFT JOIN productos p ON s.codprodu = p.codprodu
-                WHERE s.codprodu = $1
-            `, [codprodu]);
+            SELECT s.*, p.desprodu 
+            FROM stock s
+            LEFT JOIN productos p ON s.codprodu = p.codprodu
+            WHERE s.codprodu = $1
+              AND CAST(s.codalmac AS int) = 0
+        `, [codprodu]);
             return rows.length > 0 ? rows[0] : null;
         } catch (error) {
             console.error('Error fetching stock:', error);
             throw new Error('Error fetching stock');
         }
     }
+
 
     static async create({ input }) {
         const { empresa, ejercicio, codprodu, stockinicial, cancompra, canvendi, canentra, cansalida, canfabri, canconsum, stockactual, canpenrecib, canpenservir, canpenentra, canpensalida, canpenfabri, canpenconsum, stockprevisto } = input;
@@ -102,11 +107,11 @@ export class StockModel {
     static async getLowStockAlerts() {
         try {
             const query = `
-                SELECT s.codprodu, s.stockactual, p.desprodu, p.coleccion
-                FROM stock s
-                LEFT JOIN productos p ON s.codprodu = p.codprodu
-                WHERE s.codalmac = '00'
-            `;
+            SELECT s.codprodu, s.stockactual, p.desprodu, p.coleccion
+            FROM stock s
+            LEFT JOIN productos p ON s.codprodu = p.codprodu
+            WHERE CAST(s.codalmac AS int) = 0
+        `;
             const { rows } = await pool.query(query);
             return rows;
         } catch (error) {
@@ -114,6 +119,7 @@ export class StockModel {
             throw new Error("Error fetching low stock alerts");
         }
     }
+
 
     static normalizeText(text = '') {
         return text
@@ -197,15 +203,14 @@ export class StockModel {
         return { telas, libros, perchas };
     }
 
-    // ✅ MÉTODO QUE LO HACE TODO
     static async getLowStockAlertsFiltered() {
         try {
             const query = `
-        SELECT s.codprodu, s.stockactual, p.desprodu, COALESCE(p.coleccion, '') AS coleccion
-        FROM stock s
-        LEFT JOIN productos p ON s.codprodu = p.codprodu
-        WHERE s.codalmac = '00'
-      `;
+            SELECT s.codprodu, s.stockactual, p.desprodu, COALESCE(p.coleccion, '') AS coleccion
+            FROM stock s
+            LEFT JOIN productos p ON s.codprodu = p.codprodu
+            WHERE CAST(s.codalmac AS int) = 0
+        `;
             const { rows } = await pool.query(query);
             return StockModel.filterStockItems(rows);
         } catch (error) {

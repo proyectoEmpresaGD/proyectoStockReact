@@ -10,27 +10,21 @@ import { AiOutlineLoading3Quarters, AiOutlineCloseCircle } from 'react-icons/ai'
 function Stock() {
     const { token } = useAuthContext();
 
-    // Límite alto para traer todos los resultados de búsqueda (la paginación se hace en cliente)
-    const SEARCH_FETCH_LIMIT = 5000; // ajusta si esperas más/menos resultados máximos
+    const SEARCH_FETCH_LIMIT = 5000;
 
-    // --- Estados de datos y carga/errores ---
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
-    const [stockLotes, setStockLotes] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [loadingStock, setLoadingStock] = useState(false);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [error, setError] = useState(null);
 
-    // --- Productos combinados y filtrados ---
     const [filteredProducts, setFilteredProducts] = useState([]);
 
-    // --- Paginación ---
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     const [totalProducts, setTotalProducts] = useState(0);
 
-    // --- Búsqueda ---
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
@@ -38,33 +32,58 @@ function Stock() {
     const [lastSearchResultsRaw, setLastSearchResultsRaw] = useState([]);
     const [singleProductView, setSingleProductView] = useState(false);
 
-    // --- Modal de lotes ---
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedProductLots, setSelectedProductLots] = useState([]);
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
     const wrapperRef = useRef(null);
 
-    // Refs para abortar peticiones en curso (sugerencias / búsqueda)
     const suggestAbortRef = useRef(null);
     const searchAbortRef = useRef(null);
 
-    // --- Índices O(1) por codprodu para computar más rápido ---
+    const normStr = useCallback(v => String(v ?? '').trim(), []);
+    const onlyDigits = useCallback(v => (String(v ?? '').match(/\d+/g) || []).join(''), []);
+    const lower = useCallback(v => normStr(v).toLowerCase(), [normStr]);
+
+    const getAny = (obj, keys) => {
+        for (const k of keys) {
+            if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+        }
+        return undefined;
+    };
+
+    const productKeys = useCallback((p) => {
+        const full = normStr(getAny(p, ['codprodu', 'CODPRODU', 'codigo', 'code', 'referencia']));
+        const num = onlyDigits(full);
+        const codartic = normStr(getAny(p, ['codartic', 'CODARTIC']));
+        const ref = normStr(getAny(p, ['referencia', 'REFERENCIA']));
+        const marca = normStr(getAny(p, ['codmarca', 'CODMARCA', 'marca', 'MARCA']));
+        return { full, num, codartic, ref, marca };
+    }, [normStr, onlyDigits]);
+
+    const normalizeLots = useCallback((arr = []) => {
+        return arr
+            .map(l => {
+                const codloteVal = getAny(l, ['codlote', 'CODLOTE', 'lote', 'LOTE', 'codigo_lote', 'codigo', 'code', 'CODIGO']);
+                const qtyRaw = getAny(l, ['stockactual', 'STOCKACTUAL', 'stock_actual', 'cantidad', 'CANTIDAD', 'qty', 'quantity']);
+                const cantidad = Number.parseFloat(qtyRaw || 0);
+                return {
+                    codlote: String(codloteVal ?? ''),
+                    stockactual: Number.isFinite(cantidad) ? cantidad.toFixed(2) : '0.00',
+                };
+            })
+            .filter(x => x.codlote !== '');
+    }, []);
+
     const stockByProd = useMemo(() => {
         const map = new Map();
-        for (const s of stocks) map.set(s.codprodu, s);
-        return map;
-    }, [stocks]);
-
-    const lotsByProd = useMemo(() => {
-        const map = new Map();
-        for (const l of stockLotes) {
-            if (!map.has(l.codprodu)) map.set(l.codprodu, []);
-            map.get(l.codprodu).push(l);
+        for (const s of stocks) {
+            const key = normStr(getAny(s, ['codprodu', 'CODPRODU', 'cod_product', 'COD_PRODUCTO', 'codigo', 'code', 'referencia']));
+            map.set(key, s);
         }
         return map;
-    }, [stockLotes]);
+    }, [stocks, normStr]);
 
-    // --- Filtro de productos válidos (se mantiene sin cambios) ---
     const isValidProduct = useCallback(
         p =>
             ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(p.codmarca) &&
@@ -75,45 +94,34 @@ function Stock() {
         []
     );
 
-    // --- Combinar productos con stock ---
     const computeCombined = useCallback(
         prods =>
             prods.filter(isValidProduct).map(p => {
-                const s = stockByProd.get(p.codprodu);
-                const lots = lotsByProd.get(p.codprodu) ?? [];
-                const total = lots.length
-                    ? lots.reduce((sum, l) => sum + parseFloat(l.stockactual || 0), 0)
-                    : s
-                        ? parseFloat(s.stockactual || 0)
-                        : 0;
+                const key = normStr(p.codprodu);
+                const s = stockByProd.get(key);
+                const total = s ? parseFloat(s.stockactual || 0) : 0;
                 return {
                     ...p,
-                    stockactual: total.toFixed(2),
+                    stockactual: Number.isFinite(total) ? total.toFixed(2) : '0.00',
                     canpenrecib: s ? parseFloat(s.canpenrecib || 0).toFixed(2) : '0.00',
                     canpenservir: s ? parseFloat(s.canpenservir || 0).toFixed(2) : '0.00'
                 };
             }),
-        [stockByProd, lotsByProd, isValidProduct]
+        [stockByProd, isValidProduct, normStr]
     );
 
-    const combinedProducts = useMemo(() => {
-        if (!products.length || !stocks.length || !stockLotes.length) return [];
-        return computeCombined(products);
-    }, [products, stocks, stockLotes, computeCombined]);
+    const combinedProducts = useMemo(() => computeCombined(products), [products, computeCombined]);
 
-    // Actualizamos los filtrados cuando cambia la combinación
     useEffect(() => {
         if (!isSearchActive) setFilteredProducts(combinedProducts);
     }, [combinedProducts, isSearchActive]);
 
-    // Si estoy en modo búsqueda y llegan (o cambian) stocks/lotes, recomputo
     useEffect(() => {
         if (isSearchActive && lastSearchResultsRaw.length) {
             setFilteredProducts(computeCombined(lastSearchResultsRaw));
         }
     }, [isSearchActive, lastSearchResultsRaw, computeCombined]);
 
-    // --- Cálculo de qué mostrar en la tabla ---
     const pagedProducts = useMemo(() => {
         if (!isSearchActive) return combinedProducts;
         const start = (currentPage - 1) * itemsPerPage;
@@ -125,7 +133,6 @@ function Stock() {
         return Math.max(1, Math.ceil(count / itemsPerPage));
     }, [isSearchActive, filteredProducts.length, totalProducts, itemsPerPage]);
 
-    // --- Fetch productos paginados (modo normal) ---
     useEffect(() => {
         if (!token || isSearchActive) return;
         setLoadingProducts(true);
@@ -146,34 +153,22 @@ function Stock() {
             .finally(() => setLoadingProducts(false));
     }, [token, currentPage, isSearchActive, itemsPerPage]);
 
-    // --- Fetch stock y lotes ---
     useEffect(() => {
         if (!token) return;
         setLoadingStock(true);
         setError(null);
-        Promise.all([
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => {
                 if (!res.ok) throw new Error('Error loading stock');
                 return res.json();
-            }),
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stocklotes`, {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
-                if (!res.ok) throw new Error('Error loading lotes');
-                return res.json();
             })
-        ])
-            .then(([sData, lData]) => {
-                setStocks(sData);
-                setStockLotes(lData);
-            })
+            .then(sData => setStocks(sData))
             .catch(err => setError(err.message))
             .finally(() => setLoadingStock(false));
     }, [token]);
 
-    // --- Filtro difuso para sugerencias ---
     const fuzzyFilter = useCallback(
         (p, term) =>
             term
@@ -184,10 +179,8 @@ function Stock() {
         []
     );
 
-    // --- Sugerencias de búsqueda con debounce y abort ---
     useEffect(() => {
         if (searchTerm.length < 3 || !token) {
-            // Cancelar en curso y limpiar
             suggestAbortRef.current?.abort?.();
             setSuggestions([]);
             return;
@@ -213,10 +206,8 @@ function Stock() {
                         data.filter(isValidProduct).filter(p => fuzzyFilter(p, searchTerm))
                     )
                 )
-                .catch(() => {
-                    /* ignoramos aborts/errores silenciosamente */
-                });
-        }, 250); // debounce 250ms
+                .catch(() => { /* ignore */ });
+        }, 250);
 
         return () => {
             clearTimeout(timeout);
@@ -224,14 +215,12 @@ function Stock() {
         };
     }, [searchTerm, token, isValidProduct, fuzzyFilter]);
 
-    // --- Ejecutar búsqueda (traemos muchos resultados y paginamos en cliente) ---
     const performSearch = useCallback(
         query => {
             const q = (query || '').trim();
             if (!q) return;
 
             setLoadingSearch(true);
-            // Cancelar búsqueda previa
             searchAbortRef.current?.abort?.();
             const controller = new AbortController();
             searchAbortRef.current = controller;
@@ -255,15 +244,12 @@ function Stock() {
                     setLastSearch(q);
                     setCurrentPage(1);
                 })
-                .catch(() => {
-                    /* ignoramos aborts/errores silenciosamente */
-                })
+                .catch(() => { /* ignore */ })
                 .finally(() => setLoadingSearch(false));
         },
         [token, computeCombined, SEARCH_FETCH_LIMIT]
     );
 
-    // --- Manejadores (Enter solo lanza tu búsqueda) ---
     const handleSearchKeyPress = e => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -293,22 +279,56 @@ function Stock() {
         setCurrentPage(p);
     };
 
-    const handleProductClick = async p => {
+    // CLICK EN PRODUCTO: consulta de lotes SOLO almacén 00
+    const handleProductClick = async (p) => {
+        const { full, num, marca } = productKeys(p);
+        const numNoZeros = String(Number(num || 0));
+        const mk = (marca || '').trim().toUpperCase();
+
+        setSelectedProduct(p);
+        setSelectedProductLots([]);
+        setModalVisible(true);
+
+        const almQuery = 'alm=0';
+
+        const candidates = [
+            { key: full, label: 'full' },
+            { key: num, label: 'numeric' },
+            { key: numNoZeros, label: 'numericNoZeros' },
+            { key: `${mk}${num}`, label: 'marca+numeric' },
+            { key: `${mk}${numNoZeros}`, label: 'marca+numericNZ' }
+        ]
+            .map(x => ({ ...x, key: (x.key ?? '').toString().trim() }))
+            .filter(x => x.key.length > 0);
+
+        const seen = new Set();
+        const uniqueCandidates = candidates.filter(c => (seen.has(c.key) ? false : (seen.add(c.key), true)));
+
+        let serverLots = [];
+
+        const tryFetch = async (k) => {
+            const url = `${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${encodeURIComponent(k)}?${almQuery}`;
+            const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) return [];
+            const raw = await res.json();
+            const arr = Array.isArray(raw) ? raw
+                : Array.isArray(raw?.lotes) ? raw.lotes
+                    : Array.isArray(raw?.data) ? raw.data
+                        : [];
+            return normalizeLots(arr);
+        };
+
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${p.codprodu}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            setSelectedProductLots(data);
-            setModalVisible(true);
+            for (const cand of uniqueCandidates) {
+                const lots = await tryFetch(cand.key);
+                if (lots.length) { serverLots = lots; break; }
+            }
+            if (serverLots.length) setSelectedProductLots(serverLots);
         } catch {
-            console.error('Error fetching lots');
+            // silencio: no mostramos errores de consola de pruebas
         }
     };
 
-    // --- Hook para capturar Enter y desactivar autocomplete del navegador sin tocar SearchBar ---
     useEffect(() => {
         const root = wrapperRef.current;
         if (!root) return;
@@ -329,8 +349,6 @@ function Stock() {
                     setSearchTerm('');
                 }
             }
-            // Si tu lista de sugerencias "captura" flechas y te molesta, puedes bloquearlas:
-            // if (e.key === 'ArrowDown' || e.key === 'ArrowUp') e.preventDefault();
         };
 
         input.addEventListener('keydown', onKeyDown);
@@ -347,7 +365,6 @@ function Stock() {
                     Gestiona y consulta el inventario de productos y sus lotes.
                 </p>
 
-                {/* Búsqueda y controles */}
                 <div ref={wrapperRef} className="mb-6">
                     <SearchBar
                         searchTerm={searchTerm}
@@ -422,6 +439,7 @@ function Stock() {
                     <ProductModal
                         modalVisible={modalVisible}
                         selectedProductLots={selectedProductLots}
+                        selectedProduct={selectedProduct}
                         closeModal={() => setModalVisible(false)}
                     />
                 )}
