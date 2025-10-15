@@ -1,6 +1,6 @@
 // src/components/notas/NotasPage.jsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { format, parseISO, isValid } from 'date-fns';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { format, parseISO, isValid, subDays } from 'date-fns';
 import es from 'date-fns/locale/es';
 import Select from 'react-select';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -11,8 +11,7 @@ import { useNavigate } from 'react-router-dom';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
- * Mini-componente de imagen con "skeleton" mientras carga (mejora visual).
- * Mantiene su propio estado interno para controlar el fade-in.
+ * Mini-componente de imagen con "skeleton" mientras carga.
  */
 function ImagenConLoader({ src, alt, onClick }) {
     const [loaded, setLoaded] = useState(false);
@@ -33,10 +32,7 @@ function ImagenConLoader({ src, alt, onClick }) {
 }
 
 /**
- * Página de Notas:
- * - Lista, filtrado y paginación simple
- * - Crear/editar/borrar notas con imágenes (máx 3)
- * - Enlace opcional a eventos de calendario
+ * Página de Notas
  */
 export default function NotasPage() {
     const { token } = useAuthContext();
@@ -48,14 +44,16 @@ export default function NotasPage() {
     const [notas, setNotas] = useState([]);
     const [events, setEvents] = useState([]);
 
-    // Cargas independientes para evitar "pantallazos en blanco"
+    // Cargas/errores
     const [loadingNotas, setLoadingNotas] = useState(true);
     const [loadingEvents, setLoadingEvents] = useState(true);
+    const [errorNotas, setErrorNotas] = useState(null);
+    const [errorEvents, setErrorEvents] = useState(null);
 
     // Filtros
     const [filterName, setFilterName] = useState('');
     const [filterDate, setFilterDate] = useState('');
-    const [showUnlinked, setShowUnlinked] = useState(true); // ✅ mostrar notas sin cita
+    const [showUnlinked, setShowUnlinked] = useState(true);
 
     // Crear/editar
     const [modalOpen, setModalOpen] = useState(false);
@@ -63,28 +61,28 @@ export default function NotasPage() {
     const [editId, setEditId] = useState(null);
     const [titulo, setTitulo] = useState('');
     const [contenido, setContenido] = useState('');
-    const [files, setFiles] = useState([]);        // nuevos archivos a subir
-    const [previews, setPreviews] = useState([]);  // urls creadas con URL.createObjectURL
-    const [linkedEventIds, setLinkedEventIds] = useState([]); // ids string de eventos elegidos
-    const [existingImages, setExistingImages] = useState([]); // URLs completas existentes
+    const [files, setFiles] = useState([]); // nuevos archivos
+    const [previews, setPreviews] = useState([]);
+    const [linkedEventIds, setLinkedEventIds] = useState([]); // ids string
+    const [existingImages, setExistingImages] = useState([]); // URLs existentes
     const [subiendo, setSubiendo] = useState(false);
+    const [feedback, setFeedback] = useState(null);
 
     // Borrar
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [toDelete, setToDelete] = useState(null);
 
-    // Vista previa de una nota
+    // Vista previa
     const [vistaNota, setVistaNota] = useState(null);
     const modalRef = useRef(null);
 
-    // Paginación simple por “ver más”
+    // Paginación + modo vista
     const [visibleNotas, setVisibleNotas] = useState(9);
+    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
     // -------------------------------
-    // HELPERS DE FORMATEO Y ORDEN
+    // HELPERS
     // -------------------------------
-
-    // Formatea ISO con manejo seguro de fechas inválidas
     const safeFormat = (iso, fmt) => {
         try {
             const d = parseISO(iso || '');
@@ -94,7 +92,6 @@ export default function NotasPage() {
         }
     };
 
-    // Timestamp numérico para ordenar por “actualizado” o “creado”
     const ts = (n) => {
         const d = Date.parse(n.actualizado_en ?? n.creado_en ?? '');
         return Number.isNaN(d) ? 0 : d;
@@ -103,54 +100,72 @@ export default function NotasPage() {
     // -------------------------------
     // FETCH DE NOTAS
     // -------------------------------
-    useEffect(() => {
-        if (!token) return;
-        setLoadingNotas(true);
-        const params = new URLSearchParams({ limit: '100', offset: '0' });
+    const fetchNotas = useCallback(
+        async (signal) => {
+            if (!token) return;
+            setLoadingNotas(true);
+            setErrorNotas(null);
+            const params = new URLSearchParams({ limit: '100', offset: '0' });
 
-        fetch(`${API_BASE_URL}/api/notas?${params.toString()}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then(async (r) => {
-                if (r.status === 401) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/notas?${params.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal
+                });
+                if (response.status === 401) {
                     navigate('/login');
-                    throw new Error('Unauthorized');
+                    throw new Error('Sesión expirada, vuelve a iniciar.');
                 }
-                if (!r.ok) throw new Error('Error obteniendo notas');
-                return r.json();
-            })
-            .then((data) => {
-                // Normalizamos las notas para el cliente
+                if (!response.ok) throw new Error('Error obteniendo notas');
+
+                const data = await response.json();
                 const norm = (Array.isArray(data) ? data : []).map((n) => ({
                     ...n,
                     eventos: Array.isArray(n.eventos) ? n.eventos : [],
                     imagenes: Array.isArray(n.imagenes) ? n.imagenes : [],
                     creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
-                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null,
+                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
                 }));
                 norm.sort((a, b) => ts(b) - ts(a));
                 setNotas(norm);
-            })
-            .catch(console.error)
-            .finally(() => setLoadingNotas(false));
-    }, [token, navigate]);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error(error);
+                    setErrorNotas(error.message || 'No se pudieron cargar las notas');
+                }
+            } finally {
+                setLoadingNotas(false);
+            }
+        },
+        [token, navigate]
+    );
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchNotas(controller.signal);
+        return () => controller.abort();
+    }, [fetchNotas]);
 
     // -------------------------------
     // FETCH DE CALENDARIO (EVENTOS)
     // -------------------------------
-    useEffect(() => {
-        if (!token) return;
-        setLoadingEvents(true);
-        fetch(`${API_BASE_URL}/api/calendario`, { headers: { Authorization: `Bearer ${token}` } })
-            .then(async (r) => {
-                if (r.status === 401) {
+    const fetchEventos = useCallback(
+        async (signal) => {
+            if (!token) return;
+            setLoadingEvents(true);
+            setErrorEvents(null);
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/calendario`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal
+                });
+                if (response.status === 401) {
                     navigate('/login');
-                    throw new Error('Unauthorized');
+                    throw new Error('Sesión expirada, vuelve a iniciar.');
                 }
-                if (!r.ok) throw new Error('Error obteniendo calendario');
-                return r.json();
-            })
-            .then((data) => {
+                if (!response.ok) throw new Error('Error obteniendo calendario');
+
+                const data = await response.json();
                 const registros = Array.isArray(data) ? data : data.registros || [];
                 const evs = registros
                     .filter((evt) => typeof evt.fecha === 'string' && isValid(parseISO(evt.fecha)))
@@ -160,14 +175,27 @@ export default function NotasPage() {
                             id: String(evt.id),
                             fecha: evt.fecha,
                             mes: format(f, 'MMMM yyyy', { locale: es }),
-                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`,
+                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`
                         };
                     });
                 setEvents(evs);
-            })
-            .catch(console.error)
-            .finally(() => setLoadingEvents(false));
-    }, [token, navigate]);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error(error);
+                    setErrorEvents(error.message || 'No se pudieron cargar las visitas vinculables');
+                }
+            } finally {
+                setLoadingEvents(false);
+            }
+        },
+        [token, navigate]
+    );
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchEventos(controller.signal);
+        return () => controller.abort();
+    }, [fetchEventos]);
 
     // -------------------------------
     // PREVIEW DE IMÁGENES NUEVAS
@@ -175,17 +203,14 @@ export default function NotasPage() {
     useEffect(() => {
         const urls = files.map((f) => URL.createObjectURL(f));
         setPreviews(urls);
-        return () => urls.forEach(URL.revokeObjectURL); // ✅ evita fugas de memoria
+        return () => urls.forEach(URL.revokeObjectURL);
     }, [files]);
 
     // -------------------------------
     // MEMOS PARA FILTRADO Y SELECT
     // -------------------------------
-
-    // Conjunto de ids de eventos como strings para búsqueda rápida
     const userEventIds = useMemo(() => new Set(events.map((e) => String(e.id))), [events]);
 
-    // Opciones agrupadas por mes para el react-select (calcula 1 vez por cambios en events)
     const selectOptions = useMemo(() => {
         const m = new Map();
         events.forEach((ev) => {
@@ -196,41 +221,57 @@ export default function NotasPage() {
         return Array.from(m, ([mes, opts]) => ({ label: mes, options: opts }));
     }, [events]);
 
-    // Filtro: por título, por fecha exacta del evento y (nuevo) mostrar notas sin cita si showUnlinked = true
+    const eventsMap = useMemo(() => {
+        const map = new Map();
+        events.forEach((ev) => {
+            map.set(String(ev.id), ev);
+        });
+        return map;
+    }, [events]);
+
     const filteredNotas = useMemo(() => {
         const haveEvents = events.length > 0;
 
         return notas.filter((n) => {
-            // ✅ si hay calendario cargado:
-            // - si showUnlinked está activo, mostramos también las notas sin eventos
-            // - además, filtramos por pertenencia a algún evento del usuario
             const passesEvent = haveEvents
-                ? ((showUnlinked && n.eventos.length === 0) ||
-                    n.eventos.some((eid) => userEventIds.has(String(eid))))
+                ? (showUnlinked && n.eventos.length === 0) ||
+                n.eventos.some((eid) => userEventIds.has(String(eid)))
                 : true;
 
-            const nameMatch = filterName
-                ? n.titulo.toLowerCase().includes(filterName.toLowerCase())
-                : true;
+            const nameMatch = filterName ? n.titulo.toLowerCase().includes(filterName.toLowerCase()) : true;
 
             const dateMatch = filterDate
                 ? n.eventos.some((eid) => {
-                    const ev = events.find((e) => String(e.id) === String(eid));
+                    const ev = eventsMap.get(String(eid));
                     return ev && format(parseISO(ev.fecha), 'yyyy-MM-dd') === filterDate;
                 })
                 : true;
 
             return passesEvent && nameMatch && dateMatch;
         });
-    }, [notas, filterName, filterDate, events, userEventIds, showUnlinked]);
+    }, [notas, filterName, filterDate, events, userEventIds, showUnlinked, eventsMap]);
 
+    const totalFiltered = filteredNotas.length;
     const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
-    // Conjunto de ids vinculados (solo para el select controlado)
     const linkedIdsSet = useMemo(
         () => new Set(linkedEventIds.map((id) => String(id))),
         [linkedEventIds]
     );
+
+    const stats = useMemo(() => {
+        const total = notas.length;
+        const vinculadas = notas.filter((n) => n.eventos.length > 0).length;
+        const sinVinculo = total - vinculadas;
+        const limiteRecientes = subDays(new Date(), 7);
+        const recientes = notas.filter((n) => {
+            const referencia = n.actualizado_en || n.creado_en;
+            if (!referencia) return false;
+            const parsed = parseISO(referencia);
+            return isValid(parsed) && parsed >= limiteRecientes;
+        }).length;
+        return { total, vinculadas, sinVinculo, recientes };
+    }, [notas]);
 
     // -------------------------------
     // HANDLERS DE CRUD
@@ -252,10 +293,10 @@ export default function NotasPage() {
         setEditId(nota.id);
         setTitulo(nota.titulo);
         setContenido(nota.contenido);
-        setFiles([]);       // limpiamos nuevos adjuntos
-        setPreviews([]);    // limpiamos previews
-        setLinkedEventIds(nota.eventos.map((e) => String(e))); // normalizamos a string
-        setExistingImages(nota.imagenes);                      // URLs públicas existentes
+        setFiles([]);
+        setPreviews([]);
+        setLinkedEventIds(nota.eventos.map((e) => String(e)));
+        setExistingImages(nota.imagenes);
         setModalOpen(true);
     };
 
@@ -268,7 +309,7 @@ export default function NotasPage() {
         if (!toDelete) return;
         fetch(`${API_BASE_URL}/api/notas/${toDelete.id}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${token}` }
         })
             .then((r) => {
                 if (r.status === 401) {
@@ -277,8 +318,12 @@ export default function NotasPage() {
                 }
                 if (!r.ok) throw new Error();
                 setNotas((prev) => prev.filter((n) => n.id !== toDelete.id));
+                setFeedback({ type: 'success', message: 'Nota eliminada correctamente.' });
             })
-            .catch(() => alert('Error eliminando nota'))
+            .catch((error) => {
+                console.error(error);
+                setFeedback({ type: 'error', message: 'No se pudo eliminar la nota.' });
+            })
             .finally(() => {
                 setConfirmOpen(false);
                 setToDelete(null);
@@ -286,41 +331,37 @@ export default function NotasPage() {
     };
 
     const guardar = () => {
-        // Validaciones
         if (!titulo.trim() || !contenido.trim()) {
-            return alert('Título y contenido son obligatorios');
+            setFeedback({ type: 'error', message: 'Título y contenido son obligatorios.' });
+            return;
         }
         const totalImgs = existingImages.length + files.length;
         if (totalImgs > 3) {
-            return alert('Máximo 3 imágenes');
+            setFeedback({ type: 'error', message: 'Máximo 3 imágenes por nota.' });
+            return;
         }
-        if (!window.confirm('¿Seguro que quieres guardar la nota?')) return;
 
         setSubiendo(true);
 
-        // FormData para POST/PATCH multipart
         const form = new FormData();
         form.append('titulo', titulo);
         form.append('contenido', contenido);
         linkedEventIds.forEach((id) => form.append('eventos[]', String(id)));
 
-        // En edición: enviamos los filenames que queremos conservar (keep_imagenes[])
         if (isEditing) {
             existingImages.forEach((url) => {
-                // Extract filename (parte final de la URL)
                 const filename = decodeURIComponent(url.split('/').pop().split('?')[0]);
                 form.append('keep_imagenes[]', filename);
             });
         }
 
-        // Adjuntamos los nuevos archivos
         files.forEach((f) => form.append('imagenes', f));
 
         const url = isEditing ? `${API_BASE_URL}/api/notas/${editId}` : `${API_BASE_URL}/api/notas`;
         fetch(url, {
             method: isEditing ? 'PATCH' : 'POST',
             headers: { Authorization: `Bearer ${token}` },
-            body: form,
+            body: form
         })
             .then(async (r) => {
                 if (r.status === 401) {
@@ -334,21 +375,27 @@ export default function NotasPage() {
                 return r.json();
             })
             .then((newNota) => {
-                // Normalizamos la respuesta del backend para el cliente
                 const norm = {
                     ...newNota,
                     eventos: Array.isArray(newNota.eventos) ? newNota.eventos : [],
                     imagenes: Array.isArray(newNota.imagenes) ? newNota.imagenes : [],
                     creado_en: newNota.fechacreado || new Date().toISOString(),
-                    actualizado_en: newNota.fechaactualizado || null,
+                    actualizado_en: newNota.fechaactualizado || null
                 };
                 setNotas((prev) => {
                     const arr = isEditing ? prev.map((n) => (n.id === editId ? norm : n)) : [norm, ...prev];
                     return arr.sort((a, b) => ts(b) - ts(a));
                 });
                 setModalOpen(false);
+                setFeedback({
+                    type: 'success',
+                    message: isEditing ? 'Cambios guardados correctamente.' : 'Nota creada con éxito.'
+                });
             })
-            .catch((e) => alert(e.message || 'Error guardando nota'))
+            .catch((e) => {
+                console.error(e);
+                setFeedback({ type: 'error', message: e.message || 'Error guardando nota.' });
+            })
             .finally(() => setSubiendo(false));
     };
 
@@ -356,9 +403,7 @@ export default function NotasPage() {
     const abrirVista = (nota) => setVistaNota(nota);
     const cerrarVista = () => setVistaNota(null);
 
-    // -------------------------------
-    // UX: cerrar modales con ESC
-    // -------------------------------
+    // Cerrar modales con ESC
     useEffect(() => {
         const onKey = (e) => {
             if (e.key === 'Escape') {
@@ -370,131 +415,372 @@ export default function NotasPage() {
         return () => window.removeEventListener('keydown', onKey);
     }, [modalOpen, vistaNota]);
 
+    // Retry & auto-hide feedback
+    const retryNotas = () => fetchNotas();
+    const retryEventos = () => fetchEventos();
+
+    useEffect(() => {
+        if (!feedback) return;
+        const timeout = setTimeout(() => setFeedback(null), 5000);
+        return () => clearTimeout(timeout);
+    }, [feedback]);
+
     // -------------------------------
     // RENDER
     // -------------------------------
     return (
         <div className="relative min-h-screen px-6 py-10 bg-gray-50">
-            {/* Header */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow mb-6">
-                <h1 className="text-2xl font-bold">📝 Mis Notas</h1>
-                <button
-                    onClick={abrirCrear}
-                    className="w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-full shadow hover:scale-110 transition"
+            {(loadingNotas || loadingEvents) && (
+                <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                    Sincronizando notas y visitas relacionadas...
+                </div>
+            )}
+            {(errorNotas || errorEvents) && (
+                <div className="mb-4 space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <p>Ocurrió un problema al actualizar los datos.</p>
+                    <div className="flex flex-wrap gap-2">
+                        {errorNotas && (
+                            <button onClick={retryNotas} className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700">
+                                Reintentar notas
+                            </button>
+                        )}
+                        {errorEvents && (
+                            <button onClick={retryEventos} className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700">
+                                Reintentar visitas
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+            {feedback && (
+                <div
+                    className={`mb-4 rounded-lg border px-4 py-3 text-sm ${feedback.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                        }`}
                 >
-                    +
-                </button>
+                    {feedback.message}
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="bg-white rounded-2xl shadow px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">📝 Mis Notas</h1>
+                    <p className="text-sm text-gray-500">
+                        Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 justify-end">
+                    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`px-3 py-2 text-sm font-medium rounded-md transition ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
+                                }`}
+                        >
+                            🗂️ Tarjetas
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`px-3 py-2 text-sm font-medium rounded-md transition ${viewMode === 'list' ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
+                                }`}
+                        >
+                            📋 Lista
+                        </button>
+                    </div>
+                    <button
+                        onClick={abrirCrear}
+                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow"
+                    >
+                        <span>➕</span>
+                        Nueva nota
+                    </button>
+                </div>
             </div>
+
+            {/* Stats */}
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+                {[
+                    {
+                        label: 'Notas totales',
+                        value: stats.total,
+                        helper: 'Todo tu conocimiento centralizado',
+                        accent: 'bg-indigo-100 text-indigo-600'
+                    },
+                    {
+                        label: 'Con visita vinculada',
+                        value: stats.vinculadas,
+                        helper: 'Notas conectadas con la agenda',
+                        accent: 'bg-emerald-100 text-emerald-600'
+                    },
+                    {
+                        label: 'Sin visita',
+                        value: stats.sinVinculo,
+                        helper: 'Ideas o seguimientos libres',
+                        accent: 'bg-orange-100 text-orange-600'
+                    },
+                    {
+                        label: 'Actualizadas últimos 7 días',
+                        value: stats.recientes,
+                        helper: 'Manténlas vivas y relevantes',
+                        accent: 'bg-purple-100 text-purple-600'
+                    }
+                ].map((card) => (
+                    <article key={card.label} className="bg-white rounded-2xl shadow px-5 py-4 border border-gray-100">
+                        <span className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-full ${card.accent}`}>
+                            {card.label}
+                        </span>
+                        <p className="mt-3 text-3xl font-semibold text-gray-900">{card.value}</p>
+                        <p className="mt-1 text-sm text-gray-500">{card.helper}</p>
+                    </article>
+                ))}
+            </section>
 
             {/* Filtros */}
-            <div className="flex flex-wrap gap-4 mb-6 items-center">
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded shadow">
-                    🔍
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-8">
+                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100">
+                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Título</p>
+                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+                        <span role="img" aria-hidden="true">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Buscar por título"
+                            className="bg-transparent flex-1 outline-none text-sm"
+                            value={filterName}
+                            onChange={(e) => setFilterName(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100">
+                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Fecha de la visita</p>
                     <input
-                        type="text"
-                        placeholder="Filtrar título"
-                        className="outline-none"
-                        value={filterName}
-                        onChange={(e) => setFilterName(e.target.value)}
+                        type="date"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        value={filterDate}
+                        onChange={(e) => setFilterDate(e.target.value)}
                     />
                 </div>
-
-                <input
-                    type="date"
-                    className="bg-white px-4 py-2 rounded shadow focus:ring-2 focus:ring-indigo-300"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                />
-
-                {/* ✅ Mostrar/ocultar notas sin cita */}
-                <label className="flex items-center gap-2 bg-white px-3 py-2 rounded shadow">
-                    <input
-                        type="checkbox"
-                        checked={showUnlinked}
-                        onChange={(e) => setShowUnlinked(e.target.checked)}
-                    />
-                    Mostrar notas sin cita
-                </label>
-
-                <button
-                    className="text-sm text-indigo-600 underline"
-                    onClick={() => {
-                        setFilterName('');
-                        setFilterDate('');
-                        setShowUnlinked(true);
-                    }}
-                >
-                    Limpiar filtros
-                </button>
-            </div>
+                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100 flex flex-col justify-between">
+                    <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Visibilidad</p>
+                    <label className="flex items-center justify-between gap-3 text-sm text-gray-700">
+                        <span>Incluir notas sin cita</span>
+                        <input
+                            type="checkbox"
+                            checked={showUnlinked}
+                            onChange={(e) => setShowUnlinked(e.target.checked)}
+                            className="h-5 w-5"
+                        />
+                    </label>
+                </div>
+                <div className="rounded-xl shadow px-4 py-3 border border-indigo-200 bg-indigo-50">
+                    <p className="text-xs font-semibold uppercase text-indigo-700 mb-2">Acción rápida</p>
+                    <p className="text-sm text-indigo-900 mb-3">Restablece los filtros para volver a ver todas tus notas.</p>
+                    <button
+                        className="text-sm font-semibold text-indigo-700 underline"
+                        onClick={() => {
+                            setFilterName('');
+                            setFilterDate('');
+                            setShowUnlinked(true);
+                        }}
+                    >
+                        Limpiar filtros
+                    </button>
+                </div>
+            </section>
 
             {/* Contenido */}
             {loadingNotas || loadingEvents ? (
                 <div className="text-center py-20 text-gray-400 animate-pulse">Cargando…</div>
-            ) : paginatedNotas.length === 0 ? (
+            ) : totalFiltered === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                     {notas.length === 0
-                        ? 'Aún no tienes notas. Pulsa + para crear una.'
-                        : 'No hay notas que coincidan.'}
+                        ? 'Aún no tienes notas. Pulsa "Nueva nota" para crear la primera.'
+                        : 'No hay notas que coincidan con los filtros aplicados.'}
                 </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         {paginatedNotas.map((n) => (
-                            <div
+                            <article
                                 key={n.id}
-                                className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer flex flex-col"
+                                className="bg-white p-5 rounded-2xl shadow hover:shadow-xl transition cursor-pointer flex flex-col gap-3 border border-gray-100"
                                 onClick={() => abrirVista(n)}
                             >
-                                <small className="text-gray-400 text-xs mb-1">
-                                    {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}
-                                </small>
-                                <h2 className="font-semibold text-lg text-gray-800 mb-2 line-clamp-2">{n.titulo}</h2>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-3">{n.contenido}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs text-gray-400">Creada el {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}</p>
+                                        {n.actualizado_en && (
+                                            <p className="text-[11px] text-gray-400">
+                                                Actualizada {safeFormat(n.actualizado_en, "d 'de' MMM HH:mm")}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <span
+                                        className={`text-[11px] font-semibold px-2 py-1 rounded-full ${n.eventos.length > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                                            }`}
+                                    >
+                                        {n.eventos.length > 0
+                                            ? `${n.eventos.length} ${n.eventos.length === 1 ? 'cita' : 'citas'}`
+                                            : 'Sin visita'}
+                                    </span>
+                                </div>
 
-                                {/* Miniaturas si hay imágenes */}
+                                <h2 className="font-semibold text-xl text-gray-900 leading-snug line-clamp-2">{n.titulo}</h2>
+                                <p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{n.contenido}</p>
+
+                                {n.eventos.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {n.eventos.slice(0, 3).map((eid) => {
+                                            const ev = eventsMap.get(String(eid));
+                                            const label = ev ? ev.label : `Evento ${eid}`;
+                                            return (
+                                                <span key={eid} className="text-[11px] bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                                                    {label}
+                                                </span>
+                                            );
+                                        })}
+                                        {n.eventos.length > 3 && (
+                                            <span className="text-[11px] text-gray-500">+{n.eventos.length - 3} más</span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <span className="text-[11px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full w-max">
+                                        Sin visita asociada
+                                    </span>
+                                )}
+
                                 {n.imagenes.length > 0 && (
-                                    <div className="flex gap-2 mb-3">
-                                        {n.imagenes.map((url, i) => (
-                                            <img key={i} src={url} alt="" className="w-16 h-16 object-cover rounded" />
+                                    <div className="flex gap-2">
+                                        {n.imagenes.slice(0, 3).map((url, i) => (
+                                            <img
+                                                key={i}
+                                                src={url}
+                                                alt=""
+                                                className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                                            />
                                         ))}
                                     </div>
                                 )}
 
-                                {/* Acciones rápidas */}
-                                <div className="mt-auto flex justify-end gap-2">
+                                <div className="mt-auto flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             abrirEditar(n);
                                         }}
-                                        className="text-indigo-600 hover:text-indigo-800"
-                                        title="Editar nota"
+                                        className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
                                     >
-                                        <Pencil size={18} />
+                                        <Pencil size={16} /> Editar
                                     </button>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             confirmarBorrar(n);
                                         }}
-                                        className="text-red-500 hover:text-red-700"
-                                        title="Eliminar nota"
+                                        className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                                     >
-                                        <Trash2 size={18} />
+                                        <Trash2 size={16} /> Eliminar
                                     </button>
                                 </div>
-                            </div>
+                            </article>
                         ))}
                     </div>
 
-                    {filteredNotas.length > visibleNotas && (
+                    {totalFiltered > visibleNotas && (
                         <div className="text-center mt-8">
                             <button
                                 onClick={() => setVisibleNotas((v) => v + 6)}
-                                className="bg-indigo-600 text-white px-4 py-2 rounded-full shadow hover:bg-indigo-700 transition"
+                                className="bg-indigo-600 text-white px-5 py-2 rounded-full shadow hover:bg-indigo-700 transition"
                             >
                                 Ver más notas
+                            </button>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <>
+                    <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Nota
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Visitas vinculadas
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        Última actualización
+                                    </th>
+                                    <th className="px-6 py-3" />
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {paginatedNotas.map((n) => (
+                                    <tr key={n.id} className="hover:bg-indigo-50 cursor-pointer" onClick={() => abrirVista(n)}>
+                                        <td className="px-6 py-4 whitespace-normal">
+                                            <p className="text-sm font-semibold text-gray-900">{n.titulo}</p>
+                                            <p className="text-sm text-gray-500 line-clamp-2 max-w-xl">{n.contenido}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {n.eventos.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {n.eventos.slice(0, 2).map((eid) => {
+                                                        const ev = eventsMap.get(String(eid));
+                                                        const label = ev ? ev.label : `Evento ${eid}`;
+                                                        return (
+                                                            <span
+                                                                key={eid}
+                                                                className="text-[11px] bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full"
+                                                            >
+                                                                {label}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                    {n.eventos.length > 2 && (
+                                                        <span className="text-[11px] text-gray-500">+{n.eventos.length - 2} más</span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Sin visita</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">
+                                            {safeFormat(n.actualizado_en || n.creado_en, "d 'de' MMM yyyy HH:mm")}
+                                        </td>
+                                        <td className="px-6 py-4 text-right space-x-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    abrirEditar(n);
+                                                }}
+                                                className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
+                                            >
+                                                <Pencil size={16} /> Editar
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    confirmarBorrar(n);
+                                                }}
+                                                className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
+                                            >
+                                                <Trash2 size={16} /> Eliminar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {totalFiltered > visibleNotas && (
+                        <div className="text-center mt-8">
+                            <button
+                                onClick={() => setVisibleNotas((v) => v + 10)}
+                                className="bg-indigo-600 text-white px-5 py-2 rounded-full shadow hover:bg-indigo-700 transition"
+                            >
+                                Ver más resultados
                             </button>
                         </div>
                     )}
@@ -520,10 +806,7 @@ export default function NotasPage() {
 
             {/* Vista previa de una nota */}
             {vistaNota && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                    onClick={cerrarVista}
-                >
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={cerrarVista}>
                     <div
                         ref={modalRef}
                         className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden"
@@ -537,21 +820,14 @@ export default function NotasPage() {
                         </header>
 
                         <main className="px-6 py-4 space-y-6">
-                            <section className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                {vistaNota.contenido}
-                            </section>
+                            <section className="text-gray-700 leading-relaxed whitespace-pre-wrap">{vistaNota.contenido}</section>
 
                             {vistaNota.imagenes.length > 0 && (
                                 <section>
                                     <h3 className="text-lg font-medium mb-2 text-gray-800">Imágenes</h3>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         {vistaNota.imagenes.map((url, i) => (
-                                            <ImagenConLoader
-                                                key={i}
-                                                src={url}
-                                                alt={`img-${i}`}
-                                                onClick={() => window.open(url, '_blank')}
-                                            />
+                                            <ImagenConLoader key={i} src={url} alt={`img-${i}`} onClick={() => window.open(url, '_blank')} />
                                         ))}
                                     </div>
                                 </section>
@@ -562,7 +838,7 @@ export default function NotasPage() {
                                     <h3 className="text-lg font-medium mb-2 text-gray-800">Citas relacionadas</h3>
                                     <div className="flex flex-wrap gap-2">
                                         {vistaNota.eventos.map((eid) => {
-                                            const ev = events.find((e) => String(e.id) === String(eid));
+                                            const ev = eventsMap.get(String(eid));
                                             if (!ev) return null;
                                             return (
                                                 <span
@@ -591,10 +867,7 @@ export default function NotasPage() {
 
             {/* Modal crear/editar */}
             {modalOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                    onClick={() => setModalOpen(false)}
-                >
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setModalOpen(false)}>
                     <div
                         className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl overflow-y-auto max-h-[90vh]"
                         onClick={(e) => e.stopPropagation()}
@@ -625,7 +898,7 @@ export default function NotasPage() {
                             <label className="block mb-1 font-medium">Citas relacionadas</label>
                             <Select
                                 isMulti
-                                options={selectOptions} // ✅ memorizado arriba (sin hooks dentro de condiciones)
+                                options={selectOptions}
                                 value={events
                                     .filter((ev) => linkedIdsSet.has(String(ev.id)))
                                     .map((ev) => ({ value: ev.id, label: ev.label }))}
@@ -651,7 +924,8 @@ export default function NotasPage() {
                                         onChange={(e) => {
                                             const arr = Array.from(e.target.files || []).filter((f) => /^image\//.test(f.type));
                                             if (existingImages.length + files.length + arr.length > 3) {
-                                                return alert('Máximo 3 imágenes');
+                                                setFeedback({ type: 'error', message: 'Máximo 3 imágenes por nota.' });
+                                                return;
                                             }
                                             setFiles((prev) => [...prev, ...arr]);
                                         }}
@@ -670,7 +944,8 @@ export default function NotasPage() {
                                         onChange={(e) => {
                                             const arr = Array.from(e.target.files || []).filter((f) => /^image\//.test(f.type));
                                             if (existingImages.length + files.length + arr.length > 3) {
-                                                return alert('Máximo 3 imágenes');
+                                                setFeedback({ type: 'error', message: 'Máximo 3 imágenes por nota.' });
+                                                return;
                                             }
                                             setFiles((prev) => [...prev, ...arr]);
                                         }}
@@ -679,7 +954,7 @@ export default function NotasPage() {
                                 </label>
                             </div>
 
-                            {/* Previews de nuevas imágenes (se pueden quitar antes de guardar) */}
+                            {/* Previews nuevas */}
                             {previews.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {previews.map((url, i) => (
@@ -701,7 +976,7 @@ export default function NotasPage() {
                                 </div>
                             )}
 
-                            {/* Imágenes existentes (se “quitan” de existingImages; el backend conservará solo keep_imagenes[]) */}
+                            {/* Imágenes existentes */}
                             {existingImages.length > 0 && (
                                 <div className="flex gap-2 mb-2">
                                     {existingImages.map((url, i) => (
@@ -725,11 +1000,7 @@ export default function NotasPage() {
 
                         {/* Botones acción */}
                         <div className="flex justify-end gap-2">
-                            <button
-                                onClick={() => setModalOpen(false)}
-                                className="px-4 py-2 bg-gray-300 rounded"
-                                disabled={subiendo}
-                            >
+                            <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded" disabled={subiendo}>
                                 Cancelar
                             </button>
                             <button

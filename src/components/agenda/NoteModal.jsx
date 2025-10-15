@@ -1,6 +1,8 @@
 // src/components/notas/NoteModal.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiUpload, FiTrash2 } from 'react-icons/fi';
+import { FaTimes } from 'react-icons/fa';
+import InlineSpinner from '../common/InlineSpinner.jsx';
 
 export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     const isEditing = Boolean(nota);
@@ -57,11 +59,16 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
         form.append('titulo', titulo);
         form.append('contenido', contenido);
         // soporta uno o varios ids
-        [].concat(eventId).filter(Boolean).forEach((id) => form.append('eventos[]', String(id)));
+        []
+            .concat(eventId)
+            .filter(Boolean)
+            .forEach((id) => form.append('eventos[]', String(id)));
 
         // En PATCH, enviar keep_imagenes[] (filenames de las que se quedan)
         if (isEditing) {
-            existingImages.forEach((url) => form.append('keep_imagenes[]', urlToFilename(url)));
+            existingImages.forEach((url) =>
+                form.append('keep_imagenes[]', urlToFilename(url))
+            );
         }
         newFiles.forEach((f) => form.append('imagenes', f));
 
@@ -93,117 +100,206 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto overflow-y-auto max-h-full">
-                <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-4">
-                        {isEditing ? 'Editar nota' : 'Nueva nota'}
-                    </h3>
-
-                    <input
-                        type="text"
-                        placeholder="Título"
-                        className="w-full border rounded px-3 py-2 mb-3"
-                        value={titulo}
-                        onChange={(e) => setTitulo(e.target.value)}
-                        disabled={saving}
-                    />
-
-                    <textarea
-                        rows={4}
-                        placeholder="Contenido"
-                        className="w-full border rounded px-3 py-2 mb-3"
-                        value={contenido}
-                        onChange={(e) => setContenido(e.target.value)}
-                        disabled={saving}
-                    />
-
-                    {existingImages.length > 0 && (
-                        <div className="mb-3">
-                            <p className="font-medium mb-2">Imágenes actuales:</p>
-                            <div className="flex flex-wrap gap-2">
-                                {existingImages.map((url, i) => (
-                                    <div key={i} className="relative">
-                                        <img
-                                            src={url}
-                                            alt={`img-${i}`}
-                                            className="w-16 h-16 object-cover rounded"
-                                        />
-                                        <button
-                                            onClick={() => removeExisting(url)}
-                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
-                                            disabled={saving}
-                                        >
-                                            <FiTrash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8">
+            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden">
+                <div className="flex flex-col max-h-[90vh]">
+                    <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                        <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                {isEditing ? 'Actualizar nota' : 'Registrar nota'}
+                            </p>
+                            <h3 className="text-2xl font-semibold text-slate-900">
+                                {isEditing ? 'Edita la información clave' : 'Captura los detalles importantes'}
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                                Esta nota quedará asociada a la visita seleccionada para que el equipo comercial pueda consultarla al instante.
+                            </p>
                         </div>
-                    )}
-
-                    <div className="mb-3 space-y-2">
-                        <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
-                            <FiCamera />
-                            Tomar foto
-                            <input
-                                type="file"
-                                accept="image/*"
-                                capture="environment"
-                                className="hidden"
-                                onChange={(e) => handleNewFiles(e.target.files)}
-                                disabled={saving}
-                            />
-                        </label>
-                        <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer">
-                            <FiUpload />
-                            Subir imagen
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={(e) => handleNewFiles(e.target.files)}
-                                disabled={saving}
-                            />
-                        </label>
-                    </div>
-
-                    {previews.length > 0 && (
-                        <div className="mb-3">
-                            <p className="font-medium mb-2">Imágenes por añadir:</p>
-                            <div className="flex flex-wrap gap-2">
-                                {previews.map((url, i) => (
-                                    <div key={i} className="relative">
-                                        <img src={url} alt={`new-${i}`} className="w-16 h-16 object-cover rounded" />
-                                        <button
-                                            onClick={() => removeNew(i)}
-                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
-                                            disabled={saving}
-                                        >
-                                            <FiTrash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex justify-end gap-2 mt-4">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
+                            className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:text-slate-700 disabled:opacity-50"
+                            aria-label="Cerrar"
                             disabled={saving}
                         >
-                            Cancelar
+                            <FaTimes size={18} />
                         </button>
-                        <button
-                            onClick={handleSubmit}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-                            disabled={saving}
-                        >
-                            {saving ? 'Guardando...' : isEditing ? 'Actualizar' : 'Guardar'}
-                        </button>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto px-6 py-6">
+                        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+                            <section className="space-y-6">
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Título de la nota</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. Seguimiento de visita"
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                        value={titulo}
+                                        onChange={(e) => setTitulo(e.target.value)}
+                                        disabled={saving}
+                                    />
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Usa un título descriptivo para localizar esta información rápidamente desde la agenda.
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Contenido</label>
+                                    <textarea
+                                        rows={6}
+                                        placeholder="Describe acuerdos, compromisos o próximos pasos acordados con el cliente."
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                        value={contenido}
+                                        onChange={(e) => setContenido(e.target.value)}
+                                        disabled={saving}
+                                    />
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Recuerda incluir responsables y fechas para que el seguimiento sea más sencillo.
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-slate-700">Adjuntar imágenes</h4>
+                                            <p className="text-xs text-slate-500">Máximo 3 archivos en total. Formatos admitidos: JPG o PNG.</p>
+                                        </div>
+                                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                                            {existingImages.length + newFiles.length}/3
+                                        </span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <label className="flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 cursor-pointer">
+                                            <FiCamera /> Tomar foto
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                capture="environment"
+                                                className="hidden"
+                                                onChange={(e) => handleNewFiles(e.target.files)}
+                                                disabled={saving}
+                                            />
+                                        </label>
+                                        <label className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 cursor-pointer">
+                                            <FiUpload /> Subir desde dispositivo
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(e) => handleNewFiles(e.target.files)}
+                                                disabled={saving}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    {(existingImages.length > 0 || previews.length > 0) && (
+                                        <div className="mt-4 space-y-3">
+                                            {existingImages.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                                        Imágenes actuales
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-3">
+                                                        {existingImages.map((url, i) => (
+                                                            <div key={i} className="relative">
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`img-${i}`}
+                                                                    className="h-20 w-20 rounded-lg object-cover shadow-sm"
+                                                                />
+                                                                <button
+                                                                    onClick={() => removeExisting(url)}
+                                                                    className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow"
+                                                                    disabled={saving}
+                                                                >
+                                                                    <FiTrash2 size={12} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {previews.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                                        Nuevos archivos
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-3">
+                                                        {previews.map((url, i) => (
+                                                            <div key={i} className="relative">
+                                                                <img src={url} alt={`new-${i}`} className="h-20 w-20 rounded-lg object-cover shadow-sm" />
+                                                                <button
+                                                                    onClick={() => removeNew(i)}
+                                                                    className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow"
+                                                                    disabled={saving}
+                                                                >
+                                                                    <FiTrash2 size={12} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+
+                            <aside className="flex flex-col gap-4">
+                                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5 text-sm text-slate-600 shadow-sm">
+                                    <h4 className="text-sm font-semibold text-slate-700">Resumen previo</h4>
+                                    <ul className="mt-3 space-y-2 text-xs">
+                                        <li>
+                                            <span className="font-semibold text-slate-700">Título:</span>{' '}
+                                            {titulo ? titulo : 'Añade un título descriptivo.'}
+                                        </li>
+                                        <li>
+                                            <span className="font-semibold text-slate-700">Contenido:</span>{' '}
+                                            {contenido ? `${contenido.length} caracteres` : 'Describe lo hablado en la visita.'}
+                                        </li>
+                                        <li>
+                                            <span className="font-semibold text-slate-700">Imágenes:</span>{' '}
+                                            {existingImages.length + newFiles.length > 0
+                                                ? `${existingImages.length + newFiles.length} archivo(s) listos`
+                                                : 'Aún no hay imágenes adjuntas.'}
+                                        </li>
+                                    </ul>
+                                    <p className="mt-3 text-xs text-slate-500">
+                                        Puedes guardar y volver a editar esta nota cuando lo necesites. Las imágenes se almacenarán junto con el registro.
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <h4 className="text-sm font-semibold text-slate-700">Acciones</h4>
+                                    <div className="mt-3 grid gap-2">
+                                        <button
+                                            onClick={handleSubmit}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                            disabled={saving}
+                                        >
+                                            {saving ? (
+                                                <>
+                                                    <InlineSpinner className="w-4 h-4 text-white" />
+                                                    Guardando…
+                                                </>
+                                            ) : isEditing ? (
+                                                'Actualizar nota'
+                                            ) : (
+                                                'Guardar nota'
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={onClose}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                            disabled={saving}
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            </aside>
+                        </div>
                     </div>
                 </div>
             </div>

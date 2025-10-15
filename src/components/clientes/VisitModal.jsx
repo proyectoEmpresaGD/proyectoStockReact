@@ -10,6 +10,8 @@ import {
     FaSpinner
 } from 'react-icons/fa';
 import { useAuthContext } from '../../Auth/AuthContext';
+import InlineSpinner from '../common/InlineSpinner.jsx';
+import ConfirmDialog from '../common/ConfirmDialog.jsx';
 
 export default function VisitModal({
     modalVisible,
@@ -33,7 +35,20 @@ export default function VisitModal({
     const [error, setError] = useState('');
     const [completingId, setCompletingId] = useState(null);
     const [completionMsg, setCompletionMsg] = useState('');
+
+    const [completingLoadingId, setCompletingLoadingId] = useState(null);
+    const [addingVisit, setAddingVisit] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [successMsg, setSuccessMsg] = useState('');
+
     const backdropRef = useRef();
+
+    useEffect(() => {
+        if (!successMsg) return;
+        const timer = window.setTimeout(() => setSuccessMsg(''), 4000);
+        return () => window.clearTimeout(timer);
+    }, [successMsg]);
 
     // Cerrar con Escape
     useEffect(() => {
@@ -66,13 +81,16 @@ export default function VisitModal({
     }, [modalVisible, selectedClientId, showCompleted, token]);
 
     const handleAdd = async () => {
+        if (addingVisit) return;
         setError('');
+        setSuccessMsg('');
         const { date, time, description, assignedTo } = newVisit;
         if (!date || !time || !description || !assignedTo) {
             setError('Todos los campos son obligatorios');
             return;
         }
         try {
+            setAddingVisit(true);
             const fecha = `${date}T${time}`;
             await fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/visits/client/${selectedClientId}`,
@@ -98,17 +116,24 @@ export default function VisitModal({
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setVisits(await resp.json());
+            setSuccessMsg('Visita creada correctamente.');
         } catch {
             setError('No se pudo agregar la visita');
+        } finally {
+            setAddingVisit(false);
         }
     };
 
     const handleComplete = async (id) => {
+        if (completingLoadingId) return;
         if (!completionMsg.trim()) {
             setError('Mensaje es obligatorio');
             return;
         }
         try {
+            setError('');
+            setSuccessMsg('');
+            setCompletingLoadingId(id);
             await fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/visits/${id}/complete`,
                 {
@@ -131,23 +156,37 @@ export default function VisitModal({
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setVisits(await resp.json());
+            setSuccessMsg('Visita marcada como completada.');
         } catch {
             setError('No se pudo completar');
+        } finally {
+            setCompletingLoadingId(null);
         }
     };
 
-    const handleDelete = async (id, estado) => {
+    const handleDelete = (visit) => {
         // solo admin puede borrar completadas
-        if (estado === 'completada' && !isAdmin) return;
-        if (!window.confirm('¿Eliminar visita?')) return;
+        if (visit.estado === 'completada' && !isAdmin) return;
+        setError('');
+        setSuccessMsg('');
+        setConfirmDelete(visit);
+    };
+
+    const confirmDeleteVisit = async () => {
+        if (!confirmDelete || deleteLoading) return;
+        setDeleteLoading(true);
         try {
             await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/visits/${id}`,
+                `${import.meta.env.VITE_API_BASE_URL}/api/visits/${confirmDelete.id}`,
                 { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
             );
-            setVisits((v) => v.filter((x) => x.id !== id));
+            setVisits((v) => v.filter((x) => x.id !== confirmDelete.id));
+            setSuccessMsg('Visita eliminada correctamente.');
         } catch {
             setError('No se pudo eliminar');
+        } finally {
+            setDeleteLoading(false);
+            setConfirmDelete(null);
         }
     };
 
@@ -168,6 +207,17 @@ export default function VisitModal({
                 </header>
 
                 <div className="px-6 py-4">
+                    {(error || successMsg) && (
+                        <div
+                            className={`mb-4 rounded-lg px-4 py-3 text-sm ${error
+                                ? 'bg-red-50 text-red-700 border border-red-100'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                }`}
+                        >
+                            {error || successMsg}
+                        </div>
+                    )}
+
                     {/* Toggle pendientes/completadas */}
                     <div className="flex gap-2 mb-4">
                         {[
@@ -180,7 +230,8 @@ export default function VisitModal({
                                 className={`flex-1 py-2 rounded-lg text-sm font-medium
                   ${showCompleted === opt.value
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
                             >
                                 {opt.label}
                             </button>
@@ -197,6 +248,7 @@ export default function VisitModal({
                                     setNewVisit({ ...newVisit, date: e.target.value })
                                 }
                                 className="border rounded px-3 py-2"
+                                disabled={addingVisit}
                             />
                             <input
                                 type="time"
@@ -205,6 +257,7 @@ export default function VisitModal({
                                     setNewVisit({ ...newVisit, time: e.target.value })
                                 }
                                 className="border rounded px-3 py-2"
+                                disabled={addingVisit}
                             />
                             <input
                                 type="text"
@@ -214,6 +267,7 @@ export default function VisitModal({
                                     setNewVisit({ ...newVisit, description: e.target.value })
                                 }
                                 className="border rounded px-3 py-2 col-span-2"
+                                disabled={addingVisit}
                             />
                             <select
                                 value={newVisit.assignedTo}
@@ -221,6 +275,7 @@ export default function VisitModal({
                                     setNewVisit({ ...newVisit, assignedTo: e.target.value })
                                 }
                                 className="border rounded px-3 py-2"
+                                disabled={addingVisit}
                             >
                                 <option value="">Comercial...</option>
                                 {commercialUsers.map((u) => (
@@ -231,13 +286,19 @@ export default function VisitModal({
                             </select>
                             <button
                                 onClick={handleAdd}
-                                className="sm:col-span-1 bg-green-500 hover:bg-green-600 text-white rounded px-4 py-2 flex items-center justify-center"
+                                className="sm:col-span-1 bg-green-500 hover:bg-green-600 text-white rounded px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-60"
+                                disabled={addingVisit}
                             >
-                                <FaPlus className="mr-2" /> Añadir
+                                {addingVisit ? (
+                                    <>
+                                        <InlineSpinner className="w-4 h-4 text-white" /> Añadiendo…
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaPlus className="mr-2" /> Añadir
+                                    </>
+                                )}
                             </button>
-                            {error && (
-                                <p className="col-span-full text-red-600 text-sm">{error}</p>
-                            )}
                         </div>
                     )}
 
@@ -297,12 +358,22 @@ export default function VisitModal({
                                                         onChange={(e) => setCompletionMsg(e.target.value)}
                                                         placeholder="Mensaje de completado..."
                                                         className="border rounded px-2 py-1 text-sm mb-1"
+                                                        disabled={completingLoadingId === v.id}
                                                     />
                                                     <button
                                                         onClick={() => handleComplete(v.id)}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-sm"
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                                                        disabled={completingLoadingId === v.id}
                                                     >
-                                                        <FaCheckCircle className="inline mr-1" /> Ok
+                                                        {completingLoadingId === v.id ? (
+                                                            <>
+                                                                <InlineSpinner className="w-4 h-4 text-white" /> Guardando…
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <FaCheckCircle className="inline mr-1" /> Ok
+                                                            </>
+                                                        )}
                                                     </button>
                                                 </>
                                             ) : (
@@ -322,11 +393,12 @@ export default function VisitModal({
                                         {/* Eliminar: pendientes siempre; completadas solo admin */}
                                         {(v.estado === 'pendiente' || (v.estado === 'completada' && isAdmin)) && (
                                             <button
-                                                onClick={() => handleDelete(v.id, v.estado)}
+                                                onClick={() => handleDelete(v)}
                                                 className={`flex items-center justify-center px-3 py-1 text-sm rounded
                           ${v.estado === 'pendiente'
                                                         ? 'bg-red-500 hover:bg-red-600 text-white'
-                                                        : 'bg-red-700 hover:bg-red-800 text-white'}
+                                                        : 'bg-red-700 hover:bg-red-800 text-white'
+                                                    }
                         `}
                                             >
                                                 <FaTrash className="mr-1" /> Eliminar
@@ -339,6 +411,19 @@ export default function VisitModal({
                     )}
                 </div>
             </div>
+
+            {confirmDelete && (
+                <ConfirmDialog
+                    message={`¿Eliminar la visita "${confirmDelete.descripcion}"?`}
+                    onCancel={() => {
+                        if (deleteLoading) return;
+                        setConfirmDelete(null);
+                    }}
+                    onConfirm={confirmDeleteVisit}
+                    confirmLabel="Eliminar"
+                    loading={deleteLoading}
+                />
+            )}
         </div>
     );
 }

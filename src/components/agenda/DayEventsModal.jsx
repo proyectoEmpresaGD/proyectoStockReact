@@ -1,6 +1,6 @@
 // src/components/agenda/DayEventsModal.jsx
-import React from 'react';
-import { format } from 'date-fns';
+import React, { useMemo } from 'react';
+import { format, formatDistanceToNow, isBefore } from 'date-fns';
 import es from 'date-fns/locale/es';
 
 export default function DayEventsModal({
@@ -10,66 +10,141 @@ export default function DayEventsModal({
     onSelect,
     onNew
 }) {
+    const sortedVisits = useMemo(() => {
+        return [...visits].sort((a, b) => {
+            const startA = a.start instanceof Date ? a.start : new Date(a.start || a.fecha);
+            const startB = b.start instanceof Date ? b.start : new Date(b.start || b.fecha);
+            return startA - startB;
+        });
+    }, [visits]);
+
+    const headerDate = format(date, "EEEE, d 'de' MMMM yyyy", { locale: es });
+
     return (
         <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8"
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-lg shadow-lg w-full max-w-md md:max-w-lg overflow-hidden"
-                onClick={e => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex justify-between items-center border-b px-4 py-3">
-                    <h2 className="text-lg font-semibold">
-                        {format(date, "EEEE, d 'de' MMMM yyyy", { locale: es })}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-600 hover:text-gray-900 text-2xl leading-none"
-                        aria-label="Cerrar"
-                    >
-                        ×
-                    </button>
+                <div className="flex flex-col gap-2 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            Agenda del día
+                        </p>
+                        <h2 className="text-2xl font-semibold text-slate-900">{headerDate}</h2>
+                        <p className="text-sm text-slate-500">
+                            {sortedVisits.length > 0
+                                ? `${sortedVisits.length} ${sortedVisits.length === 1 ? 'visita programada' : 'visitas programadas'}`
+                                : 'Todavía no hay visitas para este día.'}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={onNew}
+                            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                        >
+                            ➕ Nueva visita
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:text-slate-700"
+                            aria-label="Cerrar"
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
 
                 {/* Lista de visitas */}
-                <div className="p-4 max-h-80vh overflow-y-auto space-y-3">
-                    {visits.length === 0 ? (
-                        <p className="text-gray-500">No hay visitas programadas.</p>
+                <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
+                    {sortedVisits.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center text-sm text-slate-500">
+                            Usa el botón «Nueva visita» para reservar un hueco en este día.
+                        </div>
                     ) : (
-                        visits.map(v => {
-                            const time = v.start instanceof Date && !isNaN(v.start)
-                                ? format(v.start, 'HH:mm', { locale: es })
-                                : '';
-                            const client = v.cliente_nombre || v.cliente || 'Sin asignar';
-                            return (
-                                <div
-                                    key={v.id}
-                                    onClick={() => onSelect(v)}
-                                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer flex justify-between items-center"
-                                >
-                                    <div>
-                                        <div className="font-medium text-sm">{v.descripcion}</div>
-                                        <div className="text-xs text-gray-500">
-                                            {time} &mdash; {client}
-                                        </div>
-                                    </div>
-                                    <div className="text-gray-400 text-xl">›</div>
-                                </div>
-                            );
-                        })
+                        <ol className="relative space-y-6 border-l border-slate-200 pl-6">
+                            {sortedVisits.map((v) => {
+                                const start =
+                                    v.start instanceof Date && !isNaN(v.start)
+                                        ? v.start
+                                        : v.fecha
+                                            ? new Date(v.fecha)
+                                            : v.start
+                                                ? new Date(v.start)
+                                                : null;
+
+                                const client = v.cliente_nombre || v.cliente || 'Sin asignar';
+                                const isPast = start ? isBefore(start, new Date()) : false;
+                                const relative = start
+                                    ? formatDistanceToNow(start, { locale: es, addSuffix: true })
+                                    : null;
+
+                                const statusStyles =
+                                    v.estado === 'completada'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : isPast
+                                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                            : 'bg-blue-50 text-blue-700 border border-blue-200';
+
+                                return (
+                                    <li key={v.id} className="relative">
+                                        <span className="absolute -left-[11px] top-3 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-xs font-semibold text-white shadow ring-2 ring-indigo-100">
+                                            {start ? format(start, 'HH:mm', { locale: es }) : '--'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelect(v)}
+                                            className="group block w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg"
+                                        >
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <h3 className="text-base font-semibold text-slate-900">
+                                                        {v.descripcion || 'Visita sin título'}
+                                                    </h3>
+                                                    <p className="text-sm text-slate-500">👤 {client}</p>
+                                                    {relative && <p className="text-xs text-indigo-600">⏳ {relative}</p>}
+                                                </div>
+                                                <div
+                                                    className={`self-start rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusStyles}`}
+                                                >
+                                                    {v.estado === 'completada'
+                                                        ? 'Completada'
+                                                        : isPast
+                                                            ? 'No marcada'
+                                                            : 'Pendiente'}
+                                                </div>
+                                            </div>
+
+                                            {v.ubicacion && (
+                                                <p className="mt-3 text-xs text-slate-500">📍 {v.ubicacion}</p>
+                                            )}
+
+                                            {Array.isArray(v.recordatorios) && v.recordatorios.length > 0 && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {v.recordatorios.map((r, idx) => (
+                                                        <span
+                                                            key={idx}
+                                                            className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700"
+                                                        >
+                                                            🔔 {r.label || r}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ol>
                     )}
                 </div>
 
-                {/* Footer con Nueva visita */}
-                <div className="border-t px-4 py-3 flex justify-end">
-                    <button
-                        onClick={onNew}
-                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                    >
-                        ➕ Nueva visita
-                    </button>
+                <div className="border-t border-slate-100 bg-slate-50/60 px-6 py-4 text-right text-xs text-slate-500">
+                    Consejo: abre los detalles de cada visita para completarla o añadir notas sin salir de la agenda.
                 </div>
             </div>
         </div>

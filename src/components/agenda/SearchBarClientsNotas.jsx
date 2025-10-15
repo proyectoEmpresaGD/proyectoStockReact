@@ -9,6 +9,7 @@ export default function SearchBar({
     setSuggestions,
     handleSuggestionClick,
     handleSearchEnter = () => { },
+    disabled = false,
 }) {
     const { token } = useAuthContext();
     const wrapperRef = useRef(null);
@@ -33,6 +34,7 @@ export default function SearchBar({
     };
 
     const handleInputChange = async (e) => {
+        if (disabled) return;
         const value = e.target.value;
         setSearchTerm(value);
 
@@ -64,6 +66,7 @@ export default function SearchBar({
     };
 
     const handleKeyDown = (e) => {
+        if (disabled) return;
         if (e.key === 'Enter') {
             e.preventDefault();
             setShowSuggestions(false);
@@ -81,6 +84,7 @@ export default function SearchBar({
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 className="w-full px-3 py-2 border rounded text-sm border-gray-300 text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                disabled={disabled}
             />
 
             {showSuggestions && suggestions.length > 0 && (
@@ -94,6 +98,7 @@ export default function SearchBar({
                             role="option"
                             className="p-2 hover:bg-gray-100 cursor-pointer"
                             onClick={() => {
+                                if (disabled) return;
                                 setSearchTerm(client.razclien);
                                 setShowSuggestions(false);
                                 handleSuggestionClick(client);

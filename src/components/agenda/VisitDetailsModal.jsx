@@ -1,16 +1,19 @@
+// src/components/agenda/VisitDetailsModal.jsx
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import es from 'date-fns/locale/es';
 import { NavLink } from 'react-router-dom';
 import { useAuthContext } from '../../Auth/AuthContext';
 import ClientModal from '../clientes/modal/ClientModal.jsx';
 import NoteModal from './NoteModal';
+import InlineSpinner from '../common/InlineSpinner.jsx';
+import ConfirmDialog from '../common/ConfirmDialog.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function VisitDetailsModal({
     token,
-    event,              // viene del calendario
+    event,
     notasEnlazadas,
     onClose,
     onUpdate,
@@ -23,8 +26,16 @@ export default function VisitDetailsModal({
     const [showNewNote, setShowNewNote] = useState(false);
     const [viewingNote, setViewingNote] = useState(null);
     const [scheduleAlertAt, setScheduleAlertAt] = useState('');
+    const [completeLoading, setCompleteLoading] = useState(false);
+    const [deleteState, setDeleteState] = useState({ open: false, loading: false });
+    const [feedback, setFeedback] = useState(null);
 
-    // 1) Al montar, traemos toda la info de la visita
+    useEffect(() => {
+        if (!feedback) return;
+        const timer = window.setTimeout(() => setFeedback(null), 4000);
+        return () => window.clearTimeout(timer);
+    }, [feedback]);
+
     useEffect(() => {
         fetch(
             `${API_BASE_URL}/api/visits/client/${event.codclien || event.cliente_id}?showCompleted=true`,
@@ -51,14 +62,10 @@ export default function VisitDetailsModal({
 
     if (!fullEvent) return null;
 
-    // Notas propias de esta visita
-    // Después
     const misNotas = (notasEnlazadas || []).filter(n =>
         Array.isArray(n.eventos) && n.eventos.includes(String(fullEvent.id))
     );
 
-
-    // 2) Cargar info del cliente
     const loadCliente = async () => {
         try {
             const clienteId = fullEvent.cliente_id || fullEvent.codclien;
@@ -72,11 +79,10 @@ export default function VisitDetailsModal({
             setShowClient(true);
         } catch (err) {
             console.error('Error cargando cliente:', err);
-            alert('No se pudo cargar la información del cliente.');
+            setFeedback({ type: 'error', text: 'No se pudo cargar la información del cliente.' });
         }
     };
 
-    // 3) Programar notificación
     const scheduleNotification = () => {
         const when = new Date(scheduleAlertAt);
         const ms = when.getTime() - Date.now();
@@ -90,20 +96,24 @@ export default function VisitDetailsModal({
             );
             onUpdate({ ...fullEvent, scheduledAt: when.toISOString() });
             setScheduleAlertAt('');
+            setFeedback({ type: 'success', text: 'Recordatorio programado correctamente.' });
         } else {
-            alert(
-                'La notificación debe ser dentro de las próximas 24 h y con permisos concedidos'
-            );
+            setFeedback({
+                type: 'error',
+                text: 'La notificación debe estar dentro de las próximas 24 h y con permisos concedidos.'
+            });
         }
     };
 
-    // 4) Completar visita
     const completeVisit = async () => {
+        if (completeLoading) return;
         const msg = window.prompt('Mensaje obligatorio al completar la visita:');
         if (!msg?.trim()) {
-            return alert('El mensaje es obligatorio para completar la visita.');
+            setFeedback({ type: 'error', text: 'Debes introducir un mensaje para completar la visita.' });
+            return;
         }
         try {
+            setCompleteLoading(true);
             const res = await fetch(
                 `${API_BASE_URL}/api/visits/${fullEvent.id}/complete`,
                 {
@@ -129,190 +139,299 @@ export default function VisitDetailsModal({
                 estado: 'completada',
                 mensaje_completado: msg
             });
+            setFeedback({ type: 'success', text: 'Visita marcada como completada.' });
         } catch (err) {
             console.error('Error completando visita:', err);
-            alert('Error al completar la visita.');
+            setFeedback({ type: 'error', text: 'No se pudo completar la visita.' });
+        } finally {
+            setCompleteLoading(false);
         }
     };
 
+    const handleRequestDelete = () => {
+        setDeleteState({ open: true, loading: false });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (deleteState.loading) return;
+        setDeleteState(prev => ({ ...prev, loading: true }));
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/visits/${fullEvent.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            setDeleteState({ open: false, loading: false });
+            onDelete(fullEvent.id);
+        } catch (err) {
+            console.error('Error eliminando visita:', err);
+            setDeleteState({ open: false, loading: false });
+            setFeedback({ type: 'error', text: 'No se pudo eliminar la visita.' });
+        }
+    };
+
+    const startDate = fullEvent.fecha
+        ? new Date(fullEvent.fecha)
+        : fullEvent.start
+            ? new Date(fullEvent.start)
+            : null;
+    const reminderDate = fullEvent.scheduledAt ? new Date(fullEvent.scheduledAt) : null;
+    const relativeStart = startDate
+        ? formatDistanceToNow(startDate, { locale: es, addSuffix: true })
+        : null;
+
     return (
         <>
-            {/* Backdrop + Modal */}
-            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 overflow-y-auto">
-                <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl mx-4">
-                    {/* Header */}
-                    <header className="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 className="text-2xl font-bold mb-1">
-                                {fullEvent.descripcion || '(Sin descripción)'}
-                            </h2>
-                            <p className="text-sm text-gray-600">
-                                👤 Cliente:{' '}
-                                <span className="font-medium">
-                                    {fullEvent.cliente_nombre}
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col max-h-[90vh]">
+                    <header className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Detalle de visita</p>
+                            <h2 className="text-3xl font-semibold text-slate-900">{fullEvent.descripcion || '(Sin descripción)'}</h2>
+                            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+                                <span
+                                    className={`rounded-full px-3 py-1 ${fullEvent.estado === 'completada'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        }`}
+                                >
+                                    {fullEvent.estado === 'completada' ? 'Completada' : 'Pendiente'}
                                 </span>
+                                {startDate && (
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                                        {format(startDate, "d MMM yyyy · HH:mm", { locale: es })}
+                                    </span>
+                                )}
+                                {relativeStart && (
+                                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">⏳ {relativeStart}</span>
+                                )}
+                                {reminderDate && (
+                                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                                        🔔 Aviso {format(reminderDate, 'PPpp', { locale: es })}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm text-slate-500">
+                                👤 Cliente <span className="font-semibold text-slate-700">{fullEvent.cliente_nombre}</span>
                             </p>
                         </div>
-                        <button
-                            onClick={loadCliente}
-                            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded"
-                        >
-                            🧑 Ver cliente
-                        </button>
+                        <div className="flex items-start gap-3">
+                            <button
+                                onClick={loadCliente}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                            >
+                                🧑 Ver ficha de cliente
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:text-slate-700"
+                                aria-label="Cerrar"
+                            >
+                                ×
+                            </button>
+                        </div>
                     </header>
 
-                    {/* Detalles */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div className="space-y-2">
-                            <p>
-                                <strong>📅 Fecha:</strong>{' '}
-                                {format(new Date(fullEvent.fecha), 'dd MMMM yyyy', {
-                                    locale: es
-                                })}
-                            </p>
-                            <p>
-                                <strong>🕒 Hora:</strong>{' '}
-                                {format(new Date(fullEvent.fecha), 'HH:mm')}
-                            </p>
-                            <p>
-                                <strong>📌 Estado:</strong>{' '}
-                                {fullEvent.estado === 'completada'
-                                    ? '✅ Completada'
-                                    : '🕒 Pendiente'}
-                            </p>
-                            {fullEvent.estado === 'completada' &&
-                                fullEvent.mensaje_completado && (
-                                    <p className="text-green-600">
-                                        <strong>💬 Mensaje:</strong>{' '}
-                                        {fullEvent.mensaje_completado}
-                                    </p>
-                                )}
-                            {fullEvent.scheduledAt && (
-                                <p>
-                                    <strong>🔔 Aviso:</strong>{' '}
-                                    {format(new Date(fullEvent.scheduledAt), 'PPpp', {
-                                        locale: es
-                                    })}
-                                </p>
-                            )}
+                    {feedback && (
+                        <div
+                            className={`mx-6 mt-4 rounded-xl border px-4 py-3 text-sm ${feedback.type === 'error'
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                }`}
+                        >
+                            {feedback.text}
                         </div>
-                        <div className="space-y-2">
-                            <label className="font-medium">📆 Programar aviso:</label>
-                            <input
-                                type="datetime-local"
-                                className="w-full border rounded px-3 py-2"
-                                value={scheduleAlertAt}
-                                onChange={e => setScheduleAlertAt(e.target.value)}
-                            />
-                            <button
-                                onClick={scheduleNotification}
-                                className="mt-2 w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                            >
-                                📅 Programar
-                            </button>
-                        </div>
-                    </div>
+                    )}
 
-                    {/* Notas */}
-                    <section className="mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-lg font-semibold">📝 Notas relacionadas</h3>
-                            <button
-                                onClick={() => setShowNewNote(true)}
-                                className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded"
-                            >
-                                ➕ Nueva nota
-                            </button>
-                        </div>
-                        {misNotas.length > 0 ? (
-                            <ul className="space-y-2 max-h-48 overflow-y-auto">
-                                {misNotas.map(n => (
-                                    <li
-                                        key={n.id}
-                                        onClick={() => setViewingNote(n)}
-                                        className="border p-3 rounded hover:bg-gray-50 cursor-pointer"
-                                    >
-                                        <h4 className="font-medium">{n.titulo}</h4>
-                                        <p className="text-sm text-gray-600 truncate">
-                                            {n.contenido}
-                                        </p>
-                                        {n.imagenes?.length > 0 && (
-                                            <div className="mt-2 flex gap-2">
-                                                {n.imagenes.map((url, i) => (
-                                                    <img
-                                                        key={i}
-                                                        src={url}
-                                                        className="w-12 h-12 object-cover rounded"
-                                                    />
-                                                ))}
+                    <div className="flex-1 overflow-y-auto px-6 py-6">
+                        <div className="grid gap-6 lg:grid-cols-[1.6fr_minmax(240px,1fr)]">
+                            <section className="space-y-6">
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Información general</h3>
+                                    <dl className="mt-4 space-y-3 text-sm text-slate-600">
+                                        <div className="grid grid-cols-[120px_1fr] gap-3">
+                                            <dt className="font-medium text-slate-500">Cliente</dt>
+                                            <dd className="text-slate-800">{fullEvent.cliente_nombre}</dd>
+                                        </div>
+                                        {startDate && (
+                                            <div className="grid grid-cols-[120px_1fr] gap-3">
+                                                <dt className="font-medium text-slate-500">Fecha</dt>
+                                                <dd className="text-slate-800">{format(startDate, "EEEE d 'de' MMMM yyyy", { locale: es })}</dd>
                                             </div>
                                         )}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-gray-500">Sin notas</p>
-                        )}
-                    </section>
+                                        {startDate && (
+                                            <div className="grid grid-cols-[120px_1fr] gap-3">
+                                                <dt className="font-medium text-slate-500">Hora</dt>
+                                                <dd className="text-slate-800">{format(startDate, 'HH:mm', { locale: es })}</dd>
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-[120px_1fr] gap-3">
+                                            <dt className="font-medium text-slate-500">Estado</dt>
+                                            <dd className="text-slate-800">{fullEvent.estado === 'completada' ? '✅ Completada' : '🕒 Pendiente'}</dd>
+                                        </div>
+                                        {fullEvent.estado === 'completada' && fullEvent.mensaje_completado && (
+                                            <div className="grid grid-cols-[120px_1fr] gap-3">
+                                                <dt className="font-medium text-slate-500">Mensaje</dt>
+                                                <dd className="text-emerald-700">{fullEvent.mensaje_completado}</dd>
+                                            </div>
+                                        )}
+                                        {reminderDate && (
+                                            <div className="grid grid-cols-[120px_1fr] gap-3">
+                                                <dt className="font-medium text-slate-500">Recordatorio</dt>
+                                                <dd className="text-slate-800">{format(reminderDate, 'PPpp', { locale: es })}</dd>
+                                            </div>
+                                        )}
+                                    </dl>
+                                </div>
 
-                    {/* Citas relacionadas */}
-                    <section className="mb-6">
-                        <h3 className="text-lg font-semibold mb-2">📌 Citas relacionadas</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {fullEvent.eventos?.map(eid => {
-                                // búsqueda local de label
-                                const ev = notasEnlazadas.find(n =>
-                                    Array.isArray(n.eventos) && n.eventos.includes(String(eid))
-                                )
-                                    ? null
-                                    : null;
-                                // en realidad conviene recibir todos los eventos en props
-                                // aquí asumimos que “event” tiene lista de todos, sustituye si hace falta
-                                const related = [event].find(e => String(e.id) === String(eid));
-                                if (!related) return null;
-                                return (
-                                    <NavLink
-                                        key={eid}
-                                        to={`/agenda?eventId=${related.id}`}
-                                        onClick={onClose}
-                                        className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full hover:bg-indigo-200"
-                                    >
-                                        {format(new Date(related.start), "d 'de' MMM yyyy HH:mm", {
-                                            locale: es
+                                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Programar recordatorio</h3>
+                                    <p className="mt-2 text-sm text-slate-600">
+                                        Define cuándo quieres que volvamos a avisarte sobre esta visita. El recordatorio se mostrará como notificación del navegador.
+                                    </p>
+                                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                                        <input
+                                            type="datetime-local"
+                                            className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                            value={scheduleAlertAt}
+                                            onChange={e => setScheduleAlertAt(e.target.value)}
+                                        />
+                                        <button
+                                            onClick={scheduleNotification}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                                        >
+                                            📅 Guardar aviso
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                        <h3 className="text-lg font-semibold text-slate-800">Notas vinculadas</h3>
+                                        <button
+                                            onClick={() => setShowNewNote(true)}
+                                            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                        >
+                                            ➕ Añadir nota
+                                        </button>
+                                    </div>
+                                    {misNotas.length > 0 ? (
+                                        <ul className="space-y-3 max-h-56 overflow-y-auto pr-2">
+                                            {misNotas.map(n => (
+                                                <li
+                                                    key={n.id}
+                                                    onClick={() => setViewingNote(n)}
+                                                    className="cursor-pointer rounded-xl border border-slate-200 px-4 py-3 transition hover:border-indigo-200 hover:bg-indigo-50/40"
+                                                >
+                                                    <h4 className="font-medium text-slate-800">{n.titulo}</h4>
+                                                    <p className="text-sm text-slate-500 truncate">{n.contenido}</p>
+                                                    {n.imagenes?.length > 0 && (
+                                                        <div className="mt-2 flex gap-2">
+                                                            {n.imagenes.map((url, i) => (
+                                                                <img key={i} src={url} className="h-12 w-12 rounded object-cover" />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-slate-500">Todavía no hay notas asociadas a esta visita.</p>
+                                    )}
+                                </section>
+
+                                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <h3 className="text-lg font-semibold text-slate-800">Citas relacionadas</h3>
+                                    <p className="mt-1 text-sm text-slate-500">Accede rápidamente a otras visitas conectadas a esta nota o cliente.</p>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {fullEvent.eventos?.map(eid => {
+                                            const related = [event].find(e => String(e.id) === String(eid));
+                                            if (!related) return null;
+                                            return (
+                                                <NavLink
+                                                    key={eid}
+                                                    to={`/agenda?eventId=${related.id}`}
+                                                    onClick={onClose}
+                                                    className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                                >
+                                                    {format(new Date(related.start), "d 'de' MMM yyyy HH:mm", { locale: es })}
+                                                </NavLink>
+                                            );
                                         })}
-                                    </NavLink>
-                                );
-                            })}
-                        </div>
-                    </section>
+                                    </div>
+                                </section>
+                            </section>
 
-                    {/* Footer */}
-                    <footer className="flex justify-end gap-3">
-                        {fullEvent.estado !== 'completada' && (
-                            <button
-                                onClick={completeVisit}
-                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded"
-                            >
-                                ✅ Completar visita
-                            </button>
-                        )}
-                        <button
-                            onClick={() => onDelete(fullEvent.id)}
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"
-                        >
-                            Eliminar
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
-                        >
-                            Cerrar
-                        </button>
-                    </footer>
+                            <aside className="flex flex-col gap-4">
+                                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5 text-sm text-slate-600 shadow-sm">
+                                    <h4 className="text-sm font-semibold text-slate-700">Acciones rápidas</h4>
+                                    <div className="mt-3 grid gap-2">
+                                        <button
+                                            onClick={() => setShowNewNote(true)}
+                                            className="rounded-lg border border-indigo-200 px-3 py-2 text-left font-medium text-indigo-700 transition hover:bg-indigo-50"
+                                        >
+                                            ✏️ Registrar seguimiento
+                                        </button>
+                                        <button
+                                            onClick={loadCliente}
+                                            className="rounded-lg border border-slate-200 px-3 py-2 text-left font-medium text-slate-600 transition hover:bg-slate-100"
+                                        >
+                                            🧭 Abrir ficha del cliente
+                                        </button>
+                                        <NavLink
+                                            to={`/agenda?eventId=${fullEvent.id}`}
+                                            onClick={onClose}
+                                            className="rounded-lg border border-slate-200 px-3 py-2 text-left font-medium text-slate-600 transition hover:bg-slate-100"
+                                        >
+                                            📅 Ver en la agenda
+                                        </NavLink>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                                    <h4 className="text-sm font-semibold text-slate-700">Gestionar estado</h4>
+                                    <p className="mt-2 text-xs text-slate-500">Marca la visita como completada cuando hayas finalizado o elimina el registro si ha sido cancelada.</p>
+                                    <div className="mt-4 flex flex-col gap-2">
+                                        {fullEvent.estado !== 'completada' ? (
+                                            <button
+                                                onClick={completeVisit}
+                                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                disabled={completeLoading}
+                                            >
+                                                {completeLoading ? (
+                                                    <>
+                                                        <InlineSpinner className="w-4 h-4 text-white" />
+                                                        Marcando…
+                                                    </>
+                                                ) : (
+                                                    '✅ Completar visita'
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                                                Esta visita ya se encuentra completada.
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={handleRequestDelete}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                                        >
+                                            🗑️ Eliminar visita
+                                        </button>
+                                        <button
+                                            onClick={onClose}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                                        >
+                                            Cerrar
+                                        </button>
+                                    </div>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Cliente Modal */}
             {showClient && clienteInfo && (
                 <ClientModal
                     modalVisible={true}
@@ -322,7 +441,6 @@ export default function VisitDetailsModal({
                 />
             )}
 
-            {/* Nueva Nota */}
             {showNewNote && (
                 <NoteModal
                     token={token}
@@ -335,13 +453,22 @@ export default function VisitDetailsModal({
                 />
             )}
 
-            {/* Ver Nota */}
             {viewingNote && (
                 <NoteModal
                     token={token}
                     nota={viewingNote}
                     onClose={() => setViewingNote(null)}
                     onSaved={() => setViewingNote(null)}
+                />
+            )}
+
+            {deleteState.open && (
+                <ConfirmDialog
+                    message="¿Eliminar esta visita de la agenda?"
+                    onCancel={() => setDeleteState({ open: false, loading: false })}
+                    onConfirm={handleConfirmDelete}
+                    confirmLabel="Eliminar"
+                    loading={deleteState.loading}
                 />
             )}
         </>
