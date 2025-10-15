@@ -213,13 +213,13 @@ export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
 
     return (
         <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8"
+            className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-slate-900/60 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-6 sm:py-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-visit-title"
         >
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
-                <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+            <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl max-h-[calc(100vh-2rem)] sm:rounded-2xl sm:max-h-[calc(100vh-4rem)]">
+                <header className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
                     <div className="space-y-1">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                             Planificar visita
@@ -243,7 +243,7 @@ export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 transition disabled:opacity-50"
+                        className="self-end rounded-full p-2 text-slate-400 transition hover:text-slate-600 disabled:opacity-50"
                         aria-label="Cerrar"
                         disabled={saving}
                         title="Cerrar"
@@ -253,7 +253,7 @@ export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
                 </header>
 
                 <div
-                    className="flex-1 overflow-y-auto px-6 py-6"
+                    className="flex-1 overflow-y-auto px-5 py-6 sm:px-6"
                     onKeyDown={onKeyDownForm}
                     ref={formSectionRef}
                 >

@@ -6,8 +6,8 @@ const Agenda = dynamic(() => import('../components/agenda/Agenda'), { ssr: false
 
 const AgendaPage = () => {
     return (
-        <div className="min-h-screenbg-gradient-to-r bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center p-4">
-            <div className="container mx-auto bg-white p-6 border rounded shadow-lg max-w-screen-lg w-full mt-24 m-8">
+        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center px-3 py-6 sm:px-6">
+            <div className="agenda-page-wrapper mx-auto bg-white p-4 sm:p-6 border rounded shadow-lg w-full max-w-6xl mt-16 sm:mt-24">
                 <Agenda />
             </div>
         </div>

@@ -182,9 +182,9 @@ export default function VisitDetailsModal({
 
     return (
         <>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col max-h-[90vh]">
-                    <header className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-slate-900/60 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-6 sm:py-6">
+                <div className="mx-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl max-h-[calc(100vh-2rem)] sm:rounded-2xl sm:max-h-[calc(100vh-4rem)]">
+                    <header className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Detalle de visita</p>
                             <h2 className="text-3xl font-semibold text-slate-900">{fullEvent.descripcion || '(Sin descripción)'}</h2>
@@ -243,7 +243,7 @@ export default function VisitDetailsModal({
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto px-6 py-6">
+                    <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-6">
                         <div className="grid gap-6 lg:grid-cols-[1.6fr_minmax(240px,1fr)]">
                             <section className="space-y-6">
                                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -362,7 +362,7 @@ export default function VisitDetailsModal({
                                 </section>
                             </section>
 
-                            <aside className="flex flex-col gap-4">
+                            <aside className="mt-6 flex flex-col gap-4 lg:mt-0">
                                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5 text-sm text-slate-600 shadow-sm">
                                     <h4 className="text-sm font-semibold text-slate-700">Acciones rápidas</h4>
                                     <div className="mt-3 grid gap-2">

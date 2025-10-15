@@ -22,15 +22,15 @@ export default function DayEventsModal({
 
     return (
         <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8"
+            className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-slate-900/60 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-6 sm:py-6"
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+                className="w-full max-w-3xl overflow-hidden rounded-t-3xl bg-white shadow-2xl max-h-[calc(100vh-2rem)] sm:max-w-4xl sm:rounded-2xl sm:max-h-[calc(100vh-4rem)]"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex flex-col gap-2 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-5 md:flex-row md:items-center md:justify-between sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                             Agenda del día
@@ -60,7 +60,7 @@ export default function DayEventsModal({
                 </div>
 
                 {/* Lista de visitas */}
-                <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
+                <div className="max-h-[70vh] overflow-y-auto px-5 py-6 sm:px-6">
                     {sortedVisits.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center text-sm text-slate-500">
                             Usa el botón «Nueva visita» para reservar un hueco en este día.

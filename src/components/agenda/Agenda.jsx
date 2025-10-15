@@ -31,57 +31,82 @@ import RemindersPanel from './RemindersPanel';
 ////////////////////////////////////////////////////////////////////////////////
 // Custom Toolbar
 ////////////////////////////////////////////////////////////////////////////////
-function CustomToolbar({ date, view, onNavigate, onView, onNew }) {
+function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
+    const viewOptions = [
+        { label: 'Mes', value: Views.MONTH },
+        { label: 'Semana', value: Views.WEEK },
+        { label: 'Día', value: Views.DAY }
+    ];
+
     return (
-        <div className="bg-white px-4 py-3 shadow flex flex-col sm:flex-row items-center sm:justify-between gap-3">
-            {/* Navegación */}
+        <div className="bg-white px-4 py-3 shadow flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-                <button
-                    onClick={() => onNavigate('TODAY')}
-                    className="w-14 h-10 bg-blue-600 text-white rounded-lg active:scale-95"
-                >
-                    Hoy
-                </button>
-                <button
-                    onClick={() => onNavigate('PREV')}
-                    className="w-10 h-10 bg-gray-200 rounded-lg active:scale-95"
-                >
-                    ‹
-                </button>
-                <button
-                    onClick={() => onNavigate('NEXT')}
-                    className="w-10 h-10 bg-gray-200 rounded-lg active:scale-95"
-                >
-                    ›
-                </button>
-                <span className="ml-2 text-lg font-semibold whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onNavigate('TODAY')}
+                        className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        aria-label="Ir a hoy"
+                    >
+                        Hoy
+                    </button>
+                    <button
+                        onClick={() => onNavigate('PREV')}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-lg font-semibold transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        aria-label="Ver periodo anterior"
+                    >
+                        ‹
+                    </button>
+                    <button
+                        onClick={() => onNavigate('NEXT')}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-lg font-semibold transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        aria-label="Ver siguiente periodo"
+                    >
+                        ›
+                    </button>
+                </div>
+                <span className="text-lg font-semibold capitalize text-slate-700">
                     {format(date, 'MMMM yyyy', { locale: es })}
                 </span>
             </div>
 
-            {/* Vista / Nueva visita */}
-            <div className="flex flex-wrap gap-2">
-                {[
-                    { label: 'Mes', v: Views.MONTH },
-                    { label: 'Semana', v: Views.WEEK },
-                    { label: 'Día', v: Views.DAY }
-                ].map(btn => (
-                    <button
-                        key={btn.v}
-                        onClick={() => onView(btn.v)}
-                        className={`w-20 h-10 rounded-lg active:scale-95 ${view === btn.v
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        {btn.label}
-                    </button>
-                ))}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                {isMobile ? (
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                        Vista
+                        <select
+                            value={view}
+                            onChange={event => onView(event.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        >
+                            {viewOptions.map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {viewOptions.map(btn => (
+                            <button
+                                key={btn.value}
+                                onClick={() => onView(btn.value)}
+                                className={`h-10 w-20 rounded-lg text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-200 ${view === btn.value
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                            >
+                                {btn.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <button
                     onClick={onNew}
-                    className="w-32 h-10 bg-red-500 text-white rounded-lg active:scale-95"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-200"
                 >
-                    + Nueva visita
+                    <span aria-hidden="true">＋</span>
+                    Nueva visita
                 </button>
             </div>
         </div>
@@ -141,13 +166,30 @@ const REMINDER_WINDOWS = [
     }
 ];
 
+const MOBILE_BREAKPOINT = 768;
+const isMobileViewport = () =>
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false;
+
 export default function AgendaPage() {
     const { token } = useAuthContext();
 
-    const [view, setView] = useState(Views.MONTH);
+    const [isMobile, setIsMobile] = useState(isMobileViewport);
+    const [view, setView] = useState(() => (isMobileViewport() ? Views.DAY : Views.MONTH));
     const [date, setDate] = useState(new Date());
     const [eventos, setEventos] = useState([]);
     const [allNotas, setAllNotas] = useState([]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const handleResize = () => setIsMobile(isMobileViewport());
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (!isMobile) return;
+        setView(prev => (prev === Views.MONTH ? Views.DAY : prev));
+    }, [isMobile]);
 
     // estados de carga/error + filtros
     const [loadingVisits, setLoadingVisits] = useState(false);
@@ -529,8 +571,12 @@ export default function AgendaPage() {
         <div onPointerUp={() => handleDayClick(event.start)}>{children}</div>
     );
 
+    const calendarHeightClass = isMobile
+        ? 'min-h-[520px]'
+        : 'h-[55vh] sm:h-[65vh] md:h-[75vh] xl:h-[70vh]';
+
     return (
-        <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="agenda-responsive mx-auto max-w-6xl space-y-6 px-3 py-6 sm:px-4">
             {(loadingVisits || loadingNotas) && (
                 <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
                     Actualizando información de agenda y notas...
@@ -601,6 +647,7 @@ export default function AgendaPage() {
                         onNavigate={handleNavigate}
                         onView={setView}
                         onNew={() => setSlot({ start: date, end: addHours(date, 1) })}
+                        isMobile={isMobile}
                     />
 
                     <div className="bg-white shadow px-4 py-3 rounded-lg border border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -625,7 +672,7 @@ export default function AgendaPage() {
                     </div>
 
                     {/* Calendario */}
-                    <div className="h-[55vh] sm:h-[65vh] md:h-[75vh] xl:h-[70vh] border rounded-lg shadow overflow-hidden bg-white">
+                    <div className={`${calendarHeightClass} overflow-hidden rounded-lg border bg-white shadow`}>
                         <Calendar
                             localizer={localizer}
                             events={filteredEvents}
@@ -656,7 +703,7 @@ export default function AgendaPage() {
 
                 <aside className="space-y-4">
                     <div className="bg-white shadow rounded-xl border border-slate-100 p-5">
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <h3 className="text-lg font-semibold text-slate-900">Próximas visitas</h3>
                                 <p className="text-sm text-slate-500">
@@ -667,7 +714,7 @@ export default function AgendaPage() {
                                 onClick={() =>
                                     setSlot({ start: addHours(new Date(), 1), end: addHours(new Date(), 2) })
                                 }
-                                className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg"
+                                className="w-full text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-center sm:w-auto"
                             >
                                 + Programar
                             </button>

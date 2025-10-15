@@ -16,15 +16,15 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 function ImagenConLoader({ src, alt, onClick }) {
     const [loaded, setLoaded] = useState(false);
     return (
-        <div className="relative w-20 h-20">
-            {!loaded && <div className="absolute inset-0 bg-gray-200 animate-pulse rounded" />}
+        <div className="relative h-20 w-20">
+            {!loaded && <div className="absolute inset-0 animate-pulse rounded bg-gray-200" />}
             <img
                 src={src}
                 alt={alt}
                 loading="lazy"
                 onLoad={() => setLoaded(true)}
                 onClick={onClick}
-                className={`w-20 h-20 object-cover rounded cursor-pointer transition-opacity duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'
+                className={`h-20 w-20 cursor-pointer rounded object-cover transition-opacity duration-300 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'
                     }`}
             />
         </div>
@@ -50,10 +50,19 @@ export default function NotasPage() {
     const [errorNotas, setErrorNotas] = useState(null);
     const [errorEvents, setErrorEvents] = useState(null);
 
-    // Filtros
-    const [filterName, setFilterName] = useState('');
-    const [filterDate, setFilterDate] = useState('');
-    const [showUnlinked, setShowUnlinked] = useState(true);
+    // Filtros (parche: estado unificado + updater)
+    const [filters, setFilters] = useState({
+        name: '',
+        date: '',
+        showUnlinked: true,
+    });
+    const filterName = filters.name;
+    const filterDate = filters.date;
+    const showUnlinked = filters.showUnlinked;
+
+    const updateFilters = useCallback((next) => {
+        setFilters((prev) => ({ ...prev, ...next }));
+    }, []);
 
     // Crear/editar
     const [modalOpen, setModalOpen] = useState(false);
@@ -110,7 +119,7 @@ export default function NotasPage() {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/notas?${params.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` },
-                    signal
+                    signal,
                 });
                 if (response.status === 401) {
                     navigate('/login');
@@ -124,7 +133,7 @@ export default function NotasPage() {
                     eventos: Array.isArray(n.eventos) ? n.eventos : [],
                     imagenes: Array.isArray(n.imagenes) ? n.imagenes : [],
                     creado_en: typeof n.fechacreado === 'string' ? n.fechacreado : '',
-                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null
+                    actualizado_en: typeof n.fechaactualizado === 'string' ? n.fechaactualizado : null,
                 }));
                 norm.sort((a, b) => ts(b) - ts(a));
                 setNotas(norm);
@@ -157,7 +166,7 @@ export default function NotasPage() {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/calendario`, {
                     headers: { Authorization: `Bearer ${token}` },
-                    signal
+                    signal,
                 });
                 if (response.status === 401) {
                     navigate('/login');
@@ -175,7 +184,7 @@ export default function NotasPage() {
                             id: String(evt.id),
                             fecha: evt.fecha,
                             mes: format(f, 'MMMM yyyy', { locale: es }),
-                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`
+                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`,
                         };
                     });
                 setEvents(evs);
@@ -234,8 +243,7 @@ export default function NotasPage() {
 
         return notas.filter((n) => {
             const passesEvent = haveEvents
-                ? (showUnlinked && n.eventos.length === 0) ||
-                n.eventos.some((eid) => userEventIds.has(String(eid)))
+                ? (showUnlinked && n.eventos.length === 0) || n.eventos.some((eid) => userEventIds.has(String(eid)))
                 : true;
 
             const nameMatch = filterName ? n.titulo.toLowerCase().includes(filterName.toLowerCase()) : true;
@@ -254,10 +262,7 @@ export default function NotasPage() {
     const totalFiltered = filteredNotas.length;
     const paginatedNotas = filteredNotas.slice(0, visibleNotas);
 
-    const linkedIdsSet = useMemo(
-        () => new Set(linkedEventIds.map((id) => String(id))),
-        [linkedEventIds]
-    );
+    const linkedIdsSet = useMemo(() => new Set(linkedEventIds.map((id) => String(id))), [linkedEventIds]);
 
     const stats = useMemo(() => {
         const total = notas.length;
@@ -309,7 +314,7 @@ export default function NotasPage() {
         if (!toDelete) return;
         fetch(`${API_BASE_URL}/api/notas/${toDelete.id}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         })
             .then((r) => {
                 if (r.status === 401) {
@@ -361,7 +366,7 @@ export default function NotasPage() {
         fetch(url, {
             method: isEditing ? 'PATCH' : 'POST',
             headers: { Authorization: `Bearer ${token}` },
-            body: form
+            body: form,
         })
             .then(async (r) => {
                 if (r.status === 401) {
@@ -380,7 +385,7 @@ export default function NotasPage() {
                     eventos: Array.isArray(newNota.eventos) ? newNota.eventos : [],
                     imagenes: Array.isArray(newNota.imagenes) ? newNota.imagenes : [],
                     creado_en: newNota.fechacreado || new Date().toISOString(),
-                    actualizado_en: newNota.fechaactualizado || null
+                    actualizado_en: newNota.fechaactualizado || null,
                 };
                 setNotas((prev) => {
                     const arr = isEditing ? prev.map((n) => (n.id === editId ? norm : n)) : [norm, ...prev];
@@ -389,7 +394,7 @@ export default function NotasPage() {
                 setModalOpen(false);
                 setFeedback({
                     type: 'success',
-                    message: isEditing ? 'Cambios guardados correctamente.' : 'Nota creada con éxito.'
+                    message: isEditing ? 'Cambios guardados correctamente.' : 'Nota creada con éxito.',
                 });
             })
             .catch((e) => {
@@ -429,7 +434,7 @@ export default function NotasPage() {
     // RENDER
     // -------------------------------
     return (
-        <div className="relative min-h-screen px-6 py-10 bg-gray-50">
+        <div className="relative min-h-screen bg-gray-50 px-3 py-6 sm:px-6 sm:py-10">
             {(loadingNotas || loadingEvents) && (
                 <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
                     Sincronizando notas y visitas relacionadas...
@@ -464,25 +469,23 @@ export default function NotasPage() {
             )}
 
             {/* Header */}
-            <div className="bg-white rounded-2xl shadow px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-5 shadow md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">📝 Mis Notas</h1>
-                    <p className="text-sm text-gray-500">
-                        Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.
-                    </p>
+                    <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">📝 Mis Notas</h1>
+                    <p className="text-sm text-gray-500">Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 justify-end">
-                    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+                <div className="w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end md:w-auto">
+                    <div className="inline-flex w-full rounded-lg border border-gray-200 bg-gray-100 p-1 sm:w-auto">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
+                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
                             🗂️ Tarjetas
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition ${viewMode === 'list' ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
+                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'list' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
                             📋 Lista
@@ -490,7 +493,7 @@ export default function NotasPage() {
                     </div>
                     <button
                         onClick={abrirCrear}
-                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow"
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-center text-white shadow transition hover:bg-indigo-700 sm:mt-0 sm:w-auto"
                     >
                         <span>➕</span>
                         Nueva nota
@@ -499,35 +502,35 @@ export default function NotasPage() {
             </div>
 
             {/* Stats */}
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+            <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {[
                     {
                         label: 'Notas totales',
                         value: stats.total,
                         helper: 'Todo tu conocimiento centralizado',
-                        accent: 'bg-indigo-100 text-indigo-600'
+                        accent: 'bg-indigo-100 text-indigo-600',
                     },
                     {
                         label: 'Con visita vinculada',
                         value: stats.vinculadas,
                         helper: 'Notas conectadas con la agenda',
-                        accent: 'bg-emerald-100 text-emerald-600'
+                        accent: 'bg-emerald-100 text-emerald-600',
                     },
                     {
                         label: 'Sin visita',
                         value: stats.sinVinculo,
                         helper: 'Ideas o seguimientos libres',
-                        accent: 'bg-orange-100 text-orange-600'
+                        accent: 'bg-orange-100 text-orange-600',
                     },
                     {
                         label: 'Actualizadas últimos 7 días',
                         value: stats.recientes,
                         helper: 'Manténlas vivas y relevantes',
-                        accent: 'bg-purple-100 text-purple-600'
-                    }
+                        accent: 'bg-purple-100 text-purple-600',
+                    },
                 ].map((card) => (
-                    <article key={card.label} className="bg-white rounded-2xl shadow px-5 py-4 border border-gray-100">
-                        <span className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-full ${card.accent}`}>
+                    <article key={card.label} className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow">
+                        <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wide ${card.accent}`}>
                             {card.label}
                         </span>
                         <p className="mt-3 text-3xl font-semibold text-gray-900">{card.value}</p>
@@ -537,50 +540,50 @@ export default function NotasPage() {
             </section>
 
             {/* Filtros */}
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-8">
-                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100">
-                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Título</p>
-                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
-                        <span role="img" aria-hidden="true">🔍</span>
+            <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
+                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Título</p>
+                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
+                        <span role="img" aria-hidden="true">
+                            🔍
+                        </span>
                         <input
                             type="text"
                             placeholder="Buscar por título"
-                            className="bg-transparent flex-1 outline-none text-sm"
+                            className="flex-1 bg-transparent text-sm outline-none"
                             value={filterName}
-                            onChange={(e) => setFilterName(e.target.value)}
+                            onChange={(e) => updateFilters({ name: e.target.value })}
                         />
                     </div>
                 </div>
-                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100">
-                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Fecha de la visita</p>
+                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
+                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Fecha de la visita</p>
                     <input
                         type="date"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                         value={filterDate}
-                        onChange={(e) => setFilterDate(e.target.value)}
+                        onChange={(e) => updateFilters({ date: e.target.value })}
                     />
                 </div>
-                <div className="bg-white rounded-xl shadow px-4 py-3 border border-gray-100 flex flex-col justify-between">
-                    <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Visibilidad</p>
+                <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
+                    <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Visibilidad</p>
                     <label className="flex items-center justify-between gap-3 text-sm text-gray-700">
                         <span>Incluir notas sin cita</span>
                         <input
                             type="checkbox"
                             checked={showUnlinked}
-                            onChange={(e) => setShowUnlinked(e.target.checked)}
+                            onChange={(e) => updateFilters({ showUnlinked: e.target.checked })}
                             className="h-5 w-5"
                         />
                     </label>
                 </div>
-                <div className="rounded-xl shadow px-4 py-3 border border-indigo-200 bg-indigo-50">
-                    <p className="text-xs font-semibold uppercase text-indigo-700 mb-2">Acción rápida</p>
-                    <p className="text-sm text-indigo-900 mb-3">Restablece los filtros para volver a ver todas tus notas.</p>
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 shadow">
+                    <p className="mb-2 text-xs font-semibold uppercase text-indigo-700">Acción rápida</p>
+                    <p className="mb-3 text-sm text-indigo-900">Restablece los filtros para volver a ver todas tus notas.</p>
                     <button
                         className="text-sm font-semibold text-indigo-700 underline"
                         onClick={() => {
-                            setFilterName('');
-                            setFilterDate('');
-                            setShowUnlinked(true);
+                            setFilters({ name: '', date: '', showUnlinked: true });
                         }}
                     >
                         Limpiar filtros
@@ -590,20 +593,20 @@ export default function NotasPage() {
 
             {/* Contenido */}
             {loadingNotas || loadingEvents ? (
-                <div className="text-center py-20 text-gray-400 animate-pulse">Cargando…</div>
+                <div className="animate-pulse py-20 text-center text-gray-400">Cargando…</div>
             ) : totalFiltered === 0 ? (
-                <div className="text-center py-20 text-gray-500">
+                <div className="py-20 text-center text-gray-500">
                     {notas.length === 0
                         ? 'Aún no tienes notas. Pulsa "Nueva nota" para crear la primera.'
                         : 'No hay notas que coincidan con los filtros aplicados.'}
                 </div>
             ) : viewMode === 'grid' ? (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                         {paginatedNotas.map((n) => (
                             <article
                                 key={n.id}
-                                className="bg-white p-5 rounded-2xl shadow hover:shadow-xl transition cursor-pointer flex flex-col gap-3 border border-gray-100"
+                                className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow transition hover:shadow-xl"
                                 onClick={() => abrirVista(n)}
                             >
                                 <div className="flex items-start justify-between gap-3">
@@ -616,7 +619,7 @@ export default function NotasPage() {
                                         )}
                                     </div>
                                     <span
-                                        className={`text-[11px] font-semibold px-2 py-1 rounded-full ${n.eventos.length > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${n.eventos.length > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                                             }`}
                                     >
                                         {n.eventos.length > 0
@@ -625,8 +628,8 @@ export default function NotasPage() {
                                     </span>
                                 </div>
 
-                                <h2 className="font-semibold text-xl text-gray-900 leading-snug line-clamp-2">{n.titulo}</h2>
-                                <p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{n.contenido}</p>
+                                <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-gray-900">{n.titulo}</h2>
+                                <p className="line-clamp-4 text-sm leading-relaxed text-gray-600">{n.contenido}</p>
 
                                 {n.eventos.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
@@ -634,35 +637,26 @@ export default function NotasPage() {
                                             const ev = eventsMap.get(String(eid));
                                             const label = ev ? ev.label : `Evento ${eid}`;
                                             return (
-                                                <span key={eid} className="text-[11px] bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                                                <span key={eid} className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700">
                                                     {label}
                                                 </span>
                                             );
                                         })}
-                                        {n.eventos.length > 3 && (
-                                            <span className="text-[11px] text-gray-500">+{n.eventos.length - 3} más</span>
-                                        )}
+                                        {n.eventos.length > 3 && <span className="text-[11px] text-gray-500">+{n.eventos.length - 3} más</span>}
                                     </div>
                                 ) : (
-                                    <span className="text-[11px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full w-max">
-                                        Sin visita asociada
-                                    </span>
+                                    <span className="w-max rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Sin visita asociada</span>
                                 )}
 
                                 {n.imagenes.length > 0 && (
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {n.imagenes.slice(0, 3).map((url, i) => (
-                                            <img
-                                                key={i}
-                                                src={url}
-                                                alt=""
-                                                className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                                            />
+                                            <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
                                         ))}
                                     </div>
                                 )}
 
-                                <div className="mt-auto flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                                <div className="mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 pt-3">
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -687,10 +681,10 @@ export default function NotasPage() {
                     </div>
 
                     {totalFiltered > visibleNotas && (
-                        <div className="text-center mt-8">
+                        <div className="mt-8 text-center">
                             <button
                                 onClick={() => setVisibleNotas((v) => v + 6)}
-                                className="bg-indigo-600 text-white px-5 py-2 rounded-full shadow hover:bg-indigo-700 transition"
+                                className="rounded-full bg-indigo-600 px-5 py-2 text-white shadow transition hover:bg-indigo-700"
                             >
                                 Ver más notas
                             </button>
@@ -699,86 +693,83 @@ export default function NotasPage() {
                 </>
             ) : (
                 <>
-                    <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Nota
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Visitas vinculadas
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Última actualización
-                                    </th>
-                                    <th className="px-6 py-3" />
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {paginatedNotas.map((n) => (
-                                    <tr key={n.id} className="hover:bg-indigo-50 cursor-pointer" onClick={() => abrirVista(n)}>
-                                        <td className="px-6 py-4 whitespace-normal">
-                                            <p className="text-sm font-semibold text-gray-900">{n.titulo}</p>
-                                            <p className="text-sm text-gray-500 line-clamp-2 max-w-xl">{n.contenido}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {n.eventos.length > 0 ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {n.eventos.slice(0, 2).map((eid) => {
-                                                        const ev = eventsMap.get(String(eid));
-                                                        const label = ev ? ev.label : `Evento ${eid}`;
-                                                        return (
-                                                            <span
-                                                                key={eid}
-                                                                className="text-[11px] bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full"
-                                                            >
-                                                                {label}
-                                                            </span>
-                                                        );
-                                                    })}
-                                                    {n.eventos.length > 2 && (
-                                                        <span className="text-[11px] text-gray-500">+{n.eventos.length - 2} más</span>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Sin visita</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
-                                            {safeFormat(n.actualizado_en || n.creado_en, "d 'de' MMM yyyy HH:mm")}
-                                        </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    abrirEditar(n);
-                                                }}
-                                                className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
-                                            >
-                                                <Pencil size={16} /> Editar
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    confirmarBorrar(n);
-                                                }}
-                                                className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
-                                            >
-                                                <Trash2 size={16} /> Eliminar
-                                            </button>
-                                        </td>
+                    <div className="rounded-2xl border border-gray-100 bg-white shadow">
+                        <div className="w-full overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nota</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Visitas vinculadas
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Última actualización
+                                        </th>
+                                        <th className="px-6 py-3" />
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {paginatedNotas.map((n) => (
+                                        <tr key={n.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => abrirVista(n)}>
+                                            <td className="whitespace-normal px-6 py-4">
+                                                <p className="text-sm font-semibold text-gray-900">{n.titulo}</p>
+                                                <p className="max-w-xl line-clamp-2 text-sm text-gray-500">{n.contenido}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {n.eventos.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {n.eventos.slice(0, 2).map((eid) => {
+                                                            const ev = eventsMap.get(String(eid));
+                                                            const label = ev ? ev.label : `Evento ${eid}`;
+                                                            return (
+                                                                <span key={eid} className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700">
+                                                                    {label}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                        {n.eventos.length > 2 && (
+                                                            <span className="text-[11px] text-gray-500">+{n.eventos.length - 2} más</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-600">Sin visita</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {safeFormat(n.actualizado_en || n.creado_en, "d 'de' MMM yyyy HH:mm")}
+                                            </td>
+                                            <td className="space-x-2 px-6 py-4 text-right">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        abrirEditar(n);
+                                                    }}
+                                                    className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
+                                                >
+                                                    <Pencil size={16} /> Editar
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        confirmarBorrar(n);
+                                                    }}
+                                                    className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
+                                                >
+                                                    <Trash2 size={16} /> Eliminar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {totalFiltered > visibleNotas && (
-                        <div className="text-center mt-8">
+                        <div className="mt-8 text-center">
                             <button
                                 onClick={() => setVisibleNotas((v) => v + 10)}
-                                className="bg-indigo-600 text-white px-5 py-2 rounded-full shadow hover:bg-indigo-700 transition"
+                                className="rounded-full bg-indigo-600 px-5 py-2 text-white shadow transition hover:bg-indigo-700"
                             >
                                 Ver más resultados
                             </button>
@@ -789,14 +780,14 @@ export default function NotasPage() {
 
             {/* Confirmar borrar */}
             {confirmOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg">
+                <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
+                    <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-2xl">
                         <p className="mb-4">¿Eliminar esta nota?</p>
                         <div className="flex justify-end gap-4">
                             <button onClick={() => setConfirmOpen(false)} className="px-4 py-2">
                                 Cancelar
                             </button>
-                            <button onClick={borrar} className="px-4 py-2 bg-red-500 text-white rounded">
+                            <button onClick={borrar} className="rounded bg-red-500 px-4 py-2 text-white">
                                 Eliminar
                             </button>
                         </div>
@@ -806,59 +797,64 @@ export default function NotasPage() {
 
             {/* Vista previa de una nota */}
             {vistaNota && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={cerrarVista}>
+                <div
+                    className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-6 sm:py-6"
+                    onClick={cerrarVista}
+                >
                     <div
                         ref={modalRef}
-                        className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden"
+                        className="w-full max-w-3xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-w-4xl sm:rounded-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <header className="flex items-center justify-between px-6 py-4 border-b">
+                        <header className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <h2 className="text-2xl font-semibold text-gray-800">{vistaNota.titulo}</h2>
                             <button onClick={cerrarVista} className="text-gray-500 hover:text-gray-700">
                                 <AiOutlineClose size={24} />
                             </button>
                         </header>
 
-                        <main className="px-6 py-4 space-y-6">
-                            <section className="text-gray-700 leading-relaxed whitespace-pre-wrap">{vistaNota.contenido}</section>
+                        <main className="max-h-[calc(100vh-12rem)] overflow-y-auto px-5 py-4 sm:max-h-[70vh] sm:px-6 sm:py-5">
+                            <div className="space-y-6">
+                                <section className="whitespace-pre-wrap text-gray-700 leading-relaxed">{vistaNota.contenido}</section>
 
-                            {vistaNota.imagenes.length > 0 && (
-                                <section>
-                                    <h3 className="text-lg font-medium mb-2 text-gray-800">Imágenes</h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                        {vistaNota.imagenes.map((url, i) => (
-                                            <ImagenConLoader key={i} src={url} alt={`img-${i}`} onClick={() => window.open(url, '_blank')} />
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
+                                {vistaNota.imagenes.length > 0 && (
+                                    <section>
+                                        <h3 className="mb-2 text-lg font-medium text-gray-800">Imágenes</h3>
+                                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                                            {vistaNota.imagenes.map((url, i) => (
+                                                <ImagenConLoader key={i} src={url} alt={`img-${i}`} onClick={() => window.open(url, '_blank')} />
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
 
-                            {vistaNota.eventos.length > 0 && (
-                                <section>
-                                    <h3 className="text-lg font-medium mb-2 text-gray-800">Citas relacionadas</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {vistaNota.eventos.map((eid) => {
-                                            const ev = eventsMap.get(String(eid));
-                                            if (!ev) return null;
-                                            return (
-                                                <span
-                                                    key={eid}
-                                                    className="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full cursor-pointer hover:bg-indigo-200"
-                                                    onClick={() => {
-                                                        cerrarVista();
-                                                        navigate(`/agenda?eventId=${ev.id}`);
-                                                    }}
-                                                >
-                                                    {ev.label}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-                            )}
+                                {vistaNota.eventos.length > 0 && (
+                                    <section>
+                                        <h3 className="mb-2 text-lg font-medium text-gray-800">Citas relacionadas</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {vistaNota.eventos.map((eid) => {
+                                                const ev = eventsMap.get(String(eid));
+                                                if (!ev) return null;
+                                                return (
+                                                    <span
+                                                        key={eid}
+                                                        className="cursor-pointer rounded-full bg-indigo-100 px-3 py-1 text-xs text-indigo-800 hover:bg-indigo-200"
+                                                        onClick={() => {
+                                                            cerrarVista();
+                                                            navigate(`/agenda?eventId=${ev.id}`);
+                                                        }}
+                                                    >
+                                                        {ev.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                )}
+                            </div>
                         </main>
 
-                        <footer className="px-6 py-3 border-t border-gray-200 text-right text-gray-500 text-sm">
+                        <footer className="border-t border-gray-200 px-5 py-3 text-right text-sm text-gray-500 sm:px-6">
                             Creado el {safeFormat(vistaNota.creado_en, "d 'de' MMMM yyyy, HH:mm:ss")}
                         </footer>
                     </div>
@@ -867,18 +863,21 @@ export default function NotasPage() {
 
             {/* Modal crear/editar */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setModalOpen(false)}>
+                <div
+                    className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-6 sm:py-6"
+                    onClick={() => setModalOpen(false)}
+                >
                     <div
-                        className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl overflow-y-auto max-h-[90vh]"
+                        className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6 sm:max-h-[92vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 className="text-xl font-bold mb-4">{isEditing ? 'Editar nota' : 'Crear nota'}</h2>
+                        <h2 className="mb-4 text-xl font-bold">{isEditing ? 'Editar nota' : 'Crear nota'}</h2>
 
                         {/* Título */}
                         <input
                             type="text"
                             placeholder="Título"
-                            className="w-full border px-3 py-2 rounded mb-4"
+                            className="mb-4 w-full rounded border px-3 py-2"
                             value={titulo}
                             onChange={(e) => setTitulo(e.target.value)}
                             disabled={subiendo}
@@ -887,7 +886,7 @@ export default function NotasPage() {
                         {/* Contenido */}
                         <textarea
                             placeholder="Contenido"
-                            className="w-full border px-3 py-2 rounded h-24 mb-4"
+                            className="mb-4 h-24 w-full rounded border px-3 py-2"
                             value={contenido}
                             onChange={(e) => setContenido(e.target.value)}
                             disabled={subiendo}
@@ -895,13 +894,14 @@ export default function NotasPage() {
 
                         {/* Select citas relacionadas */}
                         <div className="mb-4">
-                            <label className="block mb-1 font-medium">Citas relacionadas</label>
+                            <label className="mb-1 block font-medium">Citas relacionadas</label>
                             <Select
                                 isMulti
                                 options={selectOptions}
-                                value={events
-                                    .filter((ev) => linkedIdsSet.has(String(ev.id)))
-                                    .map((ev) => ({ value: ev.id, label: ev.label }))}
+                                value={events.filter((ev) => linkedIdsSet.has(String(ev.id))).map((ev) => ({
+                                    value: ev.id,
+                                    label: ev.label,
+                                }))}
                                 onChange={(sel) => setLinkedEventIds(sel.map((o) => String(o.value)))}
                                 classNamePrefix="react-select"
                                 placeholder="Busca por mes…"
@@ -911,10 +911,10 @@ export default function NotasPage() {
 
                         {/* Imágenes */}
                         <div className="mb-4">
-                            <label className="block mb-1 font-medium">Imágenes (max 3)</label>
-                            <div className="flex gap-2 mb-2">
+                            <label className="mb-1 block font-medium">Imágenes (max 3)</label>
+                            <div className="mb-2 flex gap-2">
                                 {/* Cámara (móvil) */}
-                                <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded cursor-pointer">
+                                <label className="flex cursor-pointer items-center gap-2 rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
                                     📷
                                     <input
                                         type="file"
@@ -934,7 +934,7 @@ export default function NotasPage() {
                                 </label>
 
                                 {/* Galería */}
-                                <label className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded cursor-pointer">
+                                <label className="flex cursor-pointer items-center gap-2 rounded bg-gray-200 px-4 py-2 text-gray-800 hover:bg-gray-300">
                                     🖼️
                                     <input
                                         type="file"
@@ -956,16 +956,16 @@ export default function NotasPage() {
 
                             {/* Previews nuevas */}
                             {previews.length > 0 && (
-                                <div className="flex gap-2 mb-2">
+                                <div className="mb-2 flex flex-wrap gap-2">
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="w-16 h-16 rounded object-cover" alt="" />
+                                            <img src={url} className="h-16 w-16 rounded object-cover" alt="" />
                                             <button
                                                 onClick={() => {
                                                     setPreviews((p) => p.filter((_, idx) => idx !== i));
                                                     setFiles((f) => f.filter((_, idx) => idx !== i));
                                                 }}
-                                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                                                className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
                                                 disabled={subiendo}
                                                 title="Quitar"
                                             >
@@ -978,15 +978,15 @@ export default function NotasPage() {
 
                             {/* Imágenes existentes */}
                             {existingImages.length > 0 && (
-                                <div className="flex gap-2 mb-2">
+                                <div className="mb-2 flex flex-wrap gap-2">
                                     {existingImages.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="w-16 h-16 rounded object-cover" alt="" />
+                                            <img src={url} className="h-16 w-16 rounded object-cover" alt="" />
                                             <button
                                                 onClick={() => {
                                                     setExistingImages((e) => e.filter((u) => u !== url));
                                                 }}
-                                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                                                className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
                                                 disabled={subiendo}
                                                 title="Quitar"
                                             >
@@ -1000,14 +1000,10 @@ export default function NotasPage() {
 
                         {/* Botones acción */}
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-gray-300 rounded" disabled={subiendo}>
+                            <button onClick={() => setModalOpen(false)} className="rounded bg-gray-300 px-4 py-2" disabled={subiendo}>
                                 Cancelar
                             </button>
-                            <button
-                                onClick={guardar}
-                                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                                disabled={subiendo}
-                            >
+                            <button onClick={guardar} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" disabled={subiendo}>
                                 {isEditing ? 'Actualizar' : 'Guardar'}
                             </button>
                         </div>

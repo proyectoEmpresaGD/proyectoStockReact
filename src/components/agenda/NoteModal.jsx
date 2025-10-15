@@ -100,9 +100,9 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-8">
-            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden">
-                <div className="flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-slate-900/60 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-6 sm:py-8">
+            <div className="w-full max-w-4xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
+                <div className="flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)]">
                     <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                         <div className="space-y-1">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">

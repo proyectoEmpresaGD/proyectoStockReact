@@ -144,15 +144,20 @@
 
 /* ----------------- OVERRIDES MÓVIL ------------------ */
 @media (max-width: 767px) {
-  /* 1) Contenedor full-width */
-  .container.mx-auto {
-    max-width: 100% !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+  /* 1) Ajustes generales del contenedor */
+  .agenda-page-wrapper {
+    margin-top: 3.5rem !important;
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .agenda-responsive {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
   }
 
   /* 2) Toolbar apilada y centrada */
-  .rbc-toolbar {
+  .agenda-responsive .rbc-toolbar {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -160,19 +165,19 @@
     gap: 0.25rem !important;
   }
   /* 2a) Navegación (Hoy / Anterior / Siguiente) */
-  .rbc-toolbar .rbc-btn-group:first-child {
+  .agenda-responsive .rbc-toolbar .rbc-btn-group:first-child {
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
     gap: 0.25rem !important;
     margin-bottom: 0.5rem !important;
   }
-  .rbc-toolbar .rbc-btn-group:first-child button {
+  .agenda-responsive .rbc-toolbar .rbc-btn-group:first-child button {
     flex: 1 0 auto !important;
     min-width: 3.5rem !important;
   }
   /* 2b) Vistas (Mes / Semana / Día / Agenda) */
-  .rbc-toolbar .rbc-btn-group:nth-of-type(3) {
+  .agenda-responsive .rbc-toolbar .rbc-btn-group:nth-of-type(3) {
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
@@ -180,23 +185,19 @@
     margin-bottom: 0.5rem !important;
     overflow-x: auto !important;
   }
-  .rbc-toolbar .rbc-btn-group:nth-of-type(3) button {
+  .agenda-responsive .rbc-toolbar .rbc-btn-group:nth-of-type(3) button {
     flex: 1 0 auto !important;
     min-width: 4rem !important;
   }
-  /* 2c) Ocultar el botón “Semana” */
-  .rbc-toolbar .rbc-btn-group:nth-of-type(3) button:nth-child(2) {
-    display: none !important;
-  }
-  .rbc-toolbar-label {
+  .agenda-responsive .rbc-toolbar-label {
     font-size: 1rem !important;
     margin: 0.25rem 0 !important;
   }
 
   /* 3) Todas las vistas full-width */
-  .rbc-month-view,
-  .rbc-time-view,
-  .rbc-agenda-view {
+  .agenda-responsive .rbc-month-view,
+  .agenda-responsive .rbc-time-view,
+  .agenda-responsive .rbc-agenda-view {
     width: 100% !important;
     margin: 0 !important;
     padding: 0.5rem !important;
@@ -204,21 +205,21 @@
   }
 
   /* 4) Vista Mes: esconder cabeceras y agrandar celdas */
-  .rbc-month-view .rbc-header {
+  .agenda-responsive .rbc-month-view .rbc-header {
     display: none !important;
   }
-  .rbc-month-view .rbc-day-slot,
-  .rbc-month-view .rbc-row-bg .rbc-day-bg {
-    min-height: 220px !important;
-    height: 220px !important;
+  .agenda-responsive .rbc-month-view .rbc-day-slot,
+  .agenda-responsive .rbc-month-view .rbc-row-bg .rbc-day-bg {
+    min-height: 160px !important;
+    height: 160px !important;
   }
 
   /* 5) Vista Día (time-view): full-width, sin scroll horizontal, gutter sticky */
-  .rbc-time-view {
+  .agenda-responsive .rbc-time-view {
     width: 100% !important;
     overflow-x: hidden !important;
   }
-  .rbc-time-view .rbc-time-content-wrapper {
+  .agenda-responsive .rbc-time-view .rbc-time-content-wrapper {
     display: block !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
@@ -227,7 +228,7 @@
     border-radius: 0.5rem !important;
     max-height: 60vh !important;
   }
-  .rbc-time-view .rbc-time-gutter {
+  .agenda-responsive .rbc-time-view .rbc-time-gutter {
     position: sticky !important;
     top: 2.5rem !important;
     left: 0 !important;
@@ -236,11 +237,11 @@
     flex: 0 0 auto !important;
     min-width: 40px !important;
   }
-  .rbc-time-view .rbc-day-slot {
+  .agenda-responsive .rbc-time-view .rbc-day-slot {
     flex: 1 1 auto !important;
     min-width: 0 !important;
   }
-  .rbc-time-view .rbc-time-slot {
+  .agenda-responsive .rbc-time-view .rbc-time-slot {
     height: 50px !important;
     min-height: 50px !important;
   }
