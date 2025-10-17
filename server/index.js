@@ -21,6 +21,8 @@ import nodemailer from 'nodemailer';
 import { StockModel } from './models/Postgres/stock.js';
 import { createCalendarioRouter } from './routes/calendario.js';
 import { createNotasRouter } from './routes/notas.js';
+import { createVerifyRouter } from './routes/verify.js'
+import { verify } from 'crypto';
 
 
 const { Pool } = pg;
@@ -55,6 +57,7 @@ app.use('/api/libros', authMiddleware, createLibroRouter());
 app.use('/api/visits', authMiddleware, createVisitaRouter());
 app.use('/api/notas', createNotasRouter());
 app.use('/api/calendario', authMiddleware, createCalendarioRouter());
+app.use('/api/verify', createVerifyRouter());
 
 // Email transporter
 const transporter = nodemailer.createTransport({
