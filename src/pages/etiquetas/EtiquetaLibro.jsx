@@ -495,8 +495,12 @@ function EtiquetaLibro() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:{" "}
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ?? "N/A"}
+                        </span>
                     </p>
+
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
@@ -577,8 +581,12 @@ function EtiquetaLibro() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:{" "}
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ?? "N/A"}
+                        </span>
                     </p>
+
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>

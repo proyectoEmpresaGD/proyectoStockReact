@@ -180,7 +180,7 @@ function EtiquetasLibro35Tipo1() {
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
 
-            link.download = `${downloadCounter} ${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
             setDownloadCounter(prev => prev + 1);
 
             link.click();
@@ -373,7 +373,7 @@ function EtiquetasLibro35Tipo1() {
             </div>
             <div className="text-content text-[9px] grid grid-cols-3 w-[120%]">
                 <div>
-                    <p className="font-extrabold flex items-center">
+                    <p className="font-extrabold flex items-center w-[240px]">
                         Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -424,7 +424,7 @@ function EtiquetasLibro35Tipo1() {
             ref={printRef}
             className="bg-white p-4 rounded-lg flex flex-col justify-center"
             style={{
-                width: '15cm',
+                width: '13cm',
                 height: '4cm',
                 fontSize: '6px',
                 boxSizing: 'border-box',
@@ -448,17 +448,17 @@ function EtiquetasLibro35Tipo1() {
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>
-                <div>
+                <div className='flex justify-end items-start w-[250px] gap-2'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
-                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciones)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
-                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    <p className="font-extrabold flex items-center w-[240px]">
+                        Pattern: <span className="font-light ml-1 mb-[2px] ">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
                         Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
@@ -485,8 +485,12 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:{" "}
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ?? "N/A"}
+                        </span>
                     </p>
+
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
@@ -506,7 +510,7 @@ function EtiquetasLibro35Tipo1() {
             ref={printRef}
             className="bg-white p-4 rounded-lg flex flex-col justify-center"
             style={{
-                width: '15cm',
+                width: '13cm',
                 height: '4cm',
                 fontSize: '6px',
                 boxSizing: 'border-box',
@@ -533,12 +537,13 @@ function EtiquetasLibro35Tipo1() {
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
+                    <p className="font-extrabold flex items-center w-[240px]">
                         Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -564,8 +569,12 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:{" "}
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ?? "N/A"}
+                        </span>
                     </p>
+
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
@@ -585,7 +594,7 @@ function EtiquetasLibro35Tipo1() {
             ref={printRef}
             className="bg-white p-4 rounded-lg flex flex-col justify-center"
             style={{
-                width: '15cm',
+                width: '13cm',
                 height: '4cm',
                 fontSize: '6px',
                 boxSizing: 'border-box',
@@ -612,6 +621,7 @@ function EtiquetasLibro35Tipo1() {
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
+                    <div className="flex flex-wrap justify-end">{getDireccionImagesImportantes(selectedProduct.direcciontela)}</div>
                 </div>
             </div>
 
@@ -643,8 +653,12 @@ function EtiquetasLibro35Tipo1() {
                         </span>
                     </p>
                     <p className="font-extrabold flex items-center">
-                        Martindale: <span className="font-light ml-1 mb-[2px]">{selectedProduct.martindale}</span>
+                        Martindale:{" "}
+                        <span className="font-light ml-1 mb-[2px]">
+                            {selectedProduct.martindale ?? "N/A"}
+                        </span>
                     </p>
+
                 </div>
 
                 <div className="text-content text-[10px] relative left-[40px]">
@@ -665,15 +679,9 @@ function EtiquetasLibro35Tipo1() {
         const mantenimientoCount = (selectedProduct?.mantenimiento?.split(';') || []).length;
         const usosCount = (selectedProduct?.uso?.split(';') || []).length;
 
-        if (composicionLength > 30 && (mantenimientoCount > 6 || usosCount > 6)) {
-            return renderEtiquetaFormato3();
-        } else if (composicionLength > 30) {
-            return renderEtiquetaFormato2();
-        } else if (mantenimientoCount > 6 || usosCount > 6) {
-            return renderEtiquetaFormato4();
-        } else {
-            return renderEtiquetaFormato1();
-        }
+
+        return renderEtiquetaFormato2();
+
     };
 
     return (
