@@ -30,7 +30,7 @@
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.511.0",
     "moment-timezone": "^0.5.45",
-    "next": "^15.3.3",
+    "next": "15.3.6",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
     "pdf-lib": "^1.17.1",
