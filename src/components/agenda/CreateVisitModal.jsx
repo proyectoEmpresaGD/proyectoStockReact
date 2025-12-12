@@ -9,10 +9,10 @@ import InlineSpinner from '../common/InlineSpinner.jsx';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
-    const [rawClients, setRawClients] = useState([]);       // lista tal cual viene del API
-    const [sugerencias, setSugerencias] = useState([]);     // lista filtrada para el dropdown
-    const [busqueda, setBusqueda] = useState('');           // término de búsqueda
-    const [seleccion, setSeleccion] = useState(null);       // cliente seleccionado { codclien, razclien }
+    const [rawClients, setRawClients] = useState([]); // lista tal cual viene del API
+    const [sugerencias, setSugerencias] = useState([]); // lista filtrada para el dropdown
+    const [busqueda, setBusqueda] = useState(''); // término de búsqueda
+    const [seleccion, setSeleccion] = useState(null); // cliente seleccionado { codclien, razclien }
     const [descripcion, setDescripcion] = useState('');
     const [hora, setHora] = useState(() => {
         if (slot?.start) {
@@ -130,31 +130,44 @@ export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
             setSaving(true);
 
             // Solicitar permiso de notificaciones si aplica
-            if (notificarHora && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-                try { await Notification.requestPermission(); } catch { /* no-op */ }
+            const remindersMuted = (() => {
+                if (typeof window === 'undefined') return false;
+                try {
+                    return Boolean(JSON.parse(window.localStorage.getItem('agenda:reminders-muted')));
+                } catch {
+                    return false;
+                }
+            })();
+
+            if (notificarHora && !remindersMuted && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                try {
+                    await Notification.requestPermission();
+                } catch {
+                    /* no-op */
+                }
             }
 
-            const res = await fetch(
-                `${API_BASE_URL}/api/visits/client/${seleccion.codclien}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                }
-            );
+            const res = await fetch(`${API_BASE_URL}/api/visits/client/${seleccion.codclien}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
             let json = null;
             try {
                 json = await res.json();
             } catch {
                 json = null;
             }
+
             if (!res.ok) {
                 console.error('400 respuesta:', json);
                 throw new Error(json?.error || `HTTP ${res.status}`);
             }
+
             // Construyo el evento para el calendario
             const inicio2 = new Date(json.fecha);
             const newEvt = {
@@ -168,7 +181,7 @@ export default function CreateVisitModal({ token, slot, onClose, onCreate }) {
             onCreate(newEvt);
 
             // Notificación local si toca
-            if (notificarHora) {
+            if (notificarHora && !remindersMuted) {
                 const cuando = fechaNoti ? new Date(fechaNoti) : inicio2;
                 const ms = cuando.getTime() - Date.now();
                 if (Notification.permission === 'granted' && ms > 0 && ms < 86400000) {

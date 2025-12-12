@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import KPIGrid from './KPIGrid';
 import ColumnMenu from './ColumnMenu';
@@ -30,14 +29,18 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     const [sortOrder, setSortOrder] = useState('newest');
     const [filtered, setFiltered] = useState([]);
     const [totalBilling, setTotalBilling] = useState(0);
+
     // Facturación total (solo depende del año)
     const totalBillingFixed =
         selectedYear === 'All'
             ? purchased.reduce((sum, p) => sum + +p.importeDescuento, 0)
             : purchased
-                .filter(p => new Date(p.fecha).getFullYear().toString() === selectedYear)
+                .filter(
+                    (p) =>
+                        new Date(p.fecha).getFullYear().toString() ===
+                        selectedYear
+                )
                 .reduce((sum, p) => sum + +p.importeDescuento, 0);
-
 
     // Facturación filtrada (la que ya tienes)
     const yearlyBilling = filtered.reduce(
@@ -45,9 +48,9 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         0
     );
 
-
-
-    const [visibleCols, setVisibleCols] = useState(ALL_COLUMNS.map(c => c.key));
+    const [visibleCols, setVisibleCols] = useState(
+        ALL_COLUMNS.map((c) => c.key)
+    );
 
     // 1) Fetch stock once
     useEffect(() => {
@@ -55,9 +58,13 @@ export default function PurchasedTab({ client, updateClientBilling }) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
-                .then(r => r.json())
-                .then(data => {
+                .then((r) => r.json())
+                .then((data) => {
                     setStockData(data);
+                    setStockFetched(true);
+                })
+                .catch(() => {
+                    setStockData([]);
                     setStockFetched(true);
                 });
         }
@@ -66,35 +73,40 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     // 2) Fetch ventas del cliente
     const fetchSales = useCallback(async () => {
         if (!client) return;
-        const res = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!res.ok) {
+        try {
+            const res = await fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) {
+                setPurchased([]);
+                setYearOptions(['All']);
+                return;
+            }
+            const data = await res.json();
+            const withDisc = data.map((p) => {
+                let imp = +p.importe || 0;
+                [p.dt1, p.dt2, p.dt3].forEach((d) => {
+                    if (d > 0) imp *= 1 - Math.floor(d) / 100;
+                });
+                return {
+                    ...p,
+                    importeDescuento: imp.toFixed(2),
+                    dt1: Math.floor(p.dt1 || 0),
+                };
+            });
+            setPurchased(withDisc);
+
+            const yrs = Array.from(
+                new Set(withDisc.map((x) => new Date(x.fecha).getFullYear()))
+            )
+                .sort((a, b) => b - a)
+                .map(String);
+            setYearOptions(['All', ...yrs]);
+        } catch {
             setPurchased([]);
             setYearOptions(['All']);
-            return;
         }
-        const data = await res.json();
-        const withDisc = data.map(p => {
-            let imp = +p.importe || 0;
-            [p.dt1, p.dt2, p.dt3].forEach(d => {
-                if (d > 0) imp *= 1 - Math.floor(d) / 100;
-            });
-            return {
-                ...p,
-                importeDescuento: imp.toFixed(2),
-                dt1: Math.floor(p.dt1 || 0),
-            };
-        });
-        setPurchased(withDisc);
-
-        const yrs = Array.from(
-            new Set(withDisc.map(x => new Date(x.fecha).getFullYear()))
-        )
-            .sort((a, b) => b - a)
-            .map(String);
-        setYearOptions(['All', ...yrs]);
     }, [client, token]);
 
     useEffect(() => {
@@ -104,11 +116,12 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     // 3) Merge stock into cada venta
     useEffect(() => {
         if (stockFetched) {
-            setPurchased(ps =>
-                ps.map(x => ({
+            setPurchased((ps) =>
+                ps.map((x) => ({
                     ...x,
                     stockactual:
-                        stockData.find(s => s.codprodu === x.codprodu)?.stockactual || '0',
+                        stockData.find((s) => s.codprodu === x.codprodu)
+                            ?.stockactual || '0',
                 }))
             );
         }
@@ -116,7 +129,10 @@ export default function PurchasedTab({ client, updateClientBilling }) {
 
     // 4) Calcular facturación total
     useEffect(() => {
-        const total = purchased.reduce((s, p) => s + +p.importeDescuento, 0);
+        const total = purchased.reduce(
+            (s, p) => s + +p.importeDescuento,
+            0
+        );
         setTotalBilling(total);
         updateClientBilling?.(client.codclien, total);
     }, [purchased, client, updateClientBilling]);
@@ -127,14 +143,17 @@ export default function PurchasedTab({ client, updateClientBilling }) {
 
         if (selectedYear !== 'All') {
             tmp = tmp.filter(
-                p => new Date(p.fecha).getFullYear().toString() === selectedYear
+                (p) =>
+                    new Date(p.fecha)
+                        .getFullYear()
+                        .toString() === selectedYear
             );
         }
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             tmp = tmp.filter(
-                p =>
+                (p) =>
                     p.desprodu?.toLowerCase().includes(q) ||
                     p.npedventa?.toString().includes(q)
             );
@@ -144,13 +163,17 @@ export default function PurchasedTab({ client, updateClientBilling }) {
             tmp =
                 selectedFilter === 'TELAS'
                     ? tmp.filter(
-                        p =>
-                            !['LIBRO', 'PERCHA', 'QUALITY'].some(w =>
-                                p.desprodu?.toUpperCase().includes(w)
+                        (p) =>
+                            !['LIBRO', 'PERCHA', 'QUALITY'].some((w) =>
+                                p.desprodu
+                                    ?.toUpperCase()
+                                    .includes(w)
                             )
                     )
-                    : tmp.filter(p =>
-                        p.desprodu?.toUpperCase().includes(selectedFilter)
+                    : tmp.filter((p) =>
+                        p.desprodu
+                            ?.toUpperCase()
+                            .includes(selectedFilter)
                     );
         }
 
@@ -163,33 +186,67 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         });
 
         setFiltered(tmp);
-    }, [
-        purchased,
-        selectedYear,
-        searchQuery,
-        selectedFilter,
-        sortOrder,
-    ]);
+    }, [purchased, selectedYear, searchQuery, selectedFilter, sortOrder]);
 
-    // 6) Exportar a Excel
+    // 6) Exportar a "Excel" (CSV sin librerías externas)
     const exportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(
-            filtered.map(p => ({
-                Código: p.codprodu,
-                Descripción: p.desprodu,
-                Cantidad: p.cantidad,
-                Precio: p.precio,
-                'Dto %': p.dt1,
-                'Importe €': p.importeDescuento,
-                Fecha: new Date(p.fecha).toLocaleString(),
-            }))
+        if (!filtered.length) return;
+
+        const rows = [
+            [
+                'Código',
+                'Descripción',
+                'Cantidad',
+                'Precio',
+                'Dto %',
+                'Importe €',
+                'Fecha',
+            ],
+            ...filtered.map((p) => [
+                p.codprodu ?? '',
+                p.desprodu ?? '',
+                p.cantidad ?? '',
+                p.precio ?? '',
+                p.dt1 ?? '',
+                p.importeDescuento ?? '',
+                new Date(p.fecha).toLocaleString(),
+            ]),
+        ];
+
+        // Usamos ; como separador (más amigable para Excel en es-ES)
+        const csvContent = rows
+            .map((row) =>
+                row
+                    .map((value) => {
+                        const v =
+                            value === null || value === undefined
+                                ? ''
+                                : String(value);
+                        // Escapar comillas dobles
+                        const escaped = v.replace(/"/g, '""');
+                        return `"${escaped}"`;
+                    })
+                    .join(';')
+            )
+            .join('\r\n');
+
+        const blob = new Blob([csvContent], {
+            type: 'text/csv;charset=utf-8;',
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const yearPart = selectedYear || 'All';
+
+        link.href = url;
+        link.setAttribute(
+            'download',
+            `Ventas_${client?.codclien ?? 'cliente'}_${yearPart}.csv`
         );
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-        XLSX.writeFile(
-            wb,
-            `Ventas_${client.codclien}_${selectedYear}.xlsx`
-        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -197,10 +254,9 @@ export default function PurchasedTab({ client, updateClientBilling }) {
             {/* KPIs */}
             <KPIGrid
                 purchased={filtered}
-                totalBilling={totalBillingFixed}          // total global (sin filtros)
-                billingWithFilters={yearlyBilling}        // total con filtros
+                totalBilling={totalBillingFixed} // total global (sin filtros)
+                billingWithFilters={yearlyBilling} // total con filtros
             />
-
 
             {/* Barra de controles: búsqueda + filtros */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -209,7 +265,9 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     <input
                         type="text"
                         value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
+                        onChange={(e) =>
+                            setSearchQuery(e.target.value)
+                        }
                         placeholder="Buscar en resultados…"
                         className="w-full border rounded-lg px-3 py-2 text-sm pr-10"
                     />
@@ -219,19 +277,27 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 {/* Año */}
                 <select
                     value={selectedYear}
-                    onChange={e => setSelectedYear(e.target.value)}
+                    onChange={(e) =>
+                        setSelectedYear(e.target.value)
+                    }
                     className="border rounded-lg px-3 py-2 text-sm"
                 >
-                    {yearOptions.map(y => (
-                        <option key={y} value={y}>{y}</option>
+                    {yearOptions.map((y) => (
+                        <option key={y} value={y}>
+                            {y}
+                        </option>
                     ))}
                 </select>
 
                 {/* Filtros de tipo */}
-                {FILTERS.map(f => (
+                {FILTERS.map((f) => (
                     <button
                         key={f}
-                        onClick={() => setSelectedFilter(s => (s === f ? '' : f))}
+                        onClick={() =>
+                            setSelectedFilter((s) =>
+                                s === f ? '' : f
+                            )
+                        }
                         className={`px-3 py-2 rounded-lg text-sm font-medium ${selectedFilter === f
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-200 hover:bg-gray-300'
@@ -244,11 +310,15 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 {/* Orden (fecha/cantidad) */}
                 <button
                     onClick={() =>
-                        setSortOrder(o => (o === 'newest' ? 'oldest' : 'newest'))
+                        setSortOrder((o) =>
+                            o === 'newest' ? 'oldest' : 'newest'
+                        )
                     }
                     className="flex items-center gap-1 px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm ml-auto"
                 >
-                    {sortOrder === 'newest' ? 'Recientes' : 'Antiguas'}
+                    {sortOrder === 'newest'
+                        ? 'Recientes'
+                        : 'Antiguas'}
                     {sortOrder === 'newest' ? (
                         <FiChevronDown />
                     ) : (
@@ -256,7 +326,7 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     )}
                 </button>
 
-                {/* Exportar Excel */}
+                {/* Exportar Excel (CSV) */}
                 <button
                     onClick={exportToExcel}
                     className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
@@ -277,10 +347,13 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 <table className="min-w-full text-sm bg-white">
                     <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                            {ALL_COLUMNS.filter(c =>
+                            {ALL_COLUMNS.filter((c) =>
                                 visibleCols.includes(c.key)
-                            ).map(c => (
-                                <th key={c.key} className="px-3 py-2 text-left">
+                            ).map((c) => (
+                                <th
+                                    key={c.key}
+                                    className="px-3 py-2 text-left"
+                                >
                                     {c.label}
                                 </th>
                             ))}
@@ -289,19 +362,38 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                     <tbody>
                         {filtered.length > 0 ? (
                             filtered.map((p, idx) => (
-                                <tr key={idx} className="border-b hover:bg-gray-50">
-                                    {visibleCols.includes('desprodu') && (
-                                        <td className="px-3 py-2">{p.desprodu}</td>
-                                    )}
-                                    {visibleCols.includes('npedventa') && (
-                                        <td className="px-3 py-2">{p.npedventa}</td>
-                                    )}
-                                    {visibleCols.includes('cantidad') && (
-                                        <td className="px-3 py-2">{p.cantidad}</td>
-                                    )}
-                                    {visibleCols.includes('precio') && (
-                                        <td className="px-3 py-2">{p.precio}</td>
-                                    )}
+                                <tr
+                                    key={idx}
+                                    className="border-b hover:bg-gray-50"
+                                >
+                                    {visibleCols.includes(
+                                        'desprodu'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {p.desprodu}
+                                            </td>
+                                        )}
+                                    {visibleCols.includes(
+                                        'npedventa'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {p.npedventa}
+                                            </td>
+                                        )}
+                                    {visibleCols.includes(
+                                        'cantidad'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {p.cantidad}
+                                            </td>
+                                        )}
+                                    {visibleCols.includes(
+                                        'precio'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {p.precio}
+                                            </td>
+                                        )}
                                     {visibleCols.includes('dt1') && (
                                         <td className="px-3 py-2">
                                             {p.dt1 > 0 ? (
@@ -313,25 +405,43 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                                             )}
                                         </td>
                                     )}
-                                    {visibleCols.includes('importeDescuento') && (
-                                        <td className="px-3 py-2">{p.importeDescuento}</td>
-                                    )}
-                                    {visibleCols.includes('stockactual') && (
-                                        <td className="px-3 py-2">
-                                            {(Number(p.stockactual) || 0).toFixed(2) < 10 ? (
-                                                <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                                                    {(Number(p.stockactual) || 0).toFixed(2)}
-                                                </span>
-                                            ) : (
-                                                Number(p.stockactual).toFixed(2)
-                                            )}
-                                        </td>
-                                    )}
-                                    {visibleCols.includes('fecha') && (
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {new Date(p.fecha).toLocaleDateString()}
-                                        </td>
-                                    )}
+                                    {visibleCols.includes(
+                                        'importeDescuento'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {p.importeDescuento}
+                                            </td>
+                                        )}
+                                    {visibleCols.includes(
+                                        'stockactual'
+                                    ) && (
+                                            <td className="px-3 py-2">
+                                                {(Number(
+                                                    p.stockactual
+                                                ) || 0).toFixed(2) < 10 ? (
+                                                    <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                                                        {(
+                                                            Number(
+                                                                p.stockactual
+                                                            ) || 0
+                                                        ).toFixed(2)}
+                                                    </span>
+                                                ) : (
+                                                    Number(
+                                                        p.stockactual
+                                                    ).toFixed(2)
+                                                )}
+                                            </td>
+                                        )}
+                                    {visibleCols.includes(
+                                        'fecha'
+                                    ) && (
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                {new Date(
+                                                    p.fecha
+                                                ).toLocaleDateString()}
+                                            </td>
+                                        )}
                                 </tr>
                             ))
                         ) : (

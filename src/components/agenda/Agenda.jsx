@@ -27,6 +27,7 @@ import CreateVisitModal from './CreateVisitModal';
 import VisitDetailsModal from './VisitDetailsModal';
 import DayEventsModal from './DayEventsModal';
 import RemindersPanel from './RemindersPanel';
+import PendingVisitsModal from './PendingVisitsModal';
 
 ////////////////////////////////////////////////////////////////////////////////
 // Custom Toolbar
@@ -92,8 +93,8 @@ function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
                                 key={btn.value}
                                 onClick={() => onView(btn.value)}
                                 className={`h-10 w-20 rounded-lg text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-200 ${view === btn.value
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 {btn.label}
@@ -214,6 +215,16 @@ export default function AgendaPage() {
         }
     });
 
+    const [remindersMuted, setRemindersMuted] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            const stored = window.localStorage.getItem('agenda:reminders-muted');
+            return stored ? JSON.parse(stored) : false;
+        } catch {
+            return false;
+        }
+    });
+
     const supportsNotifications =
         typeof window !== 'undefined' && 'Notification' in window;
     const [reminderPermission, setReminderPermission] = useState(() => {
@@ -244,6 +255,15 @@ export default function AgendaPage() {
             /* no-op */
         }
     }, [dismissedReminders]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            window.localStorage.setItem('agenda:reminders-muted', JSON.stringify(remindersMuted));
+        } catch {
+            /* no-op */
+        }
+    }, [remindersMuted]);
 
     // 1️⃣ Carga visitas
     const fetchVisits = useCallback(
@@ -376,7 +396,7 @@ export default function AgendaPage() {
 
     // Notificaciones nativas
     const scheduleNativeNotifications = useCallback(() => {
-        if (!supportsNotifications || reminderPermission !== 'granted') return;
+        if (remindersMuted || !supportsNotifications || reminderPermission !== 'granted') return;
         const delivered = deliveredNotificationsRef.current;
         const now = Date.now();
         const timers = [];
@@ -425,7 +445,7 @@ export default function AgendaPage() {
         return () => {
             timers.forEach(id => window.clearTimeout(id));
         };
-    }, [eventos, reminderPermission, supportsNotifications]);
+    }, [eventos, reminderPermission, remindersMuted, supportsNotifications]);
 
     useEffect(() => {
         const cleanup = scheduleNativeNotifications();
@@ -447,6 +467,10 @@ export default function AgendaPage() {
             console.error('No se pudo solicitar permiso de notificaciones', error);
         }
     }, [supportsNotifications]);
+
+    const toggleRemindersMuted = useCallback(() => {
+        setRemindersMuted(prev => !prev);
+    }, []);
 
     // 3️⃣ Click/tap en un día
     const handleDayClick = useCallback(
@@ -538,6 +562,40 @@ export default function AgendaPage() {
         return 'bg-blue-600';
     };
 
+    const pendingVisits = useMemo(() => {
+        return eventos
+            .filter(ev => ev.estado !== 'completada')
+            .slice()
+            .sort((a, b) => {
+                const startA = a.start || (a.fecha ? new Date(a.fecha) : null);
+                const startB = b.start || (b.fecha ? new Date(b.fecha) : null);
+                if (startA && startB) return startA - startB;
+                return 0;
+            });
+    }, [eventos]);
+
+    const [showPendingModal, setShowPendingModal] = useState(false);
+    const openPendingModal = useCallback(() => setShowPendingModal(true), []);
+    const closePendingModal = useCallback(() => setShowPendingModal(false), []);
+
+    const remindersForPanel = remindersMuted ? {} : upcomingReminders;
+
+    const summaryCards = useMemo(
+        () => [
+            { label: 'Visitas hoy', value: resumen.hoy, emoji: '☀️' },
+            { label: 'Semana en curso', value: resumen.semana, emoji: '📅' },
+            {
+                label: 'Pendientes',
+                value: resumen.pendientes,
+                emoji: '⏳',
+                action: openPendingModal,
+                helper: 'Ver todas las citas pendientes'
+            },
+            { label: 'Completadas', value: resumen.completadas, emoji: '✅' }
+        ],
+        [openPendingModal, resumen]
+    );
+
     // 7️⃣ Render de cada visita (tooltip nativo)
     const EventComponent = ({ event }) => {
         const time =
@@ -608,17 +666,32 @@ export default function AgendaPage() {
 
             {/* Resumen */}
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                    { label: 'Visitas hoy', value: resumen.hoy, emoji: '☀️' },
-                    { label: 'Semana en curso', value: resumen.semana, emoji: '📅' },
-                    { label: 'Pendientes', value: resumen.pendientes, emoji: '⏳' },
-                    { label: 'Completadas', value: resumen.completadas, emoji: '✅' }
-                ].map(card => (
+                {summaryCards.map(card => (
                     <article
                         key={card.label}
-                        className="bg-white shadow rounded-xl px-5 py-4 border border-slate-100"
+                        role={card.action ? 'button' : undefined}
+                        tabIndex={card.action ? 0 : undefined}
+                        onClick={card.action}
+                        onKeyDown={event => {
+                            if (!card.action) return;
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                card.action();
+                            }
+                        }}
+                        className={`bg-white shadow rounded-xl px-5 py-4 border border-slate-100 ${card.action
+                                ? 'cursor-pointer transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-300'
+                                : ''
+                            }`}
                     >
-                        <p className="text-sm text-slate-500">{card.label}</p>
+                        <p className="text-sm text-slate-500 flex items-center justify-between gap-2">
+                            <span>{card.label}</span>
+                            {card.helper && (
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                                    {card.helper}
+                                </span>
+                            )}
+                        </p>
                         <p className="mt-2 text-2xl font-semibold text-slate-900 flex items-center gap-2">
                             <span>{card.emoji}</span>
                             {card.value}
@@ -630,12 +703,14 @@ export default function AgendaPage() {
             {/* Panel de recordatorios */}
             <RemindersPanel
                 windows={REMINDER_WINDOWS}
-                remindersByWindow={upcomingReminders}
+                remindersByWindow={remindersForPanel}
                 onDismiss={handleDismissReminder}
                 onOpenVisit={handleSelectVisit}
                 supportsNotifications={supportsNotifications}
                 permission={reminderPermission}
                 onEnableNotifications={handleEnableNotifications}
+                muted={remindersMuted}
+                onToggleMute={toggleRemindersMuted}
             />
 
             <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
@@ -744,7 +819,9 @@ export default function AgendaPage() {
                                                     {evento.descripcion || 'Visita sin título'}
                                                 </p>
                                                 <span
-                                                    className={`text-xs font-medium text-white px-2 py-1 rounded-full ${evento.estado === 'completada' ? 'bg-emerald-500' : 'bg-blue-600'
+                                                    className={`text-xs font-medium text-white px-2 py-1 rounded-full ${evento.estado === 'completada'
+                                                            ? 'bg-emerald-500'
+                                                            : 'bg-blue-600'
                                                         }`}
                                                 >
                                                     {evento.estado === 'completada' ? 'Completada' : 'Pendiente'}
@@ -770,6 +847,17 @@ export default function AgendaPage() {
                     </div>
                 </aside>
             </section>
+
+            {showPendingModal && (
+                <PendingVisitsModal
+                    visits={pendingVisits}
+                    onClose={closePendingModal}
+                    onSelect={visit => {
+                        setSelectedVisit(visit);
+                        closePendingModal();
+                    }}
+                />
+            )}
 
             {/* Modal: día con visitas */}
             {dayEvents && (

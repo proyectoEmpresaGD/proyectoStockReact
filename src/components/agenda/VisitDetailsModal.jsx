@@ -84,9 +84,18 @@ export default function VisitDetailsModal({
     };
 
     const scheduleNotification = () => {
+        const remindersMuted = (() => {
+            if (typeof window === 'undefined') return false;
+            try {
+                return Boolean(JSON.parse(window.localStorage.getItem('agenda:reminders-muted')));
+            } catch {
+                return false;
+            }
+        })();
+
         const when = new Date(scheduleAlertAt);
         const ms = when.getTime() - Date.now();
-        if (Notification.permission === 'granted' && ms > 0 && ms < 86400000) {
+        if (!remindersMuted && Notification.permission === 'granted' && ms > 0 && ms < 86400000) {
             setTimeout(
                 () =>
                     new Notification('📅 Recordatorio', {

@@ -4,12 +4,35 @@ import path from "path";
 import { Readable } from "stream";
 import slugifyLib from "slugify";
 import { NotasModel } from "../models/Postgres/notas.js";
+import { validateNota, validatePartialNota } from "../schemas/notas.js";
 
 const FTP_BASE = process.env.FTP_BASE_PATH;     // ej: /CALENDARIO
 const IMG_BASE_URL = process.env.IMG_BASE_URL;  // ej: https://bassari.eu/CALENDARIO
 
 function slugify(text) {
     return slugifyLib(text, { lower: true, strict: true });
+}
+
+function normalizeEventos(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw == null) return [];
+    return [raw];
+}
+
+async function filterOwnedEvents(eventos, userId) {
+    const numericIds = [...new Set(
+        eventos
+            .map((ev) => Number(ev))
+            .filter((n) => Number.isInteger(n) && n > 0)
+    )];
+
+    if (numericIds.length === 0) return { filtered: [], rejected: [] };
+
+    const citas = await NotasModel.getCitasDeUsuario(userId);
+    const allowed = new Set(citas.map((c) => Number(c.id)));
+    const filtered = numericIds.filter((id) => allowed.has(id));
+    const rejected = numericIds.filter((id) => !allowed.has(id));
+    return { filtered, rejected };
 }
 
 async function withFtp(fn) {
@@ -67,26 +90,31 @@ export class NotasController {
         const idusuario = req.user.id;
         const { titulo, contenido } = req.body;
 
-        const eventos = Array.isArray(req.body["eventos[]"])
-            ? req.body["eventos[]"]
-            : Array.isArray(req.body.eventos)
-                ? req.body.eventos
-                : req.body.eventos
-                    ? [req.body.eventos]
-                    : [];
+        const eventosBody = normalizeEventos(req.body["eventos[]"] ?? req.body.eventos);
 
-        if (!titulo?.trim() || !contenido?.trim()) {
-            return res.status(400).json({ error: "Título y contenido obligatorios" });
+        const { success, error: validationError, value: safeBody } = validateNota({ titulo, contenido });
+        if (!success) return res.status(400).json({ error: validationError.message });
+
+        let eventos;
+        try {
+            const { filtered, rejected } = await filterOwnedEvents(eventosBody, idusuario);
+            if (rejected.length > 0) {
+                return res.status(400).json({ error: "Algunas citas no pertenecen al usuario autenticado" });
+            }
+            eventos = filtered;
+        } catch (err) {
+            console.error("❌ Error validando eventos vinculados:", err);
+            return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
         }
 
         const now = new Date();
-        const slugBase = slugify(titulo).slice(0, 50) || `nota-${Date.now()}`;
+        const slugBase = slugify(safeBody.titulo).slice(0, 50) || `nota-${Date.now()}`;
 
         // 1) Crear en DB primero
         let notaDB;
         try {
             notaDB = await NotasModel.create({
-                input: { titulo, contenido, idusuario, eventos },
+                input: { ...safeBody, idusuario, eventos },
             });
         } catch (err) {
             console.error("❌ DB create nota error:", err);
@@ -176,13 +204,7 @@ export class NotasController {
         const id = Number(req.params.id);
         const { titulo, contenido } = req.body;
 
-        const eventos = Array.isArray(req.body["eventos[]"])
-            ? req.body["eventos[]"]
-            : Array.isArray(req.body.eventos)
-                ? req.body.eventos
-                : req.body.eventos
-                    ? [req.body.eventos]
-                    : [];
+        const eventosBody = normalizeEventos(req.body["eventos[]"] ?? req.body.eventos);
 
         const keepList = req.body.keep_imagenes || req.body["keep_imagenes[]"] || [];
         const removedList = req.body.removed_images || req.body["removed_images[]"] || [];
@@ -194,6 +216,21 @@ export class NotasController {
             if (!nota) return res.status(404).json({ error: "Nota no encontrada" });
             if (nota.idusuario !== requesterId) {
                 return res.status(403).json({ error: "Prohibido" });
+            }
+
+            const { success, error: validationError, value: safeBody } = validatePartialNota({ titulo, contenido });
+            if (!success) return res.status(400).json({ error: validationError.message });
+
+            let eventos;
+            try {
+                const { filtered, rejected } = await filterOwnedEvents(eventosBody, requesterId);
+                if (rejected.length > 0) {
+                    return res.status(400).json({ error: "Alguna de las citas vinculadas no pertenece a tu usuario" });
+                }
+                eventos = filtered;
+            } catch (err) {
+                console.error("❌ Error validando eventos vinculados (update):", err);
+                return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
             }
 
             const fecha = new Date(nota.fechacreado);
@@ -214,7 +251,8 @@ export class NotasController {
             const currentNames = Array.isArray(nota.imagenes) ? nota.imagenes : [];
             let keepArray;
             if (keepArrayRaw.length > 0) {
-                keepArray = keepArrayRaw;
+                const currentSet = new Set(currentNames);
+                keepArray = keepArrayRaw.filter((name) => currentSet.has(name));
             } else if (removedArray.length > 0) {
                 const removedSet = new Set(removedArray);
                 keepArray = currentNames.filter((name) => !removedSet.has(name));
@@ -225,6 +263,11 @@ export class NotasController {
 
             const nuevas = [];
             const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
+
+            const incomingFiles = Array.isArray(req.files) ? req.files.length : 0;
+            if (keepArray.length + incomingFiles > 3) {
+                return res.status(400).json({ error: "Máximo 3 imágenes por nota" });
+            }
 
             if (ftpReady) {
                 try {
@@ -257,8 +300,8 @@ export class NotasController {
 
             // Construimos input solo con campos definidos para no sobreescribir con undefined
             const inputUpdate = { fechaactualizado: new Date(), imagenes, eventos };
-            if (typeof titulo === "string") inputUpdate.titulo = titulo;
-            if (typeof contenido === "string") inputUpdate.contenido = contenido;
+            if (typeof safeBody.titulo === "string") inputUpdate.titulo = safeBody.titulo;
+            if (typeof safeBody.contenido === "string") inputUpdate.contenido = safeBody.contenido;
 
             const actualizado = await NotasModel.update({
                 id,

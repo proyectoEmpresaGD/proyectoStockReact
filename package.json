@@ -17,7 +17,7 @@
     "axios": "^1.9.0",
     "busboy": "^1.6.0",
     "canvg": "^4.0.2",
-    "chrome-aws-lambda": "^9.1.0",
+    "chrome-aws-lambda": "^1.20.1",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
@@ -32,10 +32,10 @@
     "moment-timezone": "^0.5.45",
     "next": "^15.3.3",
     "node-cron": "^3.0.3",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^7.0.11",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.3",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^5.4.449",
     "piexifjs": "^1.0.6",
     "react": "^18.2.0",
     "react-big-calendar": "^1.19.2",
@@ -50,8 +50,7 @@
     "react-simple-maps": "^3.0.0",
     "react-toastify": "^11.0.5",
     "react-tooltip": "^5.29.1",
-    "uuid": "^11.1.0",
-    "xlsx": "^0.18.5"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",

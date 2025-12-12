@@ -335,8 +335,16 @@ export default function NotasPage() {
             });
     };
 
-    const guardar = () => {
-        if (!titulo.trim() || !contenido.trim()) {
+    const guardar = async () => {
+        if (subiendo) return;
+
+        const tituloLimpio = titulo.trim();
+        const contenidoLimpio = contenido.trim();
+        const eventosUnicos = Array.from(
+            new Set(linkedEventIds.map((id) => String(id).trim()).filter(Boolean))
+        );
+
+        if (!tituloLimpio || !contenidoLimpio) {
             setFeedback({ type: 'error', message: 'Título y contenido son obligatorios.' });
             return;
         }
@@ -348,60 +356,65 @@ export default function NotasPage() {
 
         setSubiendo(true);
 
-        const form = new FormData();
-        form.append('titulo', titulo);
-        form.append('contenido', contenido);
-        linkedEventIds.forEach((id) => form.append('eventos[]', String(id)));
+        try {
+            const form = new FormData();
+            form.append('titulo', tituloLimpio);
+            form.append('contenido', contenidoLimpio);
+            eventosUnicos.forEach((id) => form.append('eventos[]', id));
 
-        if (isEditing) {
-            existingImages.forEach((url) => {
-                const filename = decodeURIComponent(url.split('/').pop().split('?')[0]);
-                form.append('keep_imagenes[]', filename);
+            if (isEditing) {
+                existingImages.forEach((url) => {
+                    const filename = decodeURIComponent(url.split('/').pop().split('?')[0]);
+                    form.append('keep_imagenes[]', filename);
+                });
+            }
+
+            files.forEach((f) => form.append('imagenes', f));
+
+            const url = isEditing ? `${API_BASE_URL}/api/notas/${editId}` : `${API_BASE_URL}/api/notas`;
+            const response = await fetch(url, {
+                method: isEditing ? 'PATCH' : 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form,
             });
+
+            if (response.status === 401) {
+                navigate('/login');
+                throw new Error('Unauthorized');
+            }
+
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(body?.error || 'Error guardando nota');
+            }
+
+            const newNota = body;
+            const norm = {
+                ...newNota,
+                eventos: Array.isArray(newNota.eventos) ? newNota.eventos : [],
+                imagenes: Array.isArray(newNota.imagenes) ? newNota.imagenes : [],
+                creado_en: newNota.fechacreado || new Date().toISOString(),
+                actualizado_en: newNota.fechaactualizado || null,
+            };
+
+            setNotas((prev) => {
+                const arr = isEditing ? prev.map((n) => (n.id === editId ? norm : n)) : [norm, ...prev];
+                return arr.sort((a, b) => ts(b) - ts(a));
+            });
+
+            setModalOpen(false);
+            setFeedback({
+                type: 'success',
+                message: isEditing ? 'Cambios guardados correctamente.' : 'Nota creada con éxito.',
+            });
+
+            await fetchNotas();
+        } catch (error) {
+            console.error(error);
+            setFeedback({ type: 'error', message: error.message || 'Error guardando nota.' });
+        } finally {
+            setSubiendo(false);
         }
-
-        files.forEach((f) => form.append('imagenes', f));
-
-        const url = isEditing ? `${API_BASE_URL}/api/notas/${editId}` : `${API_BASE_URL}/api/notas`;
-        fetch(url, {
-            method: isEditing ? 'PATCH' : 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-        })
-            .then(async (r) => {
-                if (r.status === 401) {
-                    navigate('/login');
-                    throw new Error('Unauthorized');
-                }
-                if (!r.ok) {
-                    const errBody = await r.json().catch(() => ({}));
-                    throw new Error(errBody?.error || 'Error guardando nota');
-                }
-                return r.json();
-            })
-            .then((newNota) => {
-                const norm = {
-                    ...newNota,
-                    eventos: Array.isArray(newNota.eventos) ? newNota.eventos : [],
-                    imagenes: Array.isArray(newNota.imagenes) ? newNota.imagenes : [],
-                    creado_en: newNota.fechacreado || new Date().toISOString(),
-                    actualizado_en: newNota.fechaactualizado || null,
-                };
-                setNotas((prev) => {
-                    const arr = isEditing ? prev.map((n) => (n.id === editId ? norm : n)) : [norm, ...prev];
-                    return arr.sort((a, b) => ts(b) - ts(a));
-                });
-                setModalOpen(false);
-                setFeedback({
-                    type: 'success',
-                    message: isEditing ? 'Cambios guardados correctamente.' : 'Nota creada con éxito.',
-                });
-            })
-            .catch((e) => {
-                console.error(e);
-                setFeedback({ type: 'error', message: e.message || 'Error guardando nota.' });
-            })
-            .finally(() => setSubiendo(false));
     };
 
     // Vista previa
@@ -445,12 +458,18 @@ export default function NotasPage() {
                     <p>Ocurrió un problema al actualizar los datos.</p>
                     <div className="flex flex-wrap gap-2">
                         {errorNotas && (
-                            <button onClick={retryNotas} className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700">
+                            <button
+                                onClick={retryNotas}
+                                className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+                            >
                                 Reintentar notas
                             </button>
                         )}
                         {errorEvents && (
-                            <button onClick={retryEventos} className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700">
+                            <button
+                                onClick={retryEventos}
+                                className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+                            >
                                 Reintentar visitas
                             </button>
                         )}
@@ -472,20 +491,26 @@ export default function NotasPage() {
             <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-5 shadow md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">📝 Mis Notas</h1>
-                    <p className="text-sm text-gray-500">Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.</p>
+                    <p className="text-sm text-gray-500">
+                        Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.
+                    </p>
                 </div>
                 <div className="w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end md:w-auto">
                     <div className="inline-flex w-full rounded-lg border border-gray-200 bg-gray-100 p-1 sm:w-auto">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-indigo-600'
+                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'grid'
+                                ? 'bg-white text-indigo-600 shadow'
+                                : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
                             🗂️ Tarjetas
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'list' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:text-indigo-600'
+                            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${viewMode === 'list'
+                                ? 'bg-white text-indigo-600 shadow'
+                                : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
                             📋 Lista
@@ -529,8 +554,13 @@ export default function NotasPage() {
                         accent: 'bg-purple-100 text-purple-600',
                     },
                 ].map((card) => (
-                    <article key={card.label} className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow">
-                        <span className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wide ${card.accent}`}>
+                    <article
+                        key={card.label}
+                        className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow"
+                    >
+                        <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wide ${card.accent}`}
+                        >
                             {card.label}
                         </span>
                         <p className="mt-3 text-3xl font-semibold text-gray-900">{card.value}</p>
@@ -579,7 +609,9 @@ export default function NotasPage() {
                 </div>
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 shadow">
                     <p className="mb-2 text-xs font-semibold uppercase text-indigo-700">Acción rápida</p>
-                    <p className="mb-3 text-sm text-indigo-900">Restablece los filtros para volver a ver todas tus notas.</p>
+                    <p className="mb-3 text-sm text-indigo-900">
+                        Restablece los filtros para volver a ver todas tus notas.
+                    </p>
                     <button
                         className="text-sm font-semibold text-indigo-700 underline"
                         onClick={() => {
@@ -611,7 +643,9 @@ export default function NotasPage() {
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="text-xs text-gray-400">Creada el {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}</p>
+                                        <p className="text-xs text-gray-400">
+                                            Creada el {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}
+                                        </p>
                                         {n.actualizado_en && (
                                             <p className="text-[11px] text-gray-400">
                                                 Actualizada {safeFormat(n.actualizado_en, "d 'de' MMM HH:mm")}
@@ -619,7 +653,9 @@ export default function NotasPage() {
                                         )}
                                     </div>
                                     <span
-                                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${n.eventos.length > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${n.eventos.length > 0
+                                            ? 'bg-emerald-100 text-emerald-600'
+                                            : 'bg-amber-100 text-amber-600'
                                             }`}
                                     >
                                         {n.eventos.length > 0
@@ -628,8 +664,12 @@ export default function NotasPage() {
                                     </span>
                                 </div>
 
-                                <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-gray-900">{n.titulo}</h2>
-                                <p className="line-clamp-4 text-sm leading-relaxed text-gray-600">{n.contenido}</p>
+                                <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-gray-900">
+                                    {n.titulo}
+                                </h2>
+                                <p className="line-clamp-4 text-sm leading-relaxed text-gray-600">
+                                    {n.contenido}
+                                </p>
 
                                 {n.eventos.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
@@ -637,21 +677,35 @@ export default function NotasPage() {
                                             const ev = eventsMap.get(String(eid));
                                             const label = ev ? ev.label : `Evento ${eid}`;
                                             return (
-                                                <span key={eid} className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700">
+                                                <span
+                                                    key={eid}
+                                                    className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700"
+                                                >
                                                     {label}
                                                 </span>
                                             );
                                         })}
-                                        {n.eventos.length > 3 && <span className="text-[11px] text-gray-500">+{n.eventos.length - 3} más</span>}
+                                        {n.eventos.length > 3 && (
+                                            <span className="text-[11px] text-gray-500">
+                                                +{n.eventos.length - 3} más
+                                            </span>
+                                        )}
                                     </div>
                                 ) : (
-                                    <span className="w-max rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-600">Sin visita asociada</span>
+                                    <span className="w-max rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-600">
+                                        Sin visita asociada
+                                    </span>
                                 )}
 
                                 {n.imagenes.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {n.imagenes.slice(0, 3).map((url, i) => (
-                                            <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
+                                            <img
+                                                key={i}
+                                                src={url}
+                                                alt=""
+                                                className="h-16 w-16 rounded-lg border border-gray-200 object-cover"
+                                            />
                                         ))}
                                     </div>
                                 )}
@@ -698,7 +752,9 @@ export default function NotasPage() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nota</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Nota
+                                        </th>
                                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                                             Visitas vinculadas
                                         </th>
@@ -710,10 +766,18 @@ export default function NotasPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 bg-white">
                                     {paginatedNotas.map((n) => (
-                                        <tr key={n.id} className="cursor-pointer hover:bg-indigo-50" onClick={() => abrirVista(n)}>
+                                        <tr
+                                            key={n.id}
+                                            className="cursor-pointer hover:bg-indigo-50"
+                                            onClick={() => abrirVista(n)}
+                                        >
                                             <td className="whitespace-normal px-6 py-4">
-                                                <p className="text-sm font-semibold text-gray-900">{n.titulo}</p>
-                                                <p className="max-w-xl line-clamp-2 text-sm text-gray-500">{n.contenido}</p>
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    {n.titulo}
+                                                </p>
+                                                <p className="max-w-xl line-clamp-2 text-sm text-gray-500">
+                                                    {n.contenido}
+                                                </p>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {n.eventos.length > 0 ? (
@@ -722,21 +786,31 @@ export default function NotasPage() {
                                                             const ev = eventsMap.get(String(eid));
                                                             const label = ev ? ev.label : `Evento ${eid}`;
                                                             return (
-                                                                <span key={eid} className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700">
+                                                                <span
+                                                                    key={eid}
+                                                                    className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] text-indigo-700"
+                                                                >
                                                                     {label}
                                                                 </span>
                                                             );
                                                         })}
                                                         {n.eventos.length > 2 && (
-                                                            <span className="text-[11px] text-gray-500">+{n.eventos.length - 2} más</span>
+                                                            <span className="text-[11px] text-gray-500">
+                                                                +{n.eventos.length - 2} más
+                                                            </span>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-600">Sin visita</span>
+                                                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-600">
+                                                        Sin visita
+                                                    </span>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-500">
-                                                {safeFormat(n.actualizado_en || n.creado_en, "d 'de' MMM yyyy HH:mm")}
+                                                {safeFormat(
+                                                    n.actualizado_en || n.creado_en,
+                                                    "d 'de' MMM yyyy HH:mm"
+                                                )}
                                             </td>
                                             <td className="space-x-2 px-6 py-4 text-right">
                                                 <button
@@ -808,21 +882,33 @@ export default function NotasPage() {
                     >
                         <header className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <h2 className="text-2xl font-semibold text-gray-800">{vistaNota.titulo}</h2>
-                            <button onClick={cerrarVista} className="text-gray-500 hover:text-gray-700">
+                            <button
+                                onClick={cerrarVista}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
                                 <AiOutlineClose size={24} />
                             </button>
                         </header>
 
                         <main className="max-h-[calc(100vh-12rem)] overflow-y-auto px-5 py-4 sm:max-h-[70vh] sm:px-6 sm:py-5">
                             <div className="space-y-6">
-                                <section className="whitespace-pre-wrap text-gray-700 leading-relaxed">{vistaNota.contenido}</section>
+                                <section className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                                    {vistaNota.contenido}
+                                </section>
 
                                 {vistaNota.imagenes.length > 0 && (
                                     <section>
-                                        <h3 className="mb-2 text-lg font-medium text-gray-800">Imágenes</h3>
+                                        <h3 className="mb-2 text-lg font-medium text-gray-800">
+                                            Imágenes
+                                        </h3>
                                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                             {vistaNota.imagenes.map((url, i) => (
-                                                <ImagenConLoader key={i} src={url} alt={`img-${i}`} onClick={() => window.open(url, '_blank')} />
+                                                <ImagenConLoader
+                                                    key={i}
+                                                    src={url}
+                                                    alt={`img-${i}`}
+                                                    onClick={() => window.open(url, '_blank')}
+                                                />
                                             ))}
                                         </div>
                                     </section>
@@ -830,7 +916,9 @@ export default function NotasPage() {
 
                                 {vistaNota.eventos.length > 0 && (
                                     <section>
-                                        <h3 className="mb-2 text-lg font-medium text-gray-800">Citas relacionadas</h3>
+                                        <h3 className="mb-2 text-lg font-medium text-gray-800">
+                                            Citas relacionadas
+                                        </h3>
                                         <div className="flex flex-wrap gap-2">
                                             {vistaNota.eventos.map((eid) => {
                                                 const ev = eventsMap.get(String(eid));
@@ -855,7 +943,11 @@ export default function NotasPage() {
                         </main>
 
                         <footer className="border-t border-gray-200 px-5 py-3 text-right text-sm text-gray-500 sm:px-6">
-                            Creado el {safeFormat(vistaNota.creado_en, "d 'de' MMMM yyyy, HH:mm:ss")}
+                            Creado el{' '}
+                            {safeFormat(
+                                vistaNota.creado_en,
+                                "d 'de' MMMM yyyy, HH:mm:ss"
+                            )}
                         </footer>
                     </div>
                 </div>
@@ -871,7 +963,9 @@ export default function NotasPage() {
                         className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6 sm:max-h-[92vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 className="mb-4 text-xl font-bold">{isEditing ? 'Editar nota' : 'Crear nota'}</h2>
+                        <h2 className="mb-4 text-xl font-bold">
+                            {isEditing ? 'Editar nota' : 'Crear nota'}
+                        </h2>
 
                         {/* Título */}
                         <input
@@ -898,11 +992,15 @@ export default function NotasPage() {
                             <Select
                                 isMulti
                                 options={selectOptions}
-                                value={events.filter((ev) => linkedIdsSet.has(String(ev.id))).map((ev) => ({
-                                    value: ev.id,
-                                    label: ev.label,
-                                }))}
-                                onChange={(sel) => setLinkedEventIds(sel.map((o) => String(o.value)))}
+                                value={events
+                                    .filter((ev) => linkedIdsSet.has(String(ev.id)))
+                                    .map((ev) => ({
+                                        value: ev.id,
+                                        label: ev.label,
+                                    }))}
+                                onChange={(sel) =>
+                                    setLinkedEventIds(sel.map((o) => String(o.value)))
+                                }
                                 classNamePrefix="react-select"
                                 placeholder="Busca por mes…"
                                 isDisabled={subiendo}
@@ -911,7 +1009,9 @@ export default function NotasPage() {
 
                         {/* Imágenes */}
                         <div className="mb-4">
-                            <label className="mb-1 block font-medium">Imágenes (max 3)</label>
+                            <label className="mb-1 block font-medium">
+                                Imágenes (max 3)
+                            </label>
                             <div className="mb-2 flex gap-2">
                                 {/* Cámara (móvil) */}
                                 <label className="flex cursor-pointer items-center gap-2 rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
@@ -922,12 +1022,26 @@ export default function NotasPage() {
                                         capture="environment"
                                         className="hidden"
                                         onChange={(e) => {
-                                            const arr = Array.from(e.target.files || []).filter((f) => /^image\//.test(f.type));
-                                            if (existingImages.length + files.length + arr.length > 3) {
-                                                setFeedback({ type: 'error', message: 'Máximo 3 imágenes por nota.' });
+                                            const arr = Array.from(
+                                                e.target.files || []
+                                            ).filter((f) => /^image\//.test(f.type));
+                                            if (
+                                                existingImages.length +
+                                                files.length +
+                                                arr.length >
+                                                3
+                                            ) {
+                                                setFeedback({
+                                                    type: 'error',
+                                                    message:
+                                                        'Máximo 3 imágenes por nota.',
+                                                });
                                                 return;
                                             }
-                                            setFiles((prev) => [...prev, ...arr]);
+                                            setFiles((prev) => [
+                                                ...prev,
+                                                ...arr,
+                                            ]);
                                         }}
                                         disabled={subiendo}
                                     />
@@ -942,12 +1056,26 @@ export default function NotasPage() {
                                         multiple
                                         className="hidden"
                                         onChange={(e) => {
-                                            const arr = Array.from(e.target.files || []).filter((f) => /^image\//.test(f.type));
-                                            if (existingImages.length + files.length + arr.length > 3) {
-                                                setFeedback({ type: 'error', message: 'Máximo 3 imágenes por nota.' });
+                                            const arr = Array.from(
+                                                e.target.files || []
+                                            ).filter((f) => /^image\//.test(f.type));
+                                            if (
+                                                existingImages.length +
+                                                files.length +
+                                                arr.length >
+                                                3
+                                            ) {
+                                                setFeedback({
+                                                    type: 'error',
+                                                    message:
+                                                        'Máximo 3 imágenes por nota.',
+                                                });
                                                 return;
                                             }
-                                            setFiles((prev) => [...prev, ...arr]);
+                                            setFiles((prev) => [
+                                                ...prev,
+                                                ...arr,
+                                            ]);
                                         }}
                                         disabled={subiendo}
                                     />
@@ -959,11 +1087,23 @@ export default function NotasPage() {
                                 <div className="mb-2 flex flex-wrap gap-2">
                                     {previews.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="h-16 w-16 rounded object-cover" alt="" />
+                                            <img
+                                                src={url}
+                                                className="h-16 w-16 rounded object-cover"
+                                                alt=""
+                                            />
                                             <button
                                                 onClick={() => {
-                                                    setPreviews((p) => p.filter((_, idx) => idx !== i));
-                                                    setFiles((f) => f.filter((_, idx) => idx !== i));
+                                                    setPreviews((p) =>
+                                                        p.filter(
+                                                            (_, idx) => idx !== i
+                                                        )
+                                                    );
+                                                    setFiles((f) =>
+                                                        f.filter(
+                                                            (_, idx) => idx !== i
+                                                        )
+                                                    );
                                                 }}
                                                 className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
                                                 disabled={subiendo}
@@ -981,10 +1121,16 @@ export default function NotasPage() {
                                 <div className="mb-2 flex flex-wrap gap-2">
                                     {existingImages.map((url, i) => (
                                         <div key={i} className="relative">
-                                            <img src={url} className="h-16 w-16 rounded object-cover" alt="" />
+                                            <img
+                                                src={url}
+                                                className="h-16 w-16 rounded object-cover"
+                                                alt=""
+                                            />
                                             <button
                                                 onClick={() => {
-                                                    setExistingImages((e) => e.filter((u) => u !== url));
+                                                    setExistingImages((e) =>
+                                                        e.filter((u) => u !== url)
+                                                    );
                                                 }}
                                                 className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
                                                 disabled={subiendo}
@@ -1000,10 +1146,18 @@ export default function NotasPage() {
 
                         {/* Botones acción */}
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setModalOpen(false)} className="rounded bg-gray-300 px-4 py-2" disabled={subiendo}>
+                            <button
+                                onClick={() => setModalOpen(false)}
+                                className="rounded bg-gray-300 px-4 py-2"
+                                disabled={subiendo}
+                            >
                                 Cancelar
                             </button>
-                            <button onClick={guardar} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50" disabled={subiendo}>
+                            <button
+                                onClick={guardar}
+                                className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+                                disabled={subiendo}
+                            >
                                 {isEditing ? 'Actualizar' : 'Guardar'}
                             </button>
                         </div>
