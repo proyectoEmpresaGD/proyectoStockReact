@@ -15,19 +15,21 @@ const ACCEPTED_ORIGINS = [
   'https://www.cjmw.eu',
   'https://bassari.eu',
   'https://www.bassari.eu',
-  // Agregado para permitir solicitudes desde Google Translate
 ];
 
-export const corsMiddleware = ({ acceptedOrigins = ACCEPTED_ORIGINS } = {}) => cors({
-  origin: (origin, callback) => {
-    if (acceptedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+export const corsMiddleware = ({ acceptedOrigins = ACCEPTED_ORIGINS } = {}) =>
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || acceptedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
 
-    if (!origin) {
-      return callback(null, true);  // Permitir solicitudes sin origen (por ejemplo, en Postman)
-    }
+      // En producción preferimos responder con encabezados en lugar de fallar sin CORS
+      if (process.env.NODE_ENV === 'production') {
+        return callback(null, true);
+      }
 
-    return callback(new Error('Not allowed by CORS'));
-  }
-});
+      return callback(new Error('Not allowed by CORS'));
+    },
+    optionsSuccessStatus: 204
+  });
