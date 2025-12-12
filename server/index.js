@@ -37,9 +37,9 @@ globalThis.pool = pool;
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.static(join(__dirname, 'web')));
-app.use(json());
 app.use(corsMiddleware());
+app.use(json());
+app.use(express.static(join(__dirname, 'web')));
 
 // Public routes
 app.use('/api/auth', authRouter);
