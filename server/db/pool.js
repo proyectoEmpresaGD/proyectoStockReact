@@ -4,26 +4,21 @@ import "dotenv/config";
 
 const { Pool } = pg;
 
-const globalPoolKey = "__pg_pool__";
+let pool;
 
-function createPool() {
-    if (!process.env.DATABASE_URL) {
-        throw new Error("DATABASE_URL no está definida");
-    }
-
-    return new Pool({
+if (!process.env.DATABASE_URL) {
+    console.warn("⚠️ DATABASE_URL no definida. La app arrancará pero la DB fallará.");
+    pool = {
+        async query() {
+            throw new Error("DATABASE_URL no definida en Vercel (Env Variables).");
+        },
+        async end() { },
+    };
+} else {
+    pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl:
-            process.env.NODE_ENV === "production"
-                ? { rejectUnauthorized: false }
-                : false,
-        max: Number(process.env.PG_POOL_MAX) || 5,
-        idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS) || 30000,
-        connectionTimeoutMillis: Number(process.env.PG_CONN_TIMEOUT_MS) || 8000,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });
 }
-
-const pool =
-    globalThis[globalPoolKey] ?? (globalThis[globalPoolKey] = createPool());
 
 export default pool;
