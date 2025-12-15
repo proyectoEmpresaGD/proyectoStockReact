@@ -15,27 +15,60 @@ const parseOrigin = (value) => {
   }
 };
 
-// FRONTEND_ORIGIN admite una lista separada por comas
-// Ej: https://app.com,https://admin.app.com
-const FRONTEND_ALLOWLIST = (process.env.FRONTEND_ORIGIN || '')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
+const normalizeAllowlist = (rawList) =>
+  rawList
+    .split(',')
+    .map((o) => parseOrigin(o.trim()))
+    .filter(Boolean);
+
+// Dominio por defecto (evita que despliegues sin FRONTEND_ORIGIN respondan con "*")
+const DEFAULT_FRONTEND = 'https://proyecto-stock-react.vercel.app';
+
+// Orígenes locales permitidos
+const LOCALHOSTS = [
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:4173',
+  'http://127.0.0.1:5173'
+];
+
+// Allowlist normalizada desde variable de entorno
+const FRONTEND_ALLOWLIST = normalizeAllowlist(
+  process.env.FRONTEND_ORIGIN || ''
+);
+
+// Conjunto final de orígenes permitidos
+const ALLOWED_ORIGINS = new Set([
+  DEFAULT_FRONTEND,
+  ...LOCALHOSTS,
+  ...FRONTEND_ALLOWLIST
+]);
 
 export const corsMiddleware = () => {
   return (req, res, next) => {
-    const requestOrigin =
-      req.headers.origin || parseOrigin(req.headers.referer);
+    // Normalizamos posibles orígenes
+    const headerOrigin = parseOrigin(req.headers.origin);
+    const refererOrigin = parseOrigin(req.headers.referer);
+    const requestOrigin = headerOrigin || refererOrigin || null;
 
-    const fallbackOrigin = FRONTEND_ALLOWLIST[0];
-    const originToSet = requestOrigin || fallbackOrigin || '*';
+    const fallbackOrigin = FRONTEND_ALLOWLIST[0] || DEFAULT_FRONTEND;
 
-    if (originToSet !== '*') {
-      res.header('Access-Control-Allow-Origin', originToSet);
+    // Solo aceptamos el origin si está explícitamente permitido
+    const allowedOrigin =
+      requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)
+        ? requestOrigin
+        : null;
+
+    if (allowedOrigin) {
+      res.header('Access-Control-Allow-Origin', allowedOrigin);
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Vary', 'Origin');
     } else {
-      res.header('Access-Control-Allow-Origin', '*');
+      // Origen no autorizado → respuesta inmediata y explícita
+      res.status(403).json({ error: 'Origen no permitido' });
+      return;
     }
 
     res.header(
