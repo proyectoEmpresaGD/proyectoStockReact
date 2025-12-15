@@ -37,7 +37,13 @@ globalThis.pool = pool;
 
 const app = express();
 app.disable('x-powered-by');
-app.use(corsMiddleware());
+// CORS debe ejecutarse ANTES de cualquier otra ruta o middleware para que
+// todas las respuestas, incluidos errores y 404 de rutas inexistentes, lleven
+// los encabezados. También respondemos explícitamente a OPTIONS para evitar
+// que Express intente resolverlo en otros middlewares.
+const corsHandler = corsMiddleware();
+app.use(corsHandler);
+app.options('*', corsHandler);
 app.use(json());
 app.use(express.static(join(__dirname, 'web')));
 
