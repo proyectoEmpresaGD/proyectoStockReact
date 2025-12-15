@@ -19,17 +19,54 @@ function normalizeEventos(raw) {
     return [raw];
 }
 
+function buildRemoteBase(nota) {
+    const fecha = new Date(nota.fechacreado);
+    const yyyy = fecha.getFullYear().toString();
+    const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+    const dd = String(fecha.getDate()).padStart(2, "0");
+
+    return path.posix.join(
+        FTP_BASE || "/",
+        String(nota.idusuario),
+        "NOTAS",
+        yyyy,
+        mm,
+        dd
+    );
+}
+
+function buildExpectedFolderName(nota) {
+    return `${slugify(nota.titulo).slice(0, 50) || "nota"}-${nota.id}`;
+}
+
+async function resolveNoteFolder(client, nota) {
+    const baseDir = buildRemoteBase(nota);
+    const expected = buildExpectedFolderName(nota);
+
+    try {
+        const list = await client.list(baseDir);
+
+        const exact = list.find((item) => item.isDirectory && item.name === expected);
+        if (exact) return path.posix.join(baseDir, exact.name);
+
+        const byId = list.find((item) => item.isDirectory && item.name.endsWith(`-${nota.id}`));
+        if (byId) return path.posix.join(baseDir, byId.name);
+    } catch (err) {
+        console.warn("⚠️  No se pudo listar carpeta base de la nota:", err?.message || err);
+    }
+
+    return path.posix.join(baseDir, expected);
+}
+
 async function filterOwnedEvents(eventos, userId) {
     const numericIds = [...new Set(
-        eventos
-            .map((ev) => Number(ev))
-            .filter((n) => Number.isInteger(n) && n > 0)
+        eventos.map((ev) => Number(ev)).filter((n) => Number.isInteger(n) && n > 0)
     )];
 
     if (numericIds.length === 0) return { filtered: [], rejected: [] };
 
-    const citas = await NotasModel.getCitasDeUsuario(userId);
-    const allowed = new Set(citas.map((c) => Number(c.id)));
+    const owned = await NotasModel.getOwnedCitasByIds(userId, numericIds);
+    const allowed = new Set(owned);
     const filtered = numericIds.filter((id) => allowed.has(id));
     const rejected = numericIds.filter((id) => !allowed.has(id));
     return { filtered, rejected };
@@ -37,13 +74,16 @@ async function filterOwnedEvents(eventos, userId) {
 
 async function withFtp(fn) {
     const client = new Client();
+    client.ftp.timeout = Number(process.env.FTP_TIMEOUT_MS) || 8000;
+
     await client.access({
-        host: process.env.FTP_HOST, // accessproxy.webpod16-cph3.one.com
+        host: process.env.FTP_HOST,
         port: Number(process.env.FTP_PORT) || 21,
         user: process.env.FTP_USER,
         password: process.env.FTP_PASS,
         secure: process.env.FTP_SECURE === "true",
     });
+
     try {
         return await fn(client);
     } finally {
@@ -52,7 +92,6 @@ async function withFtp(fn) {
 }
 
 export class NotasController {
-    // GET /api/notas
     async getAll(req, res) {
         const idusuario = req.user.id;
         try {
@@ -85,7 +124,6 @@ export class NotasController {
         }
     }
 
-    // POST /api/notas
     async create(req, res) {
         const idusuario = req.user.id;
         const { titulo, contenido } = req.body;
@@ -107,32 +145,18 @@ export class NotasController {
             return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
         }
 
-        const now = new Date();
         const slugBase = slugify(safeBody.titulo).slice(0, 50) || `nota-${Date.now()}`;
 
-        // 1) Crear en DB primero
         let notaDB;
         try {
-            notaDB = await NotasModel.create({
-                input: { ...safeBody, idusuario, eventos },
-            });
+            notaDB = await NotasModel.create({ input: { ...safeBody, idusuario, eventos } });
         } catch (err) {
             console.error("❌ DB create nota error:", err);
             return res.status(500).json({ error: "Error creando nota en DB" });
         }
 
         const slug = `${slugBase}-${notaDB.id}`;
-        const yyyy = now.getFullYear().toString();
-        const mm = String(now.getMonth() + 1).padStart(2, "0");
-        const dd = String(now.getDate()).padStart(2, "0");
-
-        const remoteDir = path.posix.join(
-            FTP_BASE || "/",
-            idusuario.toString(),
-            "NOTAS",
-            yyyy, mm, dd,
-            slug
-        );
+        const remoteDir = path.posix.join(buildRemoteBase({ ...notaDB, idusuario }), slug);
 
         const imagenes = [];
         const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
@@ -151,21 +175,19 @@ export class NotasController {
             }
         }
 
-        // 2) Subir a FTP
         try {
             await withFtp(async (client) => {
+                if (!req.files?.length) return; // ✅ NO FTP si no hay imágenes
+
                 await client.ensureDir(remoteDir);
-                if (req.files?.length) {
-                    for (const file of req.files) {
-                        const dest = path.posix.join(remoteDir, file.originalname);
-                        await client.uploadFrom(Readable.from(file.buffer), dest);
-                        imagenes.push(file.originalname);
-                    }
+                for (const file of req.files) {
+                    const dest = path.posix.join(remoteDir, file.originalname);
+                    await client.uploadFrom(Readable.from(file.buffer), dest);
+                    imagenes.push(file.originalname);
                 }
             });
         } catch (err) {
             console.error("❌ FTP upload error:", err);
-            // No devolvemos 500: creamos sin imágenes
             try {
                 const updated = await NotasModel.update({
                     id: notaDB.id,
@@ -178,18 +200,16 @@ export class NotasController {
             }
         }
 
-        // 3) Actualizar DB con nombres y responder con URLs públicas
         try {
             const updated = await NotasModel.update({
                 id: notaDB.id,
                 input: { imagenes, fechaactualizado: new Date() },
             });
 
-            const relPath = `${idusuario}/NOTAS/${yyyy}/${mm}/${dd}/${slug}`;
+            const baseDir = buildRemoteBase({ ...notaDB, idusuario });
+            const relPath = `${baseDir.replace(/^\/+/, "")}/${slug}`;
             const base = IMG_BASE_URL.replace(/\/$/, "");
-            const fullUrls = imagenes.map(
-                (name) => `${base}/${relPath}/${encodeURIComponent(name)}`
-            );
+            const fullUrls = imagenes.map((name) => `${base}/${relPath}/${encodeURIComponent(name)}`);
 
             return res.status(201).json({ ...updated, imagenes: fullUrls });
         } catch (err) {
@@ -198,7 +218,6 @@ export class NotasController {
         }
     }
 
-    // PATCH /api/notas/:id
     async update(req, res) {
         const requesterId = req.user.id;
         const id = Number(req.params.id);
@@ -214,9 +233,7 @@ export class NotasController {
         try {
             const nota = await NotasModel.getById({ id });
             if (!nota) return res.status(404).json({ error: "Nota no encontrada" });
-            if (nota.idusuario !== requesterId) {
-                return res.status(403).json({ error: "Prohibido" });
-            }
+            if (nota.idusuario !== requesterId) return res.status(403).json({ error: "Prohibido" });
 
             const { success, error: validationError, value: safeBody } = validatePartialNota({ titulo, contenido });
             if (!success) return res.status(400).json({ error: validationError.message });
@@ -233,23 +250,9 @@ export class NotasController {
                 return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
             }
 
-            const fecha = new Date(nota.fechacreado);
-            const yyyy = fecha.getFullYear().toString();
-            const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-            const dd = String(fecha.getDate()).padStart(2, "0");
-            const slug = slugify(nota.titulo).slice(0, 50) + "-" + id;
-
-            const remoteDir = path.posix.join(
-                FTP_BASE || "/",
-                String(nota.idusuario),
-                "NOTAS",
-                yyyy, mm, dd,
-                slug
-            );
-
-            // 👇 Mantener imágenes de forma segura
             const currentNames = Array.isArray(nota.imagenes) ? nota.imagenes : [];
             let keepArray;
+
             if (keepArrayRaw.length > 0) {
                 const currentSet = new Set(currentNames);
                 keepArray = keepArrayRaw.filter((name) => currentSet.has(name));
@@ -257,12 +260,15 @@ export class NotasController {
                 const removedSet = new Set(removedArray);
                 keepArray = currentNames.filter((name) => !removedSet.has(name));
             } else {
-                // Si no vino nada, por defecto conservamos las actuales
                 keepArray = currentNames;
             }
 
             const nuevas = [];
             const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
+
+            const remoteDir = ftpReady
+                ? await withFtp((client) => resolveNoteFolder(client, { ...nota, id }))
+                : path.posix.join(buildRemoteBase({ ...nota, id }), buildExpectedFolderName({ ...nota, id }));
 
             const incomingFiles = Array.isArray(req.files) ? req.files.length : 0;
             if (keepArray.length + incomingFiles > 3) {
@@ -272,14 +278,19 @@ export class NotasController {
             if (ftpReady) {
                 try {
                     await withFtp(async (client) => {
+                        const shouldTouchFtp =
+                            (req.files?.length || 0) > 0 || removedArray.length > 0 || keepArrayRaw.length > 0;
+
+                        if (!shouldTouchFtp) return;
+
                         await client.ensureDir(remoteDir);
+
                         const archivos = await client.list(remoteDir).catch(() => []);
-                        const eliminar = archivos.filter(
-                            (f) => !f.isDirectory && !keepArray.includes(f.name)
-                        );
+                        const eliminar = archivos.filter((f) => !f.isDirectory && !keepArray.includes(f.name));
                         for (const f of eliminar) {
                             await client.remove(path.posix.join(remoteDir, f.name));
                         }
+
                         if (req.files?.length) {
                             for (const file of req.files) {
                                 const dest = path.posix.join(remoteDir, file.originalname);
@@ -290,7 +301,6 @@ export class NotasController {
                     });
                 } catch (ftpErr) {
                     console.error("❌ FTP update error:", ftpErr);
-                    // Seguimos sin tumbar la actualización: solo no habrá nuevas imágenes subidas
                 }
             } else {
                 console.warn("⚠️  ENV FTP/IMG incompletas; salto operaciones FTP (update).");
@@ -298,21 +308,17 @@ export class NotasController {
 
             const imagenes = [...keepArray, ...nuevas].filter(Boolean);
 
-            // Construimos input solo con campos definidos para no sobreescribir con undefined
             const inputUpdate = { fechaactualizado: new Date(), imagenes, eventos };
             if (typeof safeBody.titulo === "string") inputUpdate.titulo = safeBody.titulo;
             if (typeof safeBody.contenido === "string") inputUpdate.contenido = safeBody.contenido;
 
-            const actualizado = await NotasModel.update({
-                id,
-                input: inputUpdate,
-            });
+            const actualizado = await NotasModel.update({ id, input: inputUpdate });
 
-            const relPath = `${nota.idusuario}/NOTAS/${yyyy}/${mm}/${dd}/${slug}`;
             const base = IMG_BASE_URL.replace(/\/$/, "");
-            const fullUrls = imagenes.map(
-                (name) => `${base}/${relPath}/${encodeURIComponent(name)}`
-            );
+            const baseDir = buildRemoteBase({ ...nota, id }).replace(/^\/+/, "");
+            const folderName = path.posix.basename(remoteDir);
+            const relPath = `${baseDir}/${folderName}`;
+            const fullUrls = imagenes.map((name) => `${base}/${relPath}/${encodeURIComponent(name)}`);
 
             return res.json({ ...actualizado, imagenes: fullUrls });
         } catch (err) {
@@ -321,7 +327,6 @@ export class NotasController {
         }
     }
 
-    // DELETE /api/notas/:id
     async delete(req, res) {
         const requesterId = req.user.id;
         const id = Number(req.params.id);
@@ -329,36 +334,30 @@ export class NotasController {
         try {
             const nota = await NotasModel.getById({ id });
             if (!nota) return res.status(404).json({ error: "Nota no encontrada" });
-            if (nota.idusuario !== requesterId) {
-                return res.status(403).json({ error: "Prohibido" });
-            }
-
-            const fecha = new Date(nota.fechacreado);
-            const yyyy = fecha.getFullYear().toString();
-            const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-            const dd = String(fecha.getDate()).padStart(2, "0");
-            const slug = slugify(nota.titulo).slice(0, 50) + "-" + id;
-
-            const remoteDir = path.posix.join(
-                FTP_BASE || "/",
-                String(nota.idusuario),
-                "NOTAS",
-                yyyy, mm, dd,
-                slug
-            );
+            if (nota.idusuario !== requesterId) return res.status(403).json({ error: "Prohibido" });
 
             const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
+
             if (ftpReady) {
                 try {
                     await withFtp(async (client) => {
-                        await client.removeDir(remoteDir);
+                        const resolved = await resolveNoteFolder(client, { ...nota, id });
+
+                        const parent = path.posix.dirname(resolved);
+                        const folder = path.posix.basename(resolved);
+
+                        const dirs = await client.list(parent).catch(() => []);
+                        const target = dirs.find((item) => item.isDirectory && item.name === folder);
+
+                        if (target) {
+                            await client.removeDir(resolved);
+                        } else {
+                            // silencio (no es error)
+                        }
                     });
                 } catch (ftpErr) {
                     console.error("❌ FTP delete error:", ftpErr);
-                    // No tumbamos el borrado por fallo de FTP
                 }
-            } else {
-                console.warn("⚠️  ENV FTP/IMG incompletas; salto borrado FTP (delete).");
             }
 
             await NotasModel.delete({ id });

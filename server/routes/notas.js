@@ -4,7 +4,6 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import multer from "multer";
 import { NotasController } from "../controllers/notas.js";
 
-// Multer en memoria + límites + fileFilter (solo imágenes hasta 6MB)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { files: 3, fileSize: 6 * 1024 * 1024 },
@@ -20,25 +19,17 @@ export const createNotasRouter = () => {
   const router = Router();
   const ctrl = new NotasController();
 
-  // Todas las rutas protegidas
+  router.options("*", (req, res) => res.sendStatus(204));
+
   router.use(authMiddleware);
 
-  // Listado con soporte de q/limit/offset (opcional)
   router.get("/", ctrl.getAll.bind(ctrl));
-
-  // Crear nota (hasta 3 imágenes)
   router.post("/", upload.array("imagenes", 3), ctrl.create.bind(ctrl));
-
-  // Actualizar nota (hasta 3 imágenes)
   router.patch("/:id", upload.array("imagenes", 3), ctrl.update.bind(ctrl));
-
-  // Eliminar nota
   router.delete("/:id", ctrl.delete.bind(ctrl));
 
-  // Manejo básico de errores de multer en este router
   router.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-      // p. ej., límite de tamaño o de número de archivos
       return res.status(400).json({ error: err.message });
     }
     if (err && err.message === "Solo se permiten imágenes") {
