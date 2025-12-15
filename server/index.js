@@ -30,11 +30,15 @@ const __dirname = dirname(__filename);
 const app = express();
 app.disable("x-powered-by");
 
+// ✅ CORS SIEMPRE lo primero
 const corsHandler = corsMiddleware();
 app.use(corsHandler);
 app.options("*", corsHandler);
 
+// ✅ Body parser después
 app.use(json());
+
+// ✅ Static (solo si lo necesitas)
 app.use(express.static(join(__dirname, "web")));
 
 // Public routes
@@ -159,7 +163,8 @@ async function sendWeeklyStockAlerts(force = false) {
           )
           .join("") +
         "</ul>"
-        : "<p>No hay alertas.</p>"}
+        : "<p>No hay alertas.</p>"
+      }
             </td>
             <td style="padding:8px;border:1px solid #34D399;">
               ${lowLibros.length
@@ -172,7 +177,8 @@ async function sendWeeklyStockAlerts(force = false) {
           )
           .join("") +
         "</ul>"
-        : "<p>No hay alertas.</p>"}
+        : "<p>No hay alertas.</p>"
+      }
             </td>
             <td style="padding:8px;border:1px solid #F87171;">
               ${lowPerchas.length
@@ -185,7 +191,8 @@ async function sendWeeklyStockAlerts(force = false) {
           )
           .join("") +
         "</ul>"
-        : "<p>No hay alertas.</p>"}
+        : "<p>No hay alertas.</p>"
+      }
             </td>
           </tr>
         </table>
@@ -205,7 +212,7 @@ async function sendWeeklyStockAlerts(force = false) {
   }
 }
 
-// CRON guard
+// ✅ CRON guard (y además: en Vercel NO debes depender de node-cron)
 if (process.env.ENABLE_CRON === "true") {
   cron.schedule("0 15 * * 0", sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
   cron.schedule("0 9 * * 5", sendWeeklyStockAlerts, { timezone: "Europe/Madrid" });
@@ -257,11 +264,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-// Start server
-const PORT = process.env.PORT || 1234;
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`Serving static from ${join(__dirname, "web")}`);
-});
+// ✅ IMPORTANTÍSIMO:
+// - En LOCAL sí escuchamos puerto.
+// - En Vercel (serverless) NO hacemos listen.
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 1234;
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+    console.log(`Serving static from ${join(__dirname, "web")}`);
+  });
+}
 
 export default app;

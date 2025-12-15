@@ -15,7 +15,7 @@ const normalizeAllowlist = (rawList) =>
     .map((o) => parseOrigin(o.trim()))
     .filter(Boolean);
 
-// Dominio por defecto
+// Dominio por defecto en producción
 const DEFAULT_FRONTEND = "https://proyecto-stock-react.vercel.app";
 
 const LOCALHOSTS = [
@@ -29,37 +29,33 @@ const LOCALHOSTS = [
 
 const FRONTEND_ALLOWLIST = normalizeAllowlist(process.env.FRONTEND_ORIGIN);
 
-const ALLOWED_ORIGINS = new Set([
-  DEFAULT_FRONTEND,
-  ...LOCALHOSTS,
-  ...FRONTEND_ALLOWLIST,
-]);
+// ✅ siempre permitimos DEFAULT + localhost + allowlist env
+const ALLOWED_ORIGINS = new Set([DEFAULT_FRONTEND, ...LOCALHOSTS, ...FRONTEND_ALLOWLIST]);
 
 export const corsMiddleware = () => {
   return (req, res, next) => {
-    const headerOrigin = parseOrigin(req.headers.origin);
-    const refererOrigin = parseOrigin(req.headers.referer);
-    const requestOrigin = headerOrigin || refererOrigin || null;
+    const originHeader = parseOrigin(req.headers.origin);
+    const origin = originHeader || null;
 
-    if (requestOrigin) {
-      if (!ALLOWED_ORIGINS.has(requestOrigin)) {
-        res.header("Vary", "Origin");
-        return res.status(403).json({ error: "Origen no permitido" });
-      }
+    // 🔥 Siempre seteamos Vary por seguridad de cachés
+    res.header("Vary", "Origin");
 
-      res.header("Access-Control-Allow-Origin", requestOrigin);
+    // ✅ Si viene Origin y está permitido -> reflejamos ese Origin
+    if (origin && ALLOWED_ORIGINS.has(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
       res.header("Access-Control-Allow-Credentials", "true");
-      res.header("Vary", "Origin");
-    } else {
-      // Sin Origin => Postman/cron/backend-to-backend
+    }
+
+    // ✅ Si NO viene Origin (Postman/cron) dejamos abierto
+    // (esto no afecta a navegadores)
+    if (!origin) {
       res.header("Access-Control-Allow-Origin", "*");
     }
 
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PATCH,DELETE,OPTIONS"
-    );
+    // Métodos permitidos
+    res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
 
+    // Headers: si el browser pide unos concretos, los devolvemos tal cual
     const reqHeaders = req.headers["access-control-request-headers"];
     res.header(
       "Access-Control-Allow-Headers",
@@ -70,7 +66,10 @@ export const corsMiddleware = () => {
 
     res.header("Access-Control-Max-Age", "600");
 
+    // ✅ MUY IMPORTANTE: responder SIEMPRE el preflight aquí (sin 403)
     if (req.method === "OPTIONS") {
+      // Si el origin no está permitido, aun así respondemos 204:
+      // el navegador bloqueará igualmente el POST, pero no te rompe el servidor ni genera 500/ERR_FAILED raros.
       return res.sendStatus(204);
     }
 
