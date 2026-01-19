@@ -99,6 +99,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     sublinks: [
                         { to: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                         { to: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/libro 35 cm ancho', label: 'LIBRO 35cm + IMAGEN', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                        { to: '/libro 45 cm ancho', label: 'LIBRO 45cm + IMAGEN', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     ],
                 },
                 {

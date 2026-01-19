@@ -13,6 +13,7 @@ import Etiquetas from './pages/etiquetas/Etiquetas.jsx';
 import EtiquetaLibro from './pages/etiquetas/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
 import EtiquetaMarke from './pages/etiquetas/EtiquetasMarke.jsx';
+import EtiquetaLibro26Tipo3ConImagen from './pages/etiquetas/EtiquetaLibro35Ancho.jsx'
 import EtiquetaNormativa from './pages/etiquetas/EtiquetasNormativa.jsx';
 import EtiquetaPerchas from './pages/etiquetas/EtiquetasPechas.jsx';
 import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
@@ -31,6 +32,7 @@ import Perfil from './pages/gestionusuarios.jsx';
 import FicharPage from './pages/Fichar.jsx'
 import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx'
 import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx'
+import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +64,8 @@ function App() {
                       <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
                       <Route path="/libro" element={<EtiquetaLibro />} />
                       <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
+                      <Route path="/libro 35 cm ancho" element={<EtiquetaLibro26Tipo3ConImagen />} />
+                      <Route path="/libro 45 cm ancho" element={<EtiquetaLibro45Ancho />} />
                       <Route path="/perchas" element={< EtiquetaPerchas />} />
                       <Route path="/perchasEstampados" element={< EtiquetaPerchasEstampados />} />
                       <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />

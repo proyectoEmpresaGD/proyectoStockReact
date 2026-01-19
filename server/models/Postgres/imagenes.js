@@ -8,27 +8,66 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+const TABLE = 'imagenesftpproductos';
+
+// Columnas reales de la tabla nueva
+const ALLOWED_COLUMNS = new Set([
+    'empresa',
+    'ejercicio',
+    'codprodu',
+    'linea',
+    'descripcion',
+    'codclaarchivo',
+    'ficadjunto',
+    'tipdocasociado',
+    'fecalta',
+    'fecultmod',
+    'fecftpmod',
+    'tipoambiente',
+]);
+
+const pickAllowed = (input = {}) => {
+    const out = {};
+    for (const [k, v] of Object.entries(input)) {
+        if (ALLOWED_COLUMNS.has(k) && v !== undefined) out[k] = v;
+    }
+    return out;
+};
+
 export class ImagenModel {
-    static async getAll({ empresa, ejercicio, limit = 10, offset = 0 }) {
-        let query = 'SELECT * FROM imagenesocproductos';
-        let params = [];
+    static async getAll({ empresa, ejercicio, codprodu, tipoambiente, limit = 10, offset = 0 }) {
+        let query = `SELECT * FROM ${TABLE}`;
+        const params = [];
+        const where = [];
 
         if (empresa) {
-            query += ' WHERE "empresa" = $1';
             params.push(empresa);
+            where.push(`"empresa" = $${params.length}`);
         }
 
-        if (ejercicio) {
-            if (params.length > 0) {
-                query += ' AND "ejercicio" = $2';
-            } else {
-                query += ' WHERE "ejercicio" = $1';
-            }
+        if (ejercicio !== undefined && ejercicio !== null) {
             params.push(ejercicio);
+            where.push(`"ejercicio" = $${params.length}`);
         }
 
-        query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limit, offset);
+        if (codprodu) {
+            params.push(codprodu);
+            where.push(`"codprodu" = $${params.length}`);
+        }
+
+        if (tipoambiente) {
+            params.push(tipoambiente);
+            where.push(`"tipoambiente" = $${params.length}`);
+        }
+
+        if (where.length > 0) query += ` WHERE ${where.join(' AND ')}`;
+
+        // Orden: primero la más reciente de FTP y luego por última modificación
+        query += ` ORDER BY "fecftpmod" DESC NULLS LAST, "fecultmod" DESC NULLS LAST`;
+
+        params.push(limit);
+        params.push(offset);
+        query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
         try {
             const { rows } = await pool.query(query, params);
@@ -40,14 +79,17 @@ export class ImagenModel {
     }
 
     static async getById({ codprodu, codclaarchivo }) {
-        const { rows } = await pool.query('SELECT * FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2;', [codprodu, codclaarchivo]);
+        const { rows } = await pool.query(
+            `SELECT * FROM ${TABLE} WHERE "codprodu" = $1 AND "codclaarchivo" = $2;`,
+            [codprodu, codclaarchivo]
+        );
         return rows.length > 0 ? rows[0] : null;
     }
 
     static async getByCodproduAndCodclaarchivo({ codprodu, codclaarchivo }) {
         try {
             const { rows } = await pool.query(
-                'SELECT * FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2;',
+                `SELECT * FROM ${TABLE} WHERE "codprodu" = $1 AND "codclaarchivo" = $2;`,
                 [codprodu, codclaarchivo]
             );
             return rows.length > 0 ? rows[0] : null;
@@ -57,34 +99,149 @@ export class ImagenModel {
         }
     }
 
-    static async create({ input }) {
-        const { empresa, ejercicio, codprodu, linea, descripcion, codclaarchivo, ficadjunto, tipdocasociado, fecalta, ultfeccompra, ultfecventa, ultfecactprc } = input;
-
-        const { rows } = await pool.query(
-            `INSERT INTO imagenesocproductos ("empresa", "ejercicio", "codprodu", "linea", "descripcion", "codclaarchivo", "ficadjunto", "tipdocasociado", "fecalta", "ultfeccompra", "ultfecventa", "ultfecactprc")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING *;`,
-            [empresa, ejercicio, codprodu, linea, descripcion, codclaarchivo, ficadjunto, tipdocasociado, fecalta, ultfeccompra, ultfecventa, ultfecactprc]
-        );
-
-        return rows[0];
+    /**
+     * Devuelve la imagen "más reciente" para un producto+codclaarchivo.
+     * Prioriza fecftpmod (si viene de FTP), y como fallback fecultmod.
+     */
+    static async getLatestByCodproduAndCodclaarchivo({ codprodu, codclaarchivo }) {
+        try {
+            const { rows } = await pool.query(
+                `
+        SELECT *
+        FROM ${TABLE}
+        WHERE "codprodu" = $1 AND "codclaarchivo" = $2
+        ORDER BY "fecftpmod" DESC NULLS LAST, "fecultmod" DESC NULLS LAST
+        LIMIT 1;
+        `,
+                [codprodu, codclaarchivo]
+            );
+            return rows.length > 0 ? rows[0] : null;
+        } catch (error) {
+            console.error('Error fetching latest image:', error);
+            throw new Error('Error fetching latest image');
+        }
     }
 
+    /**
+     * Inserta usando la tabla nueva.
+     * Nota: linea tiene DEFAULT 1, fecultmod DEFAULT now().
+     * Recomendado: pasar fecalta (NOT NULL).
+     */
+    static async create({ input }) {
+        const data = pickAllowed(input);
+
+        // Validaciones mínimas por NOT NULL
+        const required = ['empresa', 'ejercicio', 'codprodu', 'codclaarchivo', 'ficadjunto', 'fecalta'];
+        for (const key of required) {
+            if (data[key] === undefined || data[key] === null || data[key] === '') {
+                throw new Error(`Missing required field: ${key}`);
+            }
+        }
+
+        // Si no mandan linea, dejamos que actúe el DEFAULT
+        // Si no mandan fecultmod, dejamos DEFAULT now()
+
+        const cols = Object.keys(data);
+        const vals = Object.values(data);
+        const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+
+        try {
+            const { rows } = await pool.query(
+                `
+        INSERT INTO ${TABLE} (${cols.map((c) => `"${c}"`).join(', ')})
+        VALUES (${placeholders})
+        RETURNING *;
+        `,
+                vals
+            );
+            return rows[0];
+        } catch (error) {
+            console.error('Error creating image:', error);
+            throw new Error('Error creating image');
+        }
+    }
+
+    /**
+     * Update compatible tabla nueva:
+     * - Solo permite columnas existentes
+     * - Fuerza fecultmod = now()
+     */
     static async update({ codprodu, codclaarchivo, input }) {
-        const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 3}`).join(", ");
-        const values = Object.values(input);
+        const data = pickAllowed(input);
 
-        const { rows } = await pool.query(
-            `UPDATE imagenesocproductos SET ${fields} WHERE "codprodu" = $1 AND "codclaarchivo" = $2 RETURNING *;`,
-            [codprodu, codclaarchivo, ...values]
-        );
+        // No permitimos tocar PK en update
+        delete data.codprodu;
+        delete data.codclaarchivo;
 
-        return rows[0];
+        const fields = Object.keys(data);
+
+        try {
+            // Si no hay campos, al menos actualizamos fecultmod para reflejar "tocada"
+            if (fields.length === 0) {
+                const { rows } = await pool.query(
+                    `
+          UPDATE ${TABLE}
+          SET "fecultmod" = NOW()
+          WHERE "codprodu" = $1 AND "codclaarchivo" = $2
+          RETURNING *;
+          `,
+                    [codprodu, codclaarchivo]
+                );
+                return rows[0];
+            }
+
+            const setClauses = fields.map((key, index) => `"${key}" = $${index + 3}`);
+            // siempre tocar fecultmod
+            setClauses.push(`"fecultmod" = NOW()`);
+
+            const values = fields.map((k) => data[k]);
+
+            const { rows } = await pool.query(
+                `
+        UPDATE ${TABLE}
+        SET ${setClauses.join(', ')}
+        WHERE "codprodu" = $1 AND "codclaarchivo" = $2
+        RETURNING *;
+        `,
+                [codprodu, codclaarchivo, ...values]
+            );
+
+            return rows[0];
+        } catch (error) {
+            console.error('Error updating image:', error);
+            throw new Error('Error updating image');
+        }
     }
 
     static async delete({ codprodu, codclaarchivo }) {
-        const { rows } = await pool.query('DELETE FROM imagenesocproductos WHERE "codprodu" = $1 AND "codclaarchivo" = $2 RETURNING *;', [codprodu, codclaarchivo]);
-
-        return rows[0];
+        try {
+            const { rows } = await pool.query(
+                `DELETE FROM ${TABLE} WHERE "codprodu" = $1 AND "codclaarchivo" = $2 RETURNING *;`,
+                [codprodu, codclaarchivo]
+            );
+            return rows[0];
+        } catch (error) {
+            console.error('Error deleting image:', error);
+            throw new Error('Error deleting image');
+        }
     }
+    static async getByCodprodu({ codprodu }) {
+        try {
+            const { rows } = await pool.query(
+                `
+      SELECT *
+      FROM imagenesftpproductos
+      WHERE "codprodu" = $1
+      ORDER BY "fecftpmod" DESC NULLS LAST, "fecultmod" DESC NULLS LAST;
+      `,
+                [codprodu]
+            );
+            return rows;
+        } catch (error) {
+            console.error('Error fetching images by codprodu:', error);
+            throw new Error('Error fetching images');
+        }
+    }
+
+
 }

@@ -1,37 +1,76 @@
 import { Router } from 'express';
 import { ImagenController } from '../controllers/imagenes.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // Importar el middleware de autenticación
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 export const createImagenRouter = () => {
     const imagenRouter = Router();
     const imagenController = new ImagenController();
 
-    // Rutas para la gestión de imágenes, protegidas solo para 'admin'
-    imagenRouter.get('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // Solo 'admin' puede acceder a todas las imágenes
-        next();
-    }, imagenController.getAll.bind(imagenController));
+    // Solo admin: listado completo
+    imagenRouter.get(
+        '/',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = 'admin';
+            next();
+        },
+        imagenController.getAll.bind(imagenController)
+    );
 
-    imagenRouter.post('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // Solo 'admin' puede crear imágenes
-        next();
-    }, imagenController.create.bind(imagenController));
+    // Solo admin: create
+    imagenRouter.post(
+        '/',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = 'admin';
+            next();
+        },
+        imagenController.create.bind(imagenController)
+    );
 
-    // Rutas para operaciones específicas de una imagen, protegidas solo para 'admin'
-    imagenRouter.get('/:codprodu/:codclaarchivo', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // Solo 'admin' puede ver imágenes específicas
-        next();
-    }, imagenController.getByCodproduAndCodclaarchivo.bind(imagenController));
+    // ✅ STOCK: listar imágenes disponibles para un producto
+    imagenRouter.get(
+        '/producto/:codprodu',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = ['admin', 'almacen'];
+            next();
+        },
+        imagenController.getByCodprodu.bind(imagenController)
+    );
 
-    imagenRouter.patch('/:codprodu/:codclaarchivo', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // Solo 'admin' puede modificar imágenes
-        next();
-    }, imagenController.update.bind(imagenController));
+    // ✅ STOCK: obtener imagen por tipo (codclaarchivo)
+    imagenRouter.get(
+        '/:codprodu/:codclaarchivo',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = ['admin', 'almacen'];
+            next();
+        },
+        imagenController.getByCodproduAndCodclaarchivo.bind(imagenController)
+    );
 
-    imagenRouter.delete('/:codprodu/:codclaarchivo', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'admin'; // Solo 'admin' puede eliminar imágenes
-        next();
-    }, imagenController.delete.bind(imagenController));
+    // Solo admin: update
+    imagenRouter.patch(
+        '/:codprodu/:codclaarchivo',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = 'admin';
+            next();
+        },
+        imagenController.update.bind(imagenController)
+    );
+
+    // Solo admin: delete
+    imagenRouter.delete(
+        '/:codprodu/:codclaarchivo',
+        authMiddleware,
+        (req, _res, next) => {
+            req.requiredRole = 'admin';
+            next();
+        },
+        imagenController.delete.bind(imagenController)
+    );
 
     return imagenRouter;
 };
