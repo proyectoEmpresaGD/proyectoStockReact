@@ -8,9 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 import piexif from 'piexifjs';
-"NON_DIRECTIONAL"
-"RAILROADED"
-"NON_RAILROADED"
+
 
 function EtiquetasLibro35Tipo1() {
     const { token } = useAuthContext();
@@ -22,7 +20,6 @@ function EtiquetasLibro35Tipo1() {
     const [showIconMeaning, setShowIconMeaning] = useState(null);
     const [loadBrandLogosMantenimiento, setBrandLogosMantenimiento] = useState({});
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
-    const [nombre, setNombre] = useState("NON_DIRECTIONAL");
     const [direccionLogos, setDireccionLogos] = useState({});
     const [downloadCounter, setDownloadCounter] = useState(1);
 

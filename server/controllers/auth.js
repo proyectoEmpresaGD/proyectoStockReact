@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import moment from 'moment-timezone';
 import { UserModel } from '../models/Postgres/usuarios.js';
 import jwt from 'jsonwebtoken';
