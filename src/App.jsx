@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react'; // Asegúrate de que useState esté importado
+import React, { useState } from 'react';
 import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './Auth/AuthContext.jsx';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
+
 import Home from './pages/Home';
 import Stock from './pages/paginaStock';
 import Clients from './pages/paginaclients';
 import Admin from './pages/Admin';
+
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
+
 import Etiquetas from './pages/etiquetas/Etiquetas.jsx';
 import EtiquetaLibro from './pages/etiquetas/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
 import EtiquetaMarke from './pages/etiquetas/EtiquetasMarke.jsx';
-import EtiquetaLibro26Tipo3ConImagen from './pages/etiquetas/EtiquetaLibro35Ancho.jsx'
+import EtiquetaLibro26Tipo3ConImagen from './pages/etiquetas/EtiquetaLibro35Ancho.jsx';
 import EtiquetaNormativa from './pages/etiquetas/EtiquetasNormativa.jsx';
 import EtiquetaPerchas from './pages/etiquetas/EtiquetasPechas.jsx';
 import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
@@ -29,15 +32,15 @@ import PerfilUsuario from './pages/PerfilUsuario.jsx';
 import AgendaPage from './pages/paginaagenda.jsx';
 import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
-import FicharPage from './pages/Fichar.jsx'
-import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx'
-import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx'
+import FicharPage from './pages/Fichar.jsx';
+import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
+import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
@@ -45,44 +48,104 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+
           <Route
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex">
+                <div className="flex min-h-screen">
                   <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
-                  <div className="flex-1 h-screen overflow-y-auto">
+
+                  {/* 
+                    Sidebar está en fixed w-64, así que el contenido debe reservar hueco en md+.
+                    Header parece ocupar 80px (top-20 en tu sidebar), por eso pt-20.
+                  */}
+                  <div className="flex-1 h-screen overflow-y-auto pt-20 md:pl-64">
                     <Header toggleSidebar={toggleSidebar} />
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
-                      <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-                      <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
-                      <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
-                      <Route path="/etiquetas" element={<Etiquetas />} />
-                      <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
-                      <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
-                      <Route path="/libro" element={<EtiquetaLibro />} />
-                      <Route path="/libroNormativa" element={< EtiquetaNormativa />} />
-                      <Route path="/libro 35 cm ancho" element={<EtiquetaLibro26Tipo3ConImagen />} />
-                      <Route path="/libro 45 cm ancho" element={<EtiquetaLibro45Ancho />} />
-                      <Route path="/perchas" element={< EtiquetaPerchas />} />
-                      <Route path="/perchasEstampados" element={< EtiquetaPerchasEstampados />} />
-                      <Route path="/EtiquetasLibro35Tipo1" element={< EtiquetasLibro35Tipo1 />} />
-                      <Route path="/EtiquetasLibro35Tipo2" element={< EtiquetasLibro35Tipo2 />} />
-                      <Route path="/EtiquetaPersonalizable" element={< EtiquetasPersonalizable />} />
-                      <Route path="entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
-                      <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
-                      <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
-                      <Route path="/comprobacionExcel" element={<VerifyBatch />} />
-                      <Route path="/mapa-españa" element={<PaginaMapaEspaña />} />
-                      <Route path="/perfilusuario" element={<PerfilUsuario />} />
-                      <Route path="/agenda" element={<AgendaPage />} />
-                      <Route path="/notas" element={<NotasPage />} />
-                      <Route path="/EtiquetaCameo" element={< EtiquetaCameo />} />
-                      <Route path="/gestionusuarios" element={<Perfil />} />
-                      <Route path="/fichar" element={<FicharPage />} />
-                    </Routes>
+
+                    <main className="">
+                      <div className="">
+                        <Routes>
+                          <Route path="/" element={<Home />} />
+
+                          <Route
+                            path="/admin"
+                            element={
+                              <ProtectedRoute requiredRole="admin">
+                                <Admin />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/stock"
+                            element={
+                              <ProtectedRoute>
+                                <Stock />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/clients"
+                            element={
+                              <ProtectedRoute requiredRole="comercial">
+                                <Clients />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/equivalencias"
+                            element={
+                              <ProtectedRoute requiredRole="almacen">
+                                <Equivalencias />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route path="/etiquetas" element={<Etiquetas />} />
+                          <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
+                          <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
+                          <Route path="/libro" element={<EtiquetaLibro />} />
+                          <Route path="/libroNormativa" element={<EtiquetaNormativa />} />
+                          <Route path="/libro 35 cm ancho" element={<EtiquetaLibro26Tipo3ConImagen />} />
+                          <Route path="/libro 45 cm ancho" element={<EtiquetaLibro45Ancho />} />
+                          <Route path="/perchas" element={<EtiquetaPerchas />} />
+                          <Route path="/perchasEstampados" element={<EtiquetaPerchasEstampados />} />
+                          <Route path="/EtiquetasLibro35Tipo1" element={<EtiquetasLibro35Tipo1 />} />
+                          <Route path="/EtiquetasLibro35Tipo2" element={<EtiquetasLibro35Tipo2 />} />
+                          <Route path="/EtiquetaPersonalizable" element={<EtiquetasPersonalizable />} />
+                          <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
+                          <Route path="/mapa-españa" element={<PaginaMapaEspaña />} />
+                          <Route path="/comprobacionExcel" element={<VerifyBatch />} />
+                          <Route path="/perfilusuario" element={<PerfilUsuario />} />
+                          <Route path="/agenda" element={<AgendaPage />} />
+                          <Route path="/notas" element={<NotasPage />} />
+                          <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
+                          <Route path="/gestionusuarios" element={<Perfil />} />
+                          <Route path="/fichar" element={<FicharPage />} />
+
+                          <Route
+                            path="entradas"
+                            element={
+                              <ProtectedRoute requiredRole="ventas">
+                                <EntradasPage />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/stock-alerts"
+                            element={
+                              <ProtectedRoute requiredRole="almacen">
+                                <LowStockAlertsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                        </Routes>
+                      </div>
+                    </main>
                   </div>
                 </div>
               </ProtectedRoute>
