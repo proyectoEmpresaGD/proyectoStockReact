@@ -70,7 +70,7 @@ function Login() {
         <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-400 to-purple-500">
             <div className="container mx-auto p-6 md:p-8 border border-gray-200 bg-white rounded-lg shadow-lg max-w-md">
                 <h1 className="text-3xl font-bold mb-6 text-center text-gray-700">
-                    <img src="https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/logoCJM_group.png" alt="Logo" className='h-24 mx-auto mb-4' />
+                    <img src="https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoCJM_group.png" alt="Logo" className='h-24 mx-auto mb-4' />
                     Iniciar Sesión
                 </h1>
                 {error && <div className="text-red-600 bg-red-100 p-3 rounded mb-4 text-center">{error}</div>}

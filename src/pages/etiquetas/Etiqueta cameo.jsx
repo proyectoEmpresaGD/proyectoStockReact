@@ -16,7 +16,7 @@ function EtiquetaCameo() {
     const [loadBrandLogosUsos, setBrandLogosUsos] = useState({});
     const printRef = useRef();
     const [showIconMeaning, setShowIconMeaning] = useState(null);
-    const originalUrl = "https://bassari.eu/ImagenesTelasCjmw/Iconos/Logos/LOGO%20CAMEO/logo-cameo-png.png";
+    const originalUrl = "https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGO%20CAMEO/logo-cameo-png.png";
     const proxyUrl = `${import.meta.env.VITE_API_BASE_URL}/api/proxy?url=${encodeURIComponent(originalUrl)}`;
 
     // Cargar logos en Base64 desde el archivo JSON
