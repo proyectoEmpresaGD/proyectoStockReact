@@ -17,13 +17,25 @@ const EXTRA_ORIGINS = (process.env.FRONTEND_ORIGIN || "")
   .filter(Boolean);
 
 const ALLOWED_ORIGINS = new Set([DEFAULT_FRONTEND, ...LOCALHOSTS, ...EXTRA_ORIGINS]);
+const VERCEL_PREVIEW_REGEX = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+
+  const allowVercelPreviews = (process.env.ALLOW_VERCEL_PREVIEW_ORIGINS || "true")
+    .toLowerCase()
+    .trim() !== "false";
+
+  return allowVercelPreviews && VERCEL_PREVIEW_REGEX.test(origin);
+}
 
 export const corsMiddleware = () => {
   return (req, res, next) => {
     const origin = req.headers.origin;
 
     // ✅ Si es un navegador y el origin está permitido, lo reflejamos
-    if (origin && ALLOWED_ORIGINS.has(origin)) {
+    if (isAllowedOrigin(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
       res.setHeader("Access-Control-Allow-Credentials", "true");

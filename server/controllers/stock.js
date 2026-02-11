@@ -19,13 +19,19 @@ export class StockController {
             const raw = String(req.query.codes || '').trim();
             const codes = raw.split(',').map((x) => x.trim()).filter(Boolean);
 
+            if (!codes.length) {
+                return res.json({});
+            }
+
             const map = await StockModel.getFechaEstimadaMapByCodesFast(codes);
             const out = {};
             for (const c of codes) out[c] = map.get(c) || null;
 
             res.json(out);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('Error in /api/stock/fechas:', error?.message || error);
+            // endpoint complementario: nunca romper la pantalla por fechas
+            return res.json({});
         }
     }
 
