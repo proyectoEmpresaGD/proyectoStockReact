@@ -7,6 +7,7 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
+const CODALMAC_CERO_FILTER = "TRIM(COALESCE(sl.codalmac::text, '')) IN ('0', '00')";
 
 export class StockLotesModel {
 
@@ -14,7 +15,7 @@ export class StockLotesModel {
         let query = `
     SELECT codprodu, SUM(stockactual) AS stockactual
     FROM stocklotes
-    WHERE CAST(codalmac AS int) = 0
+   WHERE TRIM(COALESCE(codalmac::text, '')) IN ('0', '00')
   `;
         const params = [];
 
@@ -38,7 +39,7 @@ export class StockLotesModel {
     SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
     FROM stocklotes sl
     WHERE sl.codprodu_upper = $1
-      AND CAST(sl.codalmac AS int) = 0   -- ✅ SOLO almacén 00
+     AND ${CODALMAC_CERO_FILTER}   -- ✅ SOLO almacén 00
     ORDER BY sl.codlote
   `, [upper]);
         return rows;
@@ -49,8 +50,8 @@ export class StockLotesModel {
     static async getByCodProdu({ codProdu, almacenes }) {
         // Por defecto sólo almacén 00 (codalmac = '00' => CAST(...) = 0)
         const almList = (Array.isArray(almacenes) && almacenes.length)
-            ? almacenes
-            : [0];
+            ? almacenes.map((x) => String(x).trim())
+            : ['0', '00'];
 
         const upper = String(codProdu ?? '').trim().toUpperCase();
 
@@ -58,7 +59,7 @@ export class StockLotesModel {
         const query = `
     SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
     FROM stocklotes sl
-    WHERE CAST(sl.codalmac AS int) = ANY($1)
+    WHERE TRIM(COALESCE(sl.codalmac::text, '')) = ANY($1)
       AND UPPER(sl.codprodu) = $2
     ORDER BY sl.codlote;
   `;

@@ -9,6 +9,8 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+const CODALMAC_CERO_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) IN ('0', '00')";
+
 export class StockModel {
     // caches por BD (para no mezclar CJMW_Web con CJMW_202601)
     static sqlServerColsCacheByDb = new Map();     // dbName -> Set(cols)
@@ -211,7 +213,7 @@ export class StockModel {
       SELECT s.*, p.desprodu
       FROM stock s
       LEFT JOIN productos p ON s.codprodu = p.codprodu
-      WHERE CAST(s.codalmac AS int) = 0
+       WHERE ${CODALMAC_CERO_FILTER}
     `;
         const params = [];
 
@@ -256,7 +258,7 @@ export class StockModel {
       FROM stock s
       LEFT JOIN productos p ON s.codprodu = p.codprodu
       WHERE s.codprodu = $1
-        AND CAST(s.codalmac AS int) = 0
+        AND ${CODALMAC_CERO_FILTER}
       `,
             [codprodu]
         );
@@ -271,7 +273,7 @@ export class StockModel {
         FROM stock s
         LEFT JOIN productos p ON s.codprodu = p.codprodu
         WHERE s.codprodu = $1
-          AND CAST(s.codalmac AS int) = 0
+          AND ${CODALMAC_CERO_FILTER}
         `,
                 [codprodu]
             );
@@ -345,7 +347,7 @@ export class StockModel {
         SELECT s.codprodu, s.stockactual, p.desprodu, p.coleccion
         FROM stock s
         LEFT JOIN productos p ON s.codprodu = p.codprodu
-        WHERE CAST(s.codalmac AS int) = 0
+       WHERE ${CODALMAC_CERO_FILTER}
       `;
             const { rows } = await pool.query(query);
             return rows;
@@ -439,7 +441,7 @@ export class StockModel {
         SELECT s.codprodu, s.stockactual, p.desprodu, COALESCE(p.coleccion, '') AS coleccion
         FROM stock s
         LEFT JOIN productos p ON s.codprodu = p.codprodu
-        WHERE CAST(s.codalmac AS int) = 0
+        WHERE ${CODALMAC_CERO_FILTER}
       `;
             const { rows } = await pool.query(query);
             return StockModel.filterStockItems(rows);
