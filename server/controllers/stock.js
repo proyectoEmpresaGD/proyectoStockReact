@@ -12,33 +12,31 @@ export class StockController {
         }
     }
 
-    static async search(req, res) {
-        const { query, limit = 4 } = req.query;
-
+    // ✅ NUEVO: /api/stock/fechas?codes=ARE01299,FLA0001...
+    // dentro de StockController
+    async getFechas(req, res) {
         try {
-            const searchQuery = `
-            SELECT * FROM clientes
-            WHERE "razclien" ILIKE $1
-            LIMIT $2;
-          `;
-            const values = [`%${query}%`, limit];
-            const { rows } = await pool.query(searchQuery, values);
-            res.status(200).json(rows);
+            const raw = String(req.query.codes || '').trim();
+            const codes = raw.split(',').map((x) => x.trim()).filter(Boolean);
+
+            const map = await StockModel.getFechaEstimadaMapByCodesFast(codes);
+            const out = {};
+            for (const c of codes) out[c] = map.get(c) || null;
+
+            res.json(out);
         } catch (error) {
-            console.error('Error searching clients:', error);
-            res.status(500).json({ error: 'Error searching clients' });
+            res.status(500).json({ error: error.message });
         }
     }
+
+
 
     async getById(req, res) {
         try {
             const { codprodu } = req.params;
             const stock = await StockModel.getById({ codprodu });
-            if (stock) {
-                res.json(stock);
-            } else {
-                res.status(404).json({ message: 'Stock not found' });
-            }
+            if (stock) res.json(stock);
+            else res.status(404).json({ message: 'Stock not found' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -48,11 +46,8 @@ export class StockController {
         try {
             const { codprodu } = req.params;
             const stock = await StockModel.getByCodprodu({ codprodu });
-            if (stock) {
-                res.json(stock);
-            } else {
-                res.status(404).json({ message: 'Stock not found' });
-            }
+            if (stock) res.json(stock);
+            else res.status(404).json({ message: 'Stock not found' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -79,11 +74,8 @@ export class StockController {
                 return res.status(400).json({ error: validationResult.error.errors });
             }
             const updatedStock = await StockModel.update({ codprodu, input: req.body });
-            if (updatedStock) {
-                res.json(updatedStock);
-            } else {
-                res.status(404).json({ message: 'Stock not found' });
-            }
+            if (updatedStock) res.json(updatedStock);
+            else res.status(404).json({ message: 'Stock not found' });
         } catch (error) {
             res.status(400).json({ error: error.message });
         }
@@ -93,15 +85,13 @@ export class StockController {
         try {
             const { codprodu } = req.params;
             const result = await StockModel.delete({ codprodu });
-            if (result) {
-                res.json({ message: 'Stock deleted' });
-            } else {
-                res.status(404).json({ message: 'Stock not found' });
-            }
+            if (result) res.json({ message: 'Stock deleted' });
+            else res.status(404).json({ message: 'Stock not found' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     }
+
     async getEntradas(req, res) {
         try {
             const { date } = req.query;
@@ -123,10 +113,4 @@ export class StockController {
             res.status(500).json({ error: error.message });
         }
     }
-
-
-
-
-
-
 }

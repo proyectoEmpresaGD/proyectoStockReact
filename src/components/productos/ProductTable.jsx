@@ -9,14 +9,39 @@ const ProductTable = ({ products, handleProductClick }) => {
         { key: 'desprodu', label: 'Descripción' },
         { key: 'stockactual', label: 'Stock Actual' },
         { key: 'canpenrecib', label: 'Pendiente Recibir' },
+        { key: 'fechaestimada', label: 'Fecha Estimada' },
         { key: 'canpenservir', label: 'Pendiente Servir' },
     ];
 
+
     const safeValue = val => {
         const num = parseFloat(val);
-        if (val === null || val === undefined || val === '' || isNaN(num)) return '—';
+        if (val === null || val === undefined || val === '' || Number.isNaN(num)) return '—';
         return num.toFixed(2);
     };
+
+    const formatDate = (value) => {
+        if (!value) return '—';
+        const asDate = new Date(value);
+        if (!Number.isNaN(asDate.getTime())) {
+            return asDate.toLocaleDateString('es-ES');
+        }
+        return String(value);
+    };
+
+
+
+    const renderNoStockMessage = (p) => {
+
+        return (
+            <div className="mt-2 text-xs text-gray-700">
+                En caso de no stock, Plazo entrega: <strong>{p.plaentre || '—'}</strong>
+                {' · '}
+                CantMinima: <strong>{p.cantminima || '—'}</strong>
+            </div>
+        );
+    };
+
 
     return (
         <div className="w-full relative">
@@ -50,10 +75,13 @@ const ProductTable = ({ products, handleProductClick }) => {
                                     <span className="text-gray-800">
                                         {['stockactual', 'canpenrecib', 'canpenservir'].includes(h.key)
                                             ? safeValue(p[h.key])
-                                            : p[h.key] || '—'}
+                                            : h.key === 'fechaestimada'
+                                                ? formatDate(p[h.key])
+                                                : p[h.key] || '—'}
                                     </span>
                                 </div>
                             ))}
+                            {renderNoStockMessage(p)}
                         </div>
                     ))
                 ) : (
@@ -77,8 +105,7 @@ const ProductTable = ({ products, handleProductClick }) => {
                             {headers.map(h => (
                                 <th
                                     key={h.key}
-                                    className={`py-3 px-2 text-left font-medium text-gray-700 uppercase tracking-wide ${h.key === 'desprodu' ? 'w-2/6' : 'w-1/6'
-                                        }`}
+                                    className={`py-3 px-2 text-left font-medium text-gray-700 uppercase tracking-wide ${h.key === 'desprodu' ? 'w-2/6' : ''}`}
                                 >
                                     {h.label}
                                 </th>
@@ -88,25 +115,31 @@ const ProductTable = ({ products, handleProductClick }) => {
                     <tbody>
                         {products.length > 0 ? (
                             products.map((p, i) => (
-                                <tr
-                                    key={p.codprodu}
-                                    onClick={() => handleProductClick(p)}
-                                    className={`cursor-pointer border-b transition-colors duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                                        } hover:bg-blue-50`}
-                                    tabIndex={0}
-                                >
-                                    <td className="py-2 px-2 font-semibold whitespace-nowrap text-gray-800">
-                                        {p.codprodu || '—'}
-                                    </td>
-                                    <td className="py-2 px-2 text-gray-800">{p.desprodu || '—'}</td>
-                                    <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.stockactual)}</td>
-                                    <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenrecib)}</td>
-                                    <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenservir)}</td>
-                                </tr>
+                                <React.Fragment key={p.codprodu}>
+                                    <tr
+                                        onClick={() => handleProductClick(p)}
+                                        className={`cursor-pointer border-b transition-colors duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
+                                        tabIndex={0}
+                                    >
+                                        <td className="py-2 px-2 font-semibold whitespace-nowrap text-gray-800">{p.codprodu || '—'}</td>
+                                        <td className="py-2 px-2 text-gray-800">{p.desprodu || '—'}</td>
+                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.stockactual)}</td>
+                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenrecib)}</td>
+                                        <td className="py-2 px-2 text-center text-gray-800">{formatDate(p.fechaestimada)}</td>
+                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenservir)}</td>
+                                    </tr>
+                                    <tr className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                        <td colSpan={6} className="px-2 pb-3 pt-0 text-xs text-gray-700">
+                                            En caso de no stock, Plazo entrega: <strong>{p.plaentre || '—'} días</strong>
+                                            {' · '}
+                                            CantMinima: <strong>{safeValue(p.cantminima)}</strong>
+                                        </td>
+                                    </tr>
+                                </React.Fragment>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={5} className="py-12 text-center text-gray-500 italic">
+                                <td colSpan={6} className="py-12 text-center text-gray-500 italic">
                                     No hay productos para mostrar.
                                 </td>
                             </tr>

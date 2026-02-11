@@ -14,9 +14,12 @@ function Stock() {
 
     const [products, setProducts] = useState([]);
     const [stocks, setStocks] = useState([]);
+
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [loadingStock, setLoadingStock] = useState(false);
     const [loadingSearch, setLoadingSearch] = useState(false);
+    const [loadingFechas, setLoadingFechas] = useState(false);
+
     const [error, setError] = useState(null);
 
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -36,14 +39,21 @@ function Stock() {
     const [selectedProductLots, setSelectedProductLots] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
+    // ✅ MAP: codprodu -> "YYYY-MM-DDTHH:mm:ss"
+    const [fechasByCode, setFechasByCode] = useState({});
+
+    // ✅ cache local de “requests ya hechas” (evita repetir fetch)
+    const requestedFechasRef = useRef(new Set());
+
     const wrapperRef = useRef(null);
 
     const suggestAbortRef = useRef(null);
     const searchAbortRef = useRef(null);
+    const fechasAbortRef = useRef(null);
 
-    const normStr = useCallback(v => String(v ?? '').trim(), []);
-    const onlyDigits = useCallback(v => (String(v ?? '').match(/\d+/g) || []).join(''), []);
-    const lower = useCallback(v => normStr(v).toLowerCase(), [normStr]);
+    const normStr = useCallback((v) => String(v ?? '').trim(), []);
+    const onlyDigits = useCallback((v) => (String(v ?? '').match(/\d+/g) || []).join(''), []);
+    const lower = useCallback((v) => normStr(v).toLowerCase(), [normStr]);
 
     const getAny = (obj, keys) => {
         for (const k of keys) {
@@ -52,18 +62,21 @@ function Stock() {
         return undefined;
     };
 
-    const productKeys = useCallback((p) => {
-        const full = normStr(getAny(p, ['codprodu', 'CODPRODU', 'codigo', 'code', 'referencia']));
-        const num = onlyDigits(full);
-        const codartic = normStr(getAny(p, ['codartic', 'CODARTIC']));
-        const ref = normStr(getAny(p, ['referencia', 'REFERENCIA']));
-        const marca = normStr(getAny(p, ['codmarca', 'CODMARCA', 'marca', 'MARCA']));
-        return { full, num, codartic, ref, marca };
-    }, [normStr, onlyDigits]);
+    const productKeys = useCallback(
+        (p) => {
+            const full = normStr(getAny(p, ['codprodu', 'CODPRODU', 'codigo', 'code', 'referencia']));
+            const num = onlyDigits(full);
+            const codartic = normStr(getAny(p, ['codartic', 'CODARTIC']));
+            const ref = normStr(getAny(p, ['referencia', 'REFERENCIA']));
+            const marca = normStr(getAny(p, ['codmarca', 'CODMARCA', 'marca', 'MARCA']));
+            return { full, num, codartic, ref, marca };
+        },
+        [normStr, onlyDigits]
+    );
 
     const normalizeLots = useCallback((arr = []) => {
         return arr
-            .map(l => {
+            .map((l) => {
                 const codloteVal = getAny(l, ['codlote', 'CODLOTE', 'lote', 'LOTE', 'codigo_lote', 'codigo', 'code', 'CODIGO']);
                 const qtyRaw = getAny(l, ['stockactual', 'STOCKACTUAL', 'stock_actual', 'cantidad', 'CANTIDAD', 'qty', 'quantity']);
                 const cantidad = Number.parseFloat(qtyRaw || 0);
@@ -72,7 +85,7 @@ function Stock() {
                     stockactual: Number.isFinite(cantidad) ? cantidad.toFixed(2) : '0.00',
                 };
             })
-            .filter(x => x.codlote !== '');
+            .filter((x) => x.codlote !== '');
     }, []);
 
     const stockByProd = useMemo(() => {
@@ -85,7 +98,7 @@ function Stock() {
     }, [stocks, normStr]);
 
     const isValidProduct = useCallback(
-        p =>
+        (p) =>
             ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(p.codmarca) &&
             !/^(PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|CUTTING|QUALITY|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(
                 p.desprodu
@@ -94,20 +107,31 @@ function Stock() {
         []
     );
 
+    // ✅ Combina productos con stock y fecha estimada (desde fechasByCode)
     const computeCombined = useCallback(
-        prods =>
-            prods.filter(isValidProduct).map(p => {
-                const key = normStr(p.codprodu);
-                const s = stockByProd.get(key);
-                const total = s ? parseFloat(s.stockactual || 0) : 0;
-                return {
-                    ...p,
-                    stockactual: Number.isFinite(total) ? total.toFixed(2) : '0.00',
-                    canpenrecib: s ? parseFloat(s.canpenrecib || 0).toFixed(2) : '0.00',
-                    canpenservir: s ? parseFloat(s.canpenservir || 0).toFixed(2) : '0.00'
-                };
-            }),
-        [stockByProd, isValidProduct, normStr]
+        (prods) =>
+            prods
+                .filter(isValidProduct)
+                .map((p) => {
+                    const key = normStr(p.codprodu);
+                    const s = stockByProd.get(key);
+                    const total = s ? parseFloat(s.stockactual || 0) : 0;
+
+                    return {
+                        ...p,
+                        stockactual: Number.isFinite(total) ? total.toFixed(2) : '0.00',
+                        canpenrecib: s ? parseFloat(s.canpenrecib || 0).toFixed(2) : '0.00',
+                        canpenservir: s ? parseFloat(s.canpenservir || 0).toFixed(2) : '0.00',
+
+                        // ✅ fecha estimada (solo si ya está en el cache)
+                        fechaestimada: fechasByCode[key] || null,
+
+                        // No stock (ya te funciona)
+                        plaentre: s?.plaentre || null,
+                        cantminima: s?.cantminima || null,
+                    };
+                }),
+        [stockByProd, isValidProduct, normStr, fechasByCode]
     );
 
     const combinedProducts = useMemo(() => computeCombined(products), [products, computeCombined]);
@@ -133,15 +157,16 @@ function Stock() {
         return Math.max(1, Math.ceil(count / itemsPerPage));
     }, [isSearchActive, filteredProducts.length, totalProducts, itemsPerPage]);
 
+    // ✅ Carga productos paginados
     useEffect(() => {
         if (!token || isSearchActive) return;
         setLoadingProducts(true);
         setError(null);
-        fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/products?page=${currentPage}&limit=${itemsPerPage}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        )
-            .then(res => {
+
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products?page=${currentPage}&limit=${itemsPerPage}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => {
                 if (!res.ok) throw new Error('Error loading products');
                 return res.json();
             })
@@ -149,25 +174,79 @@ function Stock() {
                 setProducts(prods);
                 setTotalProducts(total);
             })
-            .catch(err => setError(err.message))
+            .catch((err) => setError(err.message))
             .finally(() => setLoadingProducts(false));
     }, [token, currentPage, isSearchActive, itemsPerPage]);
 
+    // ✅ Carga stock (plaentre/cantminima te llegan aquí)
     useEffect(() => {
         if (!token) return;
         setLoadingStock(true);
         setError(null);
+
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
         })
-            .then(res => {
+            .then((res) => {
                 if (!res.ok) throw new Error('Error loading stock');
                 return res.json();
             })
-            .then(sData => setStocks(sData))
-            .catch(err => setError(err.message))
+            .then((sData) => setStocks(sData))
+            .catch((err) => setError(err.message))
             .finally(() => setLoadingStock(false));
     }, [token]);
+
+    /**
+     * ✅ FECHAS (FIX):
+     * - No dependemos de pagedProducts (evita bucle).
+     * - Calculamos "visibleCodes" desde fuentes estables.
+     * - Cacheamos para no refetchear.
+     */
+    useEffect(() => {
+        if (!token) return;
+
+        let visibleList = [];
+
+        if (!isSearchActive) {
+            // products ya es página actual (viene paginado del backend)
+            visibleList = products;
+        } else {
+            // búsqueda: paginación local
+            const start = (currentPage - 1) * itemsPerPage;
+            visibleList = filteredProducts.slice(start, start + itemsPerPage);
+        }
+
+        const codesAll = visibleList.map((p) => normStr(p.codprodu)).filter(Boolean);
+
+        // quitamos los que ya pedimos antes
+        const codes = codesAll.filter((c) => !requestedFechasRef.current.has(c));
+        if (!codes.length) return;
+
+        // marcamos como pedidos ya (para no duplicar)
+        for (const c of codes) requestedFechasRef.current.add(c);
+
+        fechasAbortRef.current?.abort?.();
+        const controller = new AbortController();
+        fechasAbortRef.current = controller;
+
+        setLoadingFechas(true);
+
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock/fechas?codes=${encodeURIComponent(codes.join(','))}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+        })
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Error loading fechas'))))
+            .then((data) => {
+                setFechasByCode((prev) => ({ ...prev, ...data }));
+            })
+            .catch(() => {
+                // si falla, “des-marcamos” para permitir reintento al cambiar página
+                for (const c of codes) requestedFechasRef.current.delete(c);
+            })
+            .finally(() => setLoadingFechas(false));
+
+        return () => controller.abort();
+    }, [token, isSearchActive, products, filteredProducts, currentPage, itemsPerPage, normStr]);
 
     const fuzzyFilter = useCallback(
         (p, term) =>
@@ -175,10 +254,11 @@ function Stock() {
                 .toLowerCase()
                 .split(' ')
                 .filter(Boolean)
-                .every(t => p.desprodu.toLowerCase().includes(t)),
+                .every((t) => p.desprodu.toLowerCase().includes(t)),
         []
     );
 
+    // Sugerencias
     useEffect(() => {
         if (searchTerm.length < 3 || !token) {
             suggestAbortRef.current?.abort?.();
@@ -192,21 +272,15 @@ function Stock() {
 
         const timeout = setTimeout(() => {
             fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
-                    searchTerm
-                )}&limit=200`,
+                `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(searchTerm)}&limit=200`,
                 { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
             )
-                .then(res => {
+                .then((res) => {
                     if (!res.ok) throw new Error();
                     return res.json();
                 })
-                .then(data =>
-                    setSuggestions(
-                        data.filter(isValidProduct).filter(p => fuzzyFilter(p, searchTerm))
-                    )
-                )
-                .catch(() => { /* ignore */ });
+                .then((data) => setSuggestions(data.filter(isValidProduct).filter((p) => fuzzyFilter(p, searchTerm))))
+                .catch(() => { });
         }, 250);
 
         return () => {
@@ -216,7 +290,7 @@ function Stock() {
     }, [searchTerm, token, isValidProduct, fuzzyFilter]);
 
     const performSearch = useCallback(
-        query => {
+        (query) => {
             const q = (query || '').trim();
             if (!q) return;
 
@@ -225,17 +299,19 @@ function Stock() {
             const controller = new AbortController();
             searchAbortRef.current = controller;
 
-            fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
-                    q
-                )}&limit=${SEARCH_FETCH_LIMIT}`,
-                { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
-            )
-                .then(res => {
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(q)}&limit=${SEARCH_FETCH_LIMIT}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal: controller.signal,
+            })
+                .then((res) => {
                     if (!res.ok) throw new Error();
                     return res.json();
                 })
-                .then(data => {
+                .then((data) => {
+                    // ✅ reset caches de fechas para que se recarguen bien en el nuevo set
+                    requestedFechasRef.current = new Set();
+                    setFechasByCode({});
+
                     setLastSearchResultsRaw(data);
                     const combined = computeCombined(data);
                     setFilteredProducts(combined);
@@ -244,13 +320,13 @@ function Stock() {
                     setLastSearch(q);
                     setCurrentPage(1);
                 })
-                .catch(() => { /* ignore */ })
+                .catch(() => { })
                 .finally(() => setLoadingSearch(false));
         },
         [token, computeCombined, SEARCH_FETCH_LIMIT]
     );
 
-    const handleSearchKeyPress = e => {
+    const handleSearchKeyPress = (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
@@ -260,13 +336,17 @@ function Stock() {
         }
     };
 
-    const handleSuggestionClickLocal = p => {
+    const handleSuggestionClickLocal = (p) => {
         performSearch(p.desprodu);
         setSuggestions([]);
         setSearchTerm('');
     };
 
     const clearSearch = () => {
+        // ✅ reset caches de fechas al volver a listado normal
+        requestedFechasRef.current = new Set();
+        setFechasByCode({});
+
         setFilteredProducts(combinedProducts);
         setIsSearchActive(false);
         setLastSearchResultsRaw([]);
@@ -274,12 +354,12 @@ function Stock() {
         setCurrentPage(1);
     };
 
-    const handlePageChange = pageNum => {
+    const handlePageChange = (pageNum) => {
         const p = Math.max(1, Math.min(pageNum, totalPages));
         setCurrentPage(p);
     };
 
-    // CLICK EN PRODUCTO: consulta de lotes SOLO almacén 00
+    // CLICK EN PRODUCTO: consulta lotes SOLO almacén 00
     const handleProductClick = async (p) => {
         const { full, num, marca } = productKeys(p);
         const numNoZeros = String(Number(num || 0));
@@ -296,13 +376,13 @@ function Stock() {
             { key: num, label: 'numeric' },
             { key: numNoZeros, label: 'numericNoZeros' },
             { key: `${mk}${num}`, label: 'marca+numeric' },
-            { key: `${mk}${numNoZeros}`, label: 'marca+numericNZ' }
+            { key: `${mk}${numNoZeros}`, label: 'marca+numericNZ' },
         ]
-            .map(x => ({ ...x, key: (x.key ?? '').toString().trim() }))
-            .filter(x => x.key.length > 0);
+            .map((x) => ({ ...x, key: (x.key ?? '').toString().trim() }))
+            .filter((x) => x.key.length > 0);
 
         const seen = new Set();
-        const uniqueCandidates = candidates.filter(c => (seen.has(c.key) ? false : (seen.add(c.key), true)));
+        const uniqueCandidates = candidates.filter((c) => (seen.has(c.key) ? false : (seen.add(c.key), true)));
 
         let serverLots = [];
 
@@ -311,9 +391,12 @@ function Stock() {
             const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) return [];
             const raw = await res.json();
-            const arr = Array.isArray(raw) ? raw
-                : Array.isArray(raw?.lotes) ? raw.lotes
-                    : Array.isArray(raw?.data) ? raw.data
+            const arr = Array.isArray(raw)
+                ? raw
+                : Array.isArray(raw?.lotes)
+                    ? raw.lotes
+                    : Array.isArray(raw?.data)
+                        ? raw.data
                         : [];
             return normalizeLots(arr);
         };
@@ -321,11 +404,14 @@ function Stock() {
         try {
             for (const cand of uniqueCandidates) {
                 const lots = await tryFetch(cand.key);
-                if (lots.length) { serverLots = lots; break; }
+                if (lots.length) {
+                    serverLots = lots;
+                    break;
+                }
             }
             if (serverLots.length) setSelectedProductLots(serverLots);
         } catch {
-            // silencio: no mostramos errores de consola de pruebas
+            // silencio
         }
     };
 
@@ -338,7 +424,7 @@ function Stock() {
 
         input.setAttribute('autocomplete', 'off');
 
-        const onKeyDown = e => {
+        const onKeyDown = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 e.stopPropagation();
@@ -361,9 +447,7 @@ function Stock() {
         <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6">
             <div className="container mx-auto bg-white p-6 rounded-lg shadow-lg max-w-screen-lg mt-20">
                 <h1 className="text-3xl font-bold text-center mb-4">Stock</h1>
-                <p className="text-center text-gray-600 mb-6">
-                    Gestiona y consulta el inventario de productos y sus lotes.
-                </p>
+                <p className="text-center text-gray-600 mb-6">Gestiona y consulta el inventario de productos y sus lotes.</p>
 
                 <div ref={wrapperRef} className="mb-6">
                     <SearchBar
@@ -371,10 +455,11 @@ function Stock() {
                         setSearchTerm={setSearchTerm}
                         suggestions={suggestions}
                         setSuggestions={setSuggestions}
-                        handleSearchInputChange={e => setSearchTerm(e.target.value)}
+                        handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
                         handleSearchKeyPress={handleSearchKeyPress}
                         handleSuggestionClick={handleSuggestionClickLocal}
                     />
+
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                         {lastSearch && (
                             <button
@@ -382,10 +467,10 @@ function Stock() {
                                 disabled={loadingSearch}
                                 className="inline-flex items-center px-4 py-2 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-white rounded-full shadow-sm transition"
                             >
-                                Última búsqueda:&nbsp;
-                                <span className="italic">“{lastSearch}”</span>
+                                Última búsqueda:&nbsp;<span className="italic">“{lastSearch}”</span>
                             </button>
                         )}
+
                         {isSearchActive && (
                             <button
                                 onClick={clearSearch}
@@ -396,15 +481,24 @@ function Stock() {
                                 Limpiar búsqueda
                             </button>
                         )}
+
                         {isSearchActive && (
                             <span className="text-sm text-gray-600 ml-auto">
                                 {filteredProducts.length} resultado{filteredProducts.length === 1 ? '' : 's'}
                             </span>
                         )}
+
                         {loadingSearch && (
                             <span className="inline-flex items-center gap-2 text-sm text-gray-600">
                                 <AiOutlineLoading3Quarters className="animate-spin" />
                                 Buscando…
+                            </span>
+                        )}
+
+                        {loadingFechas && (
+                            <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                                <AiOutlineLoading3Quarters className="animate-spin" />
+                                Cargando fechas…
                             </span>
                         )}
                     </div>
@@ -418,19 +512,11 @@ function Stock() {
                     </div>
                 ) : (
                     <>
-                        <ProductTable
-                            products={pagedProducts}
-                            handleProductClick={handleProductClick}
-                        />
-                        <PaginationControls
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            handlePageChange={handlePageChange}
-                        />
+                        <ProductTable products={pagedProducts} handleProductClick={handleProductClick} />
+                        <PaginationControls currentPage={currentPage} totalPages={totalPages} handlePageChange={handlePageChange} />
+
                         {isSearchActive && !pagedProducts.length && (
-                            <p className="text-center text-gray-600 my-6">
-                                No hay resultados para “{lastSearch}”.
-                            </p>
+                            <p className="text-center text-gray-600 my-6">No hay resultados para “{lastSearch}”.</p>
                         )}
                     </>
                 )}
