@@ -205,15 +205,16 @@ function Stock() {
     useEffect(() => {
         if (!token) return;
 
+        // ✅ Fuente estable: NO usar filteredProducts (cambia cuando llega fechasByCode)
         let visibleList = [];
 
         if (!isSearchActive) {
-            // products ya es página actual (viene paginado del backend)
+            // products ya viene paginado del backend
             visibleList = products;
         } else {
-            // búsqueda: paginación local
+            // búsqueda: paginación local pero basada en raw estable
             const start = (currentPage - 1) * itemsPerPage;
-            visibleList = filteredProducts.slice(start, start + itemsPerPage);
+            visibleList = lastSearchResultsRaw.slice(start, start + itemsPerPage);
         }
 
         const codesAll = visibleList.map((p) => normStr(p.codprodu)).filter(Boolean);
@@ -225,6 +226,7 @@ function Stock() {
         // marcamos como pedidos ya (para no duplicar)
         for (const c of codes) requestedFechasRef.current.add(c);
 
+        // aborta la anterior si existe
         fechasAbortRef.current?.abort?.();
         const controller = new AbortController();
         fechasAbortRef.current = controller;
@@ -234,19 +236,31 @@ function Stock() {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock/fechas?codes=${encodeURIComponent(codes.join(','))}`, {
             headers: { Authorization: `Bearer ${token}` },
             signal: controller.signal,
+            cache: 'no-store', // ✅ evita 304 / ETag raros
         })
             .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Error loading fechas'))))
             .then((data) => {
                 setFechasByCode((prev) => ({ ...prev, ...data }));
             })
-            .catch(() => {
-                // si falla, “des-marcamos” para permitir reintento al cambiar página
+            .catch((err) => {
+                // si fue abort, no desmarcamos (es normal)
+                if (err?.name === 'AbortError') return;
+
+                // si falla por otro motivo, permitimos reintento
                 for (const c of codes) requestedFechasRef.current.delete(c);
             })
             .finally(() => setLoadingFechas(false));
 
         return () => controller.abort();
-    }, [token, isSearchActive, products, filteredProducts, currentPage, itemsPerPage, normStr]);
+    }, [
+        token,
+        isSearchActive,
+        products,
+        lastSearchResultsRaw, // ✅ en vez de filteredProducts
+        currentPage,
+        itemsPerPage,
+        normStr,
+    ]);
 
     const fuzzyFilter = useCallback(
         (p, term) =>

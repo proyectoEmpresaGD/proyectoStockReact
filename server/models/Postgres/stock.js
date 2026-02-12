@@ -1,6 +1,5 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
-import { getSqlServerClient } from '../../db/sqlserverPool.js';
 
 dotenv.config();
 
@@ -9,18 +8,39 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-const CODALMAC_CERO_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) IN ('0', '00')";
+// acepta 0, 00, 000, etc.
+const CODALMAC_CERO_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) ~ '^0+$'";
+
+const sanitizeTableName = (name, fallback) => {
+    const value = String(name || fallback).trim().toLowerCase();
+    if (!/^[a-z_][a-z0-9_]*$/.test(value)) return fallback;
+    return value;
+};
+
+const sanitizeIdentifier = (name) => {
+    const value = String(name || '').trim();
+    if (!/^[a-z_][a-z0-9_]*$/i.test(value)) return null;
+    return value.toLowerCase();
+};
+
+const quoteIdent = (identifier) => `"${String(identifier).replace(/"/g, '""')}"`;
 
 export class StockModel {
-    // caches por BD (para no mezclar CJMW_Web con CJMW_202601)
-    static sqlServerColsCacheByDb = new Map();     // dbName -> Set(cols)
-    static sqlServerMovColsCacheByDb = new Map();  // dbName -> Set(cols)
-
-    static SQLSERVER_MAX_PARAMS = 1800;
     static FECHA_FALLBACK_MAX_CODES = Number(process.env.FECHA_FALLBACK_MAX_CODES || 250);
+    static pgColsCacheByTable = new Map();
 
     static normalizeCode(value) {
         return String(value ?? '').trim();
+    }
+
+    // Canonicaliza códigos tipo ARE000123 -> ARE123 (uppercase + quita ceros a la izquierda del tramo numérico)
+    static normalizeCodeCanonical(value) {
+        const raw = StockModel.normalizeCode(value).toUpperCase();
+        const m = raw.match(/^([A-Z]+)(\d+)$/);
+        if (!m) return raw;
+        const prefix = m[1];
+        const numeric = String(Number(m[2]));
+        return `${prefix}${numeric}`;
     }
 
     static chunkArray(arr = [], chunkSize = 1000) {
@@ -29,180 +49,193 @@ export class StockModel {
         return out;
     }
 
-    static async getDatCompraColumns(poolSqlServer, datCompraDatabase) {
-        const cacheKey = datCompraDatabase;
-        if (StockModel.sqlServerColsCacheByDb.has(cacheKey)) return StockModel.sqlServerColsCacheByDb.get(cacheKey);
+    static async getTableColumns(tableName) {
+        const table = sanitizeTableName(tableName, tableName);
+        if (StockModel.pgColsCacheByTable.has(table)) {
+            return StockModel.pgColsCacheByTable.get(table);
+        }
 
-        const datCompraTable = process.env.DATACOMPRA_TABLE || 'ProveProdu_DatCompra';
-        const colsQuery = `
-      SELECT COLUMN_NAME
-      FROM [${datCompraDatabase}].INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = '${datCompraTable}'
-    `;
+        const { rows } = await pool.query(
+            `
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = $1
+      `,
+            [table]
+        );
 
-        const colsRes = await poolSqlServer.request().query(colsQuery);
-        const cols = new Set(colsRes.recordset.map((r) => String(r.COLUMN_NAME || '').trim().toLowerCase()));
-        StockModel.sqlServerColsCacheByDb.set(cacheKey, cols);
+        const cols = new Set(rows.map((r) => String(r.column_name || '').trim().toLowerCase()).filter(Boolean));
+        StockModel.pgColsCacheByTable.set(table, cols);
         return cols;
     }
 
-    static async getMovStockPrevistosColumns(poolSqlServer, datCompraDatabase) {
-        const cacheKey = datCompraDatabase;
-        if (StockModel.sqlServerMovColsCacheByDb.has(cacheKey)) return StockModel.sqlServerMovColsCacheByDb.get(cacheKey);
+    static pickColumn(cols, configured, fallbacks = []) {
+        const conf = sanitizeIdentifier(configured);
+        if (conf && cols.has(conf)) return conf;
 
-        const movTable = process.env.MOV_STOCK_PREVISTOS_TABLE || 'PedCompra_Linea';
-        const colsQuery = `
-      SELECT COLUMN_NAME
-      FROM [${datCompraDatabase}].INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = '${movTable}'
-    `;
+        for (const fallback of fallbacks) {
+            const f = sanitizeIdentifier(fallback);
+            if (f && cols.has(f)) return f;
+        }
 
-        const colsRes = await poolSqlServer.request().query(colsQuery);
-        const cols = new Set(colsRes.recordset.map((r) => String(r.COLUMN_NAME || '').trim().toLowerCase()));
-        StockModel.sqlServerMovColsCacheByDb.set(cacheKey, cols);
-        return cols;
+        return null;
     }
 
-    // --- DatCompra: PlaEntre + CantMinima ---
+    // --- DatCompra desde PostgreSQL: PlaEntre + CantMinima ---
     static async getDatCompraMapByCodes(codes = []) {
         const normalizedCodes = [...new Set(codes.map(StockModel.normalizeCode).filter(Boolean))];
         if (!normalizedCodes.length) return new Map();
 
-        const datCompraDatabase = process.env.DATACOMPRA_DB_NAME || 'CJMW_202601';
-        const client = await getSqlServerClient({ database: datCompraDatabase });
-        if (!client) return new Map();
-        const { pool: poolSqlServer, sql } = client;
-
-        const datCompraTable = process.env.DATACOMPRA_TABLE || 'ProveProdu_DatCompra';
-        const productCol = process.env.DATACOMPRA_PRODUCT_COLUMN || 'CodProdu';
-        const leadTimeCol = process.env.DATACOMPRA_LEADTIME_COLUMN || 'PlaEntre';
-        const minQtyCol = process.env.DATACOMPRA_MINQTY_COLUMN || 'CantMinima';
+        const datCompraTable = sanitizeTableName(process.env.DATACOMPRA_TABLE, 'proveprodu_datcompra');
+        const maxCodes = Number(process.env.DATACOMPRA_MAX_CODES || 4000);
 
         try {
-            await StockModel.getDatCompraColumns(poolSqlServer, datCompraDatabase);
+            const cols = await StockModel.getTableColumns(datCompraTable);
+            const productCol = StockModel.pickColumn(cols, process.env.DATACOMPRA_PRODUCT_COLUMN, ['codprodu', 'cod_produ']);
+            const leadTimeCol = StockModel.pickColumn(cols, process.env.DATACOMPRA_LEADTIME_COLUMN, [
+                'plaentre',
+                'plazoentrega',
+            ]);
+            const minQtyCol = StockModel.pickColumn(cols, process.env.DATACOMPRA_MINQTY_COLUMN, [
+                'cantminima',
+                'cantidadminima',
+            ]);
+
+            if (!productCol) return new Map();
 
             const map = new Map();
-            const chunks = StockModel.chunkArray(normalizedCodes, StockModel.SQLSERVER_MAX_PARAMS);
+            const limited = normalizedCodes.slice(0, maxCodes);
+            const chunks = StockModel.chunkArray(limited, 1000);
 
-            for (let c = 0; c < chunks.length; c++) {
-                const chunk = chunks[c];
-                const request = poolSqlServer.request();
-
-                const inParams = chunk.map((code, i) => {
-                    const p = `cod_${c}_${i}`;
-                    request.input(p, sql.VarChar(100), code);
-                    return `@${p}`;
-                });
-
-                const datCompraQuery = `
+            for (const chunk of chunks) {
+                const { rows } = await pool.query(
+                    `
           SELECT
-            LTRIM(RTRIM(CAST(dc.[${productCol}] AS varchar(100)))) AS codprodu,
-            CAST(dc.[${leadTimeCol}] AS varchar(50)) AS plaentre,
-            CAST(dc.[${minQtyCol}] AS varchar(50)) AS cantminima
-          FROM [${datCompraDatabase}].[dbo].[${datCompraTable}] dc
-          WHERE LTRIM(RTRIM(CAST(dc.[${productCol}] AS varchar(100)))) IN (${inParams.join(', ')})
-        `;
+            TRIM(COALESCE(dc.${quoteIdent(productCol)}::text, '')) AS codprodu,
+            ${leadTimeCol ? `dc.${quoteIdent(leadTimeCol)}::text` : `NULL::text`} AS plaentre,
+            ${minQtyCol ? `dc.${quoteIdent(minQtyCol)}::text` : `NULL::text`} AS cantminima
+          FROM ${quoteIdent(datCompraTable)} dc
+          WHERE TRIM(COALESCE(dc.${quoteIdent(productCol)}::text, '')) = ANY($1)
+        `,
+                    [chunk]
+                );
 
-                const datCompraRes = await request.query(datCompraQuery);
-                for (const row of datCompraRes.recordset) {
+                for (const row of rows) {
                     const code = StockModel.normalizeCode(row.codprodu);
-                    if (!code) continue;
-                    if (!map.has(code)) {
-                        map.set(code, { plaentre: row.plaentre || null, cantminima: row.cantminima || null });
-                    }
+                    if (!code || map.has(code)) continue;
+                    map.set(code, {
+                        plaentre: row.plaentre || null,
+                        cantminima: row.cantminima || null,
+                    });
                 }
             }
 
             return map;
         } catch (error) {
-            console.error('Error fetching DatCompra data from SQL Server:', error.message);
+            console.error('Error fetching DatCompra data from PostgreSQL:', error.message);
             return new Map();
         }
     }
 
     /**
-     * ✅ FECHAS desde PedCompra_Linea (MAX(FecEntre) por producto)
-     * - NO usa ORDER BY
-     * - NO usa conversiones varchar->datetime
-     * - Devuelve ISO 126: YYYY-MM-DDTHH:mm:ss
+     * ✅ FECHAS desde PostgreSQL PedCompra_Linea (MAX(FecEntre) por producto)
+     * - Match por código canónico (ej: ARE000123 == ARE123)
+     * - Devuelve un Map con claves = códigos solicitados (tal cual entraron) y valores fecha/null
      */
     static async getFechaEstimadaMapByCodesFast(codes = []) {
         const normalizedCodes = [...new Set(codes.map(StockModel.normalizeCode).filter(Boolean))];
         if (!normalizedCodes.length) return new Map();
 
-        const datCompraDatabase = process.env.DATACOMPRA_DB_NAME || 'CJMW_202601';
-        const client = await getSqlServerClient({ database: datCompraDatabase });
-        if (!client) return new Map();
-        const { pool: poolSqlServer, sql } = client;
-
-        const movTable = process.env.MOV_STOCK_PREVISTOS_TABLE || 'PedCompra_Linea';
-        const productCol = process.env.MOV_STOCK_PREVISTOS_PRODUCT_COLUMN || 'CodProdu';
-        const fechaCol = process.env.MOV_STOCK_PREVISTOS_DATE_COLUMN || 'FecEntre';
-        const almacCol = process.env.MOV_STOCK_PREVISTOS_ALMAC_COLUMN || null;
+        const movTable = sanitizeTableName(process.env.MOV_STOCK_PREVISTOS_TABLE, 'pedcompra_linea');
         const almacValue = process.env.MOV_STOCK_PREVISTOS_ALMAC_VALUE ?? null;
 
         try {
-            const cols = await StockModel.getMovStockPrevistosColumns(poolSqlServer, datCompraDatabase);
+            const cols = await StockModel.getTableColumns(movTable);
+            const productCol = StockModel.pickColumn(cols, process.env.MOV_STOCK_PREVISTOS_PRODUCT_COLUMN, [
+                'codprodu',
+                'cod_produ',
+            ]);
+            const fechaCol = StockModel.pickColumn(cols, process.env.MOV_STOCK_PREVISTOS_DATE_COLUMN, [
+                'fecentre',
+                'fecha_entrega',
+                'fecha',
+            ]);
+            const almacCol = StockModel.pickColumn(cols, process.env.MOV_STOCK_PREVISTOS_ALMAC_COLUMN, [
+                'codalmac',
+                'almacen',
+                'cod_almac',
+            ]);
 
-            if (!cols.has(productCol.toLowerCase()) || !cols.has(fechaCol.toLowerCase())) {
-                return new Map();
+            if (!productCol || !fechaCol) return new Map();
+
+            // requested -> canonical mapping (para devolver valores por el código original solicitado)
+            const canonicalToRequested = new Map(); // canonical -> Set(requestedCodes)
+            for (const requestedCode of normalizedCodes) {
+                const canonical = StockModel.normalizeCodeCanonical(requestedCode);
+                if (!canonicalToRequested.has(canonical)) canonicalToRequested.set(canonical, new Set());
+                canonicalToRequested.get(canonical).add(requestedCode);
             }
 
-            const hasAlmFilter =
-                almacCol &&
-                cols.has(String(almacCol).toLowerCase()) &&
-                almacValue !== null &&
-                almacValue !== undefined &&
-                String(almacValue).trim() !== '';
-
             const map = new Map();
+            const canonicalCodes = [...canonicalToRequested.keys()];
+            const limited = canonicalCodes.slice(0, StockModel.FECHA_FALLBACK_MAX_CODES);
+            const chunks = StockModel.chunkArray(limited, 1000);
 
-            const limited = normalizedCodes.slice(0, StockModel.FECHA_FALLBACK_MAX_CODES);
-            const chunks = StockModel.chunkArray(limited, 400); // 400 va muy bien
-
-            for (let c = 0; c < chunks.length; c++) {
-                const chunk = chunks[c];
-                const request = poolSqlServer.request();
-
-                const inParams = chunk.map((code, i) => {
-                    const p = `fc_${c}_${i}`;
-                    request.input(p, sql.VarChar(100), code);
-                    return `@${p}`;
-                });
-
+            for (const chunk of chunks) {
+                const params = [chunk];
                 let whereAlm = '';
-                if (hasAlmFilter) {
-                    request.input(`alm_${c}`, sql.VarChar(10), String(almacValue));
-                    whereAlm = ` AND m.[${almacCol}] = @alm_${c}`;
+
+                // ✅ FIX: si el almacValue es 0/00/000... filtramos con regex '^0+$' (porque en BD suele venir "00")
+                if (almacCol && almacValue !== null && almacValue !== undefined && String(almacValue).trim() !== '') {
+                    const av = String(almacValue).trim();
+
+                    if (/^0+$/.test(av)) {
+                        // NO añadimos parámetro extra
+                        whereAlm = ` AND TRIM(COALESCE(m.${quoteIdent(almacCol)}::text, '')) ~ '^0+$'`;
+                    } else {
+                        params.push(av);
+                        whereAlm = ` AND TRIM(COALESCE(m.${quoteIdent(almacCol)}::text, '')) = $2`;
+                    }
                 }
 
-                const q = `
+                // Canonicalización SQL: UPPER + quita ceros a la izquierda del tramo numérico: ABC00012 -> ABC12
+                const canonicalSql = `UPPER(REGEXP_REPLACE(TRIM(COALESCE(m.${quoteIdent(
+                    productCol
+                )}::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))`;
+
+                const { rows } = await pool.query(
+                    `
           SELECT
-            LTRIM(RTRIM(CAST(m.[${productCol}] AS varchar(100)))) AS codprodu,
-            CONVERT(varchar(19), MAX(m.[${fechaCol}]), 126) AS fecha_estimada
-          FROM [${datCompraDatabase}].[dbo].[${movTable}] m
-          WHERE LTRIM(RTRIM(CAST(m.[${productCol}] AS varchar(100)))) IN (${inParams.join(', ')})
+            ${canonicalSql} AS canonical_code,
+            TO_CHAR(MAX(m.${quoteIdent(fechaCol)}), 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_estimada
+          FROM ${quoteIdent(movTable)} m
+          WHERE ${canonicalSql} = ANY($1)
           ${whereAlm}
-          GROUP BY LTRIM(RTRIM(CAST(m.[${productCol}] AS varchar(100))))
-        `;
+          GROUP BY ${canonicalSql}
+        `,
+                    params
+                );
 
-                const res = await request.query(q);
+                for (const row of rows) {
+                    const canonical = StockModel.normalizeCode(row.canonical_code);
+                    if (!canonical) continue;
+                    const requestedSet = canonicalToRequested.get(canonical);
+                    if (!requestedSet) continue;
 
-                for (const row of res.recordset) {
-                    const code = StockModel.normalizeCode(row.codprodu);
-                    if (!code) continue;
-                    map.set(code, row.fecha_estimada || null);
+                    for (const requestedCode of requestedSet) {
+                        map.set(requestedCode, row.fecha_estimada || null);
+                    }
                 }
+            }
 
-                // asegurar null para los que no vengan
-                for (const code of chunk) {
-                    if (!map.has(code)) map.set(code, null);
-                }
+            // Asegurar null para todo lo solicitado que no haya venido
+            for (const requestedCode of normalizedCodes) {
+                if (!map.has(requestedCode)) map.set(requestedCode, null);
             }
 
             return map;
         } catch (error) {
-            console.error('Error fetching Fecha Estimada from PedCompra_Linea:', error.message);
+            console.error('Error fetching Fecha Estimada from PostgreSQL pedcompra_linea:', error.message);
             return new Map();
         }
     }
@@ -213,7 +246,7 @@ export class StockModel {
       SELECT s.*, p.desprodu
       FROM stock s
       LEFT JOIN productos p ON s.codprodu = p.codprodu
-       WHERE ${CODALMAC_CERO_FILTER}
+      WHERE ${CODALMAC_CERO_FILTER}
     `;
         const params = [];
 
@@ -286,9 +319,23 @@ export class StockModel {
 
     static async create({ input }) {
         const {
-            empresa, ejercicio, codprodu,
-            stockinicial, cancompra, canvendi, canentra, cansalida, canfabri, canconsum,
-            stockactual, canpenrecib, canpenservir, canpenentra, canpensalida, canpenfabri, canpenconsum,
+            empresa,
+            ejercicio,
+            codprodu,
+            stockinicial,
+            cancompra,
+            canvendi,
+            canentra,
+            cansalida,
+            canfabri,
+            canconsum,
+            stockactual,
+            canpenrecib,
+            canpenservir,
+            canpenentra,
+            canpensalida,
+            canpenfabri,
+            canpenconsum,
             stockprevisto,
         } = input;
 
@@ -309,9 +356,23 @@ export class StockModel {
       RETURNING *;
       `,
             [
-                empresa, ejercicio, codprodu,
-                stockinicial, cancompra, canvendi, canentra, cansalida, canfabri, canconsum,
-                stockactual, canpenrecib, canpenservir, canpenentra, canpensalida, canpenfabri, canpenconsum,
+                empresa,
+                ejercicio,
+                codprodu,
+                stockinicial,
+                cancompra,
+                canvendi,
+                canentra,
+                cansalida,
+                canfabri,
+                canconsum,
+                stockactual,
+                canpenrecib,
+                canpenservir,
+                canpenentra,
+                canpensalida,
+                canpenfabri,
+                canpenconsum,
                 stockprevisto,
             ]
         );
@@ -320,7 +381,9 @@ export class StockModel {
     }
 
     static async update({ codprodu, input }) {
-        const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 2}`).join(', ');
+        const fields = Object.keys(input)
+            .map((key, index) => `"${key}" = $${index + 2}`)
+            .join(', ');
         const values = Object.values(input);
 
         const { rows } = await pool.query(
@@ -347,7 +410,7 @@ export class StockModel {
         SELECT s.codprodu, s.stockactual, p.desprodu, p.coleccion
         FROM stock s
         LEFT JOIN productos p ON s.codprodu = p.codprodu
-       WHERE ${CODALMAC_CERO_FILTER}
+        WHERE ${CODALMAC_CERO_FILTER}
       `;
             const { rows } = await pool.query(query);
             return rows;
@@ -358,28 +421,104 @@ export class StockModel {
     }
 
     static normalizeText(text = '') {
-        return text
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .trim();
+        return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     }
 
     static EXCLUDE_TERMS = [
-        'QUALITY', 'TAPILLA', 'CUTTING', 'CUTTINGS', 'RIEL', 'RIELES', 'HERRAJES',
-        'SOBRES', 'CARGO', 'RELLENO', 'CERTIFICADO', 'TRABAJOS', 'COJIN', 'CUBRE',
-        'ESTOR', 'CAIDA', 'PLAID', 'CABECERO', 'ETAMIN', 'CARTULINA', 'PORTES',
-        'COSTE DEL TRANSPORTE', 'MECANISMOS', 'BOLSAS', 'TUBOS', 'SERVILLETAS',
-        'CONTRACT', 'COMISION', 'COLCHA', 'PERCHA', 'LIBRO', 'VARIOS', 'CARRE GAME',
-        'LIENZO', 'BOLONIA', 'VARADERO', 'TAIGA', 'DUNE', 'ZAMFARA', 'SHIRA', 'CALCUTA',
-        'POISON', 'TUNDRA', 'AGATA', 'CUARZO', 'DIAMANTE', 'SUEDER', 'SIDDHARTA', 'NOMAD',
-        'HABITAT', 'GRAVITY', 'LUNAR', 'CANDIDA', 'BAMBU', 'PARLOUR', 'BENNELONG',
-        'MACARENA', 'NIJAR', 'MOJACAR', 'LOSENGO', 'VELVETY', 'MENORCA', 'BAUPRES',
-        'LOST ODISSEY', 'MEROPS', 'MARTINA', 'ORQUIDEA', 'GASHGAI', 'DAMASCO', 'DOVES',
-        'SENES', 'ESPERANZA', 'INMACULADA', 'ATLAS', 'MIRROR', 'ANTILLA', 'ANTILLA VELVET',
-        'LUMIERE', 'MIGRATION', 'NIMBOSILVA', 'PERSIAN MOOD', 'RINPA', 'SURIRI', 'XUBEC',
-        'AHURA', 'IMPERIAL', 'KUKULCAN', 'MOIRE', 'MOREAU', 'PERRAULT', 'PUMMERIN',
-        'TOPKAPI', 'TULUM', 'ZAHARA',
+        'QUALITY',
+        'TAPILLA',
+        'CUTTING',
+        'CUTTINGS',
+        'RIEL',
+        'RIELES',
+        'HERRAJES',
+        'SOBRES',
+        'CARGO',
+        'RELLENO',
+        'CERTIFICADO',
+        'TRABAJOS',
+        'COJIN',
+        'CUBRE',
+        'ESTOR',
+        'CAIDA',
+        'PLAID',
+        'CABECERO',
+        'ETAMIN',
+        'CARTULINA',
+        'PORTES',
+        'COSTE DEL TRANSPORTE',
+        'MECANISMOS',
+        'BOLSAS',
+        'TUBOS',
+        'SERVILLETAS',
+        'CONTRACT',
+        'COMISION',
+        'COLCHA',
+        'PERCHA',
+        'LIBRO',
+        'VARIOS',
+        'CARRE GAME',
+        'LIENZO',
+        'BOLONIA',
+        'VARADERO',
+        'TAIGA',
+        'DUNE',
+        'ZAMFARA',
+        'SHIRA',
+        'CALCUTA',
+        'POISON',
+        'TUNDRA',
+        'AGATA',
+        'CUARZO',
+        'DIAMANTE',
+        'SUEDER',
+        'SIDDHARTA',
+        'NOMAD',
+        'HABITAT',
+        'GRAVITY',
+        'LUNAR',
+        'CANDIDA',
+        'BAMBU',
+        'PARLOUR',
+        'BENNELONG',
+        'MACARENA',
+        'NIJAR',
+        'MOJACAR',
+        'LOSENGO',
+        'VELVETY',
+        'MENORCA',
+        'BAUPRES',
+        'LOST ODISSEY',
+        'MEROPS',
+        'MARTINA',
+        'ORQUIDEA',
+        'GASHGAI',
+        'DAMASCO',
+        'DOVES',
+        'SENES',
+        'ESPERANZA',
+        'INMACULADA',
+        'ATLAS',
+        'MIRROR',
+        'ANTILLA',
+        'ANTILLA VELVET',
+        'LUMIERE',
+        'MIGRATION',
+        'NIMBOSILVA',
+        'PERSIAN MOOD',
+        'RINPA',
+        'SURIRI',
+        'XUBEC',
+        'AHURA',
+        'IMPERIAL',
+        'KUKULCAN',
+        'MOIRE',
+        'MOREAU',
+        'PERRAULT',
+        'PUMMERIN',
+        'TOPKAPI',
+        'TULUM',
+        'ZAHARA',
     ];
 
     static _excludeRegex = null;
