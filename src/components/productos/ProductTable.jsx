@@ -13,8 +13,7 @@ const ProductTable = ({ products, handleProductClick }) => {
         { key: 'canpenservir', label: 'Pendiente Servir' },
     ];
 
-
-    const safeValue = val => {
+    const safeValue = (val) => {
         const num = parseFloat(val);
         if (val === null || val === undefined || val === '' || Number.isNaN(num)) return '—';
         return num.toFixed(2);
@@ -29,26 +28,37 @@ const ProductTable = ({ products, handleProductClick }) => {
         return String(value);
     };
 
+    // NUEVO: suma N días (p.plaentre) a la fecha de hoy y devuelve la fecha en formato es-ES
+    const formatFutureDateFromDays = (days) => {
+        const n = parseInt(days, 10);
+        if (days === null || days === undefined || days === '' || Number.isNaN(n)) return '—';
 
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + n);
+
+        return d.toLocaleDateString('es-ES');
+    };
 
     const renderNoStockMessage = (p) => {
+        const fechaEntrega = formatFutureDateFromDays(p.plaentre);
 
         return (
-            <div className="mt-2 text-xs text-gray-700">
-                En caso de no stock, Plazo entrega: <strong>{p.plaentre || '—'}</strong>
-                {' · '}
-                CantMinima: <strong>{p.cantminima || '—'}</strong>
+            <div className="mt-2 text-s text-gray-700">
+                En caso de no haber stock disponible podemos entregar:{' '}
+                <strong>{safeValue(p.cantminima)}</strong> en un plazo de:{' '}
+                <strong>{fechaEntrega}</strong>. Para cantidades superiores, consultar en{' '}
+                <strong>pedidos@cjmgroup.es</strong>.
             </div>
         );
     };
-
 
     return (
         <div className="w-full relative">
             {/* Botón de alternancia */}
             <div className="flex justify-end mb-2">
                 <button
-                    onClick={() => setVista(v => (v === 'tabla' ? 'tarjeta' : 'tabla'))}
+                    onClick={() => setVista((v) => (v === 'tabla' ? 'tarjeta' : 'tabla'))}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm transition"
                 >
                     Vista: {vista}
@@ -69,7 +79,7 @@ const ProductTable = ({ products, handleProductClick }) => {
                             onClick={() => handleProductClick(p)}
                             className="p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition cursor-pointer bg-white"
                         >
-                            {headers.map(h => (
+                            {headers.map((h) => (
                                 <div key={h.key} className="flex justify-between mb-1 last:mb-0">
                                     <span className="font-medium text-gray-600">{h.label}:</span>
                                     <span className="text-gray-800">
@@ -102,10 +112,11 @@ const ProductTable = ({ products, handleProductClick }) => {
                 <table className="min-w-max w-full text-sm lg:text-base">
                     <thead className="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                            {headers.map(h => (
+                            {headers.map((h) => (
                                 <th
                                     key={h.key}
-                                    className={`py-3 px-2 text-left font-medium text-gray-700 uppercase tracking-wide ${h.key === 'desprodu' ? 'w-2/6' : ''}`}
+                                    className={`py-3 px-2 text-left font-medium text-gray-700 uppercase tracking-wide ${h.key === 'desprodu' ? 'w-2/6' : ''
+                                        }`}
                                 >
                                     {h.label}
                                 </th>
@@ -118,21 +129,36 @@ const ProductTable = ({ products, handleProductClick }) => {
                                 <React.Fragment key={p.codprodu}>
                                     <tr
                                         onClick={() => handleProductClick(p)}
-                                        className={`cursor-pointer border-b transition-colors duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}
+                                        className={`cursor-pointer border-b transition-colors duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                            } hover:bg-blue-50`}
                                         tabIndex={0}
                                     >
-                                        <td className="py-2 px-2 font-semibold whitespace-nowrap text-gray-800">{p.codprodu || '—'}</td>
+                                        <td className="py-2 px-2 font-semibold whitespace-nowrap text-gray-800">
+                                            {p.codprodu || '—'}
+                                        </td>
                                         <td className="py-2 px-2 text-gray-800">{p.desprodu || '—'}</td>
-                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.stockactual)}</td>
-                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenrecib)}</td>
-                                        <td className="py-2 px-2 text-center text-gray-800">{formatDate(p.fechaestimada)}</td>
-                                        <td className="py-2 px-2 text-center text-gray-800">{safeValue(p.canpenservir)}</td>
+                                        <td className="py-2 px-2 text-center text-gray-800">
+                                            {safeValue(p.stockactual)}
+                                        </td>
+                                        <td className="py-2 px-2 text-center text-gray-800">
+                                            {safeValue(p.canpenrecib)}
+                                        </td>
+                                        <td className="py-2 px-2 text-center text-gray-800">
+                                            {formatDate(p.fechaestimada)}
+                                        </td>
+                                        <td className="py-2 px-2 text-center text-gray-800">
+                                            {safeValue(p.canpenservir)}
+                                        </td>
                                     </tr>
+
+                                    {/* Fila extra actualizada */}
                                     <tr className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                         <td colSpan={6} className="px-2 pb-3 pt-0 text-xs text-gray-700">
-                                            En caso de no stock, Plazo entrega: <strong>{p.plaentre || '—'} días</strong>
-                                            {' · '}
-                                            CantMinima: <strong>{safeValue(p.cantminima)}</strong>
+                                            En caso de no haber stock disponible podemos entregar:{' '}
+                                            <strong>{safeValue(p.cantminima)}</strong> en un plazo de:{' '}
+                                            <strong>{formatFutureDateFromDays(p.plaentre)}</strong>. Para
+                                            cantidades superiores, consultar en{' '}
+                                            <strong>pedidos@cjmgroup.es</strong>.
                                         </td>
                                     </tr>
                                 </React.Fragment>
