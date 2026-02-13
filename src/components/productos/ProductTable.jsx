@@ -19,6 +19,12 @@ const ProductTable = ({ products, handleProductClick }) => {
         return num.toFixed(2);
     };
 
+    const safeDays = (val) => {
+        const n = parseInt(val, 10);
+        if (val === null || val === undefined || val === '' || Number.isNaN(n)) return '—';
+        return n;
+    };
+
     const formatDate = (value) => {
         if (!value) return '—';
         const asDate = new Date(value);
@@ -28,7 +34,7 @@ const ProductTable = ({ products, handleProductClick }) => {
         return String(value);
     };
 
-    // NUEVO: suma N días (p.plaentre) a la fecha de hoy y devuelve la fecha en formato es-ES
+    // Suma N días (p.plaentre) a la fecha de hoy y devuelve la fecha en formato es-ES
     const formatFutureDateFromDays = (days) => {
         const n = parseInt(days, 10);
         if (days === null || days === undefined || days === '' || Number.isNaN(n)) return '—';
@@ -41,14 +47,17 @@ const ProductTable = ({ products, handleProductClick }) => {
     };
 
     const renderNoStockMessage = (p) => {
+        const dias = safeDays(p.plaentre);
         const fechaEntrega = formatFutureDateFromDays(p.plaentre);
 
         return (
-            <div className="mt-2 text-s text-gray-700">
+            <div className="mt-2 text-base text-gray-700">
                 En caso de no haber stock disponible podemos entregar:{' '}
-                <strong>{safeValue(p.cantminima)}</strong> en un plazo de:{' '}
-                <strong>{fechaEntrega}</strong>. Para cantidades superiores, consultar en{' '}
-                <strong>pedidos@cjmgroup.es</strong>.
+                <strong>{safeValue(p.cantminima)}</strong>{' '}
+                en un plazo de: <strong>{dias} días</strong>
+                {' · '}
+                Lo tendría disponible en la fecha: <strong>{fechaEntrega}</strong>.{' '}
+                Para cantidades superiores, consultar en <strong>pedidos@cjmgroup.es</strong>.
             </div>
         );
     };
@@ -153,11 +162,14 @@ const ProductTable = ({ products, handleProductClick }) => {
 
                                     {/* Fila extra actualizada */}
                                     <tr className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                        <td colSpan={6} className="px-2 pb-3 pt-0 text-xs text-gray-700">
+                                        <td colSpan={6} className="px-2 pb-3 pt-0 text-sm text-gray-700">
                                             En caso de no haber stock disponible podemos entregar:{' '}
-                                            <strong>{safeValue(p.cantminima)}</strong> en un plazo de:{' '}
-                                            <strong>{formatFutureDateFromDays(p.plaentre)}</strong>. Para
-                                            cantidades superiores, consultar en{' '}
+                                            <strong>{safeValue(p.cantminima)}</strong>{' '}
+                                            en un plazo de: <strong>{safeDays(p.plaentre)} días</strong>
+                                            {' · '}
+                                            Lo tendría disponible en la fecha:{' '}
+                                            <strong>{formatFutureDateFromDays(p.plaentre)}</strong>.{' '}
+                                            Para cantidades superiores, consultar en{' '}
                                             <strong>pedidos@cjmgroup.es</strong>.
                                         </td>
                                     </tr>
