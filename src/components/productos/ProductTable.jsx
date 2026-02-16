@@ -45,6 +45,44 @@ const ProductTable = ({ products, fetchProductLots }) => {
         return { key: `${code}-${idx}`, code, qty };
     };
 
+    // ✅ codtipo robusto (por si viene con otras keys)
+    const getCodtipo = (p) =>
+        p?.codtipo ?? p?.CODTIPO ?? p?.cod_tipo ?? p?.COD_TIPO ?? p?.tipo ?? p?.TIPO ?? null;
+
+    // ✅ Producto "papel de pared": codtipo === 103
+    const isTipo103 = (p) => {
+        const ct = getCodtipo(p);
+        return Number(ct) === 103 || String(ct) === "103";
+    };
+
+    // ✅ Texto bajo "Lotes":
+    // - para codtipo 103 -> "lote/lotes"
+    // - resto -> "Pieza/Piezas"
+    const lotsCountLabel = (p, count) => {
+        if (isTipo103(p)) return count === 1 ? "lote" : "lotes";
+        return count === 1 ? "Pieza" : "Piezas";
+    };
+
+    // ✅ Sufijo en cada fila (cantidad):
+    // - para codtipo 103 -> "rollo/rollos"
+    // - resto -> "m"
+    const qtyUnitForLotRow = (p, qtyRaw) => {
+        if (!isTipo103(p)) return "m";
+        const n = parseFloat(qtyRaw);
+        if (!Number.isFinite(n)) return "rollos";
+        return n === 1 ? "rollo" : "rollos";
+    };
+
+    // ✅ Unidad bajo Stock:
+    // - para codtipo 103 -> "rollo/rollos"
+    // - resto -> "metros"
+    const stockUnitLabel = (p, stockRaw) => {
+        if (!isTipo103(p)) return "metros";
+        const n = parseFloat(stockRaw);
+        if (!Number.isFinite(n)) return "rollos";
+        return n === 1 ? "rollo" : "rollos";
+    };
+
     const ensureLotsLoaded = (p) => {
         if (typeof fetchProductLots !== "function") return Promise.resolve();
         const cod = String(p?.codprodu ?? "");
@@ -86,23 +124,18 @@ const ProductTable = ({ products, fetchProductLots }) => {
         return prom;
     };
 
-    // Precarga lotes para visibles
     useEffect(() => {
         if (!products?.length) return;
         products.forEach((p) => ensureLotsLoaded(p));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [products, fetchProductLots]);
 
-    // ✅ Columna derecha responsive (no rompe móvil)
-    // - móvil: auto + min pequeño
-    // - desktop: ancho fijo para simetría
     const RIGHT_W = "min-w-[92px] w-auto md:w-[160px] md:min-w-[160px]";
 
     const SectionTitle = ({ children }) => (
         <div className="text-sm md:text-base font-semibold text-gray-900">{children}</div>
     );
 
-    // ✅ Fila responsive: en móvil se apila (label arriba, valor abajo a la derecha)
     const InfoRow = ({ label, value }) => (
         <div className="py-2.5">
             <div className="flex items-start justify-between gap-3">
@@ -119,14 +152,18 @@ const ProductTable = ({ products, fetchProductLots }) => {
         </div>
     );
 
-    // ✅ Stock responsive: en móvil no fuerza ancho grande
-    const StockBox = ({ value }) => (
-        <div className={`flex flex-col items-end gap-1 shrink-0 ${RIGHT_W}`}>
-            <div className="text-sm md:text-base font-semibold text-gray-900">Stock</div>
-            <div className="w-full rounded-2xl bg-blue-200 px-3 py-2 md:px-4 md:py-2.5 text-center text-xl md:text-2xl font-extrabold text-black ring-1 ring-inset ring-blue-300 tabular-nums">
+    // ✅ StockBox ahora recibe también el producto para decidir "metros" vs "rollo(s)"
+    const StockBox = ({ value, product }) => (
+        <div className={`flex flex-col items-center gap-1 shrink-0 ${RIGHT_W}`}>
+            <div className="text-sm md:text-base font-semibold text-gray-900 text-center">Stock</div>
+
+            <div className="w-full rounded-xl bg-blue-200 ring-1 ring-inset ring-blue-300 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
                 {safeValue(value)}
             </div>
-            <div className="text-xs text-gray-500">metros</div>
+
+            <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
+                {stockUnitLabel(product, value)}
+            </div>
         </div>
     );
 
@@ -145,7 +182,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                 ? "Cargando lotes…"
                                 : entry.status === "error"
                                     ? "No se pudieron cargar los lotes"
-                                    : `${lots.length} lote${lots.length === 1 ? "" : "s"}`}
+                                    : `${lots.length} ${lotsCountLabel(p, lots.length)}`}
                         </div>
                     </div>
 
@@ -190,7 +227,6 @@ const ProductTable = ({ products, fetchProductLots }) => {
                             <div className="mt-3 text-sm text-gray-600">No hay lotes disponibles.</div>
                         ) : (
                             <>
-                                {/* ✅ En móvil, los lotes no se salen: min-w-0 + wrap */}
                                 <div className="mt-3 space-y-2 max-h-64 md:max-h-80 overflow-y-auto pr-1">
                                     {lots.map((l) => (
                                         <div
@@ -206,7 +242,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                                             <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
                                                 <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
-                                                    {safeValue(l.qty)} m
+                                                    {safeValue(l.qty)} {qtyUnitForLotRow(p, l.qty)}
                                                 </div>
                                             </div>
                                         </div>
@@ -227,10 +263,43 @@ const ProductTable = ({ products, fetchProductLots }) => {
     const StatusBox = ({ p }) => (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 overflow-hidden">
             <SectionTitle>Estado</SectionTitle>
-            <div className="mt-3 divide-y divide-gray-100">
-                <InfoRow label="Pendiente recibir" value={safeValue(p?.canpenrecib)} />
-                <InfoRow label="Fecha estimada" value={formatDate(p?.fechaestimada)} />
-                <InfoRow label="Pendiente servir" value={safeValue(p?.canpenservir)} />
+
+            <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                    <div className="min-w-0">
+                        <div className="text-sm md:text-base font-semibold text-gray-900">Pendiente recibir</div>
+                    </div>
+
+                    <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
+                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                            {safeValue(p?.canpenrecib)}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                    <div className="min-w-0">
+                        <div className="text-sm md:text-base font-semibold text-gray-900">Fecha estimada</div>
+                    </div>
+
+                    <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
+                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                            {formatDate(p?.fechaestimada)}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                    <div className="min-w-0">
+                        <div className="text-sm md:text-base font-semibold text-gray-900">Pendiente servir</div>
+                    </div>
+
+                    <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
+                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                            {safeValue(p?.canpenservir)}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -244,8 +313,8 @@ const ProductTable = ({ products, fetchProductLots }) => {
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 overflow-hidden">
                 <SectionTitle>Disponibilidad</SectionTitle>
 
-                <p className="mt-3 text-sm md:text-base text-gray-800 leading-6 break-words">
-                    <span className="font-semibold">En caso de no haber stock disponible o suficiente</span>, podemos entregar{" "}
+                <p className="mt-3 text-sm md:text-base text-gray-700 leading-6 break-words">
+                    <span>En caso de no haber stock disponible o suficiente</span>, podemos entregar{" "}
                     <span className="font-extrabold text-base md:text-lg">{metros}</span>{" "}
                     <span className="font-bold">metros</span>{" "}
                     en un plazo aproximado de{" "}
@@ -254,20 +323,20 @@ const ProductTable = ({ products, fetchProductLots }) => {
                     después de la confirmación del pedido.
                 </p>
 
-                {/* ✅ En móvil se apila, en desktop se alinea */}
-                <div className="mt-4 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                    <div className="rounded-2xl bg-white ring-1 ring-inset ring-blue-200 px-4 py-3 w-full md:w-auto">
-                        <div className="text-xs text-gray-600">Si confirma hoy, fecha aprox.</div>
-                        <div className="mt-1 text-lg md:text-xl font-extrabold text-gray-900 tabular-nums break-words">
+                <div className="mt-4">
+                    <div className="rounded-2xl bg-white ring-1 ring-inset ring-blue-200 px-4 py-3 w-full flex flex-col items-center text-center">
+                        <div className="text-xs text-gray-600 text-center">Si confirma hoy, fecha aprox.</div>
+
+                        <div className="mt-1 text-lg md:text-xl font-extrabold text-gray-900 tabular-nums break-words text-center">
                             {fecha}
                         </div>
-                    </div>
 
-                    <div className="text-xs md:text-sm text-gray-700 leading-5 break-words md:max-w-[60%]">
-                        Para cantidades superiores a{" "}
-                        <span className="font-extrabold">{metros}</span>{" "}
-                        <span className="font-bold">metros</span>, consultar en{" "}
-                        <span className="font-semibold break-all">pedidos@cjmgroup.es</span>.
+                        <div className="mt-2 text-xs md:text-sm text-gray-700 leading-5 text-center break-words">
+                            Para cantidades superiores a{" "}
+                            <span className="font-extrabold">{metros}</span>{" "}
+                            <span className="font-bold">metros</span>, consultar en{" "}
+                            <span className="font-semibold break-all">pedidos@cjmgroup.es</span>.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -276,22 +345,21 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
     const ProductCard = ({ p }) => (
         <div className="rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
-            {/* Cabecera: en móvil se mantiene en una línea sin desbordar */}
             <div className="p-5 md:p-6">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                        <div className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                            {p?.codprodu ?? "—"}
+                        <div className="inline-flex items-center px-3 py-1 text-base font-semibold text-gray-900">
+                            Producto
                         </div>
 
                         <div className="mt-3 text-lg md:text-xl font-semibold text-gray-900 leading-snug break-words">
                             {p?.desprodu ?? "—"}
                         </div>
-
-                        <div className="mt-1 text-sm text-gray-500">Consulta rápida de stock y lotes</div>
                     </div>
 
-                    <StockBox value={p?.stockactual} />
+                    <div className="mr-7">
+                        <StockBox value={p?.stockactual} product={p} />
+                    </div>
                 </div>
             </div>
 
