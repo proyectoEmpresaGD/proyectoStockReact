@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './Auth/AuthContext.jsx';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
@@ -39,9 +39,20 @@ import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImage
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme ? savedTheme === 'dark' : false;
+  });
+
+  useEffect(() => {
+    const theme = isDarkMode ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [isDarkMode]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
   const closeSidebar = () => setSidebarOpen(false);
+  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 
   return (
     <Router>
@@ -53,12 +64,16 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex min-h-screen bg-[#f5f5f7] text-slate-900">
+                <div className="flex min-h-screen app-bg app-text">
                   <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
 
                   {/* Sidebar fijo en desktop y header fijo, por eso reservamos espacio superior y lateral. */}
-                  <div className="flex-1 h-screen overflow-y-auto bg-[#f5f5f7] pt-20 md:pl-64">
-                    <Header toggleSidebar={toggleSidebar} />
+                  <div className="flex-1 h-screen overflow-y-auto app-bg pt-20 md:pl-64">
+                    <Header
+                      toggleSidebar={toggleSidebar}
+                      isDarkMode={isDarkMode}
+                      toggleDarkMode={toggleDarkMode}
+                    />
 
                     <main className="">
                       <div className="">

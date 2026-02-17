@@ -33,7 +33,7 @@ const PerfilUsuario = () => {
 
     if (!user) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-[#f5f5f7]">
+            <div className="flex justify-center items-center min-h-screen app-bg">
                 <p className="text-slate-600 text-lg animate-pulse">Cargando perfil...</p>
             </div>
         );
@@ -74,7 +74,7 @@ const PerfilUsuario = () => {
 
 
     return (
-        <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
+        <div className="min-h-screen app-bg flex items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
             <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:p-8">
 
                 <div className="flex flex-col items-center mb-10">

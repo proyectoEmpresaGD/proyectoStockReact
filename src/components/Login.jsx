@@ -13,6 +13,10 @@ function Login() {
     const passwordRef = useRef(null);
     const usernameRef = useRef(null);
     const navigate = useNavigate(); // Hook de navegación
+    const isDarkMode = localStorage.getItem('theme') === 'dark';
+    const loginLogoSrc = isDarkMode
+        ? 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS%20BLANCOS/logo_cjm_blanco.png'
+        : 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoCJM_group.png';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -67,11 +71,11 @@ function Login() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f5f7] px-4 py-10">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden app-bg px-4 py-10">
             <div className="relative w-full max-w-md rounded-3xl border border-white/40 bg-white/80 p-7 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur-xl md:p-9">
                 <div className="mb-8 text-center">
                     <img
-                        src="https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoCJM_group.png"
+                        src={loginLogoSrc}
                         alt="Logo"
                         className="mx-auto mb-4 h-14 w-auto object-contain"
                     />

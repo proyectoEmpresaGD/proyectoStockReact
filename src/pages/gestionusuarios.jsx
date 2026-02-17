@@ -211,14 +211,14 @@ const Perfil = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-[#f5f5f7]">
+            <div className="flex justify-center items-center h-screen app-bg">
                 <p className="text-slate-600 text-lg">Cargando perfil...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#f5f5f7] px-3 pb-8 pt-20 sm:px-4 md:px-8">
+        <div className="min-h-screen app-bg px-3 pb-8 pt-20 sm:px-4 md:px-8">
             <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:p-6 md:p-8">
                 {user.role === 'admin' && (
                     <>

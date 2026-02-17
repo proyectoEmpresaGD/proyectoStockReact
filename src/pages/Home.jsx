@@ -95,7 +95,7 @@ function Home() {
     ];
 
     return (
-        <div className="min-h-screen bg-[#f5f5f7] px-3 py-4 sm:px-4 sm:py-6 md:px-8">
+        <div className="min-h-screen app-bg px-3 py-4 sm:px-4 sm:py-6 md:px-8">
             <div className="mx-auto mt-2 w-full max-w-6xl rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)] sm:rounded-3xl sm:p-6 md:mt-4 md:p-10">
                 <div className="mb-6 border-b border-slate-100 pb-5 text-center md:mb-8 md:pb-6 md:text-left">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Panel de control</p>
