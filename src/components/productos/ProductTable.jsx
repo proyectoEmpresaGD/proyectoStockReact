@@ -157,7 +157,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
         <div className={`flex flex-col items-center gap-1 shrink-0 ${RIGHT_W}`}>
             <div className="text-sm md:text-base font-semibold text-gray-900 text-center">Stock</div>
 
-            <div className="w-full rounded-xl bg-blue-200 ring-1 ring-inset ring-blue-300 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
+            <div className="w-full rounded-xl bg-blue-50 ring-1 ring-inset ring-blue-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
                 {safeValue(value)}
             </div>
 
