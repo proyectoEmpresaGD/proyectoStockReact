@@ -65,7 +65,7 @@ function Home() {
 
             if (!ordersResponse.ok) throw new Error(`Error al obtener pedidos: ${ordersResponse.status}`);
             const ordersData = await ordersResponse.json();
-            const uniqueOrders = new Set(ordersData.map(order => order.npedventa));
+            const uniqueOrders = new Set(ordersData.map((order) => order.npedventa));
             setTotalOrders(uniqueOrders.size);
         } catch (error) {
             console.error('Error al obtener datos:', error);
@@ -74,72 +74,92 @@ function Home() {
         }
     };
 
+    const shortcutCards = [
+        {
+            title: 'Clientes',
+            description: 'Gestiona clientes, historial y facturación desde un único lugar.',
+            to: '/clients',
+            icon: <AiOutlineUser size={34} className="text-blue-600" />,
+        },
+        {
+            title: 'Stock',
+            description: 'Controla inventario, movimientos y disponibilidad en tiempo real.',
+            to: '/stock',
+            icon: <AiOutlineStock size={34} className="text-emerald-600" />,
+        },
+        {
+            title: 'Pedidos',
+            description: 'Supervisa el flujo de pedidos para mejorar la operación comercial.',
+            icon: <AiOutlineFile size={34} className="text-amber-600" />,
+        },
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6 overflow-y-auto">
-            <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-24">
-                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
-                    Gestión
-                </h1>
-                <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
-                    Explora y gestiona tus datos de manera eficiente con nuestras herramientas intuitivas.
-                </p>
-
-                {/* Atajos principales */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                    <Link
-                        to="/clients"
-                        className="flex flex-col items-center bg-white p-4 rounded shadow hover:shadow-lg hover:bg-blue-100 transition duration-200"
-                    >
-                        <AiOutlineUser size={36} className="text-blue-500 mb-2" />
-                        <h2 className="text-lg md:text-xl font-semibold text-gray-800">Clientes</h2>
-                        <p className="text-gray-600 text-sm md:text-base">
-                            Gestión de clientes y facturación.
-                        </p>
-                    </Link>
-
-                    <Link
-                        to="/stock"
-                        className="flex flex-col items-center bg-white p-4 rounded shadow hover:shadow-lg hover:bg-green-100 transition duration-200"
-                    >
-                        <AiOutlineStock size={36} className="text-green-500 mb-2" />
-                        <h2 className="text-lg md:text-xl font-semibold text-gray-800">Stock</h2>
-                        <p className="text-gray-600 text-sm md:text-base">
-                            Consulta y administra tu inventario.
-                        </p>
-                    </Link>
-
-                    <div className="flex flex-col items-center bg-white p-4 rounded shadow hover:shadow-lg hover:bg-orange-100 transition duration-200">
-                        <AiOutlineFile size={36} className="text-orange-500 mb-2" />
-                        <h2 className="text-lg md:text-xl font-semibold text-gray-800">Pedidos</h2>
-                        <p className="text-gray-600 text-sm md:text-base">
-                            En desarrollo...
-                        </p>
-                    </div>
+        <div className="min-h-screen bg-[#f5f5f7] px-3 py-4 sm:px-4 sm:py-6 md:px-8">
+            <div className="mx-auto mt-2 w-full max-w-6xl rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)] sm:rounded-3xl sm:p-6 md:mt-4 md:p-10">
+                <div className="mb-6 border-b border-slate-100 pb-5 text-center md:mb-8 md:pb-6 md:text-left">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Panel de control</p>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">Gestión inteligente</h1>
+                    <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-500 md:text-base">
+                        Una vista clara y profesional para acceder rápidamente a las áreas clave de la aplicación.
+                    </p>
                 </div>
 
-                {/* Resumen de datos clave */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-blue-100 p-4 rounded shadow text-center">
-                        <h3 className="text-2xl md:text-3xl font-semibold text-blue-700">
-                            {isLoading ? '...' : totalClients}
-                        </h3>
-                        <p className="text-gray-600 text-sm md:text-base">Clientes registrados</p>
+                <div className="mb-6 grid grid-cols-1 gap-3 sm:gap-4 md:mb-8 md:grid-cols-3">
+                    {shortcutCards.map((card) => {
+                        const cardContent = (
+                            <>
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                                    {card.icon}
+                                </div>
+                                <h2 className="text-lg font-semibold text-slate-900">{card.title}</h2>
+                                <p className="mt-2 text-sm leading-relaxed text-slate-500">{card.description}</p>
+                            </>
+                        );
+
+                        if (card.to) {
+                            return (
+                                <Link
+                                    key={card.title}
+                                    to={card.to}
+                                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-5"
+                                >
+                                    {cardContent}
+                                </Link>
+                            );
+                        }
+
+                        return (
+                            <div key={card.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                                {cardContent}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</p>
+                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalClients}</h3>
+                        <p className="mt-2 text-sm text-slate-500">Registros activos en la base de datos.</p>
                     </div>
-                    <div className="bg-green-100 p-4 rounded shadow text-center">
-                        <h3 className="text-2xl md:text-3xl font-semibold text-green-700">
-                            {isLoading ? '...' : totalProducts}
-                        </h3>
-                        <p className="text-gray-600 text-sm md:text-base">Productos registrados</p>
-                        <h3 className="text-2xl md:text-3xl font-semibold text-green-700">
-                            {isLoading ? '...' : totalStock}
-                        </h3>
-                        <p className="text-gray-600 text-sm md:text-base">Stock total</p>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Productos</p>
+                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalProducts}</h3>
+                        <p className="mt-2 text-sm text-slate-500">Items disponibles para gestión.</p>
                     </div>
-                    <div className="bg-orange-100 p-4 rounded shadow text-center">
-                        <h3 className="text-2xl md:text-3xl font-semibold text-orange-700">
-                            {isLoading ? '...' : totalOrders}
-                        </h3>
-                        <p className="text-gray-600 text-sm md:text-base">Pedidos totales</p>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Stock total</p>
+                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalStock}</h3>
+                        <p className="mt-2 text-sm text-slate-500">Unidades totales en inventario.</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pedidos</p>
+                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalOrders}</h3>
+                        <p className="mt-2 text-sm text-slate-500">Pedidos únicos procesados.</p>
                     </div>
                 </div>
             </div>

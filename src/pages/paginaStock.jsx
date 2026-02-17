@@ -5,6 +5,7 @@ import ProductTable from '../components/productos/ProductTable';
 import PaginationControls from '../components/PaginationControls';
 import { useAuthContext } from '../Auth/AuthContext';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
+import PageShell from '../common/PageShell.jsx';
 
 function Stock() {
     const { token } = useAuthContext();
@@ -365,62 +366,60 @@ function Stock() {
     const anyLoading = loadingStock;
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6">
-            <div className="container mx-auto bg-white p-6 rounded-lg shadow-lg max-w-screen-lg mt-20">
-                <h1 className="text-3xl font-bold text-center mb-4">Stock</h1>
-                <p className="text-center text-gray-600 mb-6">Herramienta de búsqueda de productos y lotes.</p>
+        <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20">
+            <h1 className="mb-4 text-center text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">Stock</h1>
+            <p className="mb-6 text-center text-sm text-slate-500 md:text-base">Herramienta de búsqueda de productos y lotes.</p>
 
-                <div ref={wrapperRef} className="mb-6">
-                    <SearchBar
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
-                        suggestions={suggestions}
-                        setSuggestions={setSuggestions}
-                        handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
-                        handleSearchKeyPress={handleSearchKeyPress}
-                        handleSuggestionClick={handleSuggestionClickLocal}
-                    />
+            <div ref={wrapperRef} className="mb-6">
+                <SearchBar
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    suggestions={suggestions}
+                    setSuggestions={setSuggestions}
+                    handleSearchInputChange={(e) => setSearchTerm(e.target.value)}
+                    handleSearchKeyPress={handleSearchKeyPress}
+                    handleSuggestionClick={handleSuggestionClickLocal}
+                />
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {loadingSearch && (
-                            <span className="inline-flex items-center gap-2 text-sm text-gray-600">
-                                <AiOutlineLoading3Quarters className="animate-spin" />
-                                Buscando…
-                            </span>
-                        )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {loadingSearch && (
+                        <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                            <AiOutlineLoading3Quarters className="animate-spin" />
+                            Buscando…
+                        </span>
+                    )}
 
-                        {loadingFechas && (
-                            <span className="inline-flex items-center gap-2 text-sm text-gray-600">
-                                <AiOutlineLoading3Quarters className="animate-spin" />
-                                Cargando fechas…
-                            </span>
-                        )}
+                    {loadingFechas && (
+                        <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                            <AiOutlineLoading3Quarters className="animate-spin" />
+                            Cargando fechas…
+                        </span>
+                    )}
 
-                        {!!combinedResults.length && (
-                            <span className="text-sm text-gray-600 ml-auto">
-                                {combinedResults.length} resultado{combinedResults.length === 1 ? '' : 's'}
-                            </span>
-                        )}
-                    </div>
+                    {!!combinedResults.length && (
+                        <span className="ml-auto text-sm text-slate-600">
+                            {combinedResults.length} resultado{combinedResults.length === 1 ? '' : 's'}
+                        </span>
+                    )}
                 </div>
-
-                {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-
-                {anyLoading ? (
-                    <div className="flex justify-center py-10">
-                        <AiOutlineLoading3Quarters className="animate-spin text-3xl text-blue-500" />
-                    </div>
-                ) : (
-                    <>
-                        <ProductTable products={pagedProducts} fetchProductLots={fetchProductLots} />
-
-                        {!!combinedResults.length && (
-                            <PaginationControls currentPage={currentPage} totalPages={totalPages} handlePageChange={handlePageChange} />
-                        )}
-                    </>
-                )}
             </div>
-        </div>
+
+            {error && <p className="mb-4 text-center text-red-500">{error}</p>}
+
+            {anyLoading ? (
+                <div className="flex justify-center py-10">
+                    <AiOutlineLoading3Quarters className="text-3xl text-slate-600 animate-spin" />
+                </div>
+            ) : (
+                <>
+                    <ProductTable products={pagedProducts} fetchProductLots={fetchProductLots} />
+
+                    {!!combinedResults.length && (
+                        <PaginationControls currentPage={currentPage} totalPages={totalPages} handlePageChange={handlePageChange} />
+                    )}
+                </>
+            )}
+        </PageShell>
     );
 }
 

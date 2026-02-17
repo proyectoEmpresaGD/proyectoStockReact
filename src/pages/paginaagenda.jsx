@@ -1,16 +1,16 @@
 // src/pages/paginaagenda.jsx
 import React, { Suspense, lazy } from 'react';
-
+import PageShell from '../common/PageShell.jsx';
 // Importación dinámica para cargar Agenda únicamente en el cliente
 const Agenda = lazy(() => import('../components/agenda/Agenda'));
 
 const AgendaPage = () => {
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center px-3 py-6 sm:px-6">
-            <div className="agenda-page-wrapper mx-auto bg-white p-4 sm:p-6 border rounded shadow-lg w-full max-w-6xl mt-16 sm:mt-24">
+        <PageShell maxWidth="max-w-6xl" className="mt-16 sm:mt-20">
+            <div className="agenda-page-wrapper">
                 <Suspense
                     fallback={
-                        <div className="flex h-48 items-center justify-center rounded border border-indigo-200 bg-indigo-50 text-indigo-700 shadow">
+                        <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 shadow-sm">
                             Cargando agenda...
                         </div>
                     }
@@ -18,7 +18,7 @@ const AgendaPage = () => {
                     <Agenda />
                 </Suspense>
             </div>
-        </div>
+        </PageShell>
     );
 };
 

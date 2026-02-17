@@ -1,25 +1,23 @@
 import { useRef } from 'react';
 import EquivalenciasTable from '../components/equivalencias/EquivalenciasTable';
-
+import PageShell from '../common/PageShell.jsx';
 function Equivalencias() {
     const searchBarRef = useRef(null);
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6 overflow-y-auto">
-            <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-20">
-                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
-                    Gestión de Equivalencias
-                </h1>
-                <p className="text-lg md:text-xl mb-6 text-center text-gray-600">
-                    Busca y gestiona las equivalencias de productos de manera rápida y eficiente.
-                </p>
 
-                {/* Tabla de Equivalencias */}
-                <div ref={searchBarRef}>
-                    <EquivalenciasTable />
-                </div>
+        <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20">
+            <h1 className="mb-4 text-center text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+                Gestión de Equivalencias
+            </h1>
+            <p className="mb-6 text-center text-sm text-slate-500 md:text-base">
+                Busca y gestiona las equivalencias de productos de manera rápida y eficiente.
+            </p>
+
+            <div ref={searchBarRef}>
+                <EquivalenciasTable />
             </div>
-        </div>
+        </PageShell>
     );
 }
 

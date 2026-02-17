@@ -211,19 +211,19 @@ const Perfil = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500">
-                <p className="text-white text-lg">Cargando perfil...</p>
+            <div className="flex justify-center items-center h-screen bg-[#f5f5f7]">
+                <p className="text-slate-600 text-lg">Cargando perfil...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 pt-24 pb-12 px-4">
-            <div className="max-w-6xl mx-auto bg-white p-10 rounded-2xl shadow-2xl">
+        <div className="min-h-screen bg-[#f5f5f7] px-3 pb-8 pt-20 sm:px-4 md:px-8">
+            <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:p-6 md:p-8">
                 {user.role === 'admin' && (
                     <>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h3>
+                            <h3 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">Gestión de Usuarios</h3>
 
                             {notification && (
                                 <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 text-blue-800 px-6 py-3 rounded shadow-lg">
@@ -233,13 +233,13 @@ const Perfil = () => {
 
                             <button
                                 onClick={() => setShowCreateForm(!showCreateForm)}
-                                className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg"
+                                className="min-h-[44px] rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
                             >
                                 {showCreateForm ? 'Cancelar' : 'Crear Usuario'}
                             </button>
                         </div>
                         {showCreateForm && (
-                            <div className="bg-gray-100 p-4 rounded-lg mb-6">
+                            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 {/* Imagen estilo Discord */}
                                 <div className="flex flex-col items-center mb-6">
                                     <div className="relative w-28 h-28 group">
@@ -363,11 +363,11 @@ const Perfil = () => {
 
 
 
-                        <input type="text" placeholder="Buscar por nombre de usuario..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-4 w-full p-3 border border-gray-300 rounded shadow-sm" />
+                        <input type="text" placeholder="Buscar por nombre de usuario..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-4 min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 shadow-sm" />
 
-                        <div className="overflow-auto rounded-lg shadow">
-                            <table className="min-w-full border border-gray-300 text-sm text-gray-700 bg-white table-auto">
-                                <thead className="bg-gray-100 text-gray-800">
+                        <div className="overflow-auto rounded-xl border border-slate-200 shadow-sm">
+                            <table className="min-w-full table-auto border border-slate-200 bg-white text-sm text-slate-700">
+                                <thead className="bg-slate-50 text-slate-800">
                                     <tr>
                                         <th className="p-3 text-left">Foto</th>
                                         <th className="p-3 text-left">Nombre</th>
@@ -380,7 +380,7 @@ const Perfil = () => {
                                 </thead>
                                 <tbody>
                                     {filteredUsuarios.map((u) => (
-                                        <tr key={u.id} className="border-t hover:bg-gray-50">
+                                        <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50">
                                             <td className="p-3">
                                                 {u.imagenperfil_url ? (
                                                     <img
@@ -389,7 +389,7 @@ const Perfil = () => {
                                                         className="w-10 h-10 rounded-full object-cover border border-gray-300"
                                                     />
                                                 ) : (
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-400 to-blue-500 text-white font-semibold flex items-center justify-center text-sm shadow-md">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white shadow-sm">
                                                         {u.username?.charAt(0).toUpperCase() || "?"}
                                                     </div>
                                                 )}
@@ -401,7 +401,7 @@ const Perfil = () => {
                                             <td className="p-3">{u.email}</td>
                                             <td className="p-3 capitalize">{u.role}</td>
                                             <td className="p-3">
-                                                <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} className="p-2 border rounded w-full">
+                                                <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} className="min-h-[40px] w-full rounded-lg border border-slate-200 p-2">
                                                     <option value="admin">admin</option>
                                                     <option value="comercial">comercial</option>
                                                     <option value="almacen">almacen</option>
@@ -409,7 +409,7 @@ const Perfil = () => {
                                                     <option value="user">user</option>
                                                 </select>
                                             </td>
-                                            <td className="p-3 flex gap-2">
+                                            <td className="p-3 flex gap-3">
                                                 <button onClick={() => handleEditUser(u)} className="text-gray-600 hover:text-gray-800"><Edit3 size={18} /></button>
                                                 <button onClick={() => confirmDeleteUser(u.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
                                             </td>

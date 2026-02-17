@@ -33,8 +33,8 @@ const PerfilUsuario = () => {
 
     if (!user) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-blue-500 to-indigo-600">
-                <p className="text-white text-lg animate-pulse">Cargando perfil...</p>
+            <div className="flex justify-center items-center min-h-screen bg-[#f5f5f7]">
+                <p className="text-slate-600 text-lg animate-pulse">Cargando perfil...</p>
             </div>
         );
     }
@@ -74,8 +74,8 @@ const PerfilUsuario = () => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center px-4 py-12">
-            <div className="w-full max-w-3xl bg-white p-10 rounded-3xl shadow-2xl transition-transform transform hover:scale-[1.01] hover:shadow-inner animate-fadeIn">
+        <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
+            <div className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:p-8">
 
                 <div className="flex flex-col items-center mb-10">
                     <div className="w-24 h-24 rounded-full shadow-lg overflow-hidden relative group transform hover:scale-105 transition">
@@ -86,7 +86,7 @@ const PerfilUsuario = () => {
                                 className="w-full h-full object-cover rounded-full"
                             />
                         ) : (
-                            <div className="w-full h-full bg-gradient-to-r from-indigo-400 to-blue-500 text-white flex items-center justify-center text-4xl font-bold">
+                            <div className="flex h-full w-full items-center justify-center bg-slate-900 text-4xl font-bold text-white">
                                 {user?.username?.charAt(0)?.toUpperCase() ?? '?'}
                             </div>
                         )}

@@ -131,7 +131,7 @@ export default function SearchBar({
                     value={searchTerm}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
-                    className="w-full pl-10 pr-10 py-2 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 />
                 {searchTerm && (
                     <button
@@ -153,7 +153,7 @@ export default function SearchBar({
 
             {showSuggestions && suggestions.length > 0 && (
                 <ul
-                    className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow max-h-60 overflow-y-auto"
+                    className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow"
                     role="listbox"
                 >
                     {suggestions.map((c, i) => (

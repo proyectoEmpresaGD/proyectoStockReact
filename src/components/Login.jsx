@@ -67,27 +67,46 @@ function Login() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-400 to-purple-500">
-            <div className="container mx-auto p-6 md:p-8 border border-gray-200 bg-white rounded-lg shadow-lg max-w-md">
-                <h1 className="text-3xl font-bold mb-6 text-center text-gray-700">
-                    <img src="https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoCJM_group.png" alt="Logo" className='h-24 mx-auto mb-4' />
-                    Iniciar Sesión
-                </h1>
-                {error && <div className="text-red-600 bg-red-100 p-3 rounded mb-4 text-center">{error}</div>}
-                {success && <div className="text-green-600 bg-green-100 p-3 rounded mb-4 text-center">Inicio de sesión exitoso</div>}
-                <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f5f7] px-4 py-10">
+            <div className="relative w-full max-w-md rounded-3xl border border-white/40 bg-white/80 p-7 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur-xl md:p-9">
+                <div className="mb-8 text-center">
+                    <img
+                        src="https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoCJM_group.png"
+                        alt="Logo"
+                        className="mx-auto mb-4 h-14 w-auto object-contain"
+                    />
+                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">CJM Group</p>
+                    <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Bienvenido</h1>
+                    <p className="mt-2 text-sm text-slate-500">Accede con tu usuario para continuar.</p>
+                </div>
+
+                {error && (
+                    <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
+                {success && (
+                    <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-700">
+                        Inicio de sesión exitoso
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-600">Usuario</label>
                         <input
                             type="text"
-                            placeholder="Nombre de Usuario"
+                            placeholder="Nombre de usuario"
                             value={username}
                             onChange={(e) => setUsername(e.target.value.toUpperCase())}
                             onKeyDown={handleUsernameKeyPress}
                             ref={usernameRef}
-                            className="w-full p-3 border border-gray-300 rounded-lg text-center text-lg bg-gray-50 text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-base text-slate-800 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
                         />
                     </div>
+
                     <div className="relative">
+                        <label className="mb-2 block text-sm font-medium text-slate-600">Contraseña</label>
                         <input
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Contraseña"
@@ -98,18 +117,23 @@ function Login() {
                             onKeyPress={(e) => {
                                 if (e.key === 'Enter') handleSubmit(e);
                             }}
-                            className="w-full p-3 text-lg border border-gray-300 rounded-lg text-center bg-gray-50 text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-base text-slate-800 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-4 focus:ring-blue-100"
                         />
                         <button
                             type="button"
                             onClick={togglePasswordVisibility}
-                            className="absolute right-3 top-3 text-gray-600 hover:text-gray-800"
+                            className="absolute right-4 top-[2.85rem] text-slate-400 transition-colors hover:text-slate-600"
+                            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         >
                             {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </button>
                     </div>
-                    <button type="submit" className="w-full py-3 text-lg bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                        Iniciar Sesión
+
+                    <button
+                        type="submit"
+                        className="mt-2 w-full rounded-2xl bg-slate-900 py-3 text-base font-medium text-white shadow-md shadow-slate-300/70 transition-all hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                    >
+                        Iniciar sesión
                     </button>
                 </form>
             </div>

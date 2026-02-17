@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import PageShell from '../common/PageShell.jsx';
 
 function EntradasPage() {
     // Fecha seleccionada (por defecto: hoy en formato YYYY-MM-DD)
@@ -92,60 +93,58 @@ function EntradasPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 flex flex-col items-center px-4 py-6">
-            <div className="container mx-auto bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-lg max-w-screen-lg mt-20 relative">
-                <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center text-gray-700">
-                    Entradas de Productos
-                </h1>
+        <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20 relative">
+            <h1 className="mb-6 text-center text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+                Entradas de Productos
+            </h1>
 
-                {/* Selector de fecha */}
-                <div className="flex justify-center mb-6">
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={handleDateChange}
-                        className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-
-                {loading && <p className="text-center">Cargando entradas...</p>}
-                {error && <p className="text-center text-red-600">Error: {error}</p>}
-                {!loading && !error && entradas.length === 0 && (
-                    <p className="text-center text-gray-600">
-                        No se encontraron entradas para la fecha seleccionada.
-                    </p>
-                )}
-
-                {/* Tabla de resultados */}
-                {!loading && !error && entradas.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full bg-white text-sm md:text-base border border-gray-200 rounded-lg">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="px-4 py-2 border-b text-gray-700">Código</th>
-                                    <th className="px-4 py-2 border-b text-gray-700">Descripción</th>
-                                    <th className="px-4 py-2 border-b text-gray-700">Cantidad Entrante</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {entradas.map((entry, index) => (
-                                    <tr key={index} className="hover:bg-blue-50 transition-all duration-200">
-                                        <td className="px-4 py-2 border-b text-gray-700">{entry.codprodu}</td>
-                                        <td className="px-4 py-2 border-b text-gray-700">{entry.desprodu}</td>
-                                        <td className="px-4 py-2 border-b text-gray-700">
-                                            {entry.cancompra ? parseFloat(entry.cancompra).toFixed(2) : '0.00'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* Contenedor para react-toastify */}
-                <ToastContainer />
+            {/* Selector de fecha */}
+            <div className="flex justify-center mb-6">
+                <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={handleDateChange}
+                    className="min-h-[44px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
             </div>
-        </div>
+
+            {loading && <p className="text-center">Cargando entradas...</p>}
+            {error && <p className="text-center text-red-600">Error: {error}</p>}
+            {!loading && !error && entradas.length === 0 && (
+                <p className="text-center text-gray-600">
+                    No se encontraron entradas para la fecha seleccionada.
+                </p>
+            )}
+
+            {/* Tabla de resultados */}
+            {!loading && !error && entradas.length > 0 && (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full rounded-xl border border-slate-200 bg-white text-sm md:text-base">
+                        <thead className="bg-slate-50">
+                            <tr>
+                                <th className="px-4 py-2 border-b text-gray-700">Código</th>
+                                <th className="px-4 py-2 border-b text-gray-700">Descripción</th>
+                                <th className="px-4 py-2 border-b text-gray-700">Cantidad Entrante</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {entradas.map((entry, index) => (
+                                <tr key={index} className="transition-all duration-200 hover:bg-slate-50">
+                                    <td className="px-4 py-2 border-b text-gray-700">{entry.codprodu}</td>
+                                    <td className="px-4 py-2 border-b text-gray-700">{entry.desprodu}</td>
+                                    <td className="px-4 py-2 border-b text-gray-700">
+                                        {entry.cancompra ? parseFloat(entry.cancompra).toFixed(2) : '0.00'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Contenedor para react-toastify */}
+            <ToastContainer />
+        </PageShell>
     );
 }
 

@@ -53,14 +53,11 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex min-h-screen">
+                <div className="flex min-h-screen bg-[#f5f5f7] text-slate-900">
                   <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
 
-                  {/* 
-                    Sidebar está en fixed w-64, así que el contenido debe reservar hueco en md+.
-                    Header parece ocupar 80px (top-20 en tu sidebar), por eso pt-20.
-                  */}
-                  <div className="flex-1 h-screen overflow-y-auto pt-20 md:pl-64">
+                  {/* Sidebar fijo en desktop y header fijo, por eso reservamos espacio superior y lateral. */}
+                  <div className="flex-1 h-screen overflow-y-auto bg-[#f5f5f7] pt-20 md:pl-64">
                     <Header toggleSidebar={toggleSidebar} />
 
                     <main className="">

@@ -186,7 +186,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
         <>
             {/* Overlay móvil */}
             <div
-                className={`fixed inset-0 bg-black/50 z-40 ${sidebarOpen ? 'block' : 'hidden'} md:hidden`}
+                className={`fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[1px] ${sidebarOpen ? 'block' : 'hidden'} md:hidden`}
                 onClick={closeSidebar}
             />
 
@@ -194,7 +194,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 className={[
                     'fixed',
                     SIDEBAR_TOP_OFFSET_CLASS,
-                    'bottom-0 left-0 w-64 bg-gray-100 border-r-2 border-gray-300 shadow-lg z-50',
+                    'bottom-0 left-0 z-50 w-[86vw] max-w-[320px] border-r border-slate-200 bg-white/95 shadow-xl backdrop-blur-sm md:w-64',
                     'transform transition-transform duration-300 flex flex-col',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full',
                     'md:translate-x-0'
@@ -202,7 +202,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             >
                 <button
                     onClick={closeSidebar}
-                    className="md:hidden p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 absolute top-4 right-4"
+                    className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 md:hidden"
                     aria-label="Cerrar sidebar"
                 >
                     <FaTimes />
@@ -212,14 +212,14 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     <input
                         type="text"
                         placeholder="Buscar..."
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto pb-10">
-                    <ul className="mt-2 space-y-2">
+                    <ul className="mt-2 space-y-1.5 px-3">
                         {sections.map((section, index) => {
                             const links = Array.isArray(section.links) ? section.links : [];
                             const roleFiltered = filterLinksByRole(links);
@@ -235,7 +235,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 <li key={index}>
                                     <div
                                         onClick={() => toggleDropdown(section.dropdown)}
-                                        className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-gray-900 w-full duration-200 cursor-pointer"
+                                        className="flex w-full cursor-pointer items-center rounded-xl px-3.5 py-3 text-sm text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 sm:px-4"
                                     >
                                         {section.icon}
                                         <span>{section.label}</span>
@@ -246,7 +246,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                     </div>
 
                                     {dropdownOpen === section.dropdown && (
-                                        <ul className="pl-8 mt-2 space-y-3 pb-6">
+                                        <ul className="mt-2 space-y-2 pb-5 pl-4 pr-3">
                                             {section.dropdown === 'documentos' ? (
                                                 visibleLinks.map((group, idx) => {
                                                     const key = `documentos-${idx}`;
@@ -258,7 +258,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                         <li key={key}>
                                                             <div
                                                                 onClick={() => toggleSubDropdown(key)}
-                                                                className="flex items-center justify-between text-gray-500 uppercase text-sm font-semibold cursor-pointer select-none"
+                                                                className="flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100"
                                                             >
                                                                 <span>{group.label}</span>
                                                                 <FaChevronDown
@@ -280,9 +280,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                                 <NavLink
                                                                                     to={sublink.to}
                                                                                     className={({ isActive }) =>
-                                                                                        `flex items-center p-4 ${isActive
-                                                                                            ? 'bg-gray-300 text-black'
-                                                                                            : 'text-gray-700 hover:bg-gray-200 hover:text-black'
+                                                                                        `flex items-center rounded-xl px-3.5 py-3 text-sm sm:px-4 ${isActive
+                                                                                            ? 'bg-slate-900 text-white shadow-sm'
+                                                                                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                                                                                         } duration-200`
                                                                                     }
                                                                                     onClick={closeSidebar}
@@ -308,7 +308,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 href={link.to}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="flex items-center p-4 text-gray-700 hover:bg-gray-200 hover:text-black duration-200"
+                                                                className="flex items-center rounded-xl px-3.5 py-3 text-sm text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 sm:px-4"
                                                                 onClick={closeSidebar}
                                                             >
                                                                 {link.icon}
@@ -318,9 +318,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                             <NavLink
                                                                 to={link.to}
                                                                 className={({ isActive }) =>
-                                                                    `flex items-center p-4 ${isActive
-                                                                        ? 'bg-gray-300 text-black'
-                                                                        : 'text-gray-700 hover:bg-gray-200 hover:text-black'
+                                                                    `flex items-center rounded-xl px-3.5 py-3 text-sm sm:px-4 ${isActive
+                                                                        ? 'bg-slate-900 text-white shadow-sm'
+                                                                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                                                                     } duration-200`
                                                                 }
                                                                 onClick={closeSidebar}

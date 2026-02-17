@@ -119,20 +119,20 @@ export default function Clients() {
     const endItem = Math.min(startItem + itemsPerPage - 1, totalClients);
 
     return (
-        <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 pt-16 py-8 px-4">
-            <div className="mx-auto max-w-screen-xl bg-white rounded-2xl shadow-xl overflow-hidden mt-12">
+        <div className="min-h-screen bg-[#f5f5f7] px-3 py-4 pt-20 sm:px-4 sm:py-6 md:px-8">
+            <div className="mx-auto mt-2 max-w-screen-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:rounded-3xl">
                 {/* Header */}
-                <div className="bg-white px-6 md:px-8 py-6 border-b">
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
+                <div className="border-b border-slate-100 bg-white px-4 py-5 sm:px-6 md:px-8">
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
                         Gestión de Clientes
                     </h1>
-                    <p className="mt-1 md:mt-2 text-gray-600">
+                    <p className="mt-1 text-sm text-slate-500 md:mt-2 md:text-base">
                         Explora y gestiona la información de tus clientes.
                     </p>
                 </div>
 
                 {/* Controls */}
-                <div className="px-6 md:px-8 py-6 space-y-4">
+                <div className="space-y-4 px-4 py-5 sm:px-6 md:px-8">
                     <SearchBar
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
@@ -164,7 +164,7 @@ export default function Clients() {
                                 }}
                                 placeholder="País..."
                                 isClearable
-                                className="w-48"
+                                className="w-full sm:w-48"
                             />
                             <Select
                                 options={provinces}
@@ -180,7 +180,7 @@ export default function Clients() {
                                 }}
                                 placeholder="Provincia..."
                                 isClearable
-                                className="w-48"
+                                className="w-full sm:w-48"
                             />
                         </div>
 
@@ -188,7 +188,7 @@ export default function Clients() {
                         <div className="flex items-center gap-3 flex-wrap">
                             <button
                                 onClick={() => { setSortByBilling(!sortByBilling); setCurrentPage(1); }}
-                                className={`px-4 py-2 rounded-lg font-medium shadow-sm text-white transition 
+                                className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition 
                   ${sortByBilling ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                             >
                                 {sortByBilling ? 'Ver por Código' : 'Ver por Facturación'}
@@ -196,7 +196,7 @@ export default function Clients() {
 
                             <button
                                 onClick={handleClearFilters}
-                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-sm"
+                                className="min-h-[44px] rounded-xl bg-red-500 px-4 py-2 text-sm text-white shadow-sm hover:bg-red-600"
                             >
                                 Limpiar Filtros
                             </button>
@@ -205,7 +205,7 @@ export default function Clients() {
                             <select
                                 value={itemsPerPage}
                                 onChange={e => { setItemsPerPage(+e.target.value); setCurrentPage(1); }}
-                                className="hidden md:block border rounded-lg px-3 py-2"
+                                className="hidden min-h-[44px] rounded-xl border border-slate-200 px-3 py-2 md:block"
                             >
                                 {[10, 25, 50].map(n => (
                                     <option key={n} value={n}>{n} / página</option>

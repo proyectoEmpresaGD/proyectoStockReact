@@ -82,7 +82,7 @@ export default function ClientTable({
                             return (
                                 <tr
                                     key={client.codclien}
-                                    className="border-b hover:bg-blue-50 cursor-pointer transition-colors"
+                                    className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50"
 
                                 >
                                     <td className="px-3 py-2 text-center relative" >

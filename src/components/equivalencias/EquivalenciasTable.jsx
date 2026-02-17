@@ -26,11 +26,14 @@ const EquivalenciasTable = () => {
     // Obtener equivalencias de la API
     const fetchEquivalencias = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            const response = await fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/api/equivalencias?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 }
-            });
+            );
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -47,12 +50,12 @@ const EquivalenciasTable = () => {
         if (searchTermProveedor.length >= 3) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTermProveedor}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                },
             })
-                .then(response => response.json())
-                .then(data => setSuggestionsProveedor(data))
-                .catch(error => console.error('Error fetching suggestions:', error));
+                .then((response) => response.json())
+                .then((data) => setSuggestionsProveedor(data))
+                .catch((error) => console.error('Error fetching suggestions:', error));
         } else {
             setSuggestionsProveedor([]);
         }
@@ -63,12 +66,12 @@ const EquivalenciasTable = () => {
         if (searchTermCJMW.length >= 3) {
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${searchTermCJMW}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                },
             })
-                .then(response => response.json())
-                .then(data => setSuggestionsCJMW(data))
-                .catch(error => console.error('Error fetching suggestions:', error));
+                .then((response) => response.json())
+                .then((data) => setSuggestionsCJMW(data))
+                .catch((error) => console.error('Error fetching suggestions:', error));
         } else {
             setSuggestionsCJMW([]);
         }
@@ -78,11 +81,11 @@ const EquivalenciasTable = () => {
     const performSearchProveedor = (query) => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${query}`, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                Authorization: `Bearer ${token}`,
+            },
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 setFilteredEquivalencias(data);
                 setIsSearchActive(true);
                 setLastSearch(`Proveedor: ${query}`);
@@ -90,18 +93,18 @@ const EquivalenciasTable = () => {
                 setSuggestionsProveedor([]);
                 setCurrentPage(1);
             })
-            .catch(error => console.error('Error performing search:', error));
+            .catch((error) => console.error('Error performing search:', error));
     };
 
     // Función de búsqueda por CJMW
     const performSearchCJMW = (query) => {
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${query}`, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                Authorization: `Bearer ${token}`,
+            },
         })
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 setFilteredEquivalencias(data);
                 setIsSearchActive(true);
                 setLastSearch(`CJMW: ${query}`);
@@ -109,7 +112,7 @@ const EquivalenciasTable = () => {
                 setSuggestionsCJMW([]);
                 setCurrentPage(1);
             })
-            .catch(error => console.error('Error performing search:', error));
+            .catch((error) => console.error('Error performing search:', error));
     };
 
     // Limpiar búsqueda y mostrar todos
@@ -135,6 +138,7 @@ const EquivalenciasTable = () => {
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
+
     useEffect(() => {
         const handleClickOutsideProveedor = (event) => {
             if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
@@ -157,19 +161,15 @@ const EquivalenciasTable = () => {
         };
     }, [setSuggestionsProveedor, setSuggestionsCJMW]);
 
-
     // Si el usuario no tiene acceso, mostrar un mensaje de error
     if (user && user.role !== 'almacen' && user.role !== 'admin') {
         return <div className="text-center text-red-500">Acceso denegado. No tienes permisos para ver las equivalencias.</div>;
     }
 
     return (
-        <div className="container mx-auto bg-white shadow-lg rounded-lg p-6 md:p-8">
-
-
-            {/* Barra de búsqueda */}
-            <div ref={searchBarRef} className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="mx-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <div ref={searchBarRef} className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
                     <SearchBarEquivalencias
                         searchTerm={searchTermProveedor}
                         setSearchTerm={setSearchTermProveedor}
@@ -195,18 +195,17 @@ const EquivalenciasTable = () => {
                 </div>
             </div>
 
-            {/* Botones de última búsqueda y mostrar todos */}
-            <div className="flex justify-center space-x-4 my-4">
+            <div className="my-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center sm:gap-3">
                 {lastSearch && (
                     <button
                         onClick={() => {
-                            if (lastSearch.startsWith("Proveedor: ")) {
-                                performSearchProveedor(lastSearch.replace("Proveedor: ", ""));
+                            if (lastSearch.startsWith('Proveedor: ')) {
+                                performSearchProveedor(lastSearch.replace('Proveedor: ', ''));
                             } else {
-                                performSearchCJMW(lastSearch.replace("CJMW: ", ""));
+                                performSearchCJMW(lastSearch.replace('CJMW: ', ''));
                             }
                         }}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 transition duration-200"
+                        className="min-h-[44px] rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     >
                         Última búsqueda: {lastSearch}
                     </button>
@@ -214,37 +213,36 @@ const EquivalenciasTable = () => {
                 {isSearchActive && (
                     <button
                         onClick={handleShowAll}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition duration-200"
+                        className="min-h-[44px] rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
                     >
                         Mostrar todos
                     </button>
                 )}
             </div>
 
-            {/* Tabla de equivalencias */}
-            <div className="overflow-x-auto max-h-[50vh] md:max-h-[60vh]">
-                <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
-                    <thead className="bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+            <div className="max-h-[50vh] overflow-x-auto md:max-h-[60vh] hidden md:block">
+                <table className="min-w-full rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <thead className="bg-slate-900 text-white">
                         <tr>
-                            <th className="px-4 py-2 text-left font-semibold text-sm">NOMBRE CJMW</th>
-                            <th className="px-4 py-2 text-left font-semibold text-sm">NOMBRE Proveedor</th>
-                            <th className="px-4 py-2 text-left font-semibold text-sm">CodEquiv</th>
-                            <th className="px-4 py-2 text-left font-semibold text-sm">RazProve</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold">NOMBRE CJMW</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold">NOMBRE Proveedor</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold">CodEquiv</th>
+                            <th className="px-4 py-2 text-left text-sm font-semibold">RazProve</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredEquivalencias.length > 0 ? (
                             filteredEquivalencias.map((equiv, index) => (
-                                <tr key={index} className="hover:bg-blue-100">
-                                    <td className="px-4 py-2 border-b text-sm">{equiv.desprodu}</td>
-                                    <td className="px-4 py-2 border-b text-sm">{equiv.desequiv}</td>
-                                    <td className="px-4 py-2 border-b text-sm">{equiv.codequiv}</td>
-                                    <td className="px-4 py-2 border-b text-sm">{equiv.razprove}</td>
+                                <tr key={index} className="hover:bg-slate-50">
+                                    <td className="border-b px-4 py-2 text-sm">{equiv.desprodu}</td>
+                                    <td className="border-b px-4 py-2 text-sm">{equiv.desequiv}</td>
+                                    <td className="border-b px-4 py-2 text-sm">{equiv.codequiv}</td>
+                                    <td className="border-b px-4 py-2 text-sm">{equiv.razprove}</td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="4" className="text-center py-4 text-gray-500">
+                                <td colSpan="4" className="py-4 text-center text-gray-500">
                                     No se encontraron equivalencias.
                                 </td>
                             </tr>
@@ -253,26 +251,53 @@ const EquivalenciasTable = () => {
                 </table>
             </div>
 
-            {/* Controles de paginación */}
-            <div className="flex justify-center items-center space-x-4 mt-4">
+            <div className="space-y-2 md:hidden">
+                {filteredEquivalencias.length > 0 ? (
+                    filteredEquivalencias.map((equiv, index) => (
+                        <article key={`${equiv.codequiv || 'equiv'}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre CJMW</p>
+                            <p className="text-sm text-slate-900">{equiv.desprodu}</p>
+                            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre proveedor</p>
+                            <p className="text-sm text-slate-700">{equiv.desequiv}</p>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CodEquiv</p>
+                                    <p className="text-sm text-slate-700">{equiv.codequiv}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">RazProve</p>
+                                    <p className="text-sm text-slate-700">{equiv.razprove}</p>
+                                </div>
+                            </div>
+                        </article>
+                    ))
+                ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+                        No se encontraron equivalencias.
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-3">
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`px-4 py-2 bg-gray-300 rounded-lg shadow-md ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-400'
+                    className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium ${currentPage === 1
+                        ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                 >
                     Anterior
                 </button>
-                <span className="text-lg font-semibold">{currentPage}</span>
+                <span className="text-base font-semibold text-slate-700">{currentPage}</span>
                 <button
                     onClick={() => handlePageChange(currentPage + 1)}
-                    className="px-4 py-2 bg-gray-300 rounded-lg shadow-md hover:bg-gray-400 transition duration-200"
+                    className="min-h-[44px] rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
                 >
                     Siguiente
                 </button>
             </div>
         </div>
-
     );
 };
 
