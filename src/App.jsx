@@ -33,6 +33,7 @@ import AgendaPage from './pages/paginaagenda.jsx';
 import NotasPage from './pages/paginanotas.jsx';
 import Perfil from './pages/gestionusuarios.jsx';
 import FicharPage from './pages/Fichar.jsx';
+import RecursosHumanos from './pages/RecursosHumanos.jsx';
 import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
 import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
@@ -146,7 +147,14 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
-
+                          <Route
+                            path="rrhh/vacaciones"
+                            element={
+                              <ProtectedRoute>
+                                <RecursosHumanos />
+                              </ProtectedRoute>
+                            }
+                          />
                           <Route
                             path="/stock-alerts"
                             element={

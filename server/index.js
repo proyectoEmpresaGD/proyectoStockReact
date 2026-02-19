@@ -21,6 +21,7 @@ import { StockModel } from "./models/Postgres/stock.js";
 import { createCalendarioRouter } from "./routes/calendario.js";
 import { createNotasRouter } from "./routes/notas.js";
 import { createVerifyRouter } from "./routes/verify.js";
+import { createVacacionesRouter } from "./routes/vacaciones.js";
 
 import pool from "./db/pool.js";
 
@@ -68,6 +69,7 @@ app.use("/api/visits", authMiddleware, createVisitaRouter());
 app.use("/api/notas", createNotasRouter());
 app.use("/api/calendario", authMiddleware, createCalendarioRouter());
 app.use("/api/verify", createVerifyRouter());
+app.use("/api/vacaciones", authMiddleware, createVacacionesRouter());
 
 // Email transporter
 const transporter = nodemailer.createTransport({

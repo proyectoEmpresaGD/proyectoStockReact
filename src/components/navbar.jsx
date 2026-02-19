@@ -16,7 +16,8 @@ import {
     FaMapMarkedAlt,
     FaRegStickyNote,
     FaUser,
-    FaRegCalendarAlt
+    FaRegCalendarAlt,
+    FaUmbrellaBeach
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 
@@ -172,6 +173,14 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user'] }
                 ]
             },
+            // {
+            //     label: 'Recursos Humanos',
+            //     icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
+            //     dropdown: 'rrhh',
+            //     links: [
+            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user'] }
+            //     ]
+            // },
             {
                 label: 'Aplicaciones',
                 icon: <FaRocket className="mr-3 text-lg" />,
