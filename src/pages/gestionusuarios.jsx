@@ -1,9 +1,18 @@
+// src/pages/gestionusuarios.jsx
 // Perfil.jsx
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '../Auth/AuthContext';
 import { Eye, EyeOff, Trash2, Edit3, Save } from 'lucide-react';
 import { FaUser, FaEnvelope, FaUserShield } from 'react-icons/fa';
+import {
+    AVAILABLE_PERMISSIONS,
+    AVAILABLE_ROUTES,
+    DEFAULT_ROLE_NAMES,
+    SERVER_MANAGED_ROLES,
+    getRoleDefinitions,
+    saveRoleDefinitions
+} from '../utils/roleAccessConfig';
 
 const Perfil = () => {
     const { logout, token } = useAuthContext();
@@ -21,7 +30,22 @@ const Perfil = () => {
     const [notification, setNotification] = useState('');
     const [imagenPerfil, setImagenPerfil] = useState(null);
     const [previewImagenPerfil, setPreviewImagenPerfil] = useState(null);
+    const [roleDefinitions, setRoleDefinitions] = useState(getRoleDefinitions());
+    const [roleForm, setRoleForm] = useState({ name: '', permissions: [], routes: ['/'] });
+    const [routeSearch, setRouteSearch] = useState('');
+    const [pendingRoles, setPendingRoles] = useState({});
+    const [updatingRoleId, setUpdatingRoleId] = useState(null);
+
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    const roleOptions = Object.keys(roleDefinitions).sort();
+    const serverRoleOptions = SERVER_MANAGED_ROLES.filter((role) => roleOptions.includes(role));
+    const customRoleOptions = roleOptions.filter((role) => !SERVER_MANAGED_ROLES.includes(role));
+
+    const visibleRoutes = AVAILABLE_ROUTES.filter((route) =>
+        route.label.toLowerCase().includes(routeSearch.toLowerCase()) ||
+        route.path.toLowerCase().includes(routeSearch.toLowerCase())
+    );
 
     useEffect(() => {
         const fetchPerfil = async () => {
@@ -46,28 +70,185 @@ const Perfil = () => {
         };
 
         fetchPerfil();
-    }, [logout, token]);
+    }, [API_BASE_URL, logout, token]);
+
     useEffect(() => {
         return () => {
             if (previewImagenPerfil) URL.revokeObjectURL(previewImagenPerfil);
         };
     }, [previewImagenPerfil]);
 
+    useEffect(() => {
+        const mappedRoles = usuarios.reduce((acc, currentUser) => {
+            acc[currentUser.id] = currentUser.role;
+            return acc;
+        }, {});
+        setPendingRoles(mappedRoles);
+    }, [usuarios]);
+
     const showNotif = (message) => {
         setNotification(message);
         setTimeout(() => setNotification(''), 3000);
     };
 
-    const handleRoleChange = async (id, newRole) => {
+    const renderRoleOptions = () => (
+        <>
+            <optgroup label="Roles de sistema (backend)">
+                {serverRoleOptions.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                ))}
+            </optgroup>
+            {customRoleOptions.length > 0 && (
+                <optgroup label="Roles personalizados">
+                    {customRoleOptions.map((role) => (
+                        <option key={role} value={role}>{role}</option>
+                    ))}
+                </optgroup>
+            )}
+        </>
+    );
+
+    const toggleRolePermission = (permission) => {
+        setRoleForm((prev) => {
+            const hasPermission = prev.permissions.includes(permission);
+            return {
+                ...prev,
+                permissions: hasPermission
+                    ? prev.permissions.filter((item) => item !== permission)
+                    : [...prev.permissions, permission]
+            };
+        });
+    };
+
+    const toggleRoleRoute = (route) => {
+        setRoleForm((prev) => {
+            const hasRoute = prev.routes.includes(route);
+            return {
+                ...prev,
+                routes: hasRoute
+                    ? prev.routes.filter((item) => item !== route)
+                    : [...prev.routes, route]
+            };
+        });
+    };
+
+    const handleSelectAllPermissions = () => {
+        setRoleForm((prev) => ({
+            ...prev,
+            permissions: AVAILABLE_PERMISSIONS.map((permission) => permission.value)
+        }));
+    };
+
+    const handleClearPermissions = () => {
+        setRoleForm((prev) => ({ ...prev, permissions: [] }));
+    };
+
+    const handleSelectAllRoutes = () => {
+        setRoleForm((prev) => ({
+            ...prev,
+            routes: AVAILABLE_ROUTES.map((route) => route.path)
+        }));
+    };
+
+    const handleClearRoutes = () => {
+        setRoleForm((prev) => ({ ...prev, routes: [] }));
+    };
+
+    const handleDeleteRole = (roleName) => {
+        if (DEFAULT_ROLE_NAMES.includes(roleName)) {
+            return showNotif('No puedes eliminar un rol base del sistema');
+        }
+
+        const roleInUse = usuarios.some((currentUser) => currentUser.role === roleName);
+        if (roleInUse) {
+            return showNotif('No puedes eliminar un rol que está asignado a usuarios');
+        }
+
+        if (!window.confirm(`¿Seguro que quieres eliminar el rol ${roleName}?`)) {
+            return;
+        }
+
+        const updatedDefinitions = { ...roleDefinitions };
+        delete updatedDefinitions[roleName];
+
+        setRoleDefinitions(updatedDefinitions);
+        saveRoleDefinitions(updatedDefinitions);
+        setNewUser((prev) => ({ ...prev, role: 'user' }));
+        showNotif('Rol eliminado');
+    };
+
+    const handleCreateRole = () => {
+        const normalizedRole = roleForm.name.trim().toLowerCase();
+
+        if (!normalizedRole) {
+            return showNotif('Debes indicar un nombre para el rol');
+        }
+
+        if (!/^[a-z0-9_-]{3,20}$/.test(normalizedRole)) {
+            return showNotif('Usa entre 3 y 20 caracteres: letras, números, guion o guion bajo');
+        }
+
+        if (roleDefinitions[normalizedRole]) {
+            return showNotif('Ese rol ya existe');
+        }
+
+        if (!roleForm.permissions.length) {
+            return showNotif('Selecciona al menos un permiso para el rol');
+        }
+
+        if (!roleForm.routes.length) {
+            return showNotif('Selecciona al menos una ruta para el rol');
+        }
+
+        const uniquePermissions = [...new Set(roleForm.permissions)];
+        const uniqueRoutes = [...new Set(roleForm.routes)];
+
+        const updatedDefinitions = {
+            ...roleDefinitions,
+            [normalizedRole]: {
+                name: normalizedRole,
+                permissions: uniquePermissions,
+                routes: uniqueRoutes
+            }
+        };
+
+        setRoleDefinitions(updatedDefinitions);
+        saveRoleDefinitions(updatedDefinitions);
+        setRoleForm({ name: '', permissions: [], routes: ['/'] });
+
+        setNewUser((prev) => ({ ...prev, role: normalizedRole }));
+        showNotif('Rol creado correctamente');
+    };
+
+    const handleRoleChangeSelect = (id, selectedRole) => {
+        setPendingRoles((prev) => ({ ...prev, [id]: selectedRole }));
+    };
+
+    const handleRoleChange = async (id) => {
+        const userToUpdate = usuarios.find((item) => item.id === id);
+        const newRole = pendingRoles[id];
+
+        if (!userToUpdate || !newRole || userToUpdate.role === newRole) {
+            return;
+        }
+
+        if (!roleOptions.includes(newRole)) {
+            showNotif('El rol seleccionado no es válido');
+            return;
+        }
+
+        setUpdatingRoleId(id);
         try {
             await axios.post(`${API_BASE_URL}/api/auth/users/update-role`, { userId: id, newRole }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setUsuarios(prev => prev.map(u => (u.id === id ? { ...u, role: newRole } : u)));
-            showNotif('Rol actualizado');
+            setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
+            showNotif(`Rol de ${userToUpdate.username} actualizado a ${newRole}`);
         } catch (err) {
             console.error('Error actualizando rol:', err);
             showNotif('Error al actualizar rol');
+        } finally {
+            setUpdatingRoleId(null);
         }
     };
 
@@ -85,7 +266,6 @@ const Perfil = () => {
         }
 
         try {
-            // 1. Preparar datos en FormData
             const formData = new FormData();
             formData.append('nombre', nombre);
             formData.append('username', username);
@@ -97,7 +277,6 @@ const Perfil = () => {
                 formData.append('imagen', imagenPerfil);
             }
 
-            // 2. Enviar al backend con imagen
             await axios.post(`${API_BASE_URL}/api/auth/users/create-with-image`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -105,7 +284,6 @@ const Perfil = () => {
                 },
             });
 
-            // 3. Refrescar usuarios
             const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -121,7 +299,6 @@ const Perfil = () => {
             showNotif('Error al crear el usuario');
         }
     };
-
 
     const confirmDeleteUser = (id) => {
         setUserToDelete(id);
@@ -139,7 +316,8 @@ const Perfil = () => {
             showNotif('Usuario eliminado correctamente');
         } catch (err) {
             console.error('Error eliminando usuario:', err);
-            showNotif('Error al eliminar usuario');
+            const backendMessage = err?.response?.data?.message;
+            showNotif(backendMessage || 'Error al eliminar usuario');
         }
     };
 
@@ -151,7 +329,7 @@ const Perfil = () => {
             nombre: user.nombre,
             role: user.role
         });
-        setImagenPerfil(null); // Limpiar imagen nueva seleccionada
+        setImagenPerfil(null);
 
         setTimeout(() => {
             const input = document.getElementById(`input-${user.id}`);
@@ -171,12 +349,10 @@ const Perfil = () => {
         }
 
         try {
-            // 1. Actualizar datos principales
             await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, editUserData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            // 2. Subir imagen si se seleccionó una nueva
             if (imagenPerfil) {
                 const formData = new FormData();
                 formData.append('imagen', imagenPerfil);
@@ -189,7 +365,6 @@ const Perfil = () => {
                 });
             }
 
-            // 3. Refrescar lista completa (por si cambia la imagen)
             const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -219,27 +394,28 @@ const Perfil = () => {
 
     return (
         <div className="min-h-screen app-bg px-3 pb-8 pt-20 sm:px-4 md:px-8">
-            <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:p-6 md:p-8">
+            <div className="mx-auto max-w-6xl rounded-[28px] border border-white/60 bg-white/85 p-4 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-6 md:p-8">
                 {user.role === 'admin' && (
                     <>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">Gestión de Usuarios</h3>
 
                             {notification && (
-                                <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 text-blue-800 px-6 py-3 rounded shadow-lg">
+                                <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-2xl border border-sky-200 bg-white/95 px-6 py-3 text-sm font-medium text-sky-700 shadow-[0_20px_45px_-28px_rgba(14,116,144,0.55)] backdrop-blur">
                                     {notification}
                                 </div>
                             )}
 
                             <button
                                 onClick={() => setShowCreateForm(!showCreateForm)}
-                                className="min-h-[44px] rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                                className="min-h-[44px] rounded-xl bg-gradient-to-b from-slate-900 to-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-slate-600"
                             >
                                 {showCreateForm ? 'Cancelar' : 'Crear Usuario'}
                             </button>
                         </div>
+
                         {showCreateForm && (
-                            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="mb-6 rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur">
                                 {/* Imagen estilo Discord */}
                                 <div className="flex flex-col items-center mb-6">
                                     <div className="relative w-28 h-28 group">
@@ -272,8 +448,8 @@ const Perfil = () => {
                                                 <path d="M12 20h9" />
                                                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                                             </svg>
-
                                         </label>
+
                                         <input
                                             id="create-avatar"
                                             type="file"
@@ -301,14 +477,14 @@ const Perfil = () => {
                                     <input
                                         type="text"
                                         placeholder="Nombre"
-                                        className="p-2 border rounded"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                                         value={newUser.nombre}
                                         onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })}
                                     />
                                     <input
                                         type="text"
                                         placeholder="Usuario"
-                                        className="p-2 border rounded uppercase"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                                         value={newUser.username}
                                         onChange={(e) =>
                                             setNewUser({ ...newUser, username: e.target.value.toUpperCase() })
@@ -317,7 +493,7 @@ const Perfil = () => {
                                     <input
                                         type="email"
                                         placeholder="Email"
-                                        className="p-2 border rounded"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                                         value={newUser.email}
                                         onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                                     />
@@ -325,7 +501,7 @@ const Perfil = () => {
                                         <input
                                             type={showPassword ? "text" : "password"}
                                             placeholder="Contraseña"
-                                            className="p-2 border rounded w-full uppercase"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                                             value={newUser.password}
                                             onChange={(e) =>
                                                 setNewUser({ ...newUser, password: e.target.value.toUpperCase() })
@@ -340,34 +516,133 @@ const Perfil = () => {
                                         </button>
                                     </div>
                                     <select
-                                        className="p-2 border rounded"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                                         value={newUser.role}
                                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                                     >
-                                        <option value="admin">admin</option>
-                                        <option value="comercial">comercial</option>
-                                        <option value="almacen">almacen</option>
-                                        <option value="ventas">ventas</option>
-                                        <option value="user">user</option>
+                                        {renderRoleOptions()}
                                     </select>
                                 </div>
 
                                 <button
                                     onClick={handleCreateUser}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                                    className="rounded-xl bg-gradient-to-b from-sky-600 to-sky-700 px-6 py-2.5 text-sm font-semibold text-white transition hover:from-sky-500 hover:to-sky-600"
                                 >
                                     Guardar Usuario
                                 </button>
                             </div>
                         )}
 
+                        <div className="mb-6 rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur">
+                            <h4 className="mb-3 text-lg font-semibold text-slate-800">Crear nuevo rol y permisos</h4>
+                            <p className="mb-4 text-sm text-slate-600">Desde aquí puedes definir un rol, marcar sus permisos y habilitar las rutas a las que tendrá acceso.</p>
 
+                            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <input
+                                    type="text"
+                                    value={roleForm.name}
+                                    onChange={(e) => setRoleForm((prev) => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Nombre del nuevo rol (ej: supervisor)"
+                                    className="rounded-lg border border-slate-200 p-2"
+                                />
+                            </div>
 
-                        <input type="text" placeholder="Buscar por nombre de usuario..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-4 min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 shadow-sm" />
+                            <div className="mb-4">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <h5 className="text-sm font-semibold text-slate-700">Permisos ({roleForm.permissions.length})</h5>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={handleSelectAllPermissions} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Seleccionar todo</button>
+                                        <button type="button" onClick={handleClearPermissions} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Limpiar</button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
+                                    {AVAILABLE_PERMISSIONS.map((permission) => (
+                                        <label key={permission.value} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={roleForm.permissions.includes(permission.value)}
+                                                onChange={() => toggleRolePermission(permission.value)}
+                                            />
+                                            <span>{permission.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
 
-                        <div className="overflow-auto rounded-xl border border-slate-200 shadow-sm">
+                            <div className="mb-4">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <h5 className="text-sm font-semibold text-slate-700">Rutas con acceso ({roleForm.routes.length})</h5>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={handleSelectAllRoutes} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Seleccionar todo</button>
+                                        <button type="button" onClick={handleClearRoutes} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Limpiar</button>
+                                    </div>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={routeSearch}
+                                    onChange={(e) => setRouteSearch(e.target.value)}
+                                    placeholder="Buscar ruta por nombre o path"
+                                    className="mb-2 w-full rounded-lg border border-slate-200 p-2 text-sm"
+                                />
+                                <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                                    {visibleRoutes.map((route) => (
+                                        <label key={route.path} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={roleForm.routes.includes(route.path)}
+                                                onChange={() => toggleRoleRoute(route.path)}
+                                            />
+                                            <span>{route.label} <span className="text-xs text-slate-400">({route.path})</span></span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleCreateRole}
+                                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                            >
+                                Crear rol
+                            </button>
+
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                                <h5 className="mb-2 text-sm font-semibold text-slate-700">Roles disponibles</h5>
+                                <p className="mb-2 text-xs text-slate-500">Los roles personalizados que crees aquí se pueden asignar a usuarios y tendrán acceso según rutas/permisos configurados.</p>
+                                <div className="space-y-2 text-sm text-slate-600">
+                                    {Object.values(roleDefinitions).map((role) => (
+                                        <div key={role.name} className="rounded-lg border border-slate-200 p-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="font-semibold text-slate-800">{role.name}</p>
+                                                {!DEFAULT_ROLE_NAMES.includes(role.name) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteRole(role.name)}
+                                                        className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs">Permisos: {(role.permissions || []).join(', ') || 'Sin permisos'}</p>
+                                            <p className="text-xs">Rutas: {(role.routes || []).join(', ') || 'Sin rutas'}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre de usuario..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 shadow-sm"
+                        />
+                        <p className="mb-4 text-xs text-slate-500">Para cambiar un rol: selecciona el nuevo valor en el desplegable y pulsa <strong>Actualizar rol</strong>. Los roles personalizados también se pueden asignar a usuarios desde este selector.</p>
+
+                        <div className="overflow-auto rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_25px_55px_-40px_rgba(15,23,42,0.55)]">
                             <table className="min-w-full table-auto border border-slate-200 bg-white text-sm text-slate-700">
-                                <thead className="bg-slate-50 text-slate-800">
+                                <thead className="sticky top-0 z-10 bg-slate-100/90 text-slate-800 backdrop-blur">
                                     <tr>
                                         <th className="p-3 text-left">Foto</th>
                                         <th className="p-3 text-left">Nombre</th>
@@ -395,23 +670,32 @@ const Perfil = () => {
                                                 )}
                                             </td>
 
-
                                             <td className="p-3">{u.nombre}</td>
                                             <td className="p-3">{u.username}</td>
                                             <td className="p-3">{u.email}</td>
                                             <td className="p-3 capitalize">{u.role}</td>
                                             <td className="p-3">
-                                                <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)} className="min-h-[40px] w-full rounded-lg border border-slate-200 p-2">
-                                                    <option value="admin">admin</option>
-                                                    <option value="comercial">comercial</option>
-                                                    <option value="almacen">almacen</option>
-                                                    <option value="ventas">ventas</option>
-                                                    <option value="user">user</option>
+                                                <select
+                                                    value={pendingRoles[u.id] || u.role}
+                                                    onChange={(e) => handleRoleChangeSelect(u.id, e.target.value)}
+                                                    className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm"
+                                                >
+                                                    {renderRoleOptions()}
                                                 </select>
                                             </td>
-                                            <td className="p-3 flex gap-3">
-                                                <button onClick={() => handleEditUser(u)} className="text-gray-600 hover:text-gray-800"><Edit3 size={18} /></button>
-                                                <button onClick={() => confirmDeleteUser(u.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
+                                            <td className="p-3 flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRoleChange(u.id)}
+                                                    disabled={updatingRoleId === u.id || (pendingRoles[u.id] || u.role) === u.role}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                                    title="Guardar cambio de rol"
+                                                >
+                                                    <Save size={14} />
+                                                    {updatingRoleId === u.id ? 'Guardando...' : 'Actualizar rol'}
+                                                </button>
+                                                <button onClick={() => handleEditUser(u)} className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:text-slate-800"><Edit3 size={16} /></button>
+                                                <button onClick={() => confirmDeleteUser(u.id)} className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:text-red-800"><Trash2 size={16} /></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -443,7 +727,6 @@ const Perfil = () => {
                                             </div>
                                         )}
 
-                                        {/* Capa de edición (lápiz blanco/negro) */}
                                         <label
                                             htmlFor="upload-avatar"
                                             className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
@@ -463,7 +746,6 @@ const Perfil = () => {
                                             </svg>
                                         </label>
 
-                                        {/* Input oculto */}
                                         <input
                                             id="upload-avatar"
                                             type="file"
@@ -481,7 +763,7 @@ const Perfil = () => {
                                             }}
                                         />
                                     </div>
-                                    {/* Formulario */}
+
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-700 text-sm">
                                         <div className="sm:col-span-2">
                                             <label className="text-sm text-gray-600 mb-1 block">Nombre</label>
@@ -497,7 +779,6 @@ const Perfil = () => {
                                             </div>
                                         </div>
 
-                                        {/* Usuario */}
                                         <div className="sm:col-span-2">
                                             <label className="text-sm text-gray-600 mb-1 block">Usuario</label>
                                             <div className="flex items-center gap-3">
@@ -512,7 +793,6 @@ const Perfil = () => {
                                             </div>
                                         </div>
 
-                                        {/* Email */}
                                         <div className="sm:col-span-2">
                                             <label className="text-sm text-gray-600 mb-1 block">Correo electrónico</label>
                                             <div className="flex items-center gap-3">
@@ -527,7 +807,6 @@ const Perfil = () => {
                                             </div>
                                         </div>
 
-                                        {/* Rol */}
                                         <div className="sm:col-span-2">
                                             <label className="text-sm text-gray-600 mb-1 block">Rol</label>
                                             <div className="flex items-center gap-3">
@@ -537,15 +816,10 @@ const Perfil = () => {
                                                     value={editUserData.role}
                                                     onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
                                                 >
-                                                    <option value="admin">admin</option>
-                                                    <option value="comercial">comercial</option>
-                                                    <option value="almacen">almacen</option>
-                                                    <option value="ventas">ventas</option>
-                                                    <option value="user">user</option>
+                                                    {renderRoleOptions()}
                                                 </select>
                                             </div>
                                         </div>
-
                                     </div>
 
                                     <div className="flex justify-end gap-3 mt-6">
@@ -570,16 +844,24 @@ const Perfil = () => {
                             </div>
                         )}
 
-
-
                         {showConfirmModal && (
                             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
                                 <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
                                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Confirmar eliminación</h2>
                                     <p className="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este usuario?</p>
                                     <div className="flex justify-end space-x-4">
-                                        <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded" onClick={() => setShowConfirmModal(false)}>Cancelar</button>
-                                        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded" onClick={handleDeleteConfirmed}>Eliminar</button>
+                                        <button
+                                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                                            onClick={() => setShowConfirmModal(false)}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                            onClick={handleDeleteConfirmed}
+                                        >
+                                            Eliminar
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -589,7 +871,6 @@ const Perfil = () => {
             </div>
         </div>
     );
-
 };
 
 export default Perfil;

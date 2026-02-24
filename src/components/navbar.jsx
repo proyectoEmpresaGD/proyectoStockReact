@@ -20,6 +20,7 @@ import {
     FaUmbrellaBeach
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
+import { userCanAccessRoute } from '../utils/roleAccessConfig';
 
 // Evita "magic numbers": sidebar fijo 16rem = w-64 / pl-64
 export const SIDEBAR_WIDTH_CLASS = 'md:pl-64';
@@ -45,7 +46,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
 
     const filterLinksByRole = (links) => {
         const role = user?.role;
-        return links.filter((link) => !link.roles || (role && link.roles.includes(role)));
+        return links.filter((link) => {
+            if (link.external) return true;
+            if (!role) return false;
+
+            const hasStaticRole = !link.roles || link.roles.includes(role);
+            const hasDynamicRouteAccess = typeof link.to === 'string' && userCanAccessRoute(role, link.to);
+
+            return hasStaticRole || hasDynamicRouteAccess;
+        });
     };
 
     // En Documentos: permite que el buscador encuentre también sublinks
@@ -77,9 +86,9 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaUsers className="mr-3 text-lg" />,
                 dropdown: 'clientes',
                 links: [
-                    { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
-                    { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin', 'comercial'] },
-                    { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin', 'comercial'] }
+                    { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] },
+                    { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] },
+                    { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] }
                 ]
             },
             {
@@ -89,7 +98,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 links: [
                     { to: '/mapa-clientes', label: 'Mapa Clientes', icon: <FaGlobeEurope className="mr-3 text-lg" />, roles: ['admin'] },
                     { to: '/mapa-españa', label: 'Mapa España', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin'] },
-                    { to: '/analitica-facturacion', label: 'Facturación', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administrativo'] }
+                    { to: '/analitica-facturacion', label: 'Facturación', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] }
                 ]
             },
             {
@@ -97,7 +106,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaCubes className="mr-3 text-lg" />,
                 dropdown: 'productos',
                 links: [
-                    { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user'] },
+                    { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
                 ]
@@ -171,7 +180,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'configuraciones',
                 links: [
                     { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
-                    { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'administrativo'] }
+                    { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'administracion', 'rrhh'] }
                 ]
             },
             // {
@@ -179,7 +188,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             //     icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
             //     dropdown: 'rrhh',
             //     links: [
-            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user','rrhh', 'administrativo'] }
+            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user','rrhh'] }
             //     ]
             // },
             {

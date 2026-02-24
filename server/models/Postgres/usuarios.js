@@ -138,7 +138,6 @@ export class UserModel {
         }
     }
 
-
     static async getCommercialUsers() {
         const query = 'SELECT id, username FROM usuarios WHERE role = $1';
         const values = ['comercial'];
@@ -151,32 +150,60 @@ export class UserModel {
             throw new Error('Error fetching commercial users');
         }
     }
+
     static async getAllUsers() {
-        const result = await pool.query('SELECT id, nombre, username, email, role, imagenperfil FROM usuarios ORDER BY username');
+        const result = await pool.query(
+            'SELECT id, nombre, username, email, role, imagenperfil FROM usuarios ORDER BY username'
+        );
         return result.rows;
     }
 
-
     static async updateRole(userId, newRole) {
-        const result = await pool.query('UPDATE usuarios SET role = $1 WHERE id = $2 RETURNING *', [newRole, userId]);
-        return result.rows[0];
-    }
-    static async createUser({ nombre, username, email, password, role, imagenperfil = null }) {
         const result = await pool.query(
-            'INSERT INTO usuarios (nombre, username, email, password, role, imagenperfil) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [nombre, username, email, password, role, imagenperfil]
+            'UPDATE usuarios SET role = $1 WHERE id = $2 RETURNING id, nombre, username, email, role, imagenperfil',
+            [newRole, userId]
         );
-        return result.rows[0];
+        return result.rows[0] || null;
     }
 
+    static async createUser({ nombre, username, email, password, role, imagenperfil = null }) {
+        try {
+            const result = await pool.query(
+                'INSERT INTO usuarios (nombre, username, email, password, role, imagenperfil) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, nombre, username, email, role, imagenperfil',
+                [nombre, username, email, password, role, imagenperfil]
+            );
+            return result.rows[0];
+        } catch (error) {
+            if (error?.code === '23505') {
+                const duplicateField = (error.constraint || '').includes('email') ? 'email' : 'username';
+                const conflictError = new Error(`Ya existe un usuario con ese ${duplicateField}`);
+                conflictError.code = 'DUPLICATE_USER';
+                throw conflictError;
+            }
+            throw error;
+        }
+    }
 
     static async deleteUser(id) {
-        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+            await client.query('DELETE FROM accesos WHERE user_id = $1', [id]);
+            const result = await client.query('DELETE FROM usuarios WHERE id = $1 RETURNING id', [id]);
+            await client.query('COMMIT');
+            return result.rows[0] || null;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     static async updateUser(id, data) {
         const keys = Object.keys(data);
-        if (keys.length === 0) return false;
+        if (keys.length === 0) return null;
 
         const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
         const values = Object.values(data);
@@ -185,12 +212,20 @@ export class UserModel {
         UPDATE usuarios 
         SET ${setClause}
         WHERE id = $${keys.length + 1}
-        RETURNING *
+        RETURNING id, nombre, username, email, role, imagenperfil
     `;
 
-        const result = await pool.query(query, [...values, id]);
-        return result.rows[0] || null;
+        try {
+            const result = await pool.query(query, [...values, id]);
+            return result.rows[0] || null;
+        } catch (error) {
+            if (error?.code === '23505') {
+                const duplicateField = (error.constraint || '').includes('email') ? 'email' : 'username';
+                const conflictError = new Error(`Ya existe un usuario con ese ${duplicateField}`);
+                conflictError.code = 'DUPLICATE_USER';
+                throw conflictError;
+            }
+            throw error;
+        }
     }
-
-
 }

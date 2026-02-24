@@ -21,6 +21,8 @@ async function withFtp(fn) {
         client.close();
     }
 }
+const SYSTEM_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administrativo'];
+const MAX_ROLE_LENGTH = Number(process.env.MAX_ROLE_LENGTH || 30);
 
 export class AuthController {
 
@@ -259,6 +261,13 @@ export class AuthController {
             res.json({ message: 'Usuario eliminado' });
         } catch (err) {
             console.error('Error al eliminar usuario:', err);
+            if (err.code === '23503') {
+                return res.status(409).json({
+                    message: 'No se puede eliminar el usuario porque tiene registros relacionados en otras tablas',
+                    constraint: err.constraint,
+                    detail: err.detail
+                });
+            }
             res.status(500).json({ message: 'Error interno' });
         }
     }
