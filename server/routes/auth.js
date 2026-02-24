@@ -15,6 +15,7 @@ authRouter.post('/refresh', AuthController.refreshToken); // No necesita autenti
 authRouter.get('/users/commercial', authMiddleware, AuthController.getCommercialUsers);
 authRouter.get('/me', authMiddleware, AuthController.getPerfilUsuario);
 authRouter.get('/users', authMiddleware, AuthController.getAllUsers);
+authRouter.get('/roles-catalog', authMiddleware, AuthController.getRoleCatalog);
 authRouter.post('/users/update-role', authMiddleware, AuthController.updateRole);
 authRouter.post('/users/create-with-image', authMiddleware, upload.single('imagen'), AuthController.createUserWithImage);
 

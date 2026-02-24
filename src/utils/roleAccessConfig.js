@@ -1,5 +1,4 @@
 // src/utils/roleAccessConfig.js
-const STORAGE_KEY = 'roleDefinitions';
 
 export const AVAILABLE_PERMISSIONS = [
     { value: 'users.read', label: 'Ver usuarios' },
@@ -62,6 +61,16 @@ const DEFAULT_ROLE_DEFINITIONS = {
         permissions: ['stock.read'],
         routes: ['/', '/stock', '/perfilusuario', '/fichar']
     },
+    rrhh: {
+        name: 'rrhh',
+        permissions: ['users.read'],
+        routes: ['/', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+    },
+    administracion: {
+        name: 'administracion',
+        permissions: ['stock.read', 'analytics.read'],
+        routes: ['/clients', '/agenda', '/notas', '/stock', '/analitica-facturacion', '/perfilusuario',]
+    },
     administrativo: {
         name: 'administrativo',
         permissions: ['analytics.read', 'sales.read'],
@@ -69,31 +78,10 @@ const DEFAULT_ROLE_DEFINITIONS = {
     }
 };
 
-export const DEFAULT_ROLE_NAMES = Object.keys(DEFAULT_ROLE_DEFINITIONS);
-export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administrativo'];
-const unique = (values = []) => [...new Set(values)];
+export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'];
 
-const sanitizeRoleDefinitions = (definitions = {}) =>
-    Object.entries(definitions).reduce((acc, [rawRoleName, roleConfig]) => {
-        const roleName = String(rawRoleName || '').trim().toLowerCase();
-        if (!roleName) return acc;
-
-        const routes = unique(Array.isArray(roleConfig?.routes) ? roleConfig.routes : [])
-            .map((route) => String(route || '').trim())
-            .filter(Boolean);
-
-        const permissions = unique(Array.isArray(roleConfig?.permissions) ? roleConfig.permissions : [])
-            .map((permission) => String(permission || '').trim())
-            .filter(Boolean);
-
-        acc[roleName] = {
-            name: roleName,
-            permissions,
-            routes
-        };
-
-        return acc;
-    }, {});
+let dynamicRoleDefinitions = { ...DEFAULT_ROLE_DEFINITIONS };
+let dynamicRoleOptions = [...SERVER_MANAGED_ROLES];
 
 const normalizePath = (path) => {
     if (!path) return '/';
@@ -104,35 +92,67 @@ const normalizePath = (path) => {
     return pathWithoutQuery;
 };
 
-export const getRoleDefinitions = () => {
-    if (typeof window === 'undefined') return DEFAULT_ROLE_DEFINITIONS;
+const normalizeRoleName = (roleName) => String(roleName || '').trim().toLowerCase();
+
+const sanitizeRoleDefinition = (roleName, roleConfig = {}) => {
+    const name = normalizeRoleName(roleName);
+    if (!name) return null;
+
+    const routes = Array.isArray(roleConfig?.routes)
+        ? [...new Set(roleConfig.routes.map((route) => String(route || '').trim()).filter(Boolean))]
+        : [];
+
+    const permissions = Array.isArray(roleConfig?.permissions)
+        ? [...new Set(roleConfig.permissions.map((permission) => String(permission || '').trim()).filter(Boolean))]
+        : [];
+
+    return { name, routes, permissions };
+};
+
+export const hydrateRoleAccessFromBackend = async ({ apiBaseUrl, token }) => {
+    if (!apiBaseUrl || !token) return;
 
     try {
-        const storedRaw = localStorage.getItem(STORAGE_KEY);
-        if (!storedRaw) return DEFAULT_ROLE_DEFINITIONS;
+        const response = await fetch(`${apiBaseUrl}/api/auth/roles-catalog`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
-        const stored = sanitizeRoleDefinitions(JSON.parse(storedRaw));
-        return { ...DEFAULT_ROLE_DEFINITIONS, ...stored };
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const backendDefinitions = payload?.definitions && typeof payload.definitions === 'object'
+            ? payload.definitions
+            : {};
+
+        const normalizedDefinitions = Object.entries(backendDefinitions).reduce((acc, [role, config]) => {
+            const sanitized = sanitizeRoleDefinition(role, config);
+            if (!sanitized) return acc;
+            acc[sanitized.name] = sanitized;
+            return acc;
+        }, {});
+
+        dynamicRoleDefinitions = {
+            ...DEFAULT_ROLE_DEFINITIONS,
+            ...normalizedDefinitions
+        };
+
+        const backendRoles = Array.isArray(payload?.roles)
+            ? payload.roles.map((role) => normalizeRoleName(role)).filter(Boolean)
+            : [];
+
+        dynamicRoleOptions = [...new Set([...SERVER_MANAGED_ROLES, ...backendRoles])].sort();
     } catch (error) {
-        console.error('No se pudo leer la configuración de roles:', error);
-        return DEFAULT_ROLE_DEFINITIONS;
+        console.error('No se pudo sincronizar los roles desde backend:', error);
     }
 };
 
-export const saveRoleDefinitions = (definitions) => {
-    if (typeof window === 'undefined') return;
-    const sanitizedDefinitions = sanitizeRoleDefinitions(definitions);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedDefinitions));
-};
-
-export const getRoleOptions = () => Object.keys(getRoleDefinitions());
-
-const normalizeRoleName = (roleName) => String(roleName || '').trim().toLowerCase();
+export const getRoleDefinitions = () => dynamicRoleDefinitions;
+export const getRoleOptions = () => dynamicRoleOptions;
 
 export const getRoleDefinition = (roleName) => {
     const normalizedRoleName = normalizeRoleName(roleName);
     if (!normalizedRoleName) return null;
-    return getRoleDefinitions()[normalizedRoleName] || null;
+    return dynamicRoleDefinitions[normalizedRoleName] || null;
 };
 
 export const getFirstAccessibleRoute = (roleName) => {
@@ -141,10 +161,10 @@ export const getFirstAccessibleRoute = (roleName) => {
     if (normalizedRoleName === 'admin') return '/';
 
     const roleDefinition = getRoleDefinition(normalizedRoleName);
-    if (!roleDefinition) return null;
+    if (!roleDefinition) return '/';
 
     const [firstRoute] = roleDefinition.routes || [];
-    return firstRoute || null;
+    return firstRoute || '/';
 };
 
 export const userCanAccessRoute = (roleName, path) => {
@@ -155,7 +175,9 @@ export const userCanAccessRoute = (roleName, path) => {
     const normalizedPath = normalizePath(path);
     const roleDefinition = getRoleDefinition(normalizedRoleName);
 
-    if (!roleDefinition) return false;
+    if (!roleDefinition) {
+        return true;
+    }
 
     return (roleDefinition.routes || []).some((allowedRoute) => {
         if (allowedRoute === '*') return true;

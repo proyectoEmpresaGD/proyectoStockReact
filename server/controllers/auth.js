@@ -21,8 +21,36 @@ async function withFtp(fn) {
         client.close();
     }
 }
-const SYSTEM_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administrativo'];
+const SYSTEM_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'];
 const MAX_ROLE_LENGTH = Number(process.env.MAX_ROLE_LENGTH || 30);
+
+function parseRoleDefinitionsFromEnv() {
+    const raw = process.env.ROLE_DEFINITIONS_JSON;
+    if (!raw) return {};
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+        return Object.entries(parsed).reduce((acc, [role, config]) => {
+            const key = String(role || '').trim().toLowerCase();
+            if (!key) return acc;
+
+            const routes = Array.isArray(config?.routes)
+                ? [...new Set(config.routes.map((route) => String(route || '').trim()).filter(Boolean))]
+                : [];
+            const permissions = Array.isArray(config?.permissions)
+                ? [...new Set(config.permissions.map((permission) => String(permission || '').trim()).filter(Boolean))]
+                : [];
+
+            acc[key] = { name: key, routes, permissions };
+            return acc;
+        }, {});
+    } catch (error) {
+        console.error('ROLE_DEFINITIONS_JSON inválido:', error.message);
+        return {};
+    }
+}
 
 export class AuthController {
 
@@ -162,6 +190,29 @@ export class AuthController {
         } catch (error) {
             console.error('Error al obtener el perfil del usuario:', error);
             return res.status(500).json({ message: 'Error al obtener perfil' });
+        }
+    }
+
+    static async getRoleCatalog(req, res) {
+        try {
+            const dbRoles = await UserModel.getDistinctRoles();
+            const envDefinitions = parseRoleDefinitionsFromEnv();
+
+            const roleSet = new Set([
+                ...SYSTEM_ROLES,
+                ...dbRoles,
+                ...Object.keys(envDefinitions)
+            ]);
+
+            const roles = [...roleSet].map((role) => String(role).trim().toLowerCase()).filter(Boolean).sort();
+
+            return res.json({
+                roles,
+                definitions: envDefinitions
+            });
+        } catch (error) {
+            console.error('Error obteniendo catálogo de roles:', error);
+            return res.status(500).json({ message: 'Error interno al obtener roles' });
         }
     }
 

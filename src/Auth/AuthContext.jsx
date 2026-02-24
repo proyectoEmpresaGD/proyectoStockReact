@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import jwt_decode from 'jwt-decode';
-
+import { hydrateRoleAccessFromBackend } from '../utils/roleAccessConfig';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -12,6 +12,11 @@ export const AuthProvider = ({ children }) => {
             try {
                 const decoded = jwt_decode(token);
                 setUser(decoded);
+
+                hydrateRoleAccessFromBackend({
+                    apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+                    token
+                });
 
                 // Calcular el tiempo restante antes de que el token expire
                 const currentTime = Date.now() / 1000; // Tiempo actual en segundos
@@ -44,6 +49,12 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', newToken);
         setToken(newToken);
         try {
+
+            hydrateRoleAccessFromBackend({
+                apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+                token: newToken
+            });
+
             const decoded = jwt_decode(newToken);
             setUser(decoded);
         } catch (error) {

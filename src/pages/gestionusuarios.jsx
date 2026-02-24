@@ -5,14 +5,7 @@ import axios from 'axios';
 import { useAuthContext } from '../Auth/AuthContext';
 import { Eye, EyeOff, Trash2, Edit3, Save } from 'lucide-react';
 import { FaUser, FaEnvelope, FaUserShield } from 'react-icons/fa';
-import {
-    AVAILABLE_PERMISSIONS,
-    AVAILABLE_ROUTES,
-    DEFAULT_ROLE_NAMES,
-    SERVER_MANAGED_ROLES,
-    getRoleDefinitions,
-    saveRoleDefinitions
-} from '../utils/roleAccessConfig';
+import { getRoleOptions } from '../utils/roleAccessConfig';
 
 const Perfil = () => {
     const { logout, token } = useAuthContext();
@@ -30,22 +23,14 @@ const Perfil = () => {
     const [notification, setNotification] = useState('');
     const [imagenPerfil, setImagenPerfil] = useState(null);
     const [previewImagenPerfil, setPreviewImagenPerfil] = useState(null);
-    const [roleDefinitions, setRoleDefinitions] = useState(getRoleDefinitions());
-    const [roleForm, setRoleForm] = useState({ name: '', permissions: [], routes: ['/'] });
-    const [routeSearch, setRouteSearch] = useState('');
+
     const [pendingRoles, setPendingRoles] = useState({});
     const [updatingRoleId, setUpdatingRoleId] = useState(null);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-    const roleOptions = Object.keys(roleDefinitions).sort();
-    const serverRoleOptions = SERVER_MANAGED_ROLES.filter((role) => roleOptions.includes(role));
-    const customRoleOptions = roleOptions.filter((role) => !SERVER_MANAGED_ROLES.includes(role));
-
-    const visibleRoutes = AVAILABLE_ROUTES.filter((route) =>
-        route.label.toLowerCase().includes(routeSearch.toLowerCase()) ||
-        route.path.toLowerCase().includes(routeSearch.toLowerCase())
-    );
+    // Solo roles gestionados por backend
+    const [roleOptions, setRoleOptions] = useState(getRoleOptions());
 
     useEffect(() => {
         const fetchPerfil = async () => {
@@ -79,6 +64,26 @@ const Perfil = () => {
     }, [previewImagenPerfil]);
 
     useEffect(() => {
+        const fetchRoleCatalog = async () => {
+            if (!token) return;
+            try {
+                const response = await axios.get(`${API_BASE_URL}/api/auth/roles-catalog`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const backendRoles = Array.isArray(response.data?.roles) ? response.data.roles : [];
+                if (backendRoles.length > 0) {
+                    setRoleOptions(backendRoles);
+                }
+            } catch (error) {
+                console.error('No se pudo cargar el catálogo de roles:', error);
+            }
+        };
+
+        fetchRoleCatalog();
+    }, [API_BASE_URL, token]);
+
+    useEffect(() => {
         const mappedRoles = usuarios.reduce((acc, currentUser) => {
             acc[currentUser.id] = currentUser.role;
             return acc;
@@ -94,131 +99,12 @@ const Perfil = () => {
     const renderRoleOptions = () => (
         <>
             <optgroup label="Roles de sistema (backend)">
-                {serverRoleOptions.map((role) => (
+                {roleOptions.map((role) => (
                     <option key={role} value={role}>{role}</option>
                 ))}
             </optgroup>
-            {customRoleOptions.length > 0 && (
-                <optgroup label="Roles personalizados">
-                    {customRoleOptions.map((role) => (
-                        <option key={role} value={role}>{role}</option>
-                    ))}
-                </optgroup>
-            )}
         </>
     );
-
-    const toggleRolePermission = (permission) => {
-        setRoleForm((prev) => {
-            const hasPermission = prev.permissions.includes(permission);
-            return {
-                ...prev,
-                permissions: hasPermission
-                    ? prev.permissions.filter((item) => item !== permission)
-                    : [...prev.permissions, permission]
-            };
-        });
-    };
-
-    const toggleRoleRoute = (route) => {
-        setRoleForm((prev) => {
-            const hasRoute = prev.routes.includes(route);
-            return {
-                ...prev,
-                routes: hasRoute
-                    ? prev.routes.filter((item) => item !== route)
-                    : [...prev.routes, route]
-            };
-        });
-    };
-
-    const handleSelectAllPermissions = () => {
-        setRoleForm((prev) => ({
-            ...prev,
-            permissions: AVAILABLE_PERMISSIONS.map((permission) => permission.value)
-        }));
-    };
-
-    const handleClearPermissions = () => {
-        setRoleForm((prev) => ({ ...prev, permissions: [] }));
-    };
-
-    const handleSelectAllRoutes = () => {
-        setRoleForm((prev) => ({
-            ...prev,
-            routes: AVAILABLE_ROUTES.map((route) => route.path)
-        }));
-    };
-
-    const handleClearRoutes = () => {
-        setRoleForm((prev) => ({ ...prev, routes: [] }));
-    };
-
-    const handleDeleteRole = (roleName) => {
-        if (DEFAULT_ROLE_NAMES.includes(roleName)) {
-            return showNotif('No puedes eliminar un rol base del sistema');
-        }
-
-        const roleInUse = usuarios.some((currentUser) => currentUser.role === roleName);
-        if (roleInUse) {
-            return showNotif('No puedes eliminar un rol que está asignado a usuarios');
-        }
-
-        if (!window.confirm(`¿Seguro que quieres eliminar el rol ${roleName}?`)) {
-            return;
-        }
-
-        const updatedDefinitions = { ...roleDefinitions };
-        delete updatedDefinitions[roleName];
-
-        setRoleDefinitions(updatedDefinitions);
-        saveRoleDefinitions(updatedDefinitions);
-        setNewUser((prev) => ({ ...prev, role: 'user' }));
-        showNotif('Rol eliminado');
-    };
-
-    const handleCreateRole = () => {
-        const normalizedRole = roleForm.name.trim().toLowerCase();
-
-        if (!normalizedRole) {
-            return showNotif('Debes indicar un nombre para el rol');
-        }
-
-        if (!/^[a-z0-9_-]{3,20}$/.test(normalizedRole)) {
-            return showNotif('Usa entre 3 y 20 caracteres: letras, números, guion o guion bajo');
-        }
-
-        if (roleDefinitions[normalizedRole]) {
-            return showNotif('Ese rol ya existe');
-        }
-
-        if (!roleForm.permissions.length) {
-            return showNotif('Selecciona al menos un permiso para el rol');
-        }
-
-        if (!roleForm.routes.length) {
-            return showNotif('Selecciona al menos una ruta para el rol');
-        }
-
-        const uniquePermissions = [...new Set(roleForm.permissions)];
-        const uniqueRoutes = [...new Set(roleForm.routes)];
-
-        const updatedDefinitions = {
-            ...roleDefinitions,
-            [normalizedRole]: {
-                name: normalizedRole,
-                permissions: uniquePermissions,
-                routes: uniqueRoutes
-            }
-        };
-
-        setRoleDefinitions(updatedDefinitions);
-        saveRoleDefinitions(updatedDefinitions);
-        setRoleForm({ name: '', permissions: [], routes: ['/'] });
-
-        setNewUser((prev) => ({ ...prev, role: normalizedRole }));
-        showNotif('Rol creado correctamente');
-    };
 
     const handleRoleChangeSelect = (id, selectedRole) => {
         setPendingRoles((prev) => ({ ...prev, [id]: selectedRole }));
@@ -370,7 +256,6 @@ const Perfil = () => {
             });
             setUsuarios(res.data);
 
-            // 4. Cerrar modal y limpiar
             setEditUserId(null);
             setImagenPerfil(null);
             showNotif('Usuario actualizado correctamente');
@@ -533,104 +418,6 @@ const Perfil = () => {
                             </div>
                         )}
 
-                        <div className="mb-6 rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur">
-                            <h4 className="mb-3 text-lg font-semibold text-slate-800">Crear nuevo rol y permisos</h4>
-                            <p className="mb-4 text-sm text-slate-600">Desde aquí puedes definir un rol, marcar sus permisos y habilitar las rutas a las que tendrá acceso.</p>
-
-                            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <input
-                                    type="text"
-                                    value={roleForm.name}
-                                    onChange={(e) => setRoleForm((prev) => ({ ...prev, name: e.target.value }))}
-                                    placeholder="Nombre del nuevo rol (ej: supervisor)"
-                                    className="rounded-lg border border-slate-200 p-2"
-                                />
-                            </div>
-
-                            <div className="mb-4">
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                    <h5 className="text-sm font-semibold text-slate-700">Permisos ({roleForm.permissions.length})</h5>
-                                    <div className="flex gap-2">
-                                        <button type="button" onClick={handleSelectAllPermissions} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Seleccionar todo</button>
-                                        <button type="button" onClick={handleClearPermissions} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Limpiar</button>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
-                                    {AVAILABLE_PERMISSIONS.map((permission) => (
-                                        <label key={permission.value} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm">
-                                            <input
-                                                type="checkbox"
-                                                checked={roleForm.permissions.includes(permission.value)}
-                                                onChange={() => toggleRolePermission(permission.value)}
-                                            />
-                                            <span>{permission.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="mb-4">
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                    <h5 className="text-sm font-semibold text-slate-700">Rutas con acceso ({roleForm.routes.length})</h5>
-                                    <div className="flex gap-2">
-                                        <button type="button" onClick={handleSelectAllRoutes} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Seleccionar todo</button>
-                                        <button type="button" onClick={handleClearRoutes} className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs">Limpiar</button>
-                                    </div>
-                                </div>
-                                <input
-                                    type="text"
-                                    value={routeSearch}
-                                    onChange={(e) => setRouteSearch(e.target.value)}
-                                    placeholder="Buscar ruta por nombre o path"
-                                    className="mb-2 w-full rounded-lg border border-slate-200 p-2 text-sm"
-                                />
-                                <div className="grid max-h-52 grid-cols-1 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                                    {visibleRoutes.map((route) => (
-                                        <label key={route.path} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm">
-                                            <input
-                                                type="checkbox"
-                                                checked={roleForm.routes.includes(route.path)}
-                                                onChange={() => toggleRoleRoute(route.path)}
-                                            />
-                                            <span>{route.label} <span className="text-xs text-slate-400">({route.path})</span></span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleCreateRole}
-                                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-                            >
-                                Crear rol
-                            </button>
-
-                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
-                                <h5 className="mb-2 text-sm font-semibold text-slate-700">Roles disponibles</h5>
-                                <p className="mb-2 text-xs text-slate-500">Los roles personalizados que crees aquí se pueden asignar a usuarios y tendrán acceso según rutas/permisos configurados.</p>
-                                <div className="space-y-2 text-sm text-slate-600">
-                                    {Object.values(roleDefinitions).map((role) => (
-                                        <div key={role.name} className="rounded-lg border border-slate-200 p-2">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <p className="font-semibold text-slate-800">{role.name}</p>
-                                                {!DEFAULT_ROLE_NAMES.includes(role.name) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteRole(role.name)}
-                                                        className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600"
-                                                    >
-                                                        Eliminar
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <p className="text-xs">Permisos: {(role.permissions || []).join(', ') || 'Sin permisos'}</p>
-                                            <p className="text-xs">Rutas: {(role.routes || []).join(', ') || 'Sin rutas'}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
                         <input
                             type="text"
                             placeholder="Buscar por nombre de usuario..."
@@ -638,7 +425,9 @@ const Perfil = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 shadow-sm"
                         />
-                        <p className="mb-4 text-xs text-slate-500">Para cambiar un rol: selecciona el nuevo valor en el desplegable y pulsa <strong>Actualizar rol</strong>. Los roles personalizados también se pueden asignar a usuarios desde este selector.</p>
+                        <p className="mb-4 text-xs text-slate-500">
+                            Para cambiar un rol: selecciona el nuevo valor en el desplegable y pulsa <strong>Actualizar rol</strong>. Solo se pueden asignar roles definidos por backend desde este selector.
+                        </p>
 
                         <div className="overflow-auto rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_25px_55px_-40px_rgba(15,23,42,0.55)]">
                             <table className="min-w-full table-auto border border-slate-200 bg-white text-sm text-slate-700">
@@ -674,6 +463,7 @@ const Perfil = () => {
                                             <td className="p-3">{u.username}</td>
                                             <td className="p-3">{u.email}</td>
                                             <td className="p-3 capitalize">{u.role}</td>
+
                                             <td className="p-3">
                                                 <select
                                                     value={pendingRoles[u.id] || u.role}
@@ -683,6 +473,7 @@ const Perfil = () => {
                                                     {renderRoleOptions()}
                                                 </select>
                                             </td>
+
                                             <td className="p-3 flex items-center gap-3">
                                                 <button
                                                     type="button"
@@ -694,8 +485,20 @@ const Perfil = () => {
                                                     <Save size={14} />
                                                     {updatingRoleId === u.id ? 'Guardando...' : 'Actualizar rol'}
                                                 </button>
-                                                <button onClick={() => handleEditUser(u)} className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:text-slate-800"><Edit3 size={16} /></button>
-                                                <button onClick={() => confirmDeleteUser(u.id)} className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:text-red-800"><Trash2 size={16} /></button>
+
+                                                <button
+                                                    onClick={() => handleEditUser(u)}
+                                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:text-slate-800"
+                                                >
+                                                    <Edit3 size={16} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => confirmDeleteUser(u.id)}
+                                                    className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:text-red-800"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

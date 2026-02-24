@@ -151,6 +151,16 @@ export class UserModel {
         }
     }
 
+    static async getDistinctRoles() {
+        const result = await pool.query(`
+            SELECT DISTINCT role
+            FROM usuarios
+            WHERE role IS NOT NULL AND TRIM(role) <> ''
+            ORDER BY role
+        `);
+        return result.rows.map((row) => String(row.role).trim().toLowerCase());
+    }
+
     static async getAllUsers() {
         const result = await pool.query(
             'SELECT id, nombre, username, email, role, imagenperfil FROM usuarios ORDER BY username'
