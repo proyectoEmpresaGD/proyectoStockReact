@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AiOutlineUser, AiOutlineStock, AiOutlineFile } from 'react-icons/ai';
+import { useAuthContext } from '../Auth/AuthContext.jsx';
 
 function Home() {
+    const navigate = useNavigate();
+    const { token, logout } = useAuthContext();
+
     const [totalClients, setTotalClients] = useState(0); // Total de clientes registrados
     const [totalProducts, setTotalProducts] = useState(0); // Total de productos registrados
     const [totalStock, setTotalStock] = useState(0); // Stock total disponible
@@ -10,60 +14,71 @@ function Home() {
     const [isLoading, setIsLoading] = useState(true); // Estado de carga
 
     useEffect(() => {
+        if (!token) {
+            setIsLoading(false);
+            return;
+        }
+
         fetchData(); // Llama a la función para obtener los datos al cargar el componente
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     const fetchData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('No token provided');
+            if (!token) {
+                setIsLoading(false);
+                return;
+            }
+
+            const authHeaders = {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            };
+
+            const ensureAuth = async (response, entityName) => {
+                if (response.status === 401) {
+                    logout();
+                    navigate('/login');
+                    throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+                }
+                if (!response.ok) throw new Error(`Error al obtener ${entityName}: ${response.status}`);
+                return response;
+            };
 
             // Fetch número total de clientes
             const clientsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: authHeaders,
             });
 
-            if (!clientsResponse.ok) throw new Error(`Error al obtener clientes: ${clientsResponse.status}`);
+            await ensureAuth(clientsResponse, 'clientes');
             const clientsData = await clientsResponse.json();
             setTotalClients(clientsData.total || 0);
 
             // Fetch número total de productos
             const productsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: authHeaders,
             });
 
-            if (!productsResponse.ok) throw new Error(`Error al obtener productos: ${productsResponse.status}`);
+            await ensureAuth(productsResponse, 'productos');
             const productsData = await productsResponse.json();
             setTotalProducts(productsData.total || 0);
 
             // Fetch stock total
             const stockResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: authHeaders,
             });
 
-            if (!stockResponse.ok) throw new Error(`Error al obtener stock: ${stockResponse.status}`);
+            await ensureAuth(stockResponse, 'stock');
             const stockData = await stockResponse.json();
             const totalStockValue = stockData.reduce((acc, stock) => acc + parseFloat(stock.stockactual || 0), 0);
             setTotalStock(totalStockValue.toFixed(2));
 
             // Fetch número total de pedidos únicos
             const ordersResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: authHeaders,
             });
 
-            if (!ordersResponse.ok) throw new Error(`Error al obtener pedidos: ${ordersResponse.status}`);
+            await ensureAuth(ordersResponse, 'pedidos');
             const ordersData = await ordersResponse.json();
             const uniqueOrders = new Set(ordersData.map((order) => order.npedventa));
             setTotalOrders(uniqueOrders.size);
@@ -99,7 +114,9 @@ function Home() {
             <div className="mx-auto mt-2 w-full max-w-6xl rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)] sm:rounded-3xl sm:p-6 md:mt-4 md:p-10">
                 <div className="mb-6 border-b border-slate-100 pb-5 text-center md:mb-8 md:pb-6 md:text-left">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Panel de control</p>
-                    <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">Gestión inteligente</h1>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
+                        Gestión inteligente
+                    </h1>
                     <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-500 md:text-base">
                         Una vista clara y profesional para acceder rápidamente a las áreas clave de la aplicación.
                     </p>

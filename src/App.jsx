@@ -37,7 +37,7 @@ import RecursosHumanos from './pages/RecursosHumanos.jsx';
 import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
 import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
-
+import FacturacionAnalyticsPage from './pages/FacturacionAnalyticsPage.jsx';
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -86,6 +86,15 @@ function App() {
                             element={
                               <ProtectedRoute requiredRole="admin">
                                 <Admin />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/analitica-facturacion"
+                            element={
+                              <ProtectedRoute requiredRole={"rrhh"}>
+                                <FacturacionAnalyticsPage />
                               </ProtectedRoute>
                             }
                           />

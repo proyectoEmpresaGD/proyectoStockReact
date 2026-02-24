@@ -88,7 +88,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'mapa',
                 links: [
                     { to: '/mapa-clientes', label: 'Mapa Clientes', icon: <FaGlobeEurope className="mr-3 text-lg" />, roles: ['admin'] },
-                    { to: '/mapa-españa', label: 'Mapa España', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin'] }
+                    { to: '/mapa-españa', label: 'Mapa España', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin'] },
+                    { to: '/analitica-facturacion', label: 'Facturación', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administrativo'] }
                 ]
             },
             {
@@ -170,7 +171,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'configuraciones',
                 links: [
                     { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
-                    { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user'] }
+                    { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'administrativo'] }
                 ]
             },
             // {
@@ -178,7 +179,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             //     icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
             //     dropdown: 'rrhh',
             //     links: [
-            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user'] }
+            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user','rrhh', 'administrativo'] }
             //     ]
             // },
             {

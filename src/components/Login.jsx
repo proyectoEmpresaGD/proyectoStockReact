@@ -79,7 +79,6 @@ function Login() {
                         alt="Logo"
                         className="mx-auto mb-4 h-14 w-auto object-contain"
                     />
-                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">CJM Group</p>
                     <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Bienvenido</h1>
                     <p className="mt-2 text-sm text-slate-500">Accede con tu usuario para continuar.</p>
                 </div>
