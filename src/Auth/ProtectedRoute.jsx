@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from './AuthContext';
 import jwt_decode from 'jwt-decode';
-import { userCanAccessRoute } from '../utils/roleAccessConfig';
+import { getFirstAccessibleRoute, userCanAccessRoute } from '../utils/roleAccessConfig';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
     const { token } = useAuthContext();
@@ -15,14 +15,22 @@ const ProtectedRoute = ({ children, requiredRole }) => {
         const decoded = jwt_decode(token);
         const currentRole = decoded.role;
         const canAccessCurrentRoute = userCanAccessRoute(currentRole, location.pathname);
-
+        const fallbackRoute = getFirstAccessibleRoute(currentRole);
         // Verifica si el rol es el adecuado o si es admin
         if (requiredRole && currentRole !== requiredRole && currentRole !== 'admin' && !canAccessCurrentRoute) {
-            return <Navigate to="/" />;
+            if (fallbackRoute && fallbackRoute !== location.pathname) {
+                return <Navigate to={fallbackRoute} replace />;
+            }
+
+            return <Navigate to="/login" replace />;
         }
 
         if (!canAccessCurrentRoute) {
-            return <Navigate to="/" />;
+            if (fallbackRoute && fallbackRoute !== location.pathname) {
+                return <Navigate to={fallbackRoute} replace />;
+            }
+
+            return <Navigate to="/login" replace />;
         }
 
         return children;

@@ -127,14 +127,33 @@ export const saveRoleDefinitions = (definitions) => {
 
 export const getRoleOptions = () => Object.keys(getRoleDefinitions());
 
-export const getRoleDefinition = (roleName) => getRoleDefinitions()[roleName] || null;
+const normalizeRoleName = (roleName) => String(roleName || '').trim().toLowerCase();
+
+export const getRoleDefinition = (roleName) => {
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (!normalizedRoleName) return null;
+    return getRoleDefinitions()[normalizedRoleName] || null;
+};
+
+export const getFirstAccessibleRoute = (roleName) => {
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (!normalizedRoleName) return null;
+    if (normalizedRoleName === 'admin') return '/';
+
+    const roleDefinition = getRoleDefinition(normalizedRoleName);
+    if (!roleDefinition) return null;
+
+    const [firstRoute] = roleDefinition.routes || [];
+    return firstRoute || null;
+};
 
 export const userCanAccessRoute = (roleName, path) => {
-    if (!roleName) return false;
-    if (roleName === 'admin') return true;
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (!normalizedRoleName) return false;
+    if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
-    const roleDefinition = getRoleDefinition(roleName);
+    const roleDefinition = getRoleDefinition(normalizedRoleName);
 
     if (!roleDefinition) return false;
 
