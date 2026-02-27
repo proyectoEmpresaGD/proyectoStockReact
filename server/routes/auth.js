@@ -16,6 +16,8 @@ authRouter.get('/users/commercial', authMiddleware, AuthController.getCommercial
 authRouter.get('/me', authMiddleware, AuthController.getPerfilUsuario);
 authRouter.get('/users', authMiddleware, AuthController.getAllUsers);
 authRouter.get('/roles-catalog', authMiddleware, AuthController.getRoleCatalog);
+authRouter.get('/departamentos', authMiddleware, AuthController.getDepartments);
+authRouter.post('/departamentos', authMiddleware, AuthController.createDepartment);
 authRouter.post('/users/update-role', authMiddleware, AuthController.updateRole);
 authRouter.post('/users/create-with-image', authMiddleware, upload.single('imagen'), AuthController.createUserWithImage);
 

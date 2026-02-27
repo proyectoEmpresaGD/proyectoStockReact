@@ -216,6 +216,36 @@ export class AuthController {
         }
     }
 
+    static async getDepartments(req, res) {
+        try {
+            if (req.user?.role !== 'admin') {
+                return res.status(403).json({ message: 'No autorizado' });
+            }
+            const rows = await UserModel.getDepartments();
+            return res.json(rows);
+        } catch (err) {
+            console.error('Error al obtener departamentos:', err);
+            return res.status(500).json({ message: 'Error interno' });
+        }
+    }
+
+    static async createDepartment(req, res) {
+        try {
+            if (req.user?.role !== 'admin') {
+                return res.status(403).json({ message: 'No autorizado' });
+            }
+
+            const nombre = String(req.body?.nombre || '').trim();
+            if (!nombre) return res.status(400).json({ message: 'Nombre de departamento requerido' });
+
+            const row = await UserModel.createDepartment(nombre);
+            return res.status(201).json(row);
+        } catch (err) {
+            console.error('Error al crear departamento:', err);
+            return res.status(500).json({ message: 'Error interno' });
+        }
+    }
+
     static async getAllUsers(req, res) {
         try {
             const users = await UserModel.getAllUsers();
@@ -251,7 +281,7 @@ export class AuthController {
 
 
     static async createUserWithImage(req, res) {
-        const { nombre, username, email, password, role } = req.body;
+        const { nombre, username, email, password, role, departamento, dias_vacaciones_anuales } = req.body;
         const file = req.file;
 
         if (!nombre || !username || !email || !password || !role) {
@@ -269,6 +299,8 @@ export class AuthController {
                 email,
                 password: hashedPassword,
                 role,
+                departamento: departamento || null,
+                dias_vacaciones_anuales: dias_vacaciones_anuales ? Number(dias_vacaciones_anuales) : null,
             });
 
             // 2. Subir imagen si fue enviada
@@ -324,10 +356,10 @@ export class AuthController {
     }
     static async updateUser(req, res) {
         const { id } = req.params;
-        const { nombre, username, email } = req.body;
+        const { nombre, username, email, departamento, dias_vacaciones_anuales } = req.body;
 
         // Si no se envió ningún campo, devolvemos error
-        if (!nombre && !username && !email) {
+        if (!nombre && !username && !email && departamento === undefined && dias_vacaciones_anuales === undefined) {
             return res.status(400).json({ message: 'No se enviaron datos para actualizar' });
         }
 
@@ -347,6 +379,14 @@ export class AuthController {
             if (email !== undefined) {
                 campos.push(`email = $${idx++}`);
                 valores.push(email);
+            }
+            if (departamento !== undefined) {
+                campos.push(`departamento = $${idx++}`);
+                valores.push(departamento || null);
+            }
+            if (dias_vacaciones_anuales !== undefined) {
+                campos.push(`dias_vacaciones_anuales = $${idx++}`);
+                valores.push(dias_vacaciones_anuales === '' || dias_vacaciones_anuales === null ? null : Number(dias_vacaciones_anuales));
             }
 
             valores.push(id);

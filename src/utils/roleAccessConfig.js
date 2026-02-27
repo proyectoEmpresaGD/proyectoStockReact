@@ -44,22 +44,22 @@ const DEFAULT_ROLE_DEFINITIONS = {
     comercial: {
         name: 'comercial',
         permissions: ['users.read', 'stock.read', 'sales.read'],
-        routes: ['/', '/clients', '/agenda', '/notas', '/stock', '/perfilusuario', '/fichar']
+        routes: ['/', '/clients', '/agenda', '/notas', '/stock', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],
-        routes: ['/', '/stock', '/equivalencias', '/stock-alerts', '/etiquetas', '/EtiquetasMarke', '/estiquetaSinQR', '/EtiquetaPersonalizable', '/EtiquetaCameo', '/perfilusuario', '/fichar']
+        routes: ['/', '/stock', '/equivalencias', '/stock-alerts', '/etiquetas', '/EtiquetasMarke', '/estiquetaSinQR', '/EtiquetaPersonalizable', '/EtiquetaCameo', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     ventas: {
         name: 'ventas',
         permissions: ['sales.read', 'sales.write', 'stock.read'],
-        routes: ['/', '/stock', '/entradas', '/comprobacionExcel', '/perfilusuario', '/fichar']
+        routes: ['/', '/stock', '/entradas', '/comprobacionExcel', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     user: {
         name: 'user',
         permissions: ['stock.read'],
-        routes: ['/', '/stock', '/perfilusuario', '/fichar']
+        routes: ['/', '/stock', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     rrhh: {
         name: 'rrhh',
@@ -69,12 +69,12 @@ const DEFAULT_ROLE_DEFINITIONS = {
     administracion: {
         name: 'administracion',
         permissions: ['stock.read', 'analytics.read'],
-        routes: ['/clients', '/agenda', '/notas', '/stock', '/analitica-facturacion', '/perfilusuario',]
+        routes: ['/clients', '/agenda', '/notas', '/stock', '/analitica-facturacion', '/perfilusuario', '/rrhh/vacaciones']
     },
     administrativo: {
         name: 'administrativo',
         permissions: ['analytics.read', 'sales.read'],
-        routes: ['/', '/analitica-facturacion', '/perfilusuario', '/fichar']
+        routes: ['/', '/analitica-facturacion', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     }
 };
 

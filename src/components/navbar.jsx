@@ -188,7 +188,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             //     icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
             //     dropdown: 'rrhh',
             //     links: [
-            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user','rrhh'] }
+            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'] }
             //     ]
             // },
             {
