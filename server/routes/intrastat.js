@@ -6,7 +6,9 @@ export const createIntrastatRouter = () => {
     const router = Router();
     const controller = new IntrastatController();
 
-    const upload = multer({ dest: 'uploads/' });
+    const upload = multer({
+        storage: multer.memoryStorage()
+    });
 
     router.post(
         '/ventas',
