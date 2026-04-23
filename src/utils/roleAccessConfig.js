@@ -19,6 +19,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/stock', label: 'Stock' },
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
+    { path: '/fichaTecnica', label: 'Ficha Técnica' }, // 🔥 AÑADIDO
     { path: '/entradas', label: 'Entradas' },
     { path: '/comprobacionExcel', label: 'Validación presupuestos' },
     { path: '/mapa-clientes', label: 'Mapa clientes' },
@@ -44,22 +45,22 @@ const DEFAULT_ROLE_DEFINITIONS = {
     comercial: {
         name: 'comercial',
         permissions: ['users.read', 'stock.read', 'sales.read'],
-        routes: ['/', '/clients', '/agenda', '/notas', '/stock', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/', '/clients', '/agenda', '/notas', '/stock', '/fichaTecnica', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],
-        routes: ['/', '/stock', '/equivalencias', '/stock-alerts', '/etiquetas', '/EtiquetasMarke', '/estiquetaSinQR', '/EtiquetaPersonalizable', '/EtiquetaCameo', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/', '/stock', '/equivalencias', '/fichaTecnica', '/stock-alerts', '/etiquetas', '/EtiquetasMarke', '/estiquetaSinQR', '/EtiquetaPersonalizable', '/EtiquetaCameo', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     ventas: {
         name: 'ventas',
         permissions: ['sales.read', 'sales.write', 'stock.read'],
-        routes: ['/', '/stock', '/entradas', '/comprobacionExcel', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/', '/stock', '/entradas', '/comprobacionExcel', '/fichaTecnica', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
     },
     user: {
         name: 'user',
         permissions: ['stock.read'],
-        routes: ['/', '/stock', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/', '/stock', '/perfilusuario', '/fichaTecnica', '/fichar', '/rrhh/vacaciones']
     },
     rrhh: {
         name: 'rrhh',
@@ -69,7 +70,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
     administracion: {
         name: 'administracion',
         permissions: ['stock.read', 'analytics.read'],
-        routes: ['/clients', '/agenda', '/notas', '/stock', '/analitica-facturacion', '/perfilusuario', '/rrhh/vacaciones']
+        routes: ['/clients', '/agenda', '/notas', '/stock', '/fichaTecnica', '/analitica-facturacion', '/perfilusuario', '/rrhh/vacaciones']
     },
     administrativo: {
         name: 'administrativo',

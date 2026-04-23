@@ -120,13 +120,6 @@ function App() {
                           />
 
                           <Route
-                            path="/fichaTecnica"
-                            element={
-                              <FichaTecnicaPage />
-                            }
-                          />
-
-                          <Route
                             path="/clients"
                             element={
                               <ProtectedRoute requiredRole="comercial">
@@ -165,6 +158,7 @@ function App() {
                           <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
                           <Route path="/gestionusuarios" element={<Perfil />} />
                           <Route path="/fichar" element={<FicharPage />} />
+                          <Route path="/fichaTecnica" element={<FichaTecnicaPage />} />
 
                           <Route
                             path="entradas"
