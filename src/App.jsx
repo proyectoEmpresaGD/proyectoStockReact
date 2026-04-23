@@ -142,8 +142,8 @@ function App() {
                           <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
                           <Route path="/libro" element={<EtiquetaLibro />} />
                           <Route path="/libroNormativa" element={<EtiquetaNormativa />} />
-                          <Route path="/libro 35 cm ancho" element={<EtiquetaLibro26Tipo3ConImagen />} />
-                          <Route path="/libro 45 cm ancho" element={<EtiquetaLibro45Ancho />} />
+                          <Route path="/Libro35AnchoConImagen" element={<EtiquetaLibro26Tipo3ConImagen />} />
+                          <Route path="/Libro45AnchoConImagen" element={<EtiquetaLibro45Ancho />} />
                           <Route path="/perchas" element={<EtiquetaPerchas />} />
                           <Route path="/perchasEstampados" element={<EtiquetaPerchasEstampados />} />
                           <Route path="/EtiquetasLibro35Tipo1" element={<EtiquetasLibro35Tipo1 />} />

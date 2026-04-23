@@ -550,7 +550,7 @@ function EtiquetaPerchasEstampados() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Libro</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de percha estampado</h1>
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}
@@ -567,7 +567,7 @@ function EtiquetaPerchasEstampados() {
 
             <button onClick={handlePrint}
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">
-                Descargar Etiqueta de Libro
+                Descargar Etiqueta de percha
             </button>
             <button onClick={handleExportAsJPGDirect}
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">

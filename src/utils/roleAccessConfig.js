@@ -19,21 +19,48 @@ export const AVAILABLE_ROUTES = [
     { path: '/stock', label: 'Stock' },
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
-    { path: '/fichaTecnica', label: 'Ficha Técnica' }, // 🔥 AÑADIDO
+    { path: '/fichaTecnica', label: 'Ficha Técnica' },
+
     { path: '/entradas', label: 'Entradas' },
     { path: '/comprobacionExcel', label: 'Validación presupuestos' },
     { path: '/mapa-clientes', label: 'Mapa clientes' },
     { path: '/mapa-españa', label: 'Mapa España' },
     { path: '/analitica-facturacion', label: 'Facturación' },
+
     { path: '/etiquetas', label: 'Etiquetas QUALITY' },
     { path: '/EtiquetasMarke', label: 'Etiqueta fotos' },
     { path: '/estiquetaSinQR', label: 'Etiqueta sin QR' },
     { path: '/EtiquetaPersonalizable', label: 'Etiqueta personalizable' },
     { path: '/EtiquetaCameo', label: 'Etiqueta Cameo' },
+
+    { path: '/libro', label: 'LIBRO' },
+    { path: '/libroNormativa', label: 'Libro Normativa' },
+    { path: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)' },
+    { path: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)' },
+    { path: '/Libro35AnchoConImagen', label: 'LIBRO 35cm + IMAGEN' },
+    { path: '/Libro45AnchoConImagen', label: 'LIBRO 45cm + IMAGEN' },
+    { path: '/perchas', label: 'PERCHAS LISOS' },
+    { path: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS' },
+    { path: '/EtiquetaContraportada35', label: 'Contraportada (35cm)' },
+    { path: '/EtiquetaContraportada20', label: 'Contraportada (20cm)' },
+
     { path: '/gestionusuarios', label: 'Gestión de usuarios' },
     { path: '/perfilusuario', label: 'Perfil usuario' },
     { path: '/fichar', label: 'Fichar' },
     { path: '/rrhh/vacaciones', label: 'RRHH vacaciones' }
+];
+
+const DOCUMENT_LABEL_ROUTES = [
+    '/libro',
+    '/libroNormativa',
+    '/EtiquetasLibro35Tipo1',
+    '/EtiquetasLibro35Tipo2',
+    '/Libro35AnchoConImagen',
+    '/Libro45AnchoConImagen',
+    '/perchas',
+    '/perchasEstampados',
+    '/EtiquetaContraportada35',
+    '/EtiquetaContraportada20'
 ];
 
 const DEFAULT_ROLE_DEFINITIONS = {
@@ -44,23 +71,65 @@ const DEFAULT_ROLE_DEFINITIONS = {
     },
     comercial: {
         name: 'comercial',
-        permissions: ['users.read', 'stock.read', 'sales.read'],
-        routes: ['/', '/clients', '/agenda', '/notas', '/stock', '/fichaTecnica', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        permissions: ['users.read', 'stock.read', 'sales.read', 'labels.read'],
+        routes: [
+            '/',
+            '/clients',
+            '/agenda',
+            '/notas',
+            '/stock',
+            '/fichaTecnica',
+            ...DOCUMENT_LABEL_ROUTES,
+            '/perfilusuario',
+            '/fichar',
+            '/rrhh/vacaciones'
+        ]
     },
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],
-        routes: ['/', '/stock', '/equivalencias', '/fichaTecnica', '/stock-alerts', '/etiquetas', '/EtiquetasMarke', '/estiquetaSinQR', '/EtiquetaPersonalizable', '/EtiquetaCameo', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: [
+            '/',
+            '/stock',
+            '/equivalencias',
+            '/stock-alerts',
+            '/fichaTecnica',
+            '/etiquetas',
+            '/EtiquetasMarke',
+            '/estiquetaSinQR',
+            '/EtiquetaPersonalizable',
+            '/EtiquetaCameo',
+            ...DOCUMENT_LABEL_ROUTES,
+            '/perfilusuario',
+            '/fichar',
+            '/rrhh/vacaciones'
+        ]
     },
     ventas: {
         name: 'ventas',
         permissions: ['sales.read', 'sales.write', 'stock.read'],
-        routes: ['/', '/stock', '/entradas', '/comprobacionExcel', '/fichaTecnica', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: [
+            '/',
+            '/stock',
+            '/entradas',
+            '/comprobacionExcel',
+            '/perfilusuario',
+            '/fichar',
+            '/rrhh/vacaciones'
+        ]
     },
     user: {
         name: 'user',
-        permissions: ['stock.read'],
-        routes: ['/', '/stock', '/perfilusuario', '/fichaTecnica', '/fichar', '/rrhh/vacaciones']
+        permissions: ['stock.read', 'labels.read'],
+        routes: [
+            '/',
+            '/stock',
+            '/fichaTecnica',
+            ...DOCUMENT_LABEL_ROUTES,
+            '/perfilusuario',
+            '/fichar',
+            '/rrhh/vacaciones'
+        ]
     },
     rrhh: {
         name: 'rrhh',
@@ -69,8 +138,18 @@ const DEFAULT_ROLE_DEFINITIONS = {
     },
     administracion: {
         name: 'administracion',
-        permissions: ['stock.read', 'analytics.read'],
-        routes: ['/clients', '/agenda', '/notas', '/stock', '/fichaTecnica', '/analitica-facturacion', '/perfilusuario', '/rrhh/vacaciones']
+        permissions: ['stock.read', 'analytics.read', 'labels.read'],
+        routes: [
+            '/clients',
+            '/agenda',
+            '/notas',
+            '/stock',
+            '/fichaTecnica',
+            ...DOCUMENT_LABEL_ROUTES,
+            '/analitica-facturacion',
+            '/perfilusuario',
+            '/rrhh/vacaciones'
+        ]
     },
     administrativo: {
         name: 'administrativo',
