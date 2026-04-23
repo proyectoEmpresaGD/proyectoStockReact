@@ -48,24 +48,21 @@ function Intrastat() {
 
         setLoading(true);
         setErrores([]);
+        setFacturasIva([]);
 
         try {
             const result = await intrastatClient.generarIntrastatVentas({ file });
 
-            setFacturasIva(result.facturasIvaIncorrecto || []);
-
-            if (result.errores?.length > 0) {
-                setErrores(result.errores);
-            }
-
-            const url = `${import.meta.env.VITE_API_BASE_URL}${result.fileUrl}`;
+            const url = window.URL.createObjectURL(result.blob);
 
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'intrastat.xlsx';
+            link.download = result.fileName || 'intrastat.xlsx';
             document.body.appendChild(link);
             link.click();
             link.remove();
+
+            window.URL.revokeObjectURL(url);
 
         } catch (e) {
             console.error(e);

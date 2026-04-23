@@ -9,13 +9,25 @@ async function generarIntrastatVentas({ file }) {
         body: formData,
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-        throw new Error(data?.error || 'Error Intrastat');
+        let errorMessage = 'Error Intrastat';
+
+        try {
+            const data = await response.json();
+            errorMessage = data?.error || errorMessage;
+        } catch {
+            // no-op
+        }
+
+        throw new Error(errorMessage);
     }
 
-    return data;
+    const blob = await response.blob();
+
+    return {
+        blob,
+        fileName: `intrastat_${Date.now()}.xlsx`
+    };
 }
 
 async function getFacturasIvaIncorrectoFromExcel(facturas) {

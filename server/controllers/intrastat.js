@@ -57,7 +57,7 @@ export class IntrastatController {
 
     async generarVentas(req, res) {
         try {
-            if (!req.file?.path) {
+            if (!req.file || !req.file.buffer) {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
 
@@ -254,17 +254,22 @@ export class IntrastatController {
             const newWorkbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(newWorkbook, newSheet, 'Intrastat');
 
-            const uploadsDir = path.resolve(__dirname, '../uploads');
-            if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
-
-            const outputPath = path.resolve(uploadsDir, `intrastat_${Date.now()}.xlsx`);
-            XLSX.writeFile(newWorkbook, outputPath);
-
-            return res.json({
-                fileUrl: `/uploads/${path.basename(outputPath)}`,
-                errores: erroresFacturas,
-                facturasIvaIncorrecto
+            const buffer = XLSX.write(newWorkbook, {
+                bookType: 'xlsx',
+                type: 'buffer'
             });
+
+            res.setHeader(
+                'Content-Type',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            );
+
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="intrastat_${Date.now()}.xlsx"`
+            );
+
+            return res.send(buffer);
 
         } catch (error) {
             console.error(error);
