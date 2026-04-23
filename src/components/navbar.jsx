@@ -17,7 +17,7 @@ import {
     FaRegStickyNote,
     FaUser,
     FaRegCalendarAlt,
-    FaUmbrellaBeach
+    FaFileInvoiceDollar
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
@@ -92,6 +92,14 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 ]
             },
             {
+                label: 'Contabilidad',
+                icon: <FaMoneyBillWave className="mr-3 text-lg" />,
+                dropdown: 'contabilidad',
+                links: [
+                    { to: '/intrastat', label: 'Intrastat', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] }
+                ]
+            },
+            {
                 label: 'Analitica',
                 icon: <FaGlobeEurope className="mr-3 text-lg" />,
                 dropdown: 'mapa',
@@ -108,6 +116,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 links: [
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    { to: '/fichaTecnica', label: 'Ficha Tecnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
                     { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
                 ]
             },

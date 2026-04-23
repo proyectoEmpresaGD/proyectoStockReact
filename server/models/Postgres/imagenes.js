@@ -8,7 +8,7 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-const TABLE = 'imagenesftpproductos';
+const TABLE = 'imagenesproductoswebp';
 
 // Columnas reales de la tabla nueva
 const ALLOWED_COLUMNS = new Set([
@@ -78,12 +78,27 @@ export class ImagenModel {
         }
     }
 
-    static async getById({ codprodu, codclaarchivo }) {
-        const { rows } = await pool.query(
-            `SELECT * FROM ${TABLE} WHERE "codprodu" = $1 AND "codclaarchivo" = $2;`,
-            [codprodu, codclaarchivo]
-        );
-        return rows.length > 0 ? rows[0] : null;
+    static async getById({ id }) {
+        const query = `
+    SELECT 
+      p.*,
+      i.ficadjunto AS "imageBuena"
+    FROM productos p
+    LEFT JOIN imagenesproductoswebp i
+      ON i.codprodu = p.codprodu
+    WHERE p.codprodu = $1
+    ORDER BY 
+      CASE 
+        WHEN i.codclaarchivo = 'PRODUCTO_BUENA' THEN 1
+        WHEN i.codclaarchivo = 'PRODUCTO_BAJA' THEN 2
+        ELSE 3
+      END,
+      i.fecftpmod DESC NULLS LAST
+    LIMIT 1
+  `;
+
+        const { rows } = await pool.query(query, [id]);
+        return rows[0] || null;
     }
 
     static async getByCodproduAndCodclaarchivo({ codprodu, codclaarchivo }) {

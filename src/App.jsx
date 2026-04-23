@@ -11,7 +11,7 @@ import Admin from './pages/Admin';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
-
+import Intrastat from './pages/Intrastat.jsx';
 import Etiquetas from './pages/etiquetas/Etiquetas.jsx';
 import EtiquetaLibro from './pages/etiquetas/EtiquetaLibro.jsx';
 import Equivalencias from './pages/Equivalencias.jsx';
@@ -38,6 +38,8 @@ import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
 import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
 import FacturacionAnalyticsPage from './pages/FacturacionAnalyticsPage.jsx';
+import FichaTecnicaPage from './pages/fichaTecnica/fichaTenica.jsx'
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -91,6 +93,15 @@ function App() {
                           />
 
                           <Route
+                            path="/intrastat"
+                            element={
+                              <ProtectedRoute requiredRole="admin">
+                                <Intrastat />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
                             path="/analitica-facturacion"
                             element={
                               <ProtectedRoute requiredRole={"rrhh"}>
@@ -105,6 +116,13 @@ function App() {
                               <ProtectedRoute>
                                 <Stock />
                               </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path="/fichaTecnica"
+                            element={
+                              <FichaTecnicaPage />
                             }
                           />
 

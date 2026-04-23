@@ -1,4 +1,3 @@
-
 import { ProductModel } from '../models/Postgres/productos.js';
 
 export class ProductController {

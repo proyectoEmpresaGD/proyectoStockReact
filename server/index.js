@@ -11,6 +11,7 @@ import authRouter from "./routes/auth.js";
 import { corsMiddleware } from "./middlewares/cors.js";
 import { authMiddleware } from "./middlewares/authMiddleware.js";
 import { fileURLToPath } from "url";
+import path from "path";
 import { dirname, join } from "path";
 import "dotenv/config";
 import { createLibroRouter } from "./routes/libros.js";
@@ -24,6 +25,7 @@ import { createVerifyRouter } from "./routes/verify.js";
 import { createVacacionesRouter } from "./routes/vacaciones.js";
 import { createAnalyticsRouter } from "./routes/analytics.js";
 import pool from "./db/pool.js";
+import { createIntrastatRouter } from './routes/intrastat.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -71,6 +73,8 @@ app.use("/api/calendario", authMiddleware, createCalendarioRouter());
 app.use("/api/verify", createVerifyRouter());
 app.use("/api/vacaciones", authMiddleware, createVacacionesRouter());
 app.use("/api/analytics", authMiddleware, createAnalyticsRouter());
+app.use("/api/intrastat", createIntrastatRouter());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Email transporter
 const transporter = nodemailer.createTransport({
   host: "send.one.com",

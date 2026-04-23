@@ -50,7 +50,8 @@
     "react-simple-maps": "^3.0.0",
     "react-toastify": "^11.0.5",
     "react-tooltip": "^5.29.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",

@@ -10,38 +10,49 @@ const pool = new pg.Pool({
 
 export class ProductModel {
   static async getAll({ CodFamil, CodSubFamil, limit = 20, offset = 0 }) {
-    let query = 'SELECT * FROM productos';
-    let params = [];
+    let query = `
+    SELECT 
+      p.*,
+      i.ficadjunto AS "imageBuena"
+    FROM productos p
+    LEFT JOIN imagenesproductoswebp i
+      ON i.codprodu = p.codprodu
+      AND i.codclaarchivo = 'PRODUCTO_BUENA'
+  `;
+
+    const params = [];
 
     if (CodFamil) {
-      query += ' WHERE "codfamil" = $1';
+      query += ' WHERE p."codfamil" = $1';
       params.push(CodFamil);
     }
 
     if (CodSubFamil) {
       if (params.length > 0) {
-        query += ' AND "codsubfamil" = $2';
+        query += ' AND p."codsubfamil" = $2';
       } else {
-        query += ' WHERE "codsubfamil" = $1';
+        query += ' WHERE p."codsubfamil" = $1';
       }
       params.push(CodSubFamil);
     }
 
-    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit * 2, offset);  // Duplicamos el límite para obtener más productos
+    query += `
+    ORDER BY i.fecftpmod DESC NULLS LAST, i.fecultmod DESC NULLS LAST
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
+
+    params.push(limit * 2, offset);
 
     try {
       const { rows } = await pool.query(query, params);
 
-      // Aquí realizamos el filtrado de productos inválidos
       const validProducts = rows.filter(product => (
         !/^(LIBRO|PORTADA|SET|KIT|COMPOSICION ESPECIAL|COLECCIÓN|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|QUALITY SAMPLE|PERCHA|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
-        ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(product.codmarca)
+        ['ARE', 'FLA', 'CJM', 'HAR', 'BAS', 'CTL'].includes(product.codmarca)
       ));
 
-      // Retornamos los primeros 'limit' productos válidos
       return validProducts.slice(0, limit);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -49,79 +60,69 @@ export class ProductModel {
     }
   }
 
-
-
   static async getById({ id }) {
-    const { rows } = await pool.query('SELECT * FROM productos WHERE "codprodu" = $1;', [id]);
+    const query = `
+      SELECT 
+        p.*,
+        i.ficadjunto AS "imageBuena"
+      FROM productos p
+      LEFT JOIN imagenesproductoswebp i
+        ON i.codprodu = p.codprodu
+      WHERE p.codprodu = $1
+      ORDER BY
+        CASE
+          WHEN i.codclaarchivo = 'PRODUCTO_BUENA' THEN 1
+          WHEN i.codclaarchivo = 'PRODUCTO_BAJA' THEN 2
+          ELSE 3
+        END,
+        i.fecftpmod DESC NULLS LAST,
+        i.fecultmod DESC NULLS LAST
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [id]);
     return rows.length > 0 ? rows[0] : null;
-  }
-
-  static async create({ input }) {
-    const { CodProdu, DesProdu, CodFamil, Comentario, UrlImagen } = input;
-
-    const { rows } = await pool.query(
-      `INSERT INTO productos ("codprodu", "desprodu", "codfamil", "comentario", "urlimagen")
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;`,
-      [CodProdu, DesProdu, CodFamil, Comentario, UrlImagen]
-    );
-
-    return rows[0];
-  }
-
-  static async update({ id, input }) {
-    const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 2}`).join(", ");
-    const values = Object.values(input);
-
-    const { rows } = await pool.query(
-      `UPDATE productos SET ${fields} WHERE "codprodu" = $1 RETURNING *;`,
-      [id, ...values]
-    );
-
-    return rows[0];
-  }
-
-  static async delete({ id }) {
-    const { rows } = await pool.query('DELETE FROM productos WHERE "codprodu" = $1 RETURNING *;', [id]);
-    return rows[0];
   }
 
   static async search({ query, limit = 20, offset = 0 }) {
     try {
-      // Dividir el query en tokens (palabras) y eliminar espacios vacíos.
       const tokens = query.split(' ').filter(token => token.trim().length > 0);
+
       let whereClause = '';
       const values = [];
 
       if (tokens.length > 0) {
-        // Construir la cláusula WHERE para que cada token se busque en "desprodu".
         whereClause = tokens.map((token, index) => {
-          // Se agrega el token al arreglo de valores con comodines.
           values.push(`%${token}%`);
-          return `"desprodu" ILIKE $${index + 1}`;
+          return `p."desprodu" ILIKE $${index + 1}`;
         }).join(' AND ');
       }
 
-      // Agregar parámetros para LIMIT y OFFSET.
       values.push(limit, offset);
-      const limitParam = values.length - 1;   // posición del límite
-      const offsetParam = values.length;        // posición del offset
+      const limitParam = values.length - 1;
+      const offsetParam = values.length;
 
-      // Construir la consulta final.
       const searchQuery = `
-        SELECT * FROM productos
-        ${whereClause ? `WHERE ${whereClause}` : ''}
-        LIMIT $${limitParam} OFFSET $${offsetParam}
-      `;
+      SELECT 
+        p.*,
+        i.ficadjunto AS "imageBuena"
+      FROM productos p
+      LEFT JOIN imagenesproductoswebp i
+        ON i.codprodu = p.codprodu
+        AND i.codclaarchivo = 'PRODUCTO_BUENA'
+      ${whereClause ? `WHERE ${whereClause}` : ''}
+      ORDER BY i.fecftpmod DESC NULLS LAST
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `;
 
       const { rows } = await pool.query(searchQuery, values);
       return rows;
+
     } catch (error) {
       console.error('Error searching products:', error);
       throw new Error('Error searching products');
     }
   }
-
 
   static async getByCodFamil(codfamil) {
     try {
@@ -162,7 +163,7 @@ export class ProductModel {
 
   static async filter(filters) {
     let query = 'SELECT * FROM productos WHERE 1=1';
-    let params = [];
+    const params = [];
     let index = 1;
 
     if (filters.brand && filters.brand.length > 0) {
@@ -217,12 +218,12 @@ export class ProductModel {
   static async getLibrosExcluyendoTapillaYAcc() {
     try {
       const query = `
-                SELECT *
-                FROM productos
-                WHERE desprodu ILIKE '%libro%'
-                  AND desprodu NOT ILIKE '%tapilla%'
-                  AND codmarca <> 'ACC'
-            `;
+        SELECT *
+        FROM productos
+        WHERE desprodu ILIKE '%libro%'
+          AND desprodu NOT ILIKE '%tapilla%'
+          AND codmarca <> 'ACC'
+      `;
       const { rows } = await pool.query(query);
       return rows;
     } catch (error) {
@@ -233,7 +234,7 @@ export class ProductModel {
 
   static async getLibrosByMarca({ codmarca }) {
     try {
-      let query = `
+      const query = `
         SELECT *
         FROM productos
         WHERE "codmarca" = $1
@@ -243,19 +244,6 @@ export class ProductModel {
           )
           AND "desprodu" NOT ILIKE '%TAPILLA%'
       `;
-
-      if (codmarca === 'HAR') {
-        query = `
-          SELECT *
-          FROM productos
-          WHERE "codmarca" = $1
-            AND (
-              "desprodu" ILIKE '%LIBRO%'
-              OR "desprodu" ILIKE '%carre game%'
-            )
-            AND "desprodu" NOT ILIKE '%TAPILLA%'
-        `;
-      }
 
       const { rows } = await pool.query(query, [codmarca]);
       return rows;
@@ -273,14 +261,18 @@ export class ProductModel {
       if (filter === 'LIBRO' && codmarca === 'HAR') {
         query = `
           SELECT * FROM productos
-          WHERE "codmarca" = $1 AND ("desprodu" ILIKE '%LIBRO%' OR "desprodu" ILIKE '%CARRE GAME%')
-          AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+          WHERE "codmarca" = $1 
+            AND ("desprodu" ILIKE '%LIBRO%' OR "desprodu" ILIKE '%CARRE GAME%')
+            AND "codmarca" != 'ACC' 
+            AND "desprodu" NOT ILIKE '%tapilla%'
         `;
       } else {
         query = `
           SELECT * FROM productos
-          WHERE "codmarca" = $1 AND "desprodu" ILIKE $2
-          AND "codmarca" != 'ACC' AND "desprodu" NOT ILIKE '%tapilla%'
+          WHERE "codmarca" = $1 
+            AND "desprodu" ILIKE $2
+            AND "codmarca" != 'ACC' 
+            AND "desprodu" NOT ILIKE '%tapilla%'
         `;
         values.push(`%${filter}%`);
       }
@@ -295,7 +287,7 @@ export class ProductModel {
 
   static async getProductCount({ CodFamil, CodSubFamil }) {
     let query = 'SELECT COUNT(*) FROM productos';
-    let params = [];
+    const params = [];
 
     if (CodFamil) {
       query += ' WHERE "codfamil" = $1';
@@ -313,7 +305,7 @@ export class ProductModel {
 
     try {
       const { rows } = await pool.query(query, params);
-      return parseInt(rows[0].count, 10); // Retorna el total como número
+      return parseInt(rows[0].count, 10);
     } catch (error) {
       console.error('Error fetching product count:', error);
       throw new Error('Error fetching product count');
@@ -348,6 +340,7 @@ export class ProductModel {
       throw new Error('Error fetching etiqueta libro data');
     }
   }
+
   static async getEntradasByDate({ date }) {
     try {
       const query = `

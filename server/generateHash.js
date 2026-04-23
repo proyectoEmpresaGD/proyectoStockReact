@@ -10,5 +10,3 @@ bcrypt.hash(password, saltRounds, function (err, hash) {
         console.log('Hashed password:', hash);
     }
 });
-
-// buenas tardes
