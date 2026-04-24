@@ -5,43 +5,8 @@ import { intrastatClient } from '../services/intrastatClient.js';
 function Intrastat() {
     const [file, setFile] = useState(null);
     const [errores, setErrores] = useState([]);
-    const [loading, setLoading] = useState(false);
-
-    // 🔴 NUEVO
     const [facturasIva, setFacturasIva] = useState([]);
-    const [loadingIva, setLoadingIva] = useState(false);
-
-    // 🔴 NUEVO: extraer facturas del Excel (sin usar xlsx)
-    const extractFacturas = async (file) => {
-        const text = await file.text();
-
-        const lines = text.split('\n');
-        const facturas = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(';'); // ⚠️ ajusta si tu CSV usa coma
-
-            const raw = cols[0]; // ⚠️ columna FACTURA (ajustar si cambia)
-
-            if (!raw) continue;
-
-            const clean = String(raw)
-                .trim()
-                .toUpperCase()
-                .replace(/\s+/g, '');
-
-            const [serie, numero] = clean.split('-');
-
-            if (serie && numero) {
-                facturas.push({
-                    codserfacventa: serie,
-                    nfacventa: numero
-                });
-            }
-        }
-
-        return facturas;
-    };
+    const [loading, setLoading] = useState(false);
 
     const handleGenerar = async () => {
         if (!file) return;
@@ -53,16 +18,34 @@ function Intrastat() {
         try {
             const result = await intrastatClient.generarIntrastatVentas({ file });
 
-            const url = window.URL.createObjectURL(result.blob);
+            setFacturasIva(result.facturasIvaIncorrecto || []);
+            setErrores(result.errores || []);
 
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = result.fileName || 'intrastat.xlsx';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+            if (result.fileBase64) {
+                const byteCharacters = atob(result.fileBase64);
+                const byteNumbers = new Array(byteCharacters.length);
 
-            window.URL.revokeObjectURL(url);
+                for (let i = 0; i < byteCharacters.length; i += 1) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+
+                const byteArray = new Uint8Array(byteNumbers);
+
+                const blob = new Blob([byteArray], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                });
+
+                const url = window.URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = result.fileName || 'intrastat.xlsx';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                window.URL.revokeObjectURL(url);
+            }
 
         } catch (e) {
             console.error(e);
@@ -73,8 +56,6 @@ function Intrastat() {
 
     return (
         <PageShell className="mt-12 max-w-6xl">
-
-            {/* HEADER */}
             <div className="mb-8 text-center">
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
                     Generador Intrastat
@@ -84,9 +65,7 @@ function Intrastat() {
                 </p>
             </div>
 
-            {/* CARD PRINCIPAL */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
                 <label className="mb-3 block text-sm font-medium text-slate-700">
                     Archivo Excel
                 </label>
@@ -95,7 +74,7 @@ function Intrastat() {
                     <input
                         type="file"
                         accept=".xlsx,.xls,.csv"
-                        onChange={(e) => setFile(e.target.files?.[0])}
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
                         className="mb-3 text-sm"
                     />
 
@@ -120,49 +99,40 @@ function Intrastat() {
                 </div>
             </div>
 
-            {/* TABLA IVA INCORRECTO */}
             <div className="mt-10 rounded-2xl border border-orange-200 bg-white shadow-sm">
-
                 <div className="border-b border-orange-200 bg-orange-50 px-6 py-4">
                     <h2 className="text-lg font-semibold text-orange-700">
                         Facturas con IVA incorrecto
                     </h2>
                 </div>
 
-                {loadingIva ? (
-                    <div className="p-6 text-sm text-slate-500">
-                        Cargando facturas...
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-100">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Serie</th>
-                                    <th className="px-4 py-3 text-left">Factura</th>
-                                    <th className="px-4 py-3 text-left">IVA</th>
-                                </tr>
-                            </thead>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-100">
+                            <tr>
+                                <th className="px-4 py-3 text-left">Serie</th>
+                                <th className="px-4 py-3 text-left">Factura</th>
+                                <th className="px-4 py-3 text-left">IVA</th>
+                            </tr>
+                        </thead>
 
-                            <tbody>
-                                {facturasIva.map((f, i) => (
-                                    <tr key={i} className="border-t">
-                                        <td className="px-4 py-3">{f.codserfacventa}</td>
-                                        <td className="px-4 py-3">{f.nfacventa}</td>
-                                        <td className="px-4 py-3 text-red-600 font-semibold">
-                                            {f.codigos_iva}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                        <tbody>
+                            {facturasIva.map((f, i) => (
+                                <tr key={i} className="border-t">
+                                    <td className="px-4 py-3">{f.codserfacventa}</td>
+                                    <td className="px-4 py-3">{f.nfacventa}</td>
+                                    <td className="px-4 py-3 font-semibold text-red-600">
+                                        {f.codigos_iva}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {errores.length > 0 && (
                 <div className="mt-10 rounded-2xl border border-red-200 bg-white shadow-sm">
-
                     <div className="border-b border-red-200 bg-red-50 px-6 py-4">
                         <h2 className="text-lg font-semibold text-red-700">
                             Facturas con descuadre
@@ -184,16 +154,9 @@ function Intrastat() {
                                 {errores.map((e, i) => (
                                     <tr key={i} className="border-t">
                                         <td className="px-4 py-3">{e.factura}</td>
-
-                                        <td className="px-4 py-3 text-right">
-                                            {e.totalExcel.toFixed(2)}
-                                        </td>
-
-                                        <td className="px-4 py-3 text-right">
-                                            {e.totalBD.toFixed(2)}
-                                        </td>
-
-                                        <td className="px-4 py-3 text-right text-red-600 font-semibold">
+                                        <td className="px-4 py-3 text-right">{e.totalExcel.toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-right">{e.totalBD.toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-right font-semibold text-red-600">
                                             {e.diferencia.toFixed(2)}
                                         </td>
                                     </tr>
@@ -201,10 +164,8 @@ function Intrastat() {
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             )}
-
         </PageShell>
     );
 }

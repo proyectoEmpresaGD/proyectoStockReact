@@ -16,18 +16,12 @@ async function generarIntrastatVentas({ file }) {
             const data = await response.json();
             errorMessage = data?.error || errorMessage;
         } catch {
-            // no-op
         }
 
         throw new Error(errorMessage);
     }
 
-    const blob = await response.blob();
-
-    return {
-        blob,
-        fileName: `intrastat_${Date.now()}.xlsx`
-    };
+    return response.json();
 }
 
 async function getFacturasIvaIncorrectoFromExcel(facturas) {

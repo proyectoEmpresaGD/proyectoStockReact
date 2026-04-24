@@ -213,6 +213,17 @@ export function useProductAssets({
         tryLoad();
     }, [selectedProduct]);
 
+    useEffect(() => {
+        if (!codMarca) return;
+
+        const cod = codMarca.toUpperCase();
+        const logo = brandBase64[cod];
+
+        if (logo) {
+            setPdfLogo(logo);
+        }
+    }, [codMarca, brandBase64]);
+
     return {
         usoBase64,
         mantBase64,

@@ -110,6 +110,8 @@ export class IntrastatModel {
             '101': 'TEJIDOS PARA DECORACION',
             '106': 'LIBRO MUESTRARIO',
             '105': 'PERCHA MUESTRARIO',
+            '103': 'PAPEL PARED',
+            '109': 'CARRE GAME',
         };
 
         const result = {};
@@ -163,13 +165,13 @@ export class IntrastatModel {
         return rows;
     }
 
-    // 🔹 5. IVA INCORRECTO (CORRECTO Y FILTRADO)
-    static async getCodigosProductoPorFactura(facturas) {
+    // 🔹 7. INCOTERMS POR FACTURA
+    static async getIncotermsByFacturaList(facturas) {
         if (!facturas.length) return {};
 
         const condiciones = facturas.map((_, i) =>
-            `(UPPER(TRIM(a.codserfacventa)) = $${i * 2 + 1} 
-          AND TRIM(a.nfacventa) = $${i * 2 + 2})`
+            `(UPPER(TRIM(codserfacventa)) = $${i * 2 + 1} 
+      AND TRIM(nfacventa) = $${i * 2 + 2})`
         ).join(' OR ');
 
         const valores = facturas.flatMap(f => [
@@ -179,18 +181,58 @@ export class IntrastatModel {
 
         const query = `
         SELECT 
-            a.codserfacventa,
-            a.nfacventa,
-            l.linea,
-            l.codprodu
-        FROM albventa a
-        JOIN albventa_linea l 
-            ON l.nalbventa = a.nalbventa
+            codserfacventa,
+            nfacventa,
+            COALESCE(MAX(TRIM(codincoterms)), '') AS codincoterms
+        FROM albventa
         WHERE ${condiciones}
-        AND TRIM(l.codserfacventa) = TRIM(a.codserfacventa)
-        AND TRIM(l.nfacventa) = TRIM(a.nfacventa)
-        ORDER BY a.codserfacventa, a.nfacventa, l.linea
+        GROUP BY codserfacventa, nfacventa
     `;
+
+        const { rows } = await pool.query(query, valores);
+
+        const result = {};
+
+        for (const row of rows) {
+            const key = `${row.codserfacventa}-${row.nfacventa}`
+                .replace(/\s+/g, '')
+                .toUpperCase();
+
+            result[key] = row.codincoterms || '';
+        }
+
+        return result;
+    }
+
+    // 🔹 5. IVA INCORRECTO (CORRECTO Y FILTRADO)
+    static async getCodigosProductoPorFactura(facturas) {
+        if (!facturas.length) return {};
+
+        const condiciones = facturas.map((_, i) =>
+            `(UPPER(TRIM(l.codserfacventa)) = $${i * 2 + 1} 
+        AND TRIM(l.nfacventa) = $${i * 2 + 2})`
+        ).join(' OR ');
+
+        const valores = facturas.flatMap(f => [
+            String(f.codserfacventa).trim().toUpperCase(),
+            String(f.nfacventa).trim()
+        ]);
+
+        const query = `
+            SELECT 
+                l.codserfacventa,
+                l.nfacventa,
+                l.nalbventa,
+                l.linea,
+                l.codprodu
+            FROM albventa_linea l
+            WHERE (${condiciones})
+
+            AND TRIM(COALESCE(l.codprodu, '')) <> ''
+            AND COALESCE(l.impbruto, 0) > 0
+
+            ORDER BY l.nalbventa, l.linea
+        `;
 
         const { rows } = await pool.query(query, valores);
 
