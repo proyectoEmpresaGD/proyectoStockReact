@@ -1,6 +1,4 @@
-// src/modules/pdf/FichaTecnicaButton.jsx
-
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import ProductPdfSheet from "./productPdfSheet";
 import { useProductAssets } from "./useProductAssets.js";
 import { generateProductPdf } from "./generateProductPdf";
@@ -12,7 +10,7 @@ import {
 
 const FichaTecnicaButton = ({ producto }) => {
     const etiquetaRef = useRef();
-
+    const [imageTimeout, setImageTimeout] = useState(false);
     const {
         usoBase64,
         mantBase64,
@@ -26,9 +24,17 @@ const FichaTecnicaButton = ({ producto }) => {
         direccionLogos,
     });
 
-    const handleDownload = async () => {
-        if (!pdfProductImage) return;
+    useEffect(() => {
+        setImageTimeout(false);
 
+        const timer = setTimeout(() => {
+            setImageTimeout(true);
+        }, 6000);
+
+        return () => clearTimeout(timer);
+    }, [producto]);
+
+    const handleDownload = async () => {
         const filename = `${producto.desprodu}.pdf`;
 
         await generateProductPdf({
@@ -41,13 +47,18 @@ const FichaTecnicaButton = ({ producto }) => {
         <>
             <button
                 onClick={handleDownload}
-                disabled={!pdfProductImage}
-                className={`mt-4 px-4 py-2 rounded text-white ${!pdfProductImage
+                disabled={!pdfProductImage && !imageTimeout}
+                className={`mt-4 px-4 py-2 rounded text-white ${!pdfProductImage && !imageTimeout
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-blue-600"
                     }`}
             >
-                {!pdfProductImage ? "Cargando imagen..." : "Descargar ficha técnica"}
+                {!pdfProductImage && !imageTimeout
+                    ? "Cargando imagen..."
+                    : pdfProductImage
+                        ? "Descargar ficha técnica"
+                        : "Descargar ficha (sin imagen)"
+                }
             </button>
 
             <ProductPdfSheet
