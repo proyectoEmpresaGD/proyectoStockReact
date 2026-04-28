@@ -214,7 +214,8 @@ function Etiquetas() {
             {selectedProduct && (
                 <div
                     ref={printRef}
-                    className="bg-white p-2 rounded shadow-lg flex flex-col items-center justify-center"
+                    className={`bg-white p-2 rounded shadow-lg flex flex-col ${selectedProduct.codmarca === 'CTL' ? 'justify-between' : 'justify-center'
+                        }`}
                     style={{
                         width: '8cm',
                         height: '4.8cm',
@@ -227,36 +228,71 @@ function Etiquetas() {
                         textAlign: 'start',
                     }}
                 >
-                    <div className="w-[100%]">
-                        <div className="logo-section" style={{ marginBottom: '4px', marginTop: '4px', justifyItems: "center" }}>
-                            <img
-                                src={brandLogos[selectedProduct.codmarca]}
-                                alt="Logo de Marca"
-                                style={{
-                                    width: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '30%' : '50%',
-                                    maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
-                                    objectFit: 'contain'
-                                }}
-                            />
+                    {selectedProduct.codmarca !== 'CTL' && (
+                        <div className="w-[100%]">
+                            <div className="logo-section" style={{ marginBottom: '4px', marginTop: '4px', justifyItems: "center" }}>
+                                <img
+                                    src={brandLogos[selectedProduct.codmarca]}
+                                    alt="Logo de Marca"
+                                    style={{
+                                        width: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '30%' : '50%',
+                                        maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
+                                        objectFit: 'contain'
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
 
 
-                    <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
-                        <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '10px' }}>
-                            <QRCode
-                                value={encryptProductId(selectedProduct.codprodu)}
-                                size={75}
-                            />
+                    {selectedProduct.codmarca === 'CTL' ? (
+
+                        // 👉 DISEÑO NUEVO (SIN QR)
+                        <div style={{ display: 'flex', width: '100%', alignItems: 'center', marginTop: '17px' }}>
+
+                            {/* LOGO IZQUIERDA */}
+                            <div style={{ width: '40%', display: 'flex', justifyContent: 'center', marginTop: '18px' }}>
+                                <img
+                                    src={brandLogos[selectedProduct.codmarca]}
+                                    alt="Logo de Marca"
+                                    style={{
+                                        height: '2.5cm',
+                                        width: 'auto',
+                                        objectFit: 'contain'
+                                    }}
+                                />
+                            </div>
+
+                            {/* TEXTO DERECHA */}
+                            <div style={{ width: '60%', fontSize: '10.5px' }}>
+                                <p><strong>Pattern:</strong> {selectedProduct.nombre}</p>
+                                <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
+                                <p><strong>Width:</strong> {selectedProduct.ancho}</p>
+                                <p><strong>Comp:</strong> {selectedProduct.composicion}</p>
+                            </div>
                         </div>
 
-                        <div className="text-content text-xs " style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
-                            <p className="font-bold" >Pattern: {selectedProduct.nombre}</p>
-                            <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
-                            <p className="font-bold">Width: {selectedProduct.ancho}</p>
-                            <p className="font-bold break-words ">Comp:{selectedProduct.composicion}</p>
+                    ) : (
+
+                        // 👉 DISEÑO ACTUAL (CON QR)
+                        <div className="content-section" style={{ display: 'flex', alignItems: 'start', width: '100%' }}>
+
+                            <div className="qr-code" style={{ marginRight: '10px', marginLeft: '10px', paddingTop: '10px' }}>
+                                <QRCode
+                                    value={encryptProductId(selectedProduct.codprodu)}
+                                    size={75}
+                                />
+                            </div>
+
+                            <div className="text-content text-xs" style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
+                                <p className="font-bold">Pattern: {selectedProduct.nombre}</p>
+                                <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
+                                <p className="font-bold">Width: {selectedProduct.ancho}</p>
+                                <p className="font-bold break-words">Comp:{selectedProduct.composicion}</p>
+                            </div>
                         </div>
-                    </div>
+
+                    )}
                     <div className=' flex flex-wrap items-start justify-start' style={{ marginBottom: '4px', marginTop: '4px', paddingLeft: "8px", paddingRight: "10px", width: "100%", justifyItems: "space-around", }}>
                         {getMantenimientoImages(selectedProduct.mantenimiento)}
                         {getUsoImages(selectedProduct.uso)}
