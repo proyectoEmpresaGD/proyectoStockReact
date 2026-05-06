@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import PageShell from '../common/PageShell.jsx';
-import { intrastatClient } from '../services/intrastatClient.js';
+import { uploadIntrastatExcel } from '../services/intrastatClient.js';
 
 function Intrastat() {
     const [file, setFile] = useState(null);
     const [errores, setErrores] = useState([]);
     const [facturasIva, setFacturasIva] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [tipo, setTipo] = useState('ventas');
 
     const handleGenerar = async () => {
         if (!file) return;
@@ -16,7 +17,7 @@ function Intrastat() {
         setFacturasIva([]);
 
         try {
-            const result = await intrastatClient.generarIntrastatVentas({ file });
+            const result = await uploadIntrastatExcel(file, tipo);
 
             setFacturasIva(result.facturasIvaIncorrecto || []);
             setErrores(result.errores || []);
@@ -47,8 +48,8 @@ function Intrastat() {
                 window.URL.revokeObjectURL(url);
             }
 
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -60,6 +61,49 @@ function Intrastat() {
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
                     Generador Intrastat
                 </h1>
+
+                <div className="mt-6 flex justify-center">
+                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setTipo('ventas')}
+                            className={[
+                                'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition',
+                                tipo === 'ventas'
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'
+                            ].join(' ')}
+                        >
+                            <span
+                                className={[
+                                    'h-2.5 w-2.5 rounded-full',
+                                    tipo === 'ventas' ? 'bg-emerald-500' : 'bg-slate-300'
+                                ].join(' ')}
+                            />
+                            Ventas
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setTipo('compras')}
+                            className={[
+                                'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition',
+                                tipo === 'compras'
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'
+                            ].join(' ')}
+                        >
+                            <span
+                                className={[
+                                    'h-2.5 w-2.5 rounded-full',
+                                    tipo === 'compras' ? 'bg-blue-500' : 'bg-slate-300'
+                                ].join(' ')}
+                            />
+                            Compras
+                        </button>
+                    </div>
+                </div>
+
                 <p className="mt-2 text-sm text-slate-500">
                     Sube tu Excel y genera el Intrastat automáticamente con validación de facturas
                 </p>
@@ -80,7 +124,8 @@ function Intrastat() {
 
                     {file && (
                         <p className="text-xs text-slate-600">
-                            Archivo seleccionado: <span className="font-medium">{file.name}</span>
+                            Archivo seleccionado:{' '}
+                            <span className="font-medium">{file.name}</span>
                         </p>
                     )}
                 </div>
@@ -94,42 +139,55 @@ function Intrastat() {
                         {loading && (
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                         )}
-                        {loading ? 'Generando...' : 'Generar Intrastat'}
+                        {loading ? 'Generando...' : `Generar Intrastat ${tipo}`}
                     </button>
                 </div>
             </div>
 
-            <div className="mt-10 rounded-2xl border border-orange-200 bg-white shadow-sm">
-                <div className="border-b border-orange-200 bg-orange-50 px-6 py-4">
-                    <h2 className="text-lg font-semibold text-orange-700">
-                        Facturas con IVA incorrecto
-                    </h2>
-                </div>
+            {(tipo === 'ventas' || tipo === 'compras') && (
+                <div className="mt-10 rounded-2xl border border-orange-200 bg-white shadow-sm">
+                    <div className="border-b border-orange-200 bg-orange-50 px-6 py-4">
+                        <h2 className="text-lg font-semibold text-orange-700">
+                            Facturas con IVA incorrecto
+                        </h2>
+                    </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-100">
-                            <tr>
-                                <th className="px-4 py-3 text-left">Serie</th>
-                                <th className="px-4 py-3 text-left">Factura</th>
-                                <th className="px-4 py-3 text-left">IVA</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {facturasIva.map((f, i) => (
-                                <tr key={i} className="border-t">
-                                    <td className="px-4 py-3">{f.codserfacventa}</td>
-                                    <td className="px-4 py-3">{f.nfacventa}</td>
-                                    <td className="px-4 py-3 font-semibold text-red-600">
-                                        {f.codigos_iva}
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="px-4 py-3 text-left">Serie</th>
+                                    <th className="px-4 py-3 text-left">Factura</th>
+                                    <th className="px-4 py-3 text-left">IVA</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+
+                            <tbody>
+                                {facturasIva.map((f, i) => (
+                                    <tr key={i} className="border-t">
+                                        <td className="px-4 py-3">{f.codserfacventa}</td>
+                                        <td className="px-4 py-3">{f.nfacventa}</td>
+                                        <td className="px-4 py-3 font-semibold text-red-600">
+                                            {f.codigos_iva}
+                                        </td>
+                                    </tr>
+                                ))}
+
+                                {facturasIva.length === 0 && (
+                                    <tr>
+                                        <td
+                                            colSpan="3"
+                                            className="px-4 py-6 text-center text-slate-500"
+                                        >
+                                            No hay facturas con IVA incorrecto.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {errores.length > 0 && (
                 <div className="mt-10 rounded-2xl border border-red-200 bg-white shadow-sm">
@@ -151,13 +209,17 @@ function Intrastat() {
                             </thead>
 
                             <tbody>
-                                {errores.map((e, i) => (
+                                {errores.map((error, i) => (
                                     <tr key={i} className="border-t">
-                                        <td className="px-4 py-3">{e.factura}</td>
-                                        <td className="px-4 py-3 text-right">{e.totalExcel.toFixed(2)}</td>
-                                        <td className="px-4 py-3 text-right">{e.totalBD.toFixed(2)}</td>
+                                        <td className="px-4 py-3">{error.factura}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            {Number(error.totalExcel || 0).toFixed(2)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {Number(error.totalBD || 0).toFixed(2)}
+                                        </td>
                                         <td className="px-4 py-3 text-right font-semibold text-red-600">
-                                            {e.diferencia.toFixed(2)}
+                                            {Number(error.diferencia || 0).toFixed(2)}
                                         </td>
                                     </tr>
                                 ))}
