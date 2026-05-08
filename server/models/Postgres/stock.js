@@ -242,28 +242,83 @@ export class StockModel {
 
     // ✅ /api/stock: NO calcular fecha aquí
     static async getAll({ empresa, ejercicio }) {
-        let query = `
-      SELECT s.*, p.desprodu
-      FROM stock s
-      LEFT JOIN productos p ON s.codprodu = p.codprodu
-      WHERE ${CODALMAC_CERO_FILTER}
-    `;
         const params = [];
+        const filters = [
+            "TRIM(COALESCE(sl.codalmac::text, '')) ~ '^0+$'",
+        ];
 
         if (empresa) {
-            query += ' AND s.empresa = $1';
             params.push(empresa);
+            filters.push(`sl.empresa = $${params.length}`);
         }
 
         if (ejercicio) {
-            query += params.length ? ' AND s.ejercicio = $2' : ' AND s.ejercicio = $1';
             params.push(ejercicio);
+            filters.push(`sl.ejercicio = $${params.length}`);
         }
 
-        try {
-            const { rows } = await pool.query(query, params);
+        const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-            const codproduList = rows.map((r) => r.codprodu);
+        try {
+            const { rows } = await pool.query(
+                `
+            SELECT
+                stock_resumido.codprodu,
+                stock_resumido.stocktotal,
+                stock_resumido.stockreservado,
+                stock_resumido.stockactual,
+                COALESCE(s.canpenrecib, 0) AS canpenrecib,
+                COALESCE(s.canpenservir, 0) AS canpenservir,
+                COALESCE(s.canpenentra, 0) AS canpenentra,
+                COALESCE(s.canpensalida, 0) AS canpensalida,
+                COALESCE(s.canpenfabri, 0) AS canpenfabri,
+                COALESCE(s.canpenconsum, 0) AS canpenconsum,
+                s.stockprevisto,
+                s.empresa,
+                s.ejercicio,
+                p.desprodu
+            FROM (
+                SELECT
+                    sl.codprodu,
+                    SUM(sl.stockactual) AS stocktotal,
+                    COALESCE(SUM(reservas.stockreservado), 0) AS stockreservado,
+                    SUM(
+                        GREATEST(
+                            sl.stockactual - COALESCE(reservas.stockreservado, 0),
+                            0
+                        )
+                    ) AS stockactual
+                FROM stocklotes sl
+                LEFT JOIN (
+                    SELECT
+                        UPPER(pr.codprodu) AS codprodu,
+                        TRIM(pr.lotereservado) AS codlote,
+                        COALESCE(SUM(pr.stockreservado), 0) AS stockreservado
+                    FROM productoreservados pr
+                    INNER JOIN reservas r ON r.idreserva = pr.idreserva
+                    WHERE r.fechavencimientoreserva >= CURRENT_DATE
+                      AND pr.lotereservado IS NOT NULL
+                      AND TRIM(pr.lotereservado) <> ''
+                    GROUP BY
+                        UPPER(pr.codprodu),
+                        TRIM(pr.lotereservado)
+                ) reservas
+                    ON reservas.codprodu = UPPER(sl.codprodu)
+                   AND reservas.codlote = TRIM(sl.codlote)
+                ${whereClause}
+                GROUP BY sl.codprodu
+            ) stock_resumido
+            LEFT JOIN stock s
+                ON UPPER(s.codprodu) = UPPER(stock_resumido.codprodu)
+               AND ${CODALMAC_CERO_FILTER}
+            LEFT JOIN productos p
+                ON UPPER(p.codprodu) = UPPER(stock_resumido.codprodu)
+            ORDER BY stock_resumido.codprodu;
+            `,
+                params
+            );
+
+            const codproduList = rows.map((row) => row.codprodu);
             const datCompraMap = await StockModel.getDatCompraMapByCodes(codproduList);
 
             return rows.map((row) => {
@@ -272,6 +327,11 @@ export class StockModel {
 
                 return {
                     ...row,
+                    stocktotal: Number(row.stocktotal || 0),
+                    stockreservado: Number(row.stockreservado || 0),
+                    stockactual: Number(row.stockactual || 0),
+                    canpenrecib: Number(row.canpenrecib || 0),
+                    canpenservir: Number(row.canpenservir || 0),
                     fecha_estimada: null,
                     plaentre: extra?.plaentre || null,
                     cantminima: extra?.cantminima || null,

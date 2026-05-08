@@ -8,80 +8,195 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
-export class StockLotesModel {
+const reservasActivasPorLoteSql = `
+    SELECT
+        UPPER(pr.codprodu) AS codprodu,
+        TRIM(pr.lotereservado) AS codlote,
+        COALESCE(SUM(pr.stockreservado), 0) AS stockreservado
+    FROM productoreservados pr
+    INNER JOIN reservas r ON r.idreserva = pr.idreserva
+    WHERE r.fechavencimientoreserva >= CURRENT_DATE
+      AND pr.lotereservado IS NOT NULL
+      AND TRIM(pr.lotereservado) <> ''
+    GROUP BY
+        UPPER(pr.codprodu),
+        TRIM(pr.lotereservado)
+`;
 
+const mapStockLoteRow = (row) => ({
+    ...row,
+    stocktotal: Number(row.stocktotal || 0),
+    stockreservado: Number(row.stockreservado || 0),
+    stockactual: Number(row.stockactual || 0),
+});
+
+export class StockLotesModel {
     static async getAll({ canal }) {
-        let query = `
-    SELECT codprodu, SUM(stockactual) AS stockactual
-    FROM stocklotes
-    WHERE CAST(codalmac AS int) = 0
-  `;
         const params = [];
+        let canalFilter = '';
 
         if (canal !== undefined && canal !== null) {
-            query += ' AND canal = $1';
             params.push(canal);
+            canalFilter = `AND sl.canal = $${params.length}`;
         }
 
-        query += ' GROUP BY codprodu';
+        const { rows } = await pool.query(
+            `
+            SELECT
+                sl.codprodu,
+                SUM(sl.stockactual) AS stocktotal,
+                COALESCE(SUM(reservas.stockreservado), 0) AS stockreservado,
+                SUM(
+                    GREATEST(
+                        sl.stockactual - COALESCE(reservas.stockreservado, 0),
+                        0
+                    )
+                ) AS stockactual
+            FROM stocklotes sl
+            LEFT JOIN (
+                ${reservasActivasPorLoteSql}
+            ) reservas
+                ON reservas.codprodu = UPPER(sl.codprodu)
+               AND reservas.codlote = TRIM(sl.codlote)
+            WHERE CAST(sl.codalmac AS int) = 0
+            ${canalFilter}
+            GROUP BY sl.codprodu
+            ORDER BY sl.codprodu;
+            `,
+            params
+        );
 
-        const { rows } = await pool.query(query, params);
-        return rows;
+        return rows.map((row) => ({
+            ...row,
+            stocktotal: Number(row.stocktotal || 0),
+            stockreservado: Number(row.stockreservado || 0),
+            stockactual: Number(row.stockactual || 0),
+        }));
     }
 
+    static applyReservasToLotes(lotes = [], reservas = []) {
+        const reservasMap = new Map();
 
+        for (const reserva of reservas) {
+            const key = [
+                String(reserva.codprodu ?? '').trim().toUpperCase(),
+                String(reserva.lotereservado ?? '').trim(),
+            ].join('|');
 
-    // models/Postgres/stockLotes.js
+            const stockActualReservado = Number(reservasMap.get(key) ?? 0);
+            const stockNuevaReserva = Number(reserva.stockreservado ?? 0);
+
+            reservasMap.set(key, stockActualReservado + stockNuevaReserva);
+        }
+
+        return lotes.map((lote) => {
+            const key = [
+                String(lote.codprodu ?? '').trim().toUpperCase(),
+                String(lote.codlote ?? '').trim(),
+            ].join('|');
+
+            const stockTotal = Number(lote.stockactual ?? 0);
+            const stockReservado = Number(reservasMap.get(key) ?? 0);
+            const stockDisponible = Math.max(stockTotal - stockReservado, 0);
+
+            return {
+                ...lote,
+                stocktotal: stockTotal,
+                stockreservado: stockReservado,
+                stockactual: stockDisponible,
+            };
+        });
+    }
+
     static async getById({ codProdu }) {
         const upper = String(codProdu ?? '').trim().toUpperCase();
-        const { rows } = await pool.query(`
-    SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
-    FROM stocklotes sl
-    WHERE sl.codprodu_upper = $1
-      AND CAST(sl.codalmac AS int) = 0   -- ✅ SOLO almacén 00
-    ORDER BY sl.codlote
-  `, [upper]);
-        return rows;
+
+        const { rows } = await pool.query(
+            `
+            SELECT
+                sl.canal,
+                sl.codalmac,
+                sl.codprodu,
+                sl.codlote,
+                sl.stockactual AS stocktotal,
+                COALESCE(reservas.stockreservado, 0) AS stockreservado,
+                GREATEST(
+                    sl.stockactual - COALESCE(reservas.stockreservado, 0),
+                    0
+                ) AS stockactual,
+                sl.fecultmod,
+                sl.empresa,
+                sl.ejercicio
+            FROM stocklotes sl
+            LEFT JOIN (
+                ${reservasActivasPorLoteSql}
+            ) reservas
+                ON reservas.codprodu = UPPER(sl.codprodu)
+               AND reservas.codlote = TRIM(sl.codlote)
+            WHERE sl.codprodu_upper = $1
+              AND CAST(sl.codalmac AS int) = 0
+            ORDER BY sl.codlote;
+            `,
+            [upper]
+        );
+
+        return rows.map(mapStockLoteRow);
     }
 
-
-    // models/Postgres/stockLotes.js
     static async getByCodProdu({ codProdu, almacenes }) {
-        // Por defecto sólo almacén 00 (codalmac = '00' => CAST(...) = 0)
-        const almList = (Array.isArray(almacenes) && almacenes.length)
-            ? almacenes
-            : [0];
+        const almList =
+            Array.isArray(almacenes) && almacenes.length
+                ? almacenes.map((almacen) => Number(almacen))
+                : [0];
 
         const upper = String(codProdu ?? '').trim().toUpperCase();
 
-        // Coincidencia ESTRICTA por codprodu y filtro por almacén
-        const query = `
-    SELECT sl.canal, sl.codalmac, sl.codprodu, sl.codlote, sl.stockactual, sl.fecultmod, sl.empresa, sl.ejercicio
-    FROM stocklotes sl
-    WHERE CAST(sl.codalmac AS int) = ANY($1)
-      AND UPPER(sl.codprodu) = $2
-    ORDER BY sl.codlote;
-  `;
-        const params = [almList, upper];
+        const { rows } = await pool.query(
+            `
+            SELECT
+                sl.canal,
+                sl.codalmac,
+                sl.codprodu,
+                sl.codlote,
+                sl.stockactual AS stocktotal,
+                COALESCE(reservas.stockreservado, 0) AS stockreservado,
+                GREATEST(
+                    sl.stockactual - COALESCE(reservas.stockreservado, 0),
+                    0
+                ) AS stockactual,
+                sl.fecultmod,
+                sl.empresa,
+                sl.ejercicio
+            FROM stocklotes sl
+            LEFT JOIN (
+                ${reservasActivasPorLoteSql}
+            ) reservas
+                ON reservas.codprodu = UPPER(sl.codprodu)
+               AND reservas.codlote = TRIM(sl.codlote)
+            WHERE CAST(sl.codalmac AS int) = ANY($1)
+              AND UPPER(sl.codprodu) = $2
+            ORDER BY sl.codlote;
+            `,
+            [almList, upper]
+        );
 
-        const { rows } = await pool.query(query, params);
-        return rows;  // siempre array
+        return rows.map(mapStockLoteRow);
     }
-
 
     static async update({ codProdu, input }) {
         const fields = Object.keys(input)
             .map((key, index) => `"${key}" = $${index + 2}`)
             .join(', ');
+
         const values = Object.values(input);
 
         const { rows } = await pool.query(
             `
-      UPDATE stocklotes
-      SET ${fields}
-      WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
-      RETURNING *;
-      `,
+            UPDATE stocklotes
+            SET ${fields}
+            WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+            RETURNING *;
+            `,
             [codProdu, ...values]
         );
 
@@ -91,12 +206,13 @@ export class StockLotesModel {
     static async delete({ codProdu }) {
         const { rows } = await pool.query(
             `
-      DELETE FROM stocklotes
-      WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
-      RETURNING *;
-      `,
+            DELETE FROM stocklotes
+            WHERE regexp_replace(codprodu, '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+            RETURNING *;
+            `,
             [codProdu]
         );
+
         return rows[0];
     }
 }

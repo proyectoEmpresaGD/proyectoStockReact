@@ -1,4 +1,3 @@
-// src/components/productos/ProductTable.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const ProductTable = ({ products, fetchProductLots }) => {
@@ -8,7 +7,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
     useEffect(() => {
         mountedRef.current = true;
-        return () => (mountedRef.current = false);
+        return () => {
+            mountedRef.current = false;
+        };
     }, []);
 
     const safeValue = (val) => {
@@ -25,158 +26,234 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
     const formatDate = (value) => {
         if (!value) return "—";
-        const d = new Date(value);
-        if (!Number.isNaN(d.getTime())) return d.toLocaleDateString("es-ES");
+
+        const date = new Date(value);
+
+        if (!Number.isNaN(date.getTime())) {
+            return date.toLocaleDateString("es-ES");
+        }
+
         return String(value);
     };
 
     const formatFutureDateFromDays = (days) => {
         const n = parseInt(days, 10);
-        if (days === null || days === undefined || days === "" || Number.isNaN(n)) return "—";
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() + n);
-        return d.toLocaleDateString("es-ES");
+
+        if (days === null || days === undefined || days === "" || Number.isNaN(n)) {
+            return "—";
+        }
+
+        const date = new Date();
+
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + n);
+
+        return date.toLocaleDateString("es-ES");
     };
 
     const normalizeLot = (l, idx) => {
-        const code = String(l?.codlote ?? l?.CODLOTE ?? l?.lote ?? l?.LOTE ?? `Lote ${idx + 1}`);
-        const qty = l?.stockactual ?? l?.STOCKACTUAL ?? l?.cantidad ?? l?.CANTIDAD ?? null;
-        return { key: `${code}-${idx}`, code, qty };
+        const code = String(
+            l?.codlote ??
+            l?.CODLOTE ??
+            l?.lote ??
+            l?.LOTE ??
+            `Lote ${idx + 1}`
+        );
+
+        const qty =
+            l?.stockactual ??
+            l?.STOCKACTUAL ??
+            l?.stockdisponible ??
+            l?.STOCKDISPONIBLE ??
+            l?.cantidad ??
+            l?.CANTIDAD ??
+            null;
+
+        const stockreservado =
+            l?.stockreservado ??
+            l?.STOCKRESERVADO ??
+            l?.stock_reservado ??
+            0;
+
+        const stocktotal =
+            l?.stocktotal ??
+            l?.STOCKTOTAL ??
+            l?.stock_total ??
+            null;
+
+        return {
+            key: `${code}-${idx}`,
+            code,
+            qty,
+            stockreservado,
+            stocktotal,
+        };
     };
 
-    // ✅ codtipo robusto (por si viene con otras keys)
     const getCodtipo = (p) =>
         p?.codtipo ?? p?.CODTIPO ?? p?.cod_tipo ?? p?.COD_TIPO ?? p?.tipo ?? p?.TIPO ?? null;
 
-    // ✅ Producto "papel de pared": codtipo === 103
     const isTipo103 = (p) => {
-        const ct = getCodtipo(p);
-        return Number(ct) === 103 || String(ct) === "103";
+        const codtipo = getCodtipo(p);
+        return Number(codtipo) === 103 || String(codtipo) === "103";
     };
 
-    // ✅ Texto bajo "Lotes":
-    // - para codtipo 103 -> "lote/lotes"
-    // - resto -> "Pieza/Piezas"
     const lotsCountLabel = (p, count) => {
         if (isTipo103(p)) return count === 1 ? "lote" : "lotes";
         return count === 1 ? "Pieza" : "Piezas";
     };
 
-    // ✅ Sufijo en cada fila (cantidad):
-    // - para codtipo 103 -> "rollo/rollos"
-    // - resto -> "m"
     const qtyUnitForLotRow = (p, qtyRaw) => {
         if (!isTipo103(p)) return "m";
+
         const n = parseFloat(qtyRaw);
+
         if (!Number.isFinite(n)) return "rollos";
+
         return n === 1 ? "rollo" : "rollos";
     };
 
-    // ✅ Unidad bajo Stock:
-    // - para codtipo 103 -> "rollo/rollos"
-    // - resto -> "metros"
     const stockUnitLabel = (p, stockRaw) => {
         if (!isTipo103(p)) return "metros";
+
         const n = parseFloat(stockRaw);
+
         if (!Number.isFinite(n)) return "rollos";
+
         return n === 1 ? "rollo" : "rollos";
     };
 
     const ensureLotsLoaded = (p) => {
         if (typeof fetchProductLots !== "function") return Promise.resolve();
+
         const cod = String(p?.codprodu ?? "");
+
         if (!cod) return Promise.resolve();
 
         const inflight = inflightRef.current.get(cod);
+
         if (inflight) return inflight;
 
         const existing = lotsByCode[cod];
+
         if (existing?.status === "success") return Promise.resolve();
 
         setLotsByCode((prev) => ({
             ...prev,
-            [cod]: { status: "loading", data: prev[cod]?.data || [], error: null },
+            [cod]: {
+                status: "loading",
+                data: prev[cod]?.data || [],
+                error: null,
+            },
         }));
 
-        const prom = (async () => {
+        const promise = (async () => {
             try {
                 const data = await fetchProductLots(p);
+
                 if (!mountedRef.current) return;
 
                 setLotsByCode((prev) => ({
                     ...prev,
-                    [cod]: { status: "success", data: Array.isArray(data) ? data : [], error: null },
+                    [cod]: {
+                        status: "success",
+                        data: Array.isArray(data) ? data : [],
+                        error: null,
+                    },
                 }));
             } catch (err) {
                 if (!mountedRef.current) return;
 
                 setLotsByCode((prev) => ({
                     ...prev,
-                    [cod]: { status: "error", data: [], error: err?.message || String(err) },
+                    [cod]: {
+                        status: "error",
+                        data: [],
+                        error: err?.message || String(err),
+                    },
                 }));
             } finally {
                 inflightRef.current.delete(cod);
             }
         })();
 
-        inflightRef.current.set(cod, prom);
-        return prom;
+        inflightRef.current.set(cod, promise);
+
+        return promise;
     };
 
     useEffect(() => {
         if (!products?.length) return;
+
         products.forEach((p) => ensureLotsLoaded(p));
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [products, fetchProductLots]);
 
     const RIGHT_W = "min-w-[92px] w-auto md:w-[160px] md:min-w-[160px]";
 
     const SectionTitle = ({ children }) => (
-        <div className="text-sm md:text-base font-semibold text-gray-900">{children}</div>
+        <div className="text-sm md:text-base font-semibold text-gray-900">
+            {children}
+        </div>
     );
 
-    const InfoRow = ({ label, value }) => (
-        <div className="py-2.5">
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                    <div className="text-sm md:text-base text-gray-600 font-medium break-words">{label}</div>
+    const StockBox = ({ value, product }) => {
+        const stockReservado = parseFloat(product?.stockreservado || 0);
+        const stockTotal = parseFloat(product?.stocktotal || 0);
+
+        return (
+            <div className={`flex flex-col items-center gap-1 shrink-0 ${RIGHT_W}`}>
+                <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
+                    Stock disponible
                 </div>
 
-                <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                    <div className="w-full text-right text-sm md:text-base font-semibold text-gray-900 tabular-nums break-words">
-                        {value}
+                <div className="w-full rounded-xl bg-blue-50 ring-1 ring-inset ring-blue-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
+                    {safeValue(value)}
+                </div>
+
+                <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
+                    {stockUnitLabel(product, value)}
+                </div>
+
+                {stockReservado > 0 && (
+                    <div className="mt-2 w-full space-y-1">
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-center text-xs font-bold text-amber-700">
+                            Reservado: {stockReservado.toFixed(2)}{" "}
+                            {stockUnitLabel(product, stockReservado)}
+                        </div>
+
+                        {stockTotal > 0 && (
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-semibold text-gray-600">
+                                Total real: {stockTotal.toFixed(2)}{" "}
+                                {stockUnitLabel(product, stockTotal)}
+                            </div>
+                        )}
                     </div>
-                </div>
+                )}
             </div>
-        </div>
-    );
-
-    // ✅ StockBox ahora recibe también el producto para decidir "metros" vs "rollo(s)"
-    const StockBox = ({ value, product }) => (
-        <div className={`flex flex-col items-center gap-1 shrink-0 ${RIGHT_W}`}>
-            <div className="text-sm md:text-base font-semibold text-gray-900 text-center">Stock</div>
-
-            <div className="w-full rounded-xl bg-blue-50 ring-1 ring-inset ring-blue-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
-                {safeValue(value)}
-            </div>
-
-            <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
-                {stockUnitLabel(product, value)}
-            </div>
-        </div>
-    );
+        );
+    };
 
     const LotsBox = ({ p }) => {
         const cod = String(p?.codprodu ?? "");
-        const entry = lotsByCode[cod] || { status: "idle", data: [], error: null };
-        const lots = useMemo(() => (entry.data || []).map(normalizeLot), [entry.data]);
+        const entry = lotsByCode[cod] || {
+            status: "idle",
+            data: [],
+            error: null,
+        };
+
+        const lots = useMemo(
+            () => (entry.data || []).map(normalizeLot),
+            [entry.data]
+        );
 
         return (
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 overflow-hidden">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <SectionTitle>Lotes</SectionTitle>
+
                         <div className="text-xs text-gray-500 mt-1 break-words">
                             {entry.status === "loading"
                                 ? "Cargando lotes…"
@@ -189,10 +266,17 @@ const ProductTable = ({ products, fetchProductLots }) => {
                     {(entry.status === "idle" || entry.status === "error") && (
                         <button
                             type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
+                            onClick={(event) => {
+                                event.stopPropagation();
                                 inflightRef.current.delete(cod);
-                                setLotsByCode((prev) => ({ ...prev, [cod]: { status: "idle", data: [], error: null } }));
+                                setLotsByCode((prev) => ({
+                                    ...prev,
+                                    [cod]: {
+                                        status: "idle",
+                                        data: [],
+                                        error: null,
+                                    },
+                                }));
                                 ensureLotsLoaded(p);
                             }}
                             className={[
@@ -217,40 +301,73 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 {entry.status === "error" && (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 break-words">
                         No se han podido cargar los lotes.
-                        <div className="mt-1 text-xs text-red-700 break-words">{entry.error || "—"}</div>
+                        <div className="mt-1 text-xs text-red-700 break-words">
+                            {entry.error || "—"}
+                        </div>
                     </div>
                 )}
 
                 {entry.status === "success" && (
                     <>
                         {lots.length === 0 ? (
-                            <div className="mt-3 text-sm text-gray-600">No hay lotes disponibles.</div>
+                            <div className="mt-3 text-sm text-gray-600">
+                                No hay lotes disponibles.
+                            </div>
                         ) : (
                             <>
                                 <div className="mt-3 space-y-2 max-h-64 md:max-h-80 overflow-y-auto pr-1">
-                                    {lots.map((l) => (
-                                        <div
-                                            key={l.key}
-                                            className="flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-inset ring-gray-200 px-3 py-2.5"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-sm md:text-base font-semibold text-gray-900 truncate">
-                                                    {l.code}
-                                                </div>
-                                                <div className="text-xs text-gray-500">Disponible</div>
-                                            </div>
+                                    {lots.map((l) => {
+                                        const stockReservado = parseFloat(l.stockreservado || 0);
+                                        const stockTotal = parseFloat(l.stocktotal || 0);
 
-                                            <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                                                <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
-                                                    {safeValue(l.qty)} {qtyUnitForLotRow(p, l.qty)}
+                                        return (
+                                            <div
+                                                key={l.key}
+                                                className={[
+                                                    "flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-inset px-3 py-2.5",
+                                                    stockReservado > 0
+                                                        ? "ring-amber-200"
+                                                        : "ring-gray-200",
+                                                ].join(" ")}
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-sm md:text-base font-semibold text-gray-900 truncate">
+                                                        {l.code}
+                                                    </div>
+
+                                                    <div className="text-xs text-gray-500">
+                                                        Disponible
+                                                    </div>
+
+                                                    {stockReservado > 0 && (
+                                                        <div className="mt-1 inline-flex rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
+                                                            Reservado: {stockReservado.toFixed(2)}{" "}
+                                                            {qtyUnitForLotRow(p, stockReservado)}
+                                                        </div>
+                                                    )}
+
+                                                    {stockReservado > 0 && stockTotal > 0 && (
+                                                        <div className="mt-1 text-xs font-semibold text-gray-500">
+                                                            Total real: {stockTotal.toFixed(2)}{" "}
+                                                            {qtyUnitForLotRow(p, stockTotal)}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
+                                                    <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                                                        {safeValue(l.qty)} {qtyUnitForLotRow(p, l.qty)}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 {lots.length > 8 && (
-                                    <div className="mt-2 text-xs text-gray-500">Desplázate para ver todos los lotes.</div>
+                                    <div className="mt-2 text-xs text-gray-500">
+                                        Desplázate para ver todos los lotes.
+                                    </div>
                                 )}
                             </>
                         )}
@@ -267,7 +384,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
             <div className="mt-3 space-y-2">
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">Pendiente recibir</div>
+                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                            Pendiente recibir
+                        </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
@@ -279,7 +398,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">Fecha estimada</div>
+                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                            Fecha estimada
+                        </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
@@ -291,7 +412,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">Pendiente servir</div>
+                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                            Pendiente servir
+                        </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
@@ -325,7 +448,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                 <div className="mt-4">
                     <div className="rounded-2xl bg-white ring-1 ring-inset ring-blue-200 px-4 py-3 w-full flex flex-col items-center text-center">
-                        <div className="text-xs text-gray-600 text-center">Si confirma hoy, fecha aprox.</div>
+                        <div className="text-xs text-gray-600 text-center">
+                            Si confirma hoy, fecha aprox.
+                        </div>
 
                         <div className="mt-1 text-lg md:text-xl font-extrabold text-gray-900 tabular-nums break-words text-center">
                             {fecha}

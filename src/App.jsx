@@ -39,6 +39,7 @@ import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
 import FacturacionAnalyticsPage from './pages/FacturacionAnalyticsPage.jsx';
 import FichaTecnicaPage from './pages/fichaTecnica/fichaTenica.jsx'
+import ReservasTejido from './pages/reservas.jsx';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -115,6 +116,15 @@ function App() {
                             element={
                               <ProtectedRoute>
                                 <Stock />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          <Route
+                            path='/reservasTejido'
+                            element={
+                              <ProtectedRoute>
+                                <ReservasTejido />
                               </ProtectedRoute>
                             }
                           />
