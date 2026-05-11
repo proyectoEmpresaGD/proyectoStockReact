@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './Auth/AuthContext.jsx';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
