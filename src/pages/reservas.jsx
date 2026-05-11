@@ -49,6 +49,368 @@ const getUserLabel = (user) => {
     );
 };
 
+const handlePrintReserva = (reserva) => {
+    const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
+    const activa = isReservaActiva(reserva);
+
+    const metrosReserva = productos.reduce(
+        (total, producto) => total + normalizeNumber(producto.stockreservado),
+        0
+    );
+
+    const pedidoVenta = reserva.npedventa
+        ? `${reserva.seriepedventa ? `${reserva.seriepedventa}-` : ''}${reserva.npedventa}`
+        : '—';
+
+    const clienteLabel =
+        reserva.razclien ||
+        reserva.razcliente ||
+        reserva.nombrecliente ||
+        reserva.codcliente ||
+        '—';
+
+    const clienteCodigo = reserva.codcliente
+        ? `<span class="field-extra">Código cliente: ${reserva.codcliente}</span>`
+        : '';
+
+    const productosRows = productos
+        .map(
+            (producto) => `
+                <tr>
+                    <td>${producto.codprodu || '—'}</td>
+                    <td>${producto.desprodu || '—'}</td>
+                    <td>${producto.lotereservado || '—'}</td>
+                    <td class="number">${normalizeNumber(producto.stockreservado).toFixed(2)} m</td>
+                </tr>
+            `
+        )
+        .join('');
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+
+    if (!printWindow) {
+        setError('No se pudo abrir la ventana de impresión. Revisa el bloqueo de ventanas emergentes.');
+        return;
+    }
+
+    printWindow.document.write(`
+        <!doctype html>
+        <html lang="es">
+            <head>
+                <meta charset="utf-8" />
+                <title>Reserva ${reserva.idreserva}</title>
+                <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        margin: 0;
+                        padding: 32px;
+                        font-family: Arial, Helvetica, sans-serif;
+                        color: #111827;
+                        background: #ffffff;
+                    }
+
+                    .document {
+                        max-width: 900px;
+                        margin: 0 auto;
+                    }
+
+                    .header {
+                        display: flex;
+                        justify-content: space-between;
+                        gap: 24px;
+                        border-bottom: 3px solid #2563eb;
+                        padding-bottom: 18px;
+                        margin-bottom: 24px;
+                    }
+
+                    .title {
+                        margin: 0;
+                        font-size: 28px;
+                        color: #111827;
+                    }
+
+                    .subtitle {
+                        margin: 6px 0 0;
+                        color: #6b7280;
+                        font-size: 14px;
+                    }
+
+                    .status {
+                        display: inline-block;
+                        padding: 8px 14px;
+                        border-radius: 999px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: ${activa ? '#047857' : '#b91c1c'};
+                        background: ${activa ? '#d1fae5' : '#fee2e2'};
+                    }
+
+                    .section {
+                        border: 1px solid #e5e7eb;
+                        border-radius: 14px;
+                        padding: 18px;
+                        margin-bottom: 18px;
+                    }
+
+                    .section-title {
+                        margin: 0 0 14px;
+                        font-size: 17px;
+                        color: #111827;
+                    }
+
+                    .grid {
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 12px 24px;
+                    }
+
+                    .field-label {
+                        display: block;
+                        color: #6b7280;
+                        font-size: 12px;
+                        margin-bottom: 3px;
+                    }
+
+                    .field-value {
+                        font-size: 15px;
+                        font-weight: 700;
+                    }
+
+                    .field-extra {
+                        display: block;
+                        margin-top: 3px;
+                        color: #6b7280;
+                        font-size: 12px;
+                        font-weight: 400;
+                    }
+
+                    .description {
+                        margin-top: 14px;
+                        padding: 12px;
+                        border-radius: 10px;
+                        background: #f9fafb;
+                        color: #374151;
+                        line-height: 1.5;
+                    }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 8px;
+                        font-size: 14px;
+                    }
+
+                    th {
+                        text-align: left;
+                        background: #f3f4f6;
+                        color: #374151;
+                        padding: 10px;
+                        border-bottom: 1px solid #d1d5db;
+                    }
+
+                    td {
+                        padding: 10px;
+                        border-bottom: 1px solid #e5e7eb;
+                        vertical-align: top;
+                    }
+
+                    .number {
+                        text-align: right;
+                        font-weight: 700;
+                    }
+
+                    .total-box {
+                        display: flex;
+                        justify-content: flex-end;
+                        margin-top: 16px;
+                    }
+
+                    .total {
+                        min-width: 230px;
+                        border-radius: 12px;
+                        background: #eff6ff;
+                        padding: 14px;
+                        text-align: right;
+                    }
+
+                    .total-label {
+                        color: #1d4ed8;
+                        font-size: 13px;
+                        font-weight: 700;
+                    }
+
+                    .total-value {
+                        margin-top: 4px;
+                        font-size: 24px;
+                        font-weight: 800;
+                        color: #1e40af;
+                    }
+
+                    .footer {
+                        margin-top: 32px;
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 32px;
+                    }
+
+                    .signature {
+                        padding-top: 42px;
+                        border-top: 1px solid #9ca3af;
+                        color: #6b7280;
+                        font-size: 13px;
+                        text-align: center;
+                    }
+
+                    .print-actions {
+                        margin-bottom: 24px;
+                        text-align: right;
+                    }
+
+                    .print-button {
+                        border: 0;
+                        border-radius: 10px;
+                        background: #2563eb;
+                        color: white;
+                        padding: 10px 16px;
+                        font-size: 14px;
+                        font-weight: 700;
+                        cursor: pointer;
+                    }
+
+                    @media print {
+                        body {
+                            padding: 0;
+                        }
+
+                        .print-actions {
+                            display: none;
+                        }
+
+                        .document {
+                            max-width: none;
+                        }
+
+                        .section {
+                            break-inside: avoid;
+                        }
+                    }
+                </style>
+            </head>
+
+            <body>
+                <div class="document">
+                    <div class="print-actions">
+                        <button class="print-button" onclick="window.print()">Imprimir reserva</button>
+                    </div>
+
+                    <div class="header">
+                        <div>
+                            <h1 class="title">Reserva de tejido #${reserva.idreserva}</h1>
+                            <p class="subtitle">Documento generado desde la App Stock</p>
+                        </div>
+
+                        <div>
+                            <span class="status">${activa ? 'Reserva activa' : 'Reserva vencida'}</span>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2 class="section-title">Datos de la reserva</h2>
+
+                        <div class="grid">
+                            <div>
+                                <span class="field-label">Cliente</span>
+                                <span class="field-value">
+                                    ${clienteLabel}
+                                    ${clienteCodigo}
+                                </span>
+                            </div>
+
+                            <div>
+                                <span class="field-label">Usuario</span>
+                                <span class="field-value">${reserva.usuario || '—'}</span>
+                            </div>
+
+                            <div>
+                                <span class="field-label">Fecha reserva</span>
+                                <span class="field-value">${formatDate(reserva.fechareserva)}</span>
+                            </div>
+
+                            <div>
+                                <span class="field-label">Fecha vencimiento</span>
+                                <span class="field-value">${formatDate(reserva.fechavencimientoreserva)}</span>
+                            </div>
+
+                            <div>
+                                <span class="field-label">Pedido venta</span>
+                                <span class="field-value">${pedidoVenta}</span>
+                            </div>
+
+                            <div>
+                                <span class="field-label">Estado</span>
+                                <span class="field-value">${activa ? 'Activa' : 'Vencida'}</span>
+                            </div>
+                        </div>
+
+                        ${reserva.descripcion
+            ? `<div class="description"><strong>Observaciones:</strong><br />${reserva.descripcion}</div>`
+            : ''
+        }
+                    </div>
+
+                    <div class="section">
+                        <h2 class="section-title">Productos reservados</h2>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Descripción</th>
+                                    <th>Lote</th>
+                                    <th class="number">Metros</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                ${productosRows ||
+        `
+                                        <tr>
+                                            <td colspan="4">No hay productos asociados a esta reserva.</td>
+                                        </tr>
+                                    `
+        }
+                            </tbody>
+                        </table>
+
+                        <div class="total-box">
+                            <div class="total">
+                                <div class="total-label">Metros retenidos</div>
+                                <div class="total-value">${metrosReserva.toFixed(2)} m</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <div class="signature">Firma almacén</div>
+                        <div class="signature">Firma responsable</div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function () {
+                        window.focus();
+                    };
+                </script>
+            </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+};
+
 const formatDate = (value) => {
     if (!value) return '—';
 
@@ -190,6 +552,7 @@ function ReservasTejido() {
 
     const [reservas, setReservas] = useState([]);
     const [form, setForm] = useState({ ...emptyReserva });
+    const [activeView, setActiveView] = useState('gestion');
 
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -650,6 +1013,8 @@ function ReservasTejido() {
         const productos = groupReservaProductsForEdit(reserva.productos);
 
         setEditingId(reserva.idreserva);
+        setActiveView('gestion');
+
         setForm({
             codcliente: reserva.codcliente || '',
             razclien: reserva.razclien || '',
@@ -867,6 +1232,54 @@ function ReservasTejido() {
         });
     }, [reservas, searchTerm, showOnlyActive]);
 
+    const reservasRapidas = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+
+        return reservas
+            .flatMap((reserva) => {
+                const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
+                const activa = isReservaActiva(reserva);
+
+                return productos.map((producto, index) => ({
+                    id: `${reserva.idreserva}-${producto.codprodu}-${producto.lotereservado}-${index}`,
+                    idreserva: reserva.idreserva,
+                    usuario: reserva.usuario || '—',
+                    codcliente: reserva.codcliente || '—',
+                    descripcionReserva: reserva.descripcion || '',
+                    fechareserva: reserva.fechareserva,
+                    fechavencimientoreserva: reserva.fechavencimientoreserva,
+                    seriepedventa: reserva.seriepedventa || '',
+                    npedventa: reserva.npedventa || '',
+                    activa,
+                    codprodu: producto.codprodu || '—',
+                    desprodu: producto.desprodu || '—',
+                    lotereservado: producto.lotereservado || '—',
+                    stockreservado: normalizeNumber(producto.stockreservado),
+                }));
+            })
+            .filter((item) => {
+                if (showOnlyActive && !item.activa) return false;
+
+                if (!term) return true;
+
+                const searchableText = [
+                    item.idreserva,
+                    item.usuario,
+                    item.codcliente,
+                    item.descripcionReserva,
+                    item.codprodu,
+                    item.desprodu,
+                    item.lotereservado,
+                    item.seriepedventa,
+                    item.npedventa,
+                ]
+                    .join(' ')
+                    .toLowerCase();
+
+                return searchableText.includes(term);
+            });
+    }, [reservas, searchTerm, showOnlyActive]);
+
     const resumen = useMemo(() => {
         const activas = reservas.filter(isReservaActiva);
 
@@ -923,621 +1336,782 @@ function ReservasTejido() {
                     </div>
                 </div>
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6"
-                >
-                    <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {editingId ? `Editar reserva ${editingId}` : 'Nueva reserva'}
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                Selecciona cliente, producto y metros. Puedes elegir los lotes manualmente o usar la selección automática.
-                            </p>
-                        </div>
-
-                        {editingId && (
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                            >
-                                Cancelar edición
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <p className="text-sm font-semibold text-gray-700">Usuario que crea la reserva</p>
-                        <p className="mt-1 text-base font-bold text-gray-900">
-                            {currentUserLabel || 'Usuario autenticado'}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                            Este campo se guarda automáticamente desde la sesión.
+                <div className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-700">Vista de reservas</p>
+                        <p className="text-xs text-gray-500">
+                            Cambia entre la gestión completa y una tabla rápida de productos reservados.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="md:col-span-2">
-                            <span className="mb-1 block text-sm font-semibold text-gray-700">
-                                Cliente
-                            </span>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('gestion')}
+                            className={[
+                                'rounded-xl px-4 py-2 text-sm font-bold',
+                                activeView === 'gestion'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                            ].join(' ')}
+                        >
+                            Gestión
+                        </button>
 
-                            <ClientSearchBar
-                                searchTerm={clientSearchTerm}
-                                setSearchTerm={setClientSearchTerm}
-                                suggestions={clientSuggestions}
-                                setSuggestions={setClientSuggestions}
-                                handleSuggestionClick={handleClientSuggestionClick}
-                                handleSearchEnter={handleClientSearchEnter}
-                            />
+                        <button
+                            type="button"
+                            onClick={() => setActiveView('rapida')}
+                            className={[
+                                'rounded-xl px-4 py-2 text-sm font-bold',
+                                activeView === 'rapida'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                            ].join(' ')}
+                        >
+                            Vista rápida
+                        </button>
+                    </div>
+                </div>
 
-                            {form.codcliente && (
-                                <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
-                                    Cliente seleccionado: {form.codcliente}
-                                    {form.razclien ? ` · ${form.razclien}` : ''}
-                                </div>
+                {activeView === 'gestion' && (
+                    <form
+                        onSubmit={handleSubmit}
+                        className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6"
+                    >
+                        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {editingId ? `Editar reserva ${editingId}` : 'Nueva reserva'}
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Selecciona cliente, producto y metros. Puedes elegir los lotes manualmente o usar la selección automática.
+                                </p>
+                            </div>
+
+                            {editingId && (
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                    Cancelar edición
+                                </button>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-[110px_1fr] gap-3">
-                            <label className="block">
-                                <span className="text-sm font-semibold text-gray-700">Serie</span>
-                                <input
-                                    name="seriepedventa"
-                                    value={form.seriepedventa}
-                                    onChange={handleMainChange}
-                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 uppercase"
-                                    placeholder="A"
-                                    maxLength={20}
-                                />
-                            </label>
-
-                            <label className="block">
-                                <span className="text-sm font-semibold text-gray-700">Pedido venta</span>
-                                <input
-                                    name="npedventa"
-                                    value={form.npedventa}
-                                    onChange={handleMainChange}
-                                    type="number"
-                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
-                                    placeholder="Número"
-                                />
-                            </label>
-                        </div>
-
-                        <label className="block">
-                            <span className="text-sm font-semibold text-gray-700">Fecha reserva</span>
-                            <input
-                                name="fechareserva"
-                                value={form.fechareserva}
-                                onChange={handleMainChange}
-                                type="date"
-                                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
-                                required
-                            />
-                        </label>
-
-                        <label className="block">
-                            <span className="text-sm font-semibold text-gray-700">Fecha vencimiento</span>
-                            <input
-                                name="fechavencimientoreserva"
-                                value={form.fechavencimientoreserva}
-                                onChange={handleMainChange}
-                                type="date"
-                                min={getTodayInputDate()}
-                                max={getMaxReservaVencimientoDate()}
-                                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
-                                required
-                            />
-                        </label>
-
-                        <label className="block md:col-span-3">
-                            <span className="text-sm font-semibold text-gray-700">Descripción</span>
-                            <textarea
-                                name="descripcion"
-                                value={form.descripcion}
-                                onChange={handleMainChange}
-                                rows={3}
-                                className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
-                                placeholder="Observaciones de la reserva"
-                            />
-                        </label>
-                    </div>
-
-                    <div className="mt-6">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                            <h3 className="text-lg font-bold text-gray-900">Productos reservados</h3>
-
-                            <button
-                                type="button"
-                                onClick={addProductLine}
-                                className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
-                            >
-                                Añadir producto
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {form.productos.map((producto, index) => {
-                                const selectedTotal = getSelectedLotsTotal(producto.selectedLots);
-                                const requestedTotal = normalizeNumber(producto.metrosSolicitados);
-                                const missingMeters = Number((requestedTotal - selectedTotal).toFixed(2));
-                                const lotes = lotesByProductLine[index] || [];
-
-                                return (
-                                    <div
-                                        key={`producto-reserva-${index}`}
-                                        className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
-                                    >
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.5fr_180px_auto]">
-                                            <div>
-                                                <span className="mb-1 block text-sm font-semibold text-gray-700">
-                                                    Producto
-                                                </span>
-
-                                                <ProductSearchBar
-                                                    searchTerm={productSearchTerms[index] || ''}
-                                                    setSearchTerm={(value) =>
-                                                        setProductSearchTerms((prev) => ({
-                                                            ...prev,
-                                                            [index]: value,
-                                                        }))
-                                                    }
-                                                    suggestions={productSuggestions[index] || []}
-                                                    setSuggestions={(items) =>
-                                                        setProductSuggestions((prev) => ({
-                                                            ...prev,
-                                                            [index]: items,
-                                                        }))
-                                                    }
-                                                    handleSearchInputChange={(event) =>
-                                                        handleProductSearchInputChange(index, event)
-                                                    }
-                                                    handleSearchKeyPress={(event) =>
-                                                        handleProductSearchKeyPress(index, event)
-                                                    }
-                                                    handleSuggestionClick={(selectedProduct) =>
-                                                        handleProductSuggestionClick(index, selectedProduct)
-                                                    }
-                                                />
-
-                                                {producto.codprodu && (
-                                                    <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
-                                                        Producto seleccionado: {producto.codprodu}
-                                                        {producto.desprodu ? ` · ${producto.desprodu}` : ''}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <label className="block">
-                                                <span className="text-sm font-semibold text-gray-700">
-                                                    Metros necesarios
-                                                </span>
-                                                <input
-                                                    value={producto.metrosSolicitados}
-                                                    onChange={(event) =>
-                                                        handleMetrosSolicitadosChange(index, event.target.value)
-                                                    }
-                                                    type="number"
-                                                    min="0.01"
-                                                    step="0.01"
-                                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
-                                                    required
-                                                />
-                                            </label>
-
-                                            <div className="flex items-end">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeProductLine(index)}
-                                                    className="w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-                                                >
-                                                    Quitar
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    loadLotesForProductLine({
-                                                        index,
-                                                        codprodu: producto.codprodu,
-                                                    })
-                                                }
-                                                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
-                                            >
-                                                {loadingLotesLine === index ? 'Cargando lotes...' : 'Cargar lotes'}
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAutoAllocate(index)}
-                                                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
-                                            >
-                                                Seleccionar lote automáticamente
-                                            </button>
-
-                                            {lotes.length > 0 && (
-                                                <span className="inline-flex items-center rounded-xl bg-white px-3 py-2 text-sm font-semibold text-gray-600 ring-1 ring-gray-200">
-                                                    {lotes.length} lote{lotes.length === 1 ? '' : 's'} disponible
-                                                    {lotes.length === 1 ? '' : 's'}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {producto.selectedLots.length > 0 && (
-                                            <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
-                                                <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                                    <h4 className="font-bold text-gray-900">Lotes asignados</h4>
-
-                                                    <div className="text-sm font-semibold">
-                                                        <span className="text-gray-600">
-                                                            Solicitado: {requestedTotal.toFixed(2)} m · Asignado:{' '}
-                                                            {selectedTotal.toFixed(2)} m
-                                                        </span>
-
-                                                        {missingMeters > 0 && (
-                                                            <span className="ml-2 text-red-600">
-                                                                Faltan {missingMeters.toFixed(2)} m
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="overflow-x-auto">
-                                                    <table className="min-w-full text-sm">
-                                                        <thead>
-                                                            <tr className="border-b border-gray-200 text-left text-gray-500">
-                                                                <th className="py-2 pr-4">Lote</th>
-                                                                <th className="py-2 pr-4">Disponible</th>
-                                                                <th className="py-2 pr-4">Total lote</th>
-                                                                <th className="py-2 pr-4">Metros a reservar</th>
-                                                                <th className="py-2 pr-4"></th>
-                                                            </tr>
-                                                        </thead>
-
-                                                        <tbody>
-                                                            {producto.selectedLots.map((lote, lotIndex) => (
-                                                                <tr
-                                                                    key={`${lote.codlote}-${lotIndex}`}
-                                                                    className="border-b border-gray-100"
-                                                                >
-                                                                    <td className="py-2 pr-4 font-bold text-gray-900">
-                                                                        {lote.codlote}
-                                                                    </td>
-
-                                                                    <td className="py-2 pr-4">
-                                                                        {lote.stockdisponible === null ||
-                                                                            lote.stockdisponible === undefined
-                                                                            ? '—'
-                                                                            : `${normalizeNumber(
-                                                                                lote.stockdisponible
-                                                                            ).toFixed(2)} m`}
-                                                                    </td>
-
-                                                                    <td className="py-2 pr-4">
-                                                                        {lote.stocktotal === null ||
-                                                                            lote.stocktotal === undefined
-                                                                            ? '—'
-                                                                            : `${normalizeNumber(lote.stocktotal).toFixed(
-                                                                                2
-                                                                            )} m`}
-                                                                    </td>
-
-                                                                    <td className="py-2 pr-4">
-                                                                        <input
-                                                                            value={lote.stockreservado}
-                                                                            onChange={(event) =>
-                                                                                handleManualLotMetersChange(
-                                                                                    index,
-                                                                                    lotIndex,
-                                                                                    event.target.value
-                                                                                )
-                                                                            }
-                                                                            type="number"
-                                                                            min="0.01"
-                                                                            step="0.01"
-                                                                            className="w-32 rounded-xl border border-gray-300 px-3 py-2"
-                                                                        />
-                                                                    </td>
-
-                                                                    <td className="py-2 pr-4">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                handleRemoveSelectedLot(index, lotIndex)
-                                                                            }
-                                                                            className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                                                                        >
-                                                                            Quitar lote
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {lotes.length > 0 && (
-                                            <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
-                                                <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                                    <div>
-                                                        <h4 className="font-bold text-gray-900">Lotes disponibles</h4>
-                                                        <p className="text-sm text-gray-500">
-                                                            Puedes elegir manualmente el lote o usar la selección automática.
-                                                        </p>
-                                                    </div>
-
-                                                    <p className="text-sm font-semibold text-gray-600">
-                                                        {lotes.length} lote{lotes.length === 1 ? '' : 's'} disponible
-                                                        {lotes.length === 1 ? '' : 's'}
-                                                    </p>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-                                                    {lotes.map((lote) => {
-                                                        const isSelected = producto.selectedLots.some(
-                                                            (selectedLot) =>
-                                                                String(selectedLot.codlote).trim() ===
-                                                                String(lote.codlote).trim()
-                                                        );
-
-                                                        const stockDisponible = normalizeNumber(lote.stockdisponible);
-
-                                                        return (
-                                                            <div
-                                                                key={`${lote.codprodu}-${lote.codlote}`}
-                                                                className={[
-                                                                    'rounded-xl border p-3',
-                                                                    isSelected
-                                                                        ? 'border-blue-300 bg-blue-50'
-                                                                        : 'border-gray-200 bg-gray-50',
-                                                                ].join(' ')}
-                                                            >
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div>
-                                                                        <p className="font-bold text-gray-900">
-                                                                            {lote.codlote}
-                                                                        </p>
-
-                                                                        <p className="text-sm text-gray-600">
-                                                                            Total:{' '}
-                                                                            {normalizeNumber(lote.stocktotal).toFixed(2)} m
-                                                                        </p>
-
-                                                                        <p className="text-sm text-amber-700">
-                                                                            Reservado:{' '}
-                                                                            {normalizeNumber(lote.stockreservado).toFixed(
-                                                                                2
-                                                                            )}{' '}
-                                                                            m
-                                                                        </p>
-
-                                                                        <p className="text-sm font-bold text-green-700">
-                                                                            Disponible: {stockDisponible.toFixed(2)} m
-                                                                        </p>
-                                                                    </div>
-
-                                                                    {isSelected && (
-                                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
-                                                                            Seleccionado
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={isSelected || stockDisponible <= 0}
-                                                                    onClick={() => handleSelectLotManually(index, lote)}
-                                                                    className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                >
-                                                                    {isSelected ? 'Ya seleccionado' : 'Elegir este lote'}
-                                                                </button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear reserva'}
-                        </button>
-                    </div>
-                </form>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
-                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900">Reservas</h2>
-                            <p className="text-sm text-gray-500">
-                                Vista rápida de reservas activas y vencidas por producto y lote.
+                        <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                            <p className="text-sm font-semibold text-gray-700">Usuario que crea la reserva</p>
+                            <p className="mt-1 text-base font-bold text-gray-900">
+                                {currentUserLabel || 'Usuario autenticado'}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Este campo se guarda automáticamente desde la sesión.
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                            <input
-                                value={searchTerm}
-                                onChange={(event) => setSearchTerm(event.target.value)}
-                                placeholder="Buscar cliente, producto, lote o pedido..."
-                                className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                            />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div className="md:col-span-2">
+                                <span className="mb-1 block text-sm font-semibold text-gray-700">
+                                    Cliente
+                                </span>
 
-                            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                <input
-                                    type="checkbox"
-                                    checked={showOnlyActive}
-                                    onChange={(event) => setShowOnlyActive(event.target.checked)}
+                                <ClientSearchBar
+                                    searchTerm={clientSearchTerm}
+                                    setSearchTerm={setClientSearchTerm}
+                                    suggestions={clientSuggestions}
+                                    setSuggestions={setClientSuggestions}
+                                    handleSuggestionClick={handleClientSuggestionClick}
+                                    handleSearchEnter={handleClientSearchEnter}
                                 />
-                                Solo activas
+
+                                {form.codcliente && (
+                                    <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
+                                        Cliente seleccionado: {form.codcliente}
+                                        {form.razclien ? ` · ${form.razclien}` : ''}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-[110px_1fr] gap-3">
+                                <label className="block">
+                                    <span className="text-sm font-semibold text-gray-700">Serie</span>
+                                    <input
+                                        name="seriepedventa"
+                                        value={form.seriepedventa}
+                                        onChange={handleMainChange}
+                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 uppercase"
+                                        placeholder="A"
+                                        maxLength={20}
+                                    />
+                                </label>
+
+                                <label className="block">
+                                    <span className="text-sm font-semibold text-gray-700">Pedido venta</span>
+                                    <input
+                                        name="npedventa"
+                                        value={form.npedventa}
+                                        onChange={handleMainChange}
+                                        type="number"
+                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                        placeholder="Número"
+                                    />
+                                </label>
+                            </div>
+
+                            <label className="block">
+                                <span className="text-sm font-semibold text-gray-700">Fecha reserva</span>
+                                <input
+                                    name="fechareserva"
+                                    value={form.fechareserva}
+                                    onChange={handleMainChange}
+                                    type="date"
+                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    required
+                                />
+                            </label>
+
+                            <label className="block">
+                                <span className="text-sm font-semibold text-gray-700">Fecha vencimiento</span>
+                                <input
+                                    name="fechavencimientoreserva"
+                                    value={form.fechavencimientoreserva}
+                                    onChange={handleMainChange}
+                                    type="date"
+                                    min={getTodayInputDate()}
+                                    max={getMaxReservaVencimientoDate()}
+                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    required
+                                />
+                            </label>
+
+                            <label className="block md:col-span-3">
+                                <span className="text-sm font-semibold text-gray-700">Descripción</span>
+                                <textarea
+                                    name="descripcion"
+                                    value={form.descripcion}
+                                    onChange={handleMainChange}
+                                    rows={3}
+                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    placeholder="Observaciones de la reserva"
+                                />
                             </label>
                         </div>
-                    </div>
 
-                    {loading ? (
-                        <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
-                            Cargando reservas...
+                        <div className="mt-6">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                                <h3 className="text-lg font-bold text-gray-900">Productos reservados</h3>
+
+                                <button
+                                    type="button"
+                                    onClick={addProductLine}
+                                    className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
+                                >
+                                    Añadir producto
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {form.productos.map((producto, index) => {
+                                    const selectedTotal = getSelectedLotsTotal(producto.selectedLots);
+                                    const requestedTotal = normalizeNumber(producto.metrosSolicitados);
+                                    const missingMeters = Number((requestedTotal - selectedTotal).toFixed(2));
+                                    const lotes = lotesByProductLine[index] || [];
+
+                                    return (
+                                        <div
+                                            key={`producto-reserva-${index}`}
+                                            className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                                        >
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.5fr_180px_auto]">
+                                                <div>
+                                                    <span className="mb-1 block text-sm font-semibold text-gray-700">
+                                                        Producto
+                                                    </span>
+
+                                                    <ProductSearchBar
+                                                        searchTerm={productSearchTerms[index] || ''}
+                                                        setSearchTerm={(value) =>
+                                                            setProductSearchTerms((prev) => ({
+                                                                ...prev,
+                                                                [index]: value,
+                                                            }))
+                                                        }
+                                                        suggestions={productSuggestions[index] || []}
+                                                        setSuggestions={(items) =>
+                                                            setProductSuggestions((prev) => ({
+                                                                ...prev,
+                                                                [index]: items,
+                                                            }))
+                                                        }
+                                                        handleSearchInputChange={(event) =>
+                                                            handleProductSearchInputChange(index, event)
+                                                        }
+                                                        handleSearchKeyPress={(event) =>
+                                                            handleProductSearchKeyPress(index, event)
+                                                        }
+                                                        handleSuggestionClick={(selectedProduct) =>
+                                                            handleProductSuggestionClick(index, selectedProduct)
+                                                        }
+                                                    />
+
+                                                    {producto.codprodu && (
+                                                        <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
+                                                            Producto seleccionado: {producto.codprodu}
+                                                            {producto.desprodu ? ` · ${producto.desprodu}` : ''}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <label className="block">
+                                                    <span className="text-sm font-semibold text-gray-700">
+                                                        Metros necesarios
+                                                    </span>
+                                                    <input
+                                                        value={producto.metrosSolicitados}
+                                                        onChange={(event) =>
+                                                            handleMetrosSolicitadosChange(index, event.target.value)
+                                                        }
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="0.01"
+                                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                                        required
+                                                    />
+                                                </label>
+
+                                                <div className="flex items-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeProductLine(index)}
+                                                        className="w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                                                    >
+                                                        Quitar
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        loadLotesForProductLine({
+                                                            index,
+                                                            codprodu: producto.codprodu,
+                                                        })
+                                                    }
+                                                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+                                                >
+                                                    {loadingLotesLine === index ? 'Cargando lotes...' : 'Cargar lotes'}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAutoAllocate(index)}
+                                                    className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                                                >
+                                                    Seleccionar lote automáticamente
+                                                </button>
+
+                                                {lotes.length > 0 && (
+                                                    <span className="inline-flex items-center rounded-xl bg-white px-3 py-2 text-sm font-semibold text-gray-600 ring-1 ring-gray-200">
+                                                        {lotes.length} lote{lotes.length === 1 ? '' : 's'} disponible
+                                                        {lotes.length === 1 ? '' : 's'}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {producto.selectedLots.length > 0 && (
+                                                <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+                                                    <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                        <h4 className="font-bold text-gray-900">Lotes asignados</h4>
+
+                                                        <div className="text-sm font-semibold">
+                                                            <span className="text-gray-600">
+                                                                Solicitado: {requestedTotal.toFixed(2)} m · Asignado:{' '}
+                                                                {selectedTotal.toFixed(2)} m
+                                                            </span>
+
+                                                            {missingMeters > 0 && (
+                                                                <span className="ml-2 text-red-600">
+                                                                    Faltan {missingMeters.toFixed(2)} m
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="overflow-x-auto">
+                                                        <table className="min-w-full text-sm">
+                                                            <thead>
+                                                                <tr className="border-b border-gray-200 text-left text-gray-500">
+                                                                    <th className="py-2 pr-4">Lote</th>
+                                                                    <th className="py-2 pr-4">Disponible</th>
+                                                                    <th className="py-2 pr-4">Total lote</th>
+                                                                    <th className="py-2 pr-4">Metros a reservar</th>
+                                                                    <th className="py-2 pr-4"></th>
+                                                                </tr>
+                                                            </thead>
+
+                                                            <tbody>
+                                                                {producto.selectedLots.map((lote, lotIndex) => (
+                                                                    <tr
+                                                                        key={`${lote.codlote}-${lotIndex}`}
+                                                                        className="border-b border-gray-100"
+                                                                    >
+                                                                        <td className="py-2 pr-4 font-bold text-gray-900">
+                                                                            {lote.codlote}
+                                                                        </td>
+
+                                                                        <td className="py-2 pr-4">
+                                                                            {lote.stockdisponible === null ||
+                                                                                lote.stockdisponible === undefined
+                                                                                ? '—'
+                                                                                : `${normalizeNumber(
+                                                                                    lote.stockdisponible
+                                                                                ).toFixed(2)} m`}
+                                                                        </td>
+
+                                                                        <td className="py-2 pr-4">
+                                                                            {lote.stocktotal === null ||
+                                                                                lote.stocktotal === undefined
+                                                                                ? '—'
+                                                                                : `${normalizeNumber(lote.stocktotal).toFixed(
+                                                                                    2
+                                                                                )} m`}
+                                                                        </td>
+
+                                                                        <td className="py-2 pr-4">
+                                                                            <input
+                                                                                value={lote.stockreservado}
+                                                                                onChange={(event) =>
+                                                                                    handleManualLotMetersChange(
+                                                                                        index,
+                                                                                        lotIndex,
+                                                                                        event.target.value
+                                                                                    )
+                                                                                }
+                                                                                type="number"
+                                                                                min="0.01"
+                                                                                step="0.01"
+                                                                                className="w-32 rounded-xl border border-gray-300 px-3 py-2"
+                                                                            />
+                                                                        </td>
+
+                                                                        <td className="py-2 pr-4">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleRemoveSelectedLot(index, lotIndex)
+                                                                                }
+                                                                                className="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                                                            >
+                                                                                Quitar lote
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {lotes.length > 0 && (
+                                                <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+                                                    <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-900">Lotes disponibles</h4>
+                                                            <p className="text-sm text-gray-500">
+                                                                Puedes elegir manualmente el lote o usar la selección automática.
+                                                            </p>
+                                                        </div>
+
+                                                        <p className="text-sm font-semibold text-gray-600">
+                                                            {lotes.length} lote{lotes.length === 1 ? '' : 's'} disponible
+                                                            {lotes.length === 1 ? '' : 's'}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                                                        {lotes.map((lote) => {
+                                                            const isSelected = producto.selectedLots.some(
+                                                                (selectedLot) =>
+                                                                    String(selectedLot.codlote).trim() ===
+                                                                    String(lote.codlote).trim()
+                                                            );
+
+                                                            const stockDisponible = normalizeNumber(lote.stockdisponible);
+
+                                                            return (
+                                                                <div
+                                                                    key={`${lote.codprodu}-${lote.codlote}`}
+                                                                    className={[
+                                                                        'rounded-xl border p-3',
+                                                                        isSelected
+                                                                            ? 'border-blue-300 bg-blue-50'
+                                                                            : 'border-gray-200 bg-gray-50',
+                                                                    ].join(' ')}
+                                                                >
+                                                                    <div className="flex items-start justify-between gap-3">
+                                                                        <div>
+                                                                            <p className="font-bold text-gray-900">
+                                                                                {lote.codlote}
+                                                                            </p>
+
+                                                                            <p className="text-sm text-gray-600">
+                                                                                Total:{' '}
+                                                                                {normalizeNumber(lote.stocktotal).toFixed(2)} m
+                                                                            </p>
+
+                                                                            <p className="text-sm text-amber-700">
+                                                                                Reservado:{' '}
+                                                                                {normalizeNumber(lote.stockreservado).toFixed(
+                                                                                    2
+                                                                                )}{' '}
+                                                                                m
+                                                                            </p>
+
+                                                                            <p className="text-sm font-bold text-green-700">
+                                                                                Disponible: {stockDisponible.toFixed(2)} m
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {isSelected && (
+                                                                            <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
+                                                                                Seleccionado
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={isSelected || stockDisponible <= 0}
+                                                                        onClick={() => handleSelectLotManually(index, lote)}
+                                                                        className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                    >
+                                                                        {isSelected ? 'Ya seleccionado' : 'Elegir este lote'}
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    ) : filteredReservas.length === 0 ? (
-                        <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
-                            No hay reservas para mostrar.
+
+                        <div className="mt-6 flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear reserva'}
+                            </button>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4">
-                            {filteredReservas.map((reserva) => {
-                                const activa = isReservaActiva(reserva);
-                                const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
-                                const metrosReserva = productos.reduce(
-                                    (total, producto) => total + normalizeNumber(producto.stockreservado),
-                                    0
-                                );
+                    </form>
+                )}
 
-                                return (
-                                    <article
-                                        key={reserva.idreserva}
-                                        className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
-                                    >
-                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                            <div>
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <h3 className="text-lg font-bold text-gray-900">
-                                                        Reserva #{reserva.idreserva}
-                                                    </h3>
+                {activeView === 'rapida' && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    Vista rápida de productos reservados
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Tabla por producto, usuario, metros y lote reservado.
+                                </p>
+                            </div>
 
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                <input
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                    placeholder="Buscar producto, usuario, lote o cliente..."
+                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                />
+
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={showOnlyActive}
+                                        onChange={(event) => setShowOnlyActive(event.target.checked)}
+                                    />
+                                    Solo activas
+                                </label>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                Cargando reservas...
+                            </div>
+                        ) : reservasRapidas.length === 0 ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                No hay productos reservados para mostrar.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 text-left text-gray-500">
+                                            <th className="py-3 pr-4">Reserva</th>
+                                            <th className="py-3 pr-4">Producto</th>
+                                            <th className="py-3 pr-4">Descripción</th>
+                                            <th className="py-3 pr-4">Usuario</th>
+                                            <th className="py-3 pr-4">Cliente</th>
+                                            <th className="py-3 pr-4">Lote</th>
+                                            <th className="py-3 pr-4 text-right">Metros</th>
+                                            <th className="py-3 pr-4">Vencimiento</th>
+                                            <th className="py-3 pr-4">Estado</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {reservasRapidas.map((item) => (
+                                            <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                <td className="py-3 pr-4 font-semibold text-gray-900">
+                                                    #{item.idreserva}
+                                                </td>
+
+                                                <td className="py-3 pr-4 font-semibold text-gray-900">
+                                                    {item.codprodu}
+                                                </td>
+
+                                                <td className="max-w-sm py-3 pr-4 text-gray-700">
+                                                    {item.desprodu}
+                                                </td>
+
+                                                <td className="py-3 pr-4 font-semibold text-gray-700">
+                                                    {item.usuario}
+                                                </td>
+
+                                                <td className="py-3 pr-4 text-gray-700">
+                                                    {item.codcliente}
+                                                </td>
+
+                                                <td className="py-3 pr-4 font-semibold text-gray-900">
+                                                    {item.lotereservado}
+                                                </td>
+
+                                                <td className="py-3 pr-4 text-right font-bold text-blue-700">
+                                                    {item.stockreservado.toFixed(2)} m
+                                                </td>
+
+                                                <td className="py-3 pr-4 text-gray-700">
+                                                    {formatDate(item.fechavencimientoreserva)}
+                                                </td>
+
+                                                <td className="py-3 pr-4">
                                                     <span
                                                         className={[
                                                             'rounded-full px-3 py-1 text-xs font-bold',
-                                                            activa
+                                                            item.activa
                                                                 ? 'bg-green-100 text-green-700'
                                                                 : 'bg-red-100 text-red-700',
                                                         ].join(' ')}
                                                     >
-                                                        {activa ? 'Activa' : 'Vencida'}
+                                                        {item.activa ? 'Activa' : 'Vencida'}
                                                     </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeView === 'gestion' && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">Reservas</h2>
+                                <p className="text-sm text-gray-500">
+                                    Vista rápida de reservas activas y vencidas por producto y lote.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                <input
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                    placeholder="Buscar cliente, producto, lote o pedido..."
+                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                />
+
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={showOnlyActive}
+                                        onChange={(event) => setShowOnlyActive(event.target.checked)}
+                                    />
+                                    Solo activas
+                                </label>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                Cargando reservas...
+                            </div>
+                        ) : filteredReservas.length === 0 ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                No hay reservas para mostrar.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4">
+                                {filteredReservas.map((reserva) => {
+                                    const activa = isReservaActiva(reserva);
+                                    const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
+                                    const metrosReserva = productos.reduce(
+                                        (total, producto) => total + normalizeNumber(producto.stockreservado),
+                                        0
+                                    );
+
+                                    return (
+                                        <article
+                                            key={reserva.idreserva}
+                                            className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                                        >
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <h3 className="text-lg font-bold text-gray-900">
+                                                            Reserva #{reserva.idreserva}
+                                                        </h3>
+
+                                                        <span
+                                                            className={[
+                                                                'rounded-full px-3 py-1 text-xs font-bold',
+                                                                activa
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : 'bg-red-100 text-red-700',
+                                                            ].join(' ')}
+                                                        >
+                                                            {activa ? 'Activa' : 'Vencida'}
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="mt-1 text-sm text-gray-600">
+                                                        Cliente: <strong>{reserva.codcliente}</strong> · Usuario:{' '}
+                                                        <strong>{reserva.usuario}</strong>
+                                                    </p>
+
+                                                    {reserva.descripcion && (
+                                                        <p className="mt-2 text-sm text-gray-700">
+                                                            {reserva.descripcion}
+                                                        </p>
+                                                    )}
                                                 </div>
 
-                                                <p className="mt-1 text-sm text-gray-600">
-                                                    Cliente: <strong>{reserva.codcliente}</strong> · Usuario:{' '}
-                                                    <strong>{reserva.usuario}</strong>
-                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePrintReserva(reserva)}
+                                                        className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        Imprimir
+                                                    </button>
 
-                                                {reserva.descripcion && (
-                                                    <p className="mt-2 text-sm text-gray-700">
-                                                        {reserva.descripcion}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEdit(reserva)}
+                                                        className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                                                    >
+                                                        Editar
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDelete(reserva.idreserva)}
+                                                        className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+                                                <div className="rounded-xl bg-white p-3">
+                                                    <p className="text-xs text-gray-500">Fecha reserva</p>
+                                                    <p className="font-bold text-gray-900">
+                                                        {formatDate(reserva.fechareserva)}
                                                     </p>
-                                                )}
+                                                </div>
+
+                                                <div className="rounded-xl bg-white p-3">
+                                                    <p className="text-xs text-gray-500">Vencimiento</p>
+                                                    <p className="font-bold text-gray-900">
+                                                        {formatDate(reserva.fechavencimientoreserva)}
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-xl bg-white p-3">
+                                                    <p className="text-xs text-gray-500">Pedido venta</p>
+                                                    <p className="font-bold text-gray-900">
+                                                        {reserva.npedventa
+                                                            ? `${reserva.seriepedventa ? `${reserva.seriepedventa}-` : ''}${reserva.npedventa}`
+                                                            : '—'}
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-xl bg-white p-3">
+                                                    <p className="text-xs text-gray-500">Metros retenidos</p>
+                                                    <p className="font-bold text-gray-900">
+                                                        {metrosReserva.toFixed(2)} m
+                                                    </p>
+                                                </div>
                                             </div>
 
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEdit(reserva)}
-                                                    className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-                                                >
-                                                    Editar
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(reserva.idreserva)}
-                                                    className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-                                                >
-                                                    Eliminar
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-                                            <div className="rounded-xl bg-white p-3">
-                                                <p className="text-xs text-gray-500">Fecha reserva</p>
-                                                <p className="font-bold text-gray-900">
-                                                    {formatDate(reserva.fechareserva)}
-                                                </p>
-                                            </div>
-
-                                            <div className="rounded-xl bg-white p-3">
-                                                <p className="text-xs text-gray-500">Vencimiento</p>
-                                                <p className="font-bold text-gray-900">
-                                                    {formatDate(reserva.fechavencimientoreserva)}
-                                                </p>
-                                            </div>
-
-                                            <div className="rounded-xl bg-white p-3">
-                                                <p className="text-xs text-gray-500">Pedido venta</p>
-                                                <p className="font-bold text-gray-900">
-                                                    {reserva.npedventa
-                                                        ? `${reserva.seriepedventa ? `${reserva.seriepedventa}-` : ''}${reserva.npedventa}`
-                                                        : '—'}
-                                                </p>
-                                            </div>
-
-                                            <div className="rounded-xl bg-white p-3">
-                                                <p className="text-xs text-gray-500">Metros retenidos</p>
-                                                <p className="font-bold text-gray-900">
-                                                    {metrosReserva.toFixed(2)} m
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 overflow-x-auto">
-                                            <table className="min-w-full text-sm">
-                                                <thead>
-                                                    <tr className="border-b border-gray-200 text-left text-gray-500">
-                                                        <th className="py-2 pr-4">Producto</th>
-                                                        <th className="py-2 pr-4">Descripción</th>
-                                                        <th className="py-2 pr-4">Lote</th>
-                                                        <th className="py-2 pr-4">Metros</th>
-                                                    </tr>
-                                                </thead>
-
-                                                <tbody>
-                                                    {productos.map((producto, index) => (
-                                                        <tr
-                                                            key={`${producto.codprodu}-${producto.lotereservado}-${index}`}
-                                                            className="border-b border-gray-100"
-                                                        >
-                                                            <td className="py-2 pr-4 font-semibold text-gray-900">
-                                                                {producto.codprodu}
-                                                            </td>
-
-                                                            <td className="max-w-sm py-2 pr-4 text-gray-700">
-                                                                {producto.desprodu || '—'}
-                                                            </td>
-
-                                                            <td className="py-2 pr-4 font-semibold text-gray-700">
-                                                                {producto.lotereservado || '—'}
-                                                            </td>
-
-                                                            <td className="py-2 pr-4">
-                                                                {normalizeNumber(producto.stockreservado).toFixed(2)} m
-                                                            </td>
+                                            <div className="mt-4 overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200 text-left text-gray-500">
+                                                            <th className="py-2 pr-4">Producto</th>
+                                                            <th className="py-2 pr-4">Descripción</th>
+                                                            <th className="py-2 pr-4">Lote</th>
+                                                            <th className="py-2 pr-4">Metros</th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                                                    </thead>
+
+                                                    <tbody>
+                                                        {productos.map((producto, index) => (
+                                                            <tr
+                                                                key={`${producto.codprodu}-${producto.lotereservado}-${index}`}
+                                                                className="border-b border-gray-100"
+                                                            >
+                                                                <td className="py-2 pr-4 font-semibold text-gray-900">
+                                                                    {producto.codprodu}
+                                                                </td>
+
+                                                                <td className="max-w-sm py-2 pr-4 text-gray-700">
+                                                                    {producto.desprodu || '—'}
+                                                                </td>
+
+                                                                <td className="py-2 pr-4 font-semibold text-gray-700">
+                                                                    {producto.lotereservado || '—'}
+                                                                </td>
+
+                                                                <td className="py-2 pr-4">
+                                                                    {normalizeNumber(producto.stockreservado).toFixed(2)} m
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </PageShell>
     );

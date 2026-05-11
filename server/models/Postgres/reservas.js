@@ -39,7 +39,10 @@ const normalizeReservaInput = (input = {}) => {
         seriepedventa: String(input.seriepedventa ?? '').trim() || null,
         fechareserva: input.fechareserva,
         fechavencimientoreserva: input.fechavencimientoreserva,
-        npedventa: input.npedventa === '' || input.npedventa === undefined ? null : Number(input.npedventa),
+        npedventa:
+            input.npedventa === '' || input.npedventa === undefined
+                ? null
+                : Number(input.npedventa),
         productos: productos.map((producto) => ({
             codprodu: String(producto.codprodu ?? '').trim().toUpperCase(),
             stockreservado:
@@ -113,6 +116,7 @@ export class ReservasModel {
                 r.idreserva,
                 r.usuario,
                 r.codcliente,
+                c.razclien,
                 r.descripcion,
                 r.fechareserva,
                 r.fechavencimientoreserva,
@@ -135,10 +139,18 @@ export class ReservasModel {
                     '[]'
                 ) AS productos
             FROM reservas r
-            LEFT JOIN productoreservados pr ON pr.idreserva = r.idreserva
-            LEFT JOIN productos p ON UPPER(p.codprodu) = UPPER(pr.codprodu)
-            GROUP BY r.idreserva
-            ORDER BY r.fechavencimientoreserva ASC, r.idreserva DESC;
+            LEFT JOIN clientes c
+                ON TRIM(CAST(c.codclien AS text)) = TRIM(CAST(r.codcliente AS text))
+            LEFT JOIN productoreservados pr
+                ON pr.idreserva = r.idreserva
+            LEFT JOIN productos p
+                ON UPPER(p.codprodu) = UPPER(pr.codprodu)
+            GROUP BY
+                r.idreserva,
+                c.razclien
+            ORDER BY
+                r.fechavencimientoreserva ASC,
+                r.idreserva DESC;
         `);
 
         return rows;
@@ -151,6 +163,7 @@ export class ReservasModel {
                 r.idreserva,
                 r.usuario,
                 r.codcliente,
+                c.razclien,
                 r.descripcion,
                 r.fechareserva,
                 r.fechavencimientoreserva,
@@ -173,10 +186,16 @@ export class ReservasModel {
                     '[]'
                 ) AS productos
             FROM reservas r
-            LEFT JOIN productoreservados pr ON pr.idreserva = r.idreserva
-            LEFT JOIN productos p ON UPPER(p.codprodu) = UPPER(pr.codprodu)
+            LEFT JOIN clientes c
+                ON TRIM(CAST(c.codclien AS text)) = TRIM(CAST(r.codcliente AS text))
+            LEFT JOIN productoreservados pr
+                ON pr.idreserva = r.idreserva
+            LEFT JOIN productos p
+                ON UPPER(p.codprodu) = UPPER(pr.codprodu)
             WHERE r.idreserva = $1
-            GROUP BY r.idreserva;
+            GROUP BY
+                r.idreserva,
+                c.razclien;
             `,
             [idreserva]
         );
@@ -413,6 +432,7 @@ export class ReservasModel {
                 r.idreserva,
                 r.usuario,
                 r.codcliente,
+                c.razclien,
                 r.descripcion,
                 r.fechareserva,
                 r.fechavencimientoreserva,
@@ -423,11 +443,17 @@ export class ReservasModel {
                 pr.stockreservado,
                 pr.lotereservado
             FROM reservas r
-            INNER JOIN productoreservados pr ON pr.idreserva = r.idreserva
-            LEFT JOIN productos p ON UPPER(p.codprodu) = UPPER(pr.codprodu)
+            INNER JOIN productoreservados pr
+                ON pr.idreserva = r.idreserva
+            LEFT JOIN clientes c
+                ON TRIM(CAST(c.codclien AS text)) = TRIM(CAST(r.codcliente AS text))
+            LEFT JOIN productos p
+                ON UPPER(p.codprodu) = UPPER(pr.codprodu)
             WHERE UPPER(pr.codprodu) = UPPER($1)
               AND r.fechavencimientoreserva >= CURRENT_DATE
-            ORDER BY r.fechavencimientoreserva ASC, r.idreserva DESC;
+            ORDER BY
+                r.fechavencimientoreserva ASC,
+                r.idreserva DESC;
             `,
             [codprodu]
         );
@@ -441,7 +467,8 @@ export class ReservasModel {
                 UPPER(pr.codprodu) AS codprodu,
                 COALESCE(SUM(pr.stockreservado), 0) AS stockreservado
             FROM productoreservados pr
-            INNER JOIN reservas r ON r.idreserva = pr.idreserva
+            INNER JOIN reservas r
+                ON r.idreserva = pr.idreserva
             WHERE r.fechavencimientoreserva >= CURRENT_DATE
             GROUP BY UPPER(pr.codprodu);
         `);
@@ -456,11 +483,14 @@ export class ReservasModel {
                 TRIM(pr.lotereservado) AS lotereservado,
                 COALESCE(SUM(pr.stockreservado), 0) AS stockreservado
             FROM productoreservados pr
-            INNER JOIN reservas r ON r.idreserva = pr.idreserva
+            INNER JOIN reservas r
+                ON r.idreserva = pr.idreserva
             WHERE r.fechavencimientoreserva >= CURRENT_DATE
               AND pr.lotereservado IS NOT NULL
               AND TRIM(pr.lotereservado) <> ''
-            GROUP BY UPPER(pr.codprodu), TRIM(pr.lotereservado);
+            GROUP BY
+                UPPER(pr.codprodu),
+                TRIM(pr.lotereservado);
         `);
 
         return rows;
