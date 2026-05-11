@@ -117,7 +117,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 links: [
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                    { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
                     { to: '/fichaTecnica', label: 'Ficha Tecnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
                     { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
                 ]

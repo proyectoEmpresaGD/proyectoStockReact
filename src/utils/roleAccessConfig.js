@@ -20,13 +20,13 @@ export const AVAILABLE_ROUTES = [
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
     { path: '/fichaTecnica', label: 'Ficha Técnica' },
-
+    { path: '/reservasTejido', label: 'Reservas' },
     { path: '/entradas', label: 'Entradas' },
     { path: '/comprobacionExcel', label: 'Validación presupuestos' },
     { path: '/mapa-clientes', label: 'Mapa clientes' },
     { path: '/mapa-españa', label: 'Mapa España' },
     { path: '/analitica-facturacion', label: 'Facturación' },
-
+    { path: '/intrastat', label: 'Intrastat' },
     { path: '/etiquetas', label: 'Etiquetas QUALITY' },
     { path: '/EtiquetasMarke', label: 'Etiqueta fotos' },
     { path: '/estiquetaSinQR', label: 'Etiqueta sin QR' },
@@ -111,6 +111,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/stock',
+            '/reservasTejido',
             '/entradas',
             '/comprobacionExcel',
             '/perfilusuario',
@@ -144,6 +145,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/agenda',
             '/notas',
             '/stock',
+            '/reservasTejido',
             '/fichaTecnica',
             ...DOCUMENT_LABEL_ROUTES,
             '/analitica-facturacion',
@@ -154,7 +156,13 @@ const DEFAULT_ROLE_DEFINITIONS = {
     administrativo: {
         name: 'administrativo',
         permissions: ['analytics.read', 'sales.read'],
-        routes: ['/', '/analitica-facturacion', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/',
+            '/analitica-facturacion',
+            '/perfilusuario',
+            '/fichar',
+            '/rrhh/vacaciones',
+            '/reservasTejido',
+            '/intrastat',]
     }
 };
 
