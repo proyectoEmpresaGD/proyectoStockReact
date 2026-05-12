@@ -39,7 +39,7 @@ export class IntrastatController {
     }
 
     getVentasZebraFillColor() {
-        return 'A3A3A3';
+        return '#B5B5B5';
     }
 
     normalizeFacturaForSort(factura) {
