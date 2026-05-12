@@ -124,6 +124,53 @@ export class IntrastatModel {
         return result;
     }
 
+    static async getFacturasVentaConIvaNoPermitidoByList({ facturasList, codigosPermitidos }) {
+        if (!Array.isArray(facturasList) || facturasList.length === 0) {
+            return [];
+        }
+
+        const condiciones = facturasList.map((_, index) =>
+            `(UPPER(TRIM(a.codserfacventa)) = $${index * 2 + 1}
+          AND TRIM(a.nfacventa) = $${index * 2 + 2})`
+        ).join(' OR ');
+
+        const valores = facturasList.flatMap(factura => [
+            String(factura.codserfacventa).trim().toUpperCase(),
+            String(factura.nfacventa).trim()
+        ]);
+
+        const codigosPermitidosNormalizados = codigosPermitidos.map(codigo =>
+            String(codigo).trim().padStart(2, '0')
+        );
+
+        valores.push(codigosPermitidosNormalizados);
+        const codigosPermitidosIndex = valores.length;
+
+        const query = `
+        SELECT DISTINCT
+            a.codserfacventa,
+            a.nfacventa
+        FROM albventa a
+        JOIN albventa_linea l
+            ON l.nalbventa = a.nalbventa
+        WHERE (${condiciones})
+          AND TRIM(COALESCE(l.codserfacventa, '')) = TRIM(a.codserfacventa)
+          AND TRIM(COALESCE(l.nfacventa, '')) = TRIM(a.nfacventa)
+          AND (
+                l.codiva IS NULL
+                OR TRIM(CAST(l.codiva AS text)) = ''
+                OR LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') <> ALL($${codigosPermitidosIndex}::text[])
+          )
+        ORDER BY
+            a.codserfacventa,
+            a.nfacventa
+    `;
+
+        const { rows } = await pool.query(query, valores);
+
+        return rows;
+    }
+
     static async getFacturasConIvaIncorrectoByList(facturas) {
         if (!facturas.length) return [];
 
