@@ -39,7 +39,7 @@ export class IntrastatController {
     }
 
     getVentasZebraFillColor() {
-        return '#B5B5B5';
+        return 'A3A3A3';
     }
 
     normalizeFacturaForSort(factura) {
@@ -294,33 +294,15 @@ export class IntrastatController {
                 return base !== 0;
             });
 
-            if (CODIVA_KEY && FACTURA_KEY) {
-                const facturasConIva01 = new Set();
+            if (CODIVA_KEY) {
+                const codigosIvaPermitidos = new Set(['16', '04']);
 
-                for (const row of rows) {
+                rows = rows.filter(row => {
                     const codiva = String(row[CODIVA_KEY] || '')
                         .trim()
                         .padStart(2, '0');
 
-                    if (codiva !== '01') continue;
-
-                    const factura = String(row[FACTURA_KEY] || '')
-                        .trim()
-                        .toUpperCase()
-                        .replace(/\s+/g, '');
-
-                    if (factura) {
-                        facturasConIva01.add(factura);
-                    }
-                }
-
-                rows = rows.filter(row => {
-                    const factura = String(row[FACTURA_KEY] || '')
-                        .trim()
-                        .toUpperCase()
-                        .replace(/\s+/g, '');
-
-                    return !facturasConIva01.has(factura);
+                    return codigosIvaPermitidos.has(codiva);
                 });
             }
 
