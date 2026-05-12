@@ -294,17 +294,65 @@ export class IntrastatController {
                 return base !== 0;
             });
 
-            if (CODIVA_KEY) {
-                const codigosIvaPermitidos = new Set(['16', '04']);
-
-                rows = rows.filter(row => {
-                    const codiva = String(row[CODIVA_KEY] || '')
-                        .trim()
-                        .padStart(2, '0');
-
-                    return codigosIvaPermitidos.has(codiva);
+            if (!CODIVA_KEY) {
+                return res.status(400).json({
+                    error: 'No se encontró la columna CODIVA en el Excel.'
                 });
             }
+
+            if (!FACTURA_KEY) {
+                return res.status(400).json({
+                    error: 'No se encontró la columna FACTURA en el Excel.'
+                });
+            }
+
+            const codigosIvaPermitidos = new Set(['04', '16']);
+            const facturasConIvaNoPermitido = new Set();
+
+            const normalizeCodiva = (value) => {
+                const rawValue = String(value ?? '')
+                    .trim()
+                    .replace(',', '.');
+
+                if (!rawValue) return '';
+
+                const numericValue = Number(rawValue);
+
+                if (Number.isFinite(numericValue)) {
+                    return String(Math.trunc(numericValue)).padStart(2, '0');
+                }
+
+                return rawValue.padStart(2, '0');
+            };
+
+            const normalizeFactura = (value) => {
+                return String(value || '')
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, '');
+            };
+
+            for (const row of rows) {
+                const factura = normalizeFactura(row[FACTURA_KEY]);
+                const codiva = normalizeCodiva(row[CODIVA_KEY]);
+
+                if (!factura) continue;
+
+                if (!codigosIvaPermitidos.has(codiva)) {
+                    facturasConIvaNoPermitido.add(factura);
+                }
+            }
+
+            rows = rows.filter(row => {
+                const factura = normalizeFactura(row[FACTURA_KEY]);
+                const codiva = normalizeCodiva(row[CODIVA_KEY]);
+
+                return (
+                    factura &&
+                    codigosIvaPermitidos.has(codiva) &&
+                    !facturasConIvaNoPermitido.has(factura)
+                );
+            });
 
             const facturasMap = new Map();
             const erroresFacturas = [];
@@ -314,10 +362,7 @@ export class IntrastatController {
                 const facturaRaw = row[FACTURA_KEY];
                 if (!facturaRaw) continue;
 
-                const factura = String(facturaRaw)
-                    .trim()
-                    .toUpperCase()
-                    .replace(/\s+/g, '');
+                const factura = normalizeFactura(facturaRaw);
 
                 if (!facturasMap.has(factura)) {
                     facturasMap.set(factura, []);
@@ -434,11 +479,7 @@ export class IntrastatController {
                 const facturaRaw = row[FACTURA_KEY];
                 if (!facturaRaw) continue;
 
-                const factura = String(facturaRaw)
-                    .trim()
-                    .toUpperCase()
-                    .replace(/\s+/g, '');
-
+                const factura = normalizeFactura(facturaRaw);
                 const incotermData = incotermsMap[factura] || {};
 
                 row.CODINCOTERMS = incotermData.codincoterms || '';
