@@ -294,13 +294,33 @@ export class IntrastatController {
                 return base !== 0;
             });
 
-            if (CODIVA_KEY) {
-                rows = rows.filter(row => {
+            if (CODIVA_KEY && FACTURA_KEY) {
+                const facturasConIva01 = new Set();
+
+                for (const row of rows) {
                     const codiva = String(row[CODIVA_KEY] || '')
                         .trim()
                         .padStart(2, '0');
 
-                    return codiva !== '01';
+                    if (codiva !== '01') continue;
+
+                    const factura = String(row[FACTURA_KEY] || '')
+                        .trim()
+                        .toUpperCase()
+                        .replace(/\s+/g, '');
+
+                    if (factura) {
+                        facturasConIva01.add(factura);
+                    }
+                }
+
+                rows = rows.filter(row => {
+                    const factura = String(row[FACTURA_KEY] || '')
+                        .trim()
+                        .toUpperCase()
+                        .replace(/\s+/g, '');
+
+                    return !facturasConIva01.has(factura);
                 });
             }
 
