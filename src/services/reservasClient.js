@@ -68,4 +68,21 @@ export const reservasClient = {
 
         return handleResponse(response);
     },
+
+    getReservasActivasNuevas: async ({ token, afterId }) => {
+        const response = await fetch(
+            `${API_BASE_URL}/api/reservas/activas/nuevas?afterId=${afterId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('No se pudieron cargar las reservas nuevas.');
+        }
+
+        return response.json();
+    },
 };

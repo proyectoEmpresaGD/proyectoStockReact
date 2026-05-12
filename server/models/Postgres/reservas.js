@@ -461,6 +461,53 @@ export class ReservasModel {
         return rows;
     }
 
+    static async getReservasActivasNuevas({ afterId = 0 }) {
+        const { rows } = await pool.query(
+            `
+        SELECT
+            r.idreserva,
+            r.usuario,
+            r.codcliente,
+            c.razclien,
+            r.descripcion,
+            r.fechareserva,
+            r.fechavencimientoreserva,
+            r.seriepedventa,
+            r.npedventa,
+            true AS activa,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'codprodu', pr.codprodu,
+                        'desprodu', p.desprodu,
+                        'stockreservado', pr.stockreservado,
+                        'lotereservado', pr.lotereservado
+                    )
+                    ORDER BY pr.codprodu, pr.lotereservado
+                ) FILTER (WHERE pr.codprodu IS NOT NULL),
+                '[]'
+            ) AS productos
+        FROM reservas r
+        LEFT JOIN clientes c
+            ON TRIM(CAST(c.codclien AS text)) = TRIM(CAST(r.codcliente AS text))
+        LEFT JOIN productoreservados pr
+            ON pr.idreserva = r.idreserva
+        LEFT JOIN productos p
+            ON UPPER(p.codprodu) = UPPER(pr.codprodu)
+        WHERE r.fechavencimientoreserva >= CURRENT_DATE
+          AND r.idreserva > $1
+        GROUP BY
+            r.idreserva,
+            c.razclien
+        ORDER BY
+            r.idreserva ASC;
+        `,
+            [afterId]
+        );
+
+        return rows;
+    }
+
     static async getStockReservadoActivoByProducto() {
         const { rows } = await pool.query(`
             SELECT

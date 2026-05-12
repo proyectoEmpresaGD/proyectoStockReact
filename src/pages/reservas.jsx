@@ -6,6 +6,7 @@ import ClientSearchBar from '../components/clientes/SearchBarClients.jsx';
 import ProductSearchBar from '../components/productos/SearchBar.jsx';
 
 const SEARCH_FETCH_LIMIT = 200;
+const RESERVAS_NEW_REFRESH_INTERVAL_MS = 1000;
 
 const emptyProductRequest = {
     codprodu: '',
@@ -49,368 +50,6 @@ const getUserLabel = (user) => {
     );
 };
 
-const handlePrintReserva = (reserva) => {
-    const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
-    const activa = isReservaActiva(reserva);
-
-    const metrosReserva = productos.reduce(
-        (total, producto) => total + normalizeNumber(producto.stockreservado),
-        0
-    );
-
-    const pedidoVenta = reserva.npedventa
-        ? `${reserva.seriepedventa ? `${reserva.seriepedventa}-` : ''}${reserva.npedventa}`
-        : '—';
-
-    const clienteLabel =
-        reserva.razclien ||
-        reserva.razcliente ||
-        reserva.nombrecliente ||
-        reserva.codcliente ||
-        '—';
-
-    const clienteCodigo = reserva.codcliente
-        ? `<span class="field-extra">Código cliente: ${reserva.codcliente}</span>`
-        : '';
-
-    const productosRows = productos
-        .map(
-            (producto) => `
-                <tr>
-                    <td>${producto.codprodu || '—'}</td>
-                    <td>${producto.desprodu || '—'}</td>
-                    <td>${producto.lotereservado || '—'}</td>
-                    <td class="number">${normalizeNumber(producto.stockreservado).toFixed(2)} m</td>
-                </tr>
-            `
-        )
-        .join('');
-
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
-
-    if (!printWindow) {
-        setError('No se pudo abrir la ventana de impresión. Revisa el bloqueo de ventanas emergentes.');
-        return;
-    }
-
-    printWindow.document.write(`
-        <!doctype html>
-        <html lang="es">
-            <head>
-                <meta charset="utf-8" />
-                <title>Reserva ${reserva.idreserva}</title>
-                <style>
-                    * {
-                        box-sizing: border-box;
-                    }
-
-                    body {
-                        margin: 0;
-                        padding: 32px;
-                        font-family: Arial, Helvetica, sans-serif;
-                        color: #111827;
-                        background: #ffffff;
-                    }
-
-                    .document {
-                        max-width: 900px;
-                        margin: 0 auto;
-                    }
-
-                    .header {
-                        display: flex;
-                        justify-content: space-between;
-                        gap: 24px;
-                        border-bottom: 3px solid #2563eb;
-                        padding-bottom: 18px;
-                        margin-bottom: 24px;
-                    }
-
-                    .title {
-                        margin: 0;
-                        font-size: 28px;
-                        color: #111827;
-                    }
-
-                    .subtitle {
-                        margin: 6px 0 0;
-                        color: #6b7280;
-                        font-size: 14px;
-                    }
-
-                    .status {
-                        display: inline-block;
-                        padding: 8px 14px;
-                        border-radius: 999px;
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: ${activa ? '#047857' : '#b91c1c'};
-                        background: ${activa ? '#d1fae5' : '#fee2e2'};
-                    }
-
-                    .section {
-                        border: 1px solid #e5e7eb;
-                        border-radius: 14px;
-                        padding: 18px;
-                        margin-bottom: 18px;
-                    }
-
-                    .section-title {
-                        margin: 0 0 14px;
-                        font-size: 17px;
-                        color: #111827;
-                    }
-
-                    .grid {
-                        display: grid;
-                        grid-template-columns: repeat(2, minmax(0, 1fr));
-                        gap: 12px 24px;
-                    }
-
-                    .field-label {
-                        display: block;
-                        color: #6b7280;
-                        font-size: 12px;
-                        margin-bottom: 3px;
-                    }
-
-                    .field-value {
-                        font-size: 15px;
-                        font-weight: 700;
-                    }
-
-                    .field-extra {
-                        display: block;
-                        margin-top: 3px;
-                        color: #6b7280;
-                        font-size: 12px;
-                        font-weight: 400;
-                    }
-
-                    .description {
-                        margin-top: 14px;
-                        padding: 12px;
-                        border-radius: 10px;
-                        background: #f9fafb;
-                        color: #374151;
-                        line-height: 1.5;
-                    }
-
-                    table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-top: 8px;
-                        font-size: 14px;
-                    }
-
-                    th {
-                        text-align: left;
-                        background: #f3f4f6;
-                        color: #374151;
-                        padding: 10px;
-                        border-bottom: 1px solid #d1d5db;
-                    }
-
-                    td {
-                        padding: 10px;
-                        border-bottom: 1px solid #e5e7eb;
-                        vertical-align: top;
-                    }
-
-                    .number {
-                        text-align: right;
-                        font-weight: 700;
-                    }
-
-                    .total-box {
-                        display: flex;
-                        justify-content: flex-end;
-                        margin-top: 16px;
-                    }
-
-                    .total {
-                        min-width: 230px;
-                        border-radius: 12px;
-                        background: #eff6ff;
-                        padding: 14px;
-                        text-align: right;
-                    }
-
-                    .total-label {
-                        color: #1d4ed8;
-                        font-size: 13px;
-                        font-weight: 700;
-                    }
-
-                    .total-value {
-                        margin-top: 4px;
-                        font-size: 24px;
-                        font-weight: 800;
-                        color: #1e40af;
-                    }
-
-                    .footer {
-                        margin-top: 32px;
-                        display: grid;
-                        grid-template-columns: repeat(2, minmax(0, 1fr));
-                        gap: 32px;
-                    }
-
-                    .signature {
-                        padding-top: 42px;
-                        border-top: 1px solid #9ca3af;
-                        color: #6b7280;
-                        font-size: 13px;
-                        text-align: center;
-                    }
-
-                    .print-actions {
-                        margin-bottom: 24px;
-                        text-align: right;
-                    }
-
-                    .print-button {
-                        border: 0;
-                        border-radius: 10px;
-                        background: #2563eb;
-                        color: white;
-                        padding: 10px 16px;
-                        font-size: 14px;
-                        font-weight: 700;
-                        cursor: pointer;
-                    }
-
-                    @media print {
-                        body {
-                            padding: 0;
-                        }
-
-                        .print-actions {
-                            display: none;
-                        }
-
-                        .document {
-                            max-width: none;
-                        }
-
-                        .section {
-                            break-inside: avoid;
-                        }
-                    }
-                </style>
-            </head>
-
-            <body>
-                <div class="document">
-                    <div class="print-actions">
-                        <button class="print-button" onclick="window.print()">Imprimir reserva</button>
-                    </div>
-
-                    <div class="header">
-                        <div>
-                            <h1 class="title">Reserva de tejido #${reserva.idreserva}</h1>
-                            <p class="subtitle">Documento generado desde la App Stock</p>
-                        </div>
-
-                        <div>
-                            <span class="status">${activa ? 'Reserva activa' : 'Reserva vencida'}</span>
-                        </div>
-                    </div>
-
-                    <div class="section">
-                        <h2 class="section-title">Datos de la reserva</h2>
-
-                        <div class="grid">
-                            <div>
-                                <span class="field-label">Cliente</span>
-                                <span class="field-value">
-                                    ${clienteLabel}
-                                    ${clienteCodigo}
-                                </span>
-                            </div>
-
-                            <div>
-                                <span class="field-label">Usuario</span>
-                                <span class="field-value">${reserva.usuario || '—'}</span>
-                            </div>
-
-                            <div>
-                                <span class="field-label">Fecha reserva</span>
-                                <span class="field-value">${formatDate(reserva.fechareserva)}</span>
-                            </div>
-
-                            <div>
-                                <span class="field-label">Fecha vencimiento</span>
-                                <span class="field-value">${formatDate(reserva.fechavencimientoreserva)}</span>
-                            </div>
-
-                            <div>
-                                <span class="field-label">Pedido venta</span>
-                                <span class="field-value">${pedidoVenta}</span>
-                            </div>
-
-                            <div>
-                                <span class="field-label">Estado</span>
-                                <span class="field-value">${activa ? 'Activa' : 'Vencida'}</span>
-                            </div>
-                        </div>
-
-                        ${reserva.descripcion
-            ? `<div class="description"><strong>Observaciones:</strong><br />${reserva.descripcion}</div>`
-            : ''
-        }
-                    </div>
-
-                    <div class="section">
-                        <h2 class="section-title">Productos reservados</h2>
-
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th>Descripción</th>
-                                    <th>Lote</th>
-                                    <th class="number">Metros</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                ${productosRows ||
-        `
-                                        <tr>
-                                            <td colspan="4">No hay productos asociados a esta reserva.</td>
-                                        </tr>
-                                    `
-        }
-                            </tbody>
-                        </table>
-
-                        <div class="total-box">
-                            <div class="total">
-                                <div class="total-label">Metros retenidos</div>
-                                <div class="total-value">${metrosReserva.toFixed(2)} m</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="footer">
-                        <div class="signature">Firma almacén</div>
-                        <div class="signature">Firma responsable</div>
-                    </div>
-                </div>
-
-                <script>
-                    window.onload = function () {
-                        window.focus();
-                    };
-                </script>
-            </body>
-        </html>
-    `);
-
-    printWindow.document.close();
-};
-
 const formatDate = (value) => {
     if (!value) return '—';
 
@@ -441,6 +80,25 @@ const isReservaActiva = (reserva) => {
 const normalizeNumber = (value) => {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
+};
+
+const escapeHtml = (value) => {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+};
+
+const getClienteLabel = (reserva) => {
+    return (
+        reserva?.razclien ||
+        reserva?.razcliente ||
+        reserva?.nombrecliente ||
+        reserva?.codcliente ||
+        '—'
+    );
 };
 
 const getSelectedLotsTotal = (selectedLots = []) => {
@@ -571,7 +229,14 @@ function ReservasTejido() {
 
     const productSuggestAbortRef = useRef({});
 
-    const loadReservas = async () => {
+    const lastReservaId = useMemo(() => {
+        return reservas.reduce((maxId, reserva) => {
+            const idreserva = Number(reserva.idreserva || 0);
+            return idreserva > maxId ? idreserva : maxId;
+        }, 0);
+    }, [reservas]);
+
+    const loadReservas = useCallback(async () => {
         if (!token) return;
 
         try {
@@ -586,12 +251,62 @@ function ReservasTejido() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [token]);
+
+    const loadReservasActivasNuevas = useCallback(async () => {
+        if (!token || lastReservaId <= 0) return;
+
+        try {
+            const nuevasReservas = await reservasClient.getReservasActivasNuevas({
+                token,
+                afterId: lastReservaId,
+            });
+
+            if (!Array.isArray(nuevasReservas) || nuevasReservas.length === 0) return;
+
+            setReservas((prevReservas) => {
+                const existingIds = new Set(
+                    prevReservas.map((reserva) => Number(reserva.idreserva))
+                );
+
+                const reservasSinDuplicados = nuevasReservas.filter(
+                    (reserva) => !existingIds.has(Number(reserva.idreserva))
+                );
+
+                if (reservasSinDuplicados.length === 0) {
+                    return prevReservas;
+                }
+
+                return [...reservasSinDuplicados, ...prevReservas];
+            });
+        } catch (err) {
+            console.error('No se pudieron cargar reservas activas nuevas:', err);
+        }
+    }, [token, lastReservaId]);
 
     useEffect(() => {
         loadReservas();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token]);
+    }, [loadReservas]);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            if (!document.hidden) {
+                loadReservasActivasNuevas();
+            }
+        }, RESERVAS_NEW_REFRESH_INTERVAL_MS);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [loadReservasActivasNuevas]);
+
+    useEffect(() => {
+        return () => {
+            Object.values(productSuggestAbortRef.current).forEach((controller) => {
+                controller?.abort?.();
+            });
+        };
+    }, []);
 
     const resetForm = () => {
         setEditingId(null);
@@ -647,14 +362,6 @@ function ReservasTejido() {
             .split(' ')
             .filter(Boolean)
             .every((piece) => haystack.includes(piece));
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            Object.values(productSuggestAbortRef.current).forEach((controller) => {
-                controller?.abort?.();
-            });
-        };
     }, []);
 
     const fetchProductSuggestions = useCallback(
@@ -1026,7 +733,7 @@ function ReservasTejido() {
             productos,
         });
 
-        setClientSearchTerm(reserva.codcliente || '');
+        setClientSearchTerm(reserva.razclien || reserva.codcliente || '');
         setClientSuggestions([]);
         setLotesByProductLine({});
 
@@ -1201,6 +908,350 @@ function ReservasTejido() {
         }
     };
 
+    const handlePrintReserva = (reserva) => {
+        const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
+        const activa = isReservaActiva(reserva);
+
+        const metrosReserva = productos.reduce(
+            (total, producto) => total + normalizeNumber(producto.stockreservado),
+            0
+        );
+
+        const pedidoVenta = reserva.npedventa
+            ? `${reserva.seriepedventa ? `${reserva.seriepedventa}-` : ''}${reserva.npedventa}`
+            : '—';
+
+        const clienteLabel = getClienteLabel(reserva);
+
+        const clienteCodigo = reserva.codcliente
+            ? `<span class="field-extra">Código cliente: ${escapeHtml(reserva.codcliente)}</span>`
+            : '';
+
+        const productosRows = productos
+            .map(
+                (producto) => `
+                    <tr>
+                        <td>${escapeHtml(producto.codprodu || '—')}</td>
+                        <td>${escapeHtml(producto.desprodu || '—')}</td>
+                        <td>${escapeHtml(producto.lotereservado || '—')}</td>
+                        <td class="number">${normalizeNumber(producto.stockreservado).toFixed(2)} m</td>
+                    </tr>
+                `
+            )
+            .join('');
+
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+
+        if (!printWindow) {
+            setError('No se pudo abrir la ventana de impresión. Revisa el bloqueo de ventanas emergentes.');
+            return;
+        }
+
+        printWindow.document.write(`
+            <!doctype html>
+            <html lang="es">
+                <head>
+                    <meta charset="utf-8" />
+                    <title>Reserva ${escapeHtml(reserva.idreserva)}</title>
+                    <style>
+                        * { box-sizing: border-box; }
+
+                        body {
+                            margin: 0;
+                            padding: 32px;
+                            font-family: Arial, Helvetica, sans-serif;
+                            color: #111827;
+                            background: #ffffff;
+                        }
+
+                        .document {
+                            max-width: 900px;
+                            margin: 0 auto;
+                        }
+
+                        .header {
+                            display: flex;
+                            justify-content: space-between;
+                            gap: 24px;
+                            border-bottom: 3px solid #2563eb;
+                            padding-bottom: 18px;
+                            margin-bottom: 24px;
+                        }
+
+                        .title {
+                            margin: 0;
+                            font-size: 28px;
+                            color: #111827;
+                        }
+
+                        .subtitle {
+                            margin: 6px 0 0;
+                            color: #6b7280;
+                            font-size: 14px;
+                        }
+
+                        .status {
+                            display: inline-block;
+                            padding: 8px 14px;
+                            border-radius: 999px;
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: ${activa ? '#047857' : '#b91c1c'};
+                            background: ${activa ? '#d1fae5' : '#fee2e2'};
+                        }
+
+                        .section {
+                            border: 1px solid #e5e7eb;
+                            border-radius: 14px;
+                            padding: 18px;
+                            margin-bottom: 18px;
+                        }
+
+                        .section-title {
+                            margin: 0 0 14px;
+                            font-size: 17px;
+                            color: #111827;
+                        }
+
+                        .grid {
+                            display: grid;
+                            grid-template-columns: repeat(2, minmax(0, 1fr));
+                            gap: 12px 24px;
+                        }
+
+                        .field-label {
+                            display: block;
+                            color: #6b7280;
+                            font-size: 12px;
+                            margin-bottom: 3px;
+                        }
+
+                        .field-value {
+                            font-size: 15px;
+                            font-weight: 700;
+                        }
+
+                        .field-extra {
+                            display: block;
+                            margin-top: 3px;
+                            color: #6b7280;
+                            font-size: 12px;
+                            font-weight: 400;
+                        }
+
+                        .description {
+                            margin-top: 14px;
+                            padding: 12px;
+                            border-radius: 10px;
+                            background: #f9fafb;
+                            color: #374151;
+                            line-height: 1.5;
+                        }
+
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 8px;
+                            font-size: 14px;
+                        }
+
+                        th {
+                            text-align: left;
+                            background: #f3f4f6;
+                            color: #374151;
+                            padding: 10px;
+                            border-bottom: 1px solid #d1d5db;
+                        }
+
+                        td {
+                            padding: 10px;
+                            border-bottom: 1px solid #e5e7eb;
+                            vertical-align: top;
+                        }
+
+                        .number {
+                            text-align: right;
+                            font-weight: 700;
+                        }
+
+                        .total-box {
+                            display: flex;
+                            justify-content: flex-end;
+                            margin-top: 16px;
+                        }
+
+                        .total {
+                            min-width: 230px;
+                            border-radius: 12px;
+                            background: #eff6ff;
+                            padding: 14px;
+                            text-align: right;
+                        }
+
+                        .total-label {
+                            color: #1d4ed8;
+                            font-size: 13px;
+                            font-weight: 700;
+                        }
+
+                        .total-value {
+                            margin-top: 4px;
+                            font-size: 24px;
+                            font-weight: 800;
+                            color: #1e40af;
+                        }
+
+                        .footer {
+                            margin-top: 32px;
+                            display: grid;
+                            grid-template-columns: repeat(2, minmax(0, 1fr));
+                            gap: 32px;
+                        }
+
+                        .signature {
+                            padding-top: 42px;
+                            border-top: 1px solid #9ca3af;
+                            color: #6b7280;
+                            font-size: 13px;
+                            text-align: center;
+                        }
+
+                        .print-actions {
+                            margin-bottom: 24px;
+                            text-align: right;
+                        }
+
+                        .print-button {
+                            border: 0;
+                            border-radius: 10px;
+                            background: #2563eb;
+                            color: white;
+                            padding: 10px 16px;
+                            font-size: 14px;
+                            font-weight: 700;
+                            cursor: pointer;
+                        }
+
+                        @media print {
+                            body { padding: 0; }
+                            .print-actions { display: none; }
+                            .document { max-width: none; }
+                            .section { break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+
+                <body>
+                    <div class="document">
+                        <div class="print-actions">
+                            <button class="print-button" onclick="window.print()">Imprimir reserva</button>
+                        </div>
+
+                        <div class="header">
+                            <div>
+                                <h1 class="title">Reserva de tejido #${escapeHtml(reserva.idreserva)}</h1>
+                                <p class="subtitle">Documento generado desde la App Stock</p>
+                            </div>
+
+                            <div>
+                                <span class="status">${activa ? 'Reserva activa' : 'Reserva vencida'}</span>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <h2 class="section-title">Datos de la reserva</h2>
+
+                            <div class="grid">
+                                <div>
+                                    <span class="field-label">Cliente</span>
+                                    <span class="field-value">
+                                        ${escapeHtml(clienteLabel)}
+                                        ${clienteCodigo}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span class="field-label">Usuario</span>
+                                    <span class="field-value">${escapeHtml(reserva.usuario || '—')}</span>
+                                </div>
+
+                                <div>
+                                    <span class="field-label">Fecha reserva</span>
+                                    <span class="field-value">${escapeHtml(formatDate(reserva.fechareserva))}</span>
+                                </div>
+
+                                <div>
+                                    <span class="field-label">Fecha vencimiento</span>
+                                    <span class="field-value">${escapeHtml(formatDate(reserva.fechavencimientoreserva))}</span>
+                                </div>
+
+                                <div>
+                                    <span class="field-label">Pedido venta</span>
+                                    <span class="field-value">${escapeHtml(pedidoVenta)}</span>
+                                </div>
+
+                                <div>
+                                    <span class="field-label">Estado</span>
+                                    <span class="field-value">${activa ? 'Activa' : 'Vencida'}</span>
+                                </div>
+                            </div>
+
+                            ${reserva.descripcion
+                ? `<div class="description"><strong>Observaciones:</strong><br />${escapeHtml(reserva.descripcion)}</div>`
+                : ''
+            }
+                        </div>
+
+                        <div class="section">
+                            <h2 class="section-title">Productos reservados</h2>
+
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Descripción</th>
+                                        <th>Lote</th>
+                                        <th class="number">Metros</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    ${productosRows ||
+            `
+                                            <tr>
+                                                <td colspan="4">No hay productos asociados a esta reserva.</td>
+                                            </tr>
+                                        `
+            }
+                                </tbody>
+                            </table>
+
+                            <div class="total-box">
+                                <div class="total">
+                                    <div class="total-label">Metros retenidos</div>
+                                    <div class="total-value">${metrosReserva.toFixed(2)} m</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="footer">
+                            <div class="signature">Firma almacén</div>
+                            <div class="signature">Firma responsable</div>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function () {
+                            window.focus();
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+    };
+
     const filteredReservas = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
 
@@ -1213,14 +1264,22 @@ function ReservasTejido() {
 
             const productosText = Array.isArray(reserva.productos)
                 ? reserva.productos
-                    .map((producto) => `${producto.codprodu} ${producto.lotereservado || ''}`)
+                    .map((producto) =>
+                        [
+                            producto.codprodu,
+                            producto.desprodu,
+                            producto.lotereservado,
+                            producto.stockreservado,
+                        ]
+                            .join(' ')
+                    )
                     .join(' ')
                 : '';
-
             return [
                 reserva.idreserva,
                 reserva.usuario,
                 reserva.codcliente,
+                reserva.razclien,
                 reserva.descripcion,
                 reserva.seriepedventa,
                 reserva.npedventa,
@@ -1245,6 +1304,8 @@ function ReservasTejido() {
                     idreserva: reserva.idreserva,
                     usuario: reserva.usuario || '—',
                     codcliente: reserva.codcliente || '—',
+                    razclien: reserva.razclien || '',
+                    clienteLabel: getClienteLabel(reserva),
                     descripcionReserva: reserva.descripcion || '',
                     fechareserva: reserva.fechareserva,
                     fechavencimientoreserva: reserva.fechavencimientoreserva,
@@ -1266,6 +1327,7 @@ function ReservasTejido() {
                     item.idreserva,
                     item.usuario,
                     item.codcliente,
+                    item.razclien,
                     item.descripcionReserva,
                     item.codprodu,
                     item.desprodu,
@@ -1344,7 +1406,7 @@ function ReservasTejido() {
                         </p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
                             onClick={() => setActiveView('gestion')}
@@ -1426,8 +1488,8 @@ function ReservasTejido() {
 
                                 {form.codcliente && (
                                     <div className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
-                                        Cliente seleccionado: {form.codcliente}
-                                        {form.razclien ? ` · ${form.razclien}` : ''}
+                                        Cliente seleccionado: {form.razclien || form.codcliente}
+                                        {form.razclien && form.codcliente ? ` · Código: ${form.codcliente}` : ''}
                                     </div>
                                 )}
                             </div>
@@ -1867,6 +1929,7 @@ function ReservasTejido() {
                                             <th className="py-3 pr-4 text-right">Metros</th>
                                             <th className="py-3 pr-4">Vencimiento</th>
                                             <th className="py-3 pr-4">Estado</th>
+                                            <th className="py-3 pr-4">Acciones</th>
                                         </tr>
                                     </thead>
 
@@ -1890,7 +1953,12 @@ function ReservasTejido() {
                                                 </td>
 
                                                 <td className="py-3 pr-4 text-gray-700">
-                                                    {item.codcliente}
+                                                    <span className="font-semibold">{item.clienteLabel}</span>
+                                                    {item.razclien && item.codcliente && (
+                                                        <span className="block text-xs text-gray-500">
+                                                            Código: {item.codcliente}
+                                                        </span>
+                                                    )}
                                                 </td>
 
                                                 <td className="py-3 pr-4 font-semibold text-gray-900">
@@ -1916,6 +1984,25 @@ function ReservasTejido() {
                                                     >
                                                         {item.activa ? 'Activa' : 'Vencida'}
                                                     </span>
+                                                </td>
+
+                                                <td className="py-3 pr-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const reserva = reservas.find(
+                                                                (itemReserva) =>
+                                                                    Number(itemReserva.idreserva) === Number(item.idreserva)
+                                                            );
+
+                                                            if (reserva) {
+                                                                handlePrintReserva(reserva);
+                                                            }
+                                                        }}
+                                                        className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        Imprimir
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1998,8 +2085,16 @@ function ReservasTejido() {
                                                     </div>
 
                                                     <p className="mt-1 text-sm text-gray-600">
-                                                        Cliente: <strong>{reserva.codcliente}</strong> · Usuario:{' '}
-                                                        <strong>{reserva.usuario}</strong>
+                                                        Cliente:{' '}
+                                                        <strong>
+                                                            {getClienteLabel(reserva)}
+                                                        </strong>
+                                                        {reserva.razclien && reserva.codcliente && (
+                                                            <span className="text-gray-500">
+                                                                {' '}· Código: {reserva.codcliente}
+                                                            </span>
+                                                        )}
+                                                        {' '}· Usuario: <strong>{reserva.usuario}</strong>
                                                     </p>
 
                                                     {reserva.descripcion && (

@@ -73,6 +73,20 @@ export class ReservasController {
         }
     }
 
+    async getReservasActivasNuevas(req, res) {
+        try {
+            const afterId = Number(req.query.afterId || 0);
+
+            const reservas = await this.model.getReservasActivasNuevas({ afterId });
+
+            return res.json(reservas);
+        } catch (error) {
+            return res.status(500).json({
+                message: error.message || 'Error obteniendo reservas activas nuevas.',
+            });
+        }
+    }
+
     async deleteReservas(req, res) {
         try {
             const { idreserva } = req.params;

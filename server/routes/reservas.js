@@ -21,6 +21,9 @@ export const createReservasRouter = () => {
     reservasRouter.get('/:idreserva', reservasController.getReservaById.bind(reservasController));
     reservasRouter.patch('/:idreserva', reservasController.updateReservas.bind(reservasController));
     reservasRouter.delete('/:idreserva', reservasController.deleteReservas.bind(reservasController));
-
+    reservasRouter.get(
+        '/activas/nuevas',
+        reservasController.getReservasActivasNuevas.bind(reservasController)
+    );
     return reservasRouter;
 };
