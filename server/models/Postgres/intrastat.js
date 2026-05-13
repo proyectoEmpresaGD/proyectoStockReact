@@ -156,6 +156,11 @@ export class IntrastatModel {
         WHERE (${condiciones})
           AND TRIM(COALESCE(l.codserfacventa, '')) = TRIM(a.codserfacventa)
           AND TRIM(COALESCE(l.nfacventa, '')) = TRIM(a.nfacventa)
+
+          -- Solo comprobar IVA en líneas con importe real
+          AND COALESCE(l.impbruto, 0) <> 0
+
+          -- Si una línea con importe real tiene IVA distinto de 04 o 16, se elimina la factura
           AND (
                 l.codiva IS NULL
                 OR TRIM(CAST(l.codiva AS text)) = ''
