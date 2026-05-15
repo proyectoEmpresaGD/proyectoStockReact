@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs';
 
-const password = 'TAPI05';
+const password = 'CARMEN07';
 const saltRounds = 10;
 
-bcrypt.hash(password, saltRounds, function (err, hash) {
-    if (err) {
-        console.error('Error hashing password:', err);
-    } else {
-        console.log('Hashed password:', hash);
-    }
-});
+const hash = await bcrypt.hash(password, saltRounds);
+
+console.log('Password:', password);
+console.log('Hash:', hash);
+
+const isValid = await bcrypt.compare(password, hash);
+
+console.log('Verificación:', isValid);

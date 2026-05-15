@@ -77,10 +77,12 @@ export class ReservasController {
         try {
             const afterId = Number(req.query.afterId || 0);
 
-            const reservas = await this.model.getReservasActivasNuevas({ afterId });
+            const reservas = await ReservasModel.getReservasActivasNuevas({ afterId });
 
             return res.json(reservas);
         } catch (error) {
+            console.error(error);
+
             return res.status(500).json({
                 message: error.message || 'Error obteniendo reservas activas nuevas.',
             });

@@ -50,6 +50,18 @@ const getUserLabel = (user) => {
     );
 };
 
+const getUserRole = (user) => {
+    return String(
+        user?.role ||
+        user?.rol ||
+        user?.tipo ||
+        user?.perfil ||
+        ''
+    )
+        .trim()
+        .toLowerCase();
+};
+
 const formatDate = (value) => {
     if (!value) return '—';
 
@@ -207,10 +219,12 @@ function ReservasTejido() {
     const { token, user } = useAuthContext();
 
     const currentUserLabel = getUserLabel(user);
+    const currentUserRole = getUserRole(user);
+    const isAlmacenUser = currentUserRole === 'almacen';
 
     const [reservas, setReservas] = useState([]);
     const [form, setForm] = useState({ ...emptyReserva });
-    const [activeView, setActiveView] = useState('gestion');
+    const [activeView, setActiveView] = useState(() => (isAlmacenUser ? 'tejidos' : 'gestion'));
 
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -287,6 +301,12 @@ function ReservasTejido() {
     useEffect(() => {
         loadReservas();
     }, [loadReservas]);
+
+    useEffect(() => {
+        if (isAlmacenUser) {
+            setActiveView('tejidos');
+        }
+    }, [isAlmacenUser]);
 
     useEffect(() => {
         const intervalId = window.setInterval(() => {
@@ -769,17 +789,9 @@ function ReservasTejido() {
     });
 
     const validateForm = () => {
-        if (!form.codcliente.trim()) {
-            return 'Selecciona un cliente.';
-        }
-
-        if (!form.fechareserva) {
-            return 'La fecha de reserva es obligatoria.';
-        }
-
-        if (!form.fechavencimientoreserva) {
-            return 'La fecha de vencimiento es obligatoria.';
-        }
+        if (!form.codcliente.trim()) return 'Selecciona un cliente.';
+        if (!form.fechareserva) return 'La fecha de reserva es obligatoria.';
+        if (!form.fechavencimientoreserva) return 'La fecha de vencimiento es obligatoria.';
 
         const today = getTodayInputDate();
         const maxVencimiento = getMaxReservaVencimientoDate();
@@ -803,9 +815,7 @@ function ReservasTejido() {
                 producto.selectedLots.length > 0
         );
 
-        if (productosValidos.length === 0) {
-            return 'La reserva debe tener al menos un producto.';
-        }
+        if (productosValidos.length === 0) return 'La reserva debe tener al menos un producto.';
 
         for (const producto of productosValidos) {
             if (!producto.codprodu.trim()) {
@@ -830,9 +840,7 @@ function ReservasTejido() {
             }
 
             for (const lote of producto.selectedLots) {
-                if (!lote.codlote) {
-                    return `El producto ${producto.codprodu} tiene una línea sin lote.`;
-                }
+                if (!lote.codlote) return `El producto ${producto.codprodu} tiene una línea sin lote.`;
 
                 if (normalizeNumber(lote.stockreservado) <= 0) {
                     return `El lote ${lote.codlote} debe tener metros mayores que 0.`;
@@ -1218,10 +1226,10 @@ function ReservasTejido() {
                                 <tbody>
                                     ${productosRows ||
             `
-                                            <tr>
-                                                <td colspan="4">No hay productos asociados a esta reserva.</td>
-                                            </tr>
-                                        `
+                                        <tr>
+                                            <td colspan="4">No hay productos asociados a esta reserva.</td>
+                                        </tr>
+                                    `
             }
                                 </tbody>
                             </table>
@@ -1259,7 +1267,6 @@ function ReservasTejido() {
             const activa = isReservaActiva(reserva);
 
             if (showOnlyActive && !activa) return false;
-
             if (!term) return true;
 
             const productosText = Array.isArray(reserva.productos)
@@ -1270,11 +1277,11 @@ function ReservasTejido() {
                             producto.desprodu,
                             producto.lotereservado,
                             producto.stockreservado,
-                        ]
-                            .join(' ')
+                        ].join(' ')
                     )
                     .join(' ')
                 : '';
+
             return [
                 reserva.idreserva,
                 reserva.usuario,
@@ -1320,7 +1327,6 @@ function ReservasTejido() {
             })
             .filter((item) => {
                 if (showOnlyActive && !item.activa) return false;
-
                 if (!term) return true;
 
                 const searchableText = [
@@ -1339,6 +1345,56 @@ function ReservasTejido() {
                     .toLowerCase();
 
                 return searchableText.includes(term);
+            });
+    }, [reservas, searchTerm, showOnlyActive]);
+
+    const tejidosReservados = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+
+        return reservas
+            .flatMap((reserva) => {
+                const productos = Array.isArray(reserva.productos) ? reserva.productos : [];
+                const activa = isReservaActiva(reserva);
+
+                return productos.map((producto, index) => ({
+                    id: `${reserva.idreserva}-${producto.codprodu}-${producto.lotereservado}-${index}`,
+                    idreserva: reserva.idreserva,
+                    activa,
+                    fechareserva: reserva.fechareserva,
+                    fechavencimientoreserva: reserva.fechavencimientoreserva,
+                    codprodu: producto.codprodu || '—',
+                    desprodu: producto.desprodu || '—',
+                    lotereservado: producto.lotereservado || '—',
+                    stockreservado: normalizeNumber(producto.stockreservado),
+                }));
+            })
+            .filter((item) => {
+                if (showOnlyActive && !item.activa) return false;
+                if (!term) return true;
+
+                return [
+                    item.idreserva,
+                    item.codprodu,
+                    item.desprodu,
+                    item.lotereservado,
+                    item.stockreservado,
+                ]
+                    .join(' ')
+                    .toLowerCase()
+                    .includes(term);
+            })
+            .sort((a, b) => {
+                const productoCompare = String(a.codprodu).localeCompare(String(b.codprodu), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                });
+
+                if (productoCompare !== 0) return productoCompare;
+
+                return String(a.lotereservado).localeCompare(String(b.lotereservado), 'es', {
+                    sensitivity: 'base',
+                    numeric: true,
+                });
             });
     }, [reservas, searchTerm, showOnlyActive]);
 
@@ -1398,44 +1454,162 @@ function ReservasTejido() {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <p className="text-sm font-semibold text-gray-700">Vista de reservas</p>
-                        <p className="text-xs text-gray-500">
-                            Cambia entre la gestión completa y una tabla rápida de productos reservados.
-                        </p>
+                {isAlmacenUser && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="text-2xl font-black text-gray-900">
+                                    Tejidos reservados
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    Vista rápida de almacén por producto, lote y metros reservados.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                <input
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                    placeholder="Buscar producto, descripción, lote o reserva..."
+                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                />
+
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={showOnlyActive}
+                                        onChange={(event) => setShowOnlyActive(event.target.checked)}
+                                    />
+                                    Solo activas
+                                </label>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                Cargando tejidos reservados...
+                            </div>
+                        ) : tejidosReservados.length === 0 ? (
+                            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+                                No hay tejidos reservados para mostrar.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                                <table className="min-w-full text-sm">
+                                    <thead className="bg-gray-100">
+                                        <tr className="text-left text-xs font-black uppercase tracking-wide text-gray-600">
+                                            <th className="px-4 py-3">Producto</th>
+                                            <th className="px-4 py-3">Descripción</th>
+                                            <th className="px-4 py-3">Lote</th>
+                                            <th className="px-4 py-3 text-right">Metros reservados</th>
+                                            <th className="px-4 py-3">Vencimiento</th>
+                                            <th className="px-4 py-3">Reserva</th>
+                                            <th className="px-4 py-3">Estado</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                        {tejidosReservados.map((item) => (
+                                            <tr
+                                                key={item.id}
+                                                className={[
+                                                    'hover:bg-gray-50',
+                                                    item.activa ? '' : 'bg-red-50',
+                                                ].join(' ')}
+                                            >
+                                                <td className="whitespace-nowrap px-4 py-4">
+                                                    <span className="text-lg font-black text-gray-900">
+                                                        {item.codprodu}
+                                                    </span>
+                                                </td>
+
+                                                <td className="min-w-[280px] px-4 py-4">
+                                                    <span className="font-semibold text-gray-700">
+                                                        {item.desprodu}
+                                                    </span>
+                                                </td>
+
+                                                <td className="whitespace-nowrap px-4 py-4">
+                                                    <span className="rounded-xl bg-gray-100 px-3 py-2 text-base font-black text-gray-900">
+                                                        {item.lotereservado}
+                                                    </span>
+                                                </td>
+
+                                                <td className="whitespace-nowrap px-4 py-4 text-right">
+                                                    <span className="text-xl font-black text-blue-700">
+                                                        {item.stockreservado.toFixed(2)} m
+                                                    </span>
+                                                </td>
+
+                                                <td className="whitespace-nowrap px-4 py-4 font-semibold text-gray-700">
+                                                    {formatDate(item.fechavencimientoreserva)}
+                                                </td>
+
+                                                <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                                                    #{item.idreserva}
+                                                </td>
+
+                                                <td className="whitespace-nowrap px-4 py-4">
+                                                    <span
+                                                        className={[
+                                                            'rounded-full px-3 py-1 text-xs font-bold',
+                                                            item.activa
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-red-100 text-red-700',
+                                                        ].join(' ')}
+                                                    >
+                                                        {item.activa ? 'Activa' : 'Vencida'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
+                )}
 
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('gestion')}
-                            className={[
-                                'rounded-xl px-4 py-2 text-sm font-bold',
-                                activeView === 'gestion'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-                            ].join(' ')}
-                        >
-                            Gestión
-                        </button>
+                {!isAlmacenUser && (
+                    <div className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-700">Vista de reservas</p>
+                            <p className="text-xs text-gray-500">
+                                Cambia entre la gestión completa y una tabla rápida de productos reservados.
+                            </p>
+                        </div>
 
-                        <button
-                            type="button"
-                            onClick={() => setActiveView('rapida')}
-                            className={[
-                                'rounded-xl px-4 py-2 text-sm font-bold',
-                                activeView === 'rapida'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-                            ].join(' ')}
-                        >
-                            Vista rápida
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setActiveView('gestion')}
+                                className={[
+                                    'rounded-xl px-4 py-2 text-sm font-bold',
+                                    activeView === 'gestion'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                                ].join(' ')}
+                            >
+                                Gestión
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setActiveView('rapida')}
+                                className={[
+                                    'rounded-xl px-4 py-2 text-sm font-bold',
+                                    activeView === 'rapida'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
+                                ].join(' ')}
+                            >
+                                Vista rápida
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {activeView === 'gestion' && (
+                {!isAlmacenUser && activeView === 'gestion' && (
                     <form
                         onSubmit={handleSubmit}
                         className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6"
@@ -1727,18 +1901,14 @@ function ReservasTejido() {
                                                                             {lote.stockdisponible === null ||
                                                                                 lote.stockdisponible === undefined
                                                                                 ? '—'
-                                                                                : `${normalizeNumber(
-                                                                                    lote.stockdisponible
-                                                                                ).toFixed(2)} m`}
+                                                                                : `${normalizeNumber(lote.stockdisponible).toFixed(2)} m`}
                                                                         </td>
 
                                                                         <td className="py-2 pr-4">
                                                                             {lote.stocktotal === null ||
                                                                                 lote.stocktotal === undefined
                                                                                 ? '—'
-                                                                                : `${normalizeNumber(lote.stocktotal).toFixed(
-                                                                                    2
-                                                                                )} m`}
+                                                                                : `${normalizeNumber(lote.stocktotal).toFixed(2)} m`}
                                                                         </td>
 
                                                                         <td className="py-2 pr-4">
@@ -1820,16 +1990,11 @@ function ReservasTejido() {
                                                                             </p>
 
                                                                             <p className="text-sm text-gray-600">
-                                                                                Total:{' '}
-                                                                                {normalizeNumber(lote.stocktotal).toFixed(2)} m
+                                                                                Total: {normalizeNumber(lote.stocktotal).toFixed(2)} m
                                                                             </p>
 
                                                                             <p className="text-sm text-amber-700">
-                                                                                Reservado:{' '}
-                                                                                {normalizeNumber(lote.stockreservado).toFixed(
-                                                                                    2
-                                                                                )}{' '}
-                                                                                m
+                                                                                Reservado: {normalizeNumber(lote.stockreservado).toFixed(2)} m
                                                                             </p>
 
                                                                             <p className="text-sm font-bold text-green-700">
@@ -1876,7 +2041,7 @@ function ReservasTejido() {
                     </form>
                 )}
 
-                {activeView === 'rapida' && (
+                {!isAlmacenUser && activeView === 'rapida' && (
                     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
                         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
@@ -2013,7 +2178,7 @@ function ReservasTejido() {
                     </div>
                 )}
 
-                {activeView === 'gestion' && (
+                {!isAlmacenUser && activeView === 'gestion' && (
                     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
                         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>

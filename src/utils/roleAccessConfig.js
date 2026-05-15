@@ -95,6 +95,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/stock-alerts',
             '/fichaTecnica',
             '/etiquetas',
+            '/reservasTejido',
             '/EtiquetasMarke',
             '/estiquetaSinQR',
             '/EtiquetaPersonalizable',

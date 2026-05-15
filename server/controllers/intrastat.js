@@ -17,7 +17,7 @@ export class IntrastatController {
     getVentasOutputHeaders() {
         return [
             'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)',
-            'CONDICIONES DE ENTRAGA',
+            'CONDICIONES DE ENTREGA',
             'DESCRIPCION_MERCANCIA',
             'CODIGO DE LAS MERCANCÍAS ',
             'UNIDADES SUPLEMENTARIAS',
