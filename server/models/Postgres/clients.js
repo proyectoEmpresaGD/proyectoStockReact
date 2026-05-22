@@ -8,10 +8,36 @@ const pool = new pg.Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
+const buildNormalizedClientSearch = (fieldName) => `
+  regexp_replace(
+    translate(
+      lower(${fieldName}),
+      'áàäâãåéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÅÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ',
+      'aaaaaaeeeeiiiiooooouuuuncaaaaaaeeeeiiiiooooouuuunc'
+    ),
+    '[^a-z0-9]',
+    '',
+    'g'
+  )
+`;
+
+const normalizeClientSearchTerm = (value = '') =>
+    value
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
 export class ClienteModel {
 
     static async getAll({ offset, limit, codpais, codprovi, query, status }) {
-        let queryText = `SELECT * FROM clientes WHERE 1=1`;
+        let queryText = `
+        SELECT * 
+        FROM clientes 
+        WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+    `;
+
         const params = [];
 
         if (codpais) {
@@ -24,9 +50,14 @@ export class ClienteModel {
             params.push(codprovi);
         }
 
-        if (query) { // Agregar filtro por término de búsqueda
-            queryText += ` AND razclien ILIKE $${params.length + 1}`;
-            params.push(`%${query}%`);
+        if (query) {
+            const normalizedQuery = normalizeClientSearchTerm(query);
+
+            queryText += `
+            AND ${buildNormalizedClientSearch('razclien')} LIKE $${params.length + 1}
+        `;
+
+            params.push(`%${normalizedQuery}%`);
         }
 
         if (status) {
@@ -34,7 +65,12 @@ export class ClienteModel {
             params.push(status);
         }
 
-        queryText += ` ORDER BY localidad LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        queryText += `
+        ORDER BY localidad 
+        LIMIT $${params.length + 1} 
+        OFFSET $${params.length + 2}
+    `;
+
         params.push(limit, offset);
 
         try {
@@ -45,7 +81,6 @@ export class ClienteModel {
             throw new Error('Error fetching clients');
         }
     }
-
 
     static async getBillingHistory(codclien) {
         const queryText = `
@@ -66,7 +101,12 @@ export class ClienteModel {
 
 
     static async getCount({ codpais, codprovi, query }) {
-        let queryText = `SELECT COUNT(*) FROM clientes WHERE 1=1`;
+        let queryText = `
+        SELECT COUNT(*) 
+        FROM clientes 
+        WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+    `;
+
         const params = [];
 
         if (codpais) {
@@ -80,8 +120,13 @@ export class ClienteModel {
         }
 
         if (query) {
-            queryText += ` AND razclien ILIKE $${params.length + 1}`;
-            params.push(`%${query}%`);
+            const normalizedQuery = normalizeClientSearchTerm(query);
+
+            queryText += `
+            AND ${buildNormalizedClientSearch('razclien')} LIKE $${params.length + 1}
+        `;
+
+            params.push(`%${normalizedQuery}%`);
         }
 
         try {
@@ -95,20 +140,26 @@ export class ClienteModel {
 
     static async search({ query, limit = 10 }) {
         try {
+            const normalizedQuery = normalizeClientSearchTerm(query);
+
             const searchQuery = `
-                SELECT * FROM clientes
-                WHERE "razclien" ILIKE $1
-                LIMIT $2;
-            `;
-            const values = [`%${query}%`, limit];
+            SELECT * 
+            FROM clientes
+            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+            AND ${buildNormalizedClientSearch('razclien')} LIKE $1
+            ORDER BY razclien ASC
+            LIMIT $2;
+        `;
+
+            const values = [`%${normalizedQuery}%`, limit];
             const { rows } = await pool.query(searchQuery, values);
+
             return rows;
         } catch (error) {
             console.error('Error searching clients:', error);
             throw new Error('Error searching clients');
         }
     }
-
 
     static async getById({ codclien }) {
         const { rows } = await pool.query(`
