@@ -1,11 +1,16 @@
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:1234')
     .replace(/\/$/, '');
 
-export async function uploadIntrastatExcel(file, tipo = 'ventas') {
+export async function uploadIntrastatExcel(
+    file,
+    tipo = 'ventas',
+    mesIntrastat = ''
+) {
     const formData = new FormData();
 
     formData.append('file', file);
     formData.append('tipo', tipo);
+    formData.append('mesIntrastat', mesIntrastat || '');
 
     const response = await fetch(`${API_BASE}/api/intrastat/ventas`, {
         method: 'POST',

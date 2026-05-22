@@ -34,7 +34,34 @@ export class IntrastatController {
             'FACTURA ABONO',
             'IMP. FAC. ABONO',
             'AJUSTE_REDONDEO',
+            'AGREGADA_POR_FACTURA_MES',
             'ERROR_FACTURA',
+        ];
+    }
+
+    getComprasOutputHeaders() {
+        return [
+            'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)',
+            'INCOTERMS',
+            'DESCRIPCION_MERCANCIA',
+            'CODIGO DE LAS MERCANCÍAS ',
+            'Modo de transporte',
+            'PAIS DE ORIGEN (A2)',
+            'MASA NETA EN KG',
+            'PESO MEDIO EN FRA (KG)',
+            'UNIDADES SUPLEMENTARIAS',
+            'IMPORTE FACTURADO',
+            'FACTURA',
+            'FACTURA ABONO',
+            'PORTES',
+            'IMPORTE FACTURA',
+            'KM_ESPANA',
+            'KM_FRONTERA',
+            'ERROR_FACTURA',
+            'AJUSTE_REDONDEO',
+            'AJUSTE_EXTRA',
+            'ERROR_PRODUCTO',
+            'AGREGADA_POR_FACTURA_MES',
         ];
     }
 
@@ -104,7 +131,7 @@ export class IntrastatController {
             'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
                 row['ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)'] ?? '',
 
-            'CONDICIONES DE ENTRAGA':
+            'CONDICIONES DE ENTREGA':
                 row.CODINCOTERMS ?? '',
 
             'DESCRIPCION_MERCANCIA':
@@ -154,6 +181,9 @@ export class IntrastatController {
 
             AJUSTE_REDONDEO:
                 row.AJUSTE_REDONDEO ?? '',
+
+            AGREGADA_POR_FACTURA_MES:
+                row.AGREGADA_POR_FACTURA_MES ?? '',
 
             ERROR_FACTURA:
                 row.ERROR_FACTURA ?? '',
@@ -256,6 +286,7 @@ export class IntrastatController {
     async generarVentas(req, res) {
         try {
             const tipo = req.body.tipo || 'ventas';
+            const mesIntrastat = req.body.mesIntrastat || '';
 
             if (!req.file || !req.file.buffer) {
                 return res.status(400).json({ error: 'No file uploaded' });
@@ -365,8 +396,78 @@ export class IntrastatController {
                 return !facturasConIvaNoPermitidoSet.has(key);
             });
 
+            if (mesIntrastat) {
+                const facturasExistentes = Array.from(facturasMap.keys());
+
+                const lineasFaltantes =
+                    await IntrastatModel.getLineasVentasIntrastatFaltantesPorMes({
+                        mesIntrastat,
+                        facturasExistentes,
+                    });
+
+                for (const linea of lineasFaltantes) {
+                    const facturaKey = `${linea.codserfacventa}-${linea.nfacventa}`
+                        .replace(/\s+/g, '')
+                        .toUpperCase();
+
+                    const facturaVisible =
+                        `${String(linea.codserfacventa).trim()}-${String(linea.nfacventa).trim()}`;
+
+                    const nuevaRow = {
+                        [FACTURA_KEY]: facturaVisible,
+                        FACTURA: facturaVisible,
+
+                        [IMPORTE_FACTURADO_KEY]:
+                            Number(linea.importe_facturado || 0),
+
+                        [IMPORTE_FACTURA_KEY]: 0,
+                        [PORTES_KEY]: 0,
+
+                        CODPRODU:
+                            linea.codprodu || '',
+
+                        'NIF VIES':
+                            linea.nif_vies || '',
+
+                        'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
+                            linea.codpais_cliente || '',
+
+                        'CODIGO DE LAS MERCANCÍAS ':
+                            linea.codintrastat || '',
+
+                        'UNIDADES SUPLEMENTARIAS':
+                            Number(linea.unidades_suplementarias || 0),
+
+                        'MASA NETA EN KG':
+                            Number(linea.masa_neta || 0),
+
+                        'PAIS DE ORIGEN (A2)':
+                            linea.codpaisorigen || '',
+
+                        AGREGADA_POR_FACTURA_MES:
+                            'SI - FACTURA DEL MES NO INCLUIDA EN EXCEL',
+                    };
+
+                    rows.push(nuevaRow);
+
+                    if (!facturasMap.has(facturaKey)) {
+                        facturasMap.set(facturaKey, []);
+
+                        facturasList.push({
+                            codserfacventa: String(linea.codserfacventa).trim(),
+                            nfacventa: String(linea.nfacventa).trim(),
+                        });
+                    }
+
+                    facturasMap.get(facturaKey).push(nuevaRow);
+                }
+            }
+
             const incotermsMap =
                 await IntrastatModel.getIncotermsByFacturaList(facturasList);
+
+            const kilometrosMap =
+                await IntrastatModel.getKilometrosVentaByFacturaList(facturasList);
 
             const codigosMap =
                 await IntrastatModel.getCodigosProductoPorFactura(facturasList);
@@ -380,7 +481,7 @@ export class IntrastatController {
                 for (const row of lineas) {
                     if (cursor < codigos.length) {
                         row.CODPRODU = codigos[cursor];
-                        cursor++;
+                        cursor += 1;
                     } else {
                         row.CODPRODU = '';
                         row.ERROR_PRODUCTO = 'SIN MATCH';
@@ -450,15 +551,11 @@ export class IntrastatController {
             }
 
             for (const row of rows) {
-                const nif = this.normalize(row['NIF VIES']);
-                if (!nif) continue;
+                const facturaRaw = row[FACTURA_KEY];
+                if (!facturaRaw) continue;
 
-                const cliente = await IntrastatModel.getClienteByNif({ nif });
-                if (!cliente) continue;
-
-                const km = await IntrastatModel.getKmByCodclien({
-                    codclien: cliente.codclien,
-                });
+                const factura = normalizeFacturaKey(facturaRaw);
+                const km = kilometrosMap[factura];
 
                 row.KM_ESPANA = km?.kmsedehastacliente || '';
                 row.KM_FRONTERA = km?.kmfronteraalcliente || '';
@@ -492,6 +589,7 @@ export class IntrastatController {
                 if (!('Modo de transporte' in r)) r['Modo de transporte'] = '';
                 if (!('ERROR_FACTURA' in r)) r.ERROR_FACTURA = '';
                 if (!('AJUSTE_REDONDEO' in r)) r.AJUSTE_REDONDEO = '';
+                if (!('AGREGADA_POR_FACTURA_MES' in r)) r.AGREGADA_POR_FACTURA_MES = '';
                 if (!('DESCRIPCION_MERCANCIA' in r)) r.DESCRIPCION_MERCANCIA = '';
                 if (!('CODPRODU' in r)) r.CODPRODU = '';
             });
@@ -521,13 +619,19 @@ export class IntrastatController {
             });
 
         } catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Error generating intrastat' });
+            console.error('ERROR INTRASTAT VENTAS:', error);
+
+            return res.status(500).json({
+                error: error.message || 'Error generating intrastat',
+                detail: error.detail || '',
+                code: error.code || '',
+            });
         }
     }
 
     async generarCompras(req, res, rows) {
         try {
+            const mesIntrastat = req.body.mesIntrastat || '';
 
             const FACTURA_KEY = this.getColumnKey(rows, 'FACTURA');
             let PORTES_KEY = this.getColumnKey(rows, 'PORTES');
@@ -557,7 +661,6 @@ export class IntrastatController {
 
             if (CODPRODU_KEY) {
                 rows = rows.filter(row => {
-
                     const codprodu = String(row[CODPRODU_KEY] || '')
                         .trim()
                         .toUpperCase();
@@ -575,7 +678,6 @@ export class IntrastatController {
             const facturasList = [];
 
             for (const row of rows) {
-
                 const facturaRaw = row[FACTURA_KEY];
                 if (!facturaRaw) continue;
 
@@ -593,6 +695,123 @@ export class IntrastatController {
                 }
 
                 facturasMap.get(key).push(row);
+            }
+
+            const facturasCompraConIvaNoPermitido =
+                await IntrastatModel.getFacturasCompraConIvaNoPermitidoByList({
+                    facturasList,
+                    codigosPermitidos: ['04', '16'],
+                });
+
+            const facturasCompraConIvaNoPermitidoSet = new Set(
+                facturasCompraConIvaNoPermitido.map(factura =>
+                    `${factura.codserfaccompra}-${factura.nfaccompra}`
+                        .replace(/\s+/g, '')
+                        .toUpperCase()
+                )
+            );
+
+            rows = rows.filter(row => {
+                const parsed = this.parseFacturaCompra(row[FACTURA_KEY]);
+
+                if (!parsed || !parsed.codserfaccompra) {
+                    return false;
+                }
+
+                const key = `${parsed.codserfaccompra}-${parsed.nfaccompra}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase();
+
+                return !facturasCompraConIvaNoPermitidoSet.has(key);
+            });
+
+            for (const factura of facturasCompraConIvaNoPermitidoSet) {
+                facturasMap.delete(factura);
+            }
+
+            for (let index = facturasList.length - 1; index >= 0; index -= 1) {
+                const factura = facturasList[index];
+
+                const key = `${factura.codserfaccompra}-${factura.nfaccompra}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase();
+
+                if (facturasCompraConIvaNoPermitidoSet.has(key)) {
+                    facturasList.splice(index, 1);
+                }
+            }
+
+            if (mesIntrastat) {
+                const facturasExistentes = Array.from(facturasMap.keys());
+
+                const lineasFaltantes =
+                    await IntrastatModel.getLineasComprasIntrastatFaltantesPorMes({
+                        mesIntrastat,
+                        facturasExistentes,
+                    });
+
+                for (const linea of lineasFaltantes) {
+                    const facturaKey = `${linea.codserfaccompra}-${linea.nfaccompra}`
+                        .replace(/\s+/g, '')
+                        .toUpperCase();
+
+                    const facturaVisible =
+                        `${String(linea.codserfaccompra).trim()}-${String(linea.nfaccompra).trim()}`;
+
+                    const nuevaRow = {
+                        [FACTURA_KEY]: facturaVisible,
+                        FACTURA: facturaVisible,
+
+                        [IMPORTE_FACTURADO_KEY]:
+                            Number(linea.importe_facturado || 0),
+
+                        [IMPORTE_FACTURA_KEY]: 0,
+                        [PORTES_KEY]: 0,
+
+                        CODPRODU:
+                            linea.codprodu || '',
+
+                        'NIF VIES':
+                            linea.nif_vies || '',
+
+                        'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
+                            linea.codpais_proveedor || '',
+
+                        PAIS:
+                            linea.codpais_proveedor || '',
+
+                        [PAIS_DESTINO_KEY]:
+                            linea.codpais_proveedor || '',
+
+                        'CODIGO DE LAS MERCANCÍAS ':
+                            linea.codintrastat || '',
+
+                        'UNIDADES SUPLEMENTARIAS':
+                            Number(linea.unidades_suplementarias || 0),
+
+                        'MASA NETA EN KG':
+                            Number(linea.masa_neta || 0),
+
+                        'PAIS DE ORIGEN (A2)':
+                            linea.codpaisorigen || '',
+
+                        AGREGADA_POR_FACTURA_MES:
+                            'SI - FACTURA DEL MES NO INCLUIDA EN EXCEL',
+                    };
+
+                    rows.push(nuevaRow);
+
+                    if (!facturasMap.has(facturaKey)) {
+                        facturasMap.set(facturaKey, []);
+
+                        facturasList.push({
+                            codserfaccompra: String(linea.codserfaccompra).trim(),
+                            nfaccompra: String(linea.nfaccompra).trim(),
+                        });
+                    }
+
+                    facturasMap.get(facturaKey).push(nuevaRow);
+                }
             }
 
             const facturasData =
@@ -627,7 +846,6 @@ export class IntrastatController {
                 );
 
             for (const [factura, lineas] of facturasMap.entries()) {
-
                 let codigos = codigosMap[factura] || [];
 
                 codigos = codigos.filter(c =>
@@ -637,14 +855,10 @@ export class IntrastatController {
                 let cursor = 0;
 
                 for (const row of lineas) {
-
                     if (cursor < codigos.length) {
-
                         row.CODPRODU = codigos[cursor];
                         cursor += 1;
-
                     } else {
-
                         row.CODPRODU = '';
                         row.ERROR_PRODUCTO = 'SIN MATCH';
                     }
@@ -661,7 +875,6 @@ export class IntrastatController {
             const erroresFacturas = [];
 
             for (const [factura, lineas] of facturasMap.entries()) {
-
                 if (lineas.length === 0) continue;
 
                 const [serie, numero] = factura.split('-');
@@ -691,12 +904,7 @@ export class IntrastatController {
                 const ajusteExtra =
                     Number(ajustesMap[factura] || 0);
 
-                console.log('AJUSTES MAP', ajustesMap);
-                console.log('FACTURA', factura);
-                console.log('AJUSTE FACTURA', ajustesMap[factura]);
-
                 if (ajusteExtra !== 0 && lineas.length > 0) {
-
                     const ultimaLinea =
                         lineas[lineas.length - 1];
 
@@ -718,7 +926,6 @@ export class IntrastatController {
                 let totalLineas = 0;
 
                 for (const linea of lineas) {
-
                     const base =
                         Number(
                             String(
@@ -760,7 +967,6 @@ export class IntrastatController {
                     Math.abs(diferencia) <= ajusteMaximo
                     && lineas.length > 0
                 ) {
-
                     const ultimaLinea =
                         lineas[lineas.length - 1];
 
@@ -792,7 +998,6 @@ export class IntrastatController {
                 }
 
                 if (diferencia !== 0) {
-
                     erroresFacturas.push({
                         factura,
                         totalExcel: totalLineas,
@@ -808,7 +1013,6 @@ export class IntrastatController {
             }
 
             for (const row of rows) {
-
                 const parsed =
                     this.parseFacturaCompra(
                         row[FACTURA_KEY]
@@ -830,7 +1034,6 @@ export class IntrastatController {
                         : null;
 
                 if (factura) {
-
                     const codpais =
                         factura.codpais
                         || proveedor?.codpais
@@ -838,6 +1041,7 @@ export class IntrastatController {
 
                     row.PAIS = codpais;
                     row[PAIS_DESTINO_KEY] = codpais;
+                    row['ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)'] = codpais;
 
                     const km = kms[factura.codprove];
 
@@ -867,7 +1071,6 @@ export class IntrastatController {
             }
 
             rows.forEach(r => {
-
                 if (!('KM_ESPANA' in r))
                     r.KM_ESPANA = '';
 
@@ -876,6 +1079,9 @@ export class IntrastatController {
 
                 if (!('PAIS DESTINO' in r))
                     r['PAIS DESTINO'] = '';
+
+                if (!('ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)' in r))
+                    r['ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)'] = '';
 
                 if (!('INCOTERMS' in r))
                     r.INCOTERMS = '';
@@ -892,20 +1098,45 @@ export class IntrastatController {
                 if (!('AJUSTE_EXTRA' in r))
                     r.AJUSTE_EXTRA = '';
 
+                if (!('AGREGADA_POR_FACTURA_MES' in r))
+                    r.AGREGADA_POR_FACTURA_MES = '';
+
                 if (!('DESCRIPCION_MERCANCIA' in r))
                     r.DESCRIPCION_MERCANCIA = '';
 
                 if (!('CODPRODU' in r))
                     r.CODPRODU = '';
+
+                if (!('ERROR_PRODUCTO' in r))
+                    r.ERROR_PRODUCTO = '';
+
+                if (!('FACTURA ABONO' in r))
+                    r['FACTURA ABONO'] = '';
+
+                if (!('PESO MEDIO EN FRA (KG)' in r))
+                    r['PESO MEDIO EN FRA (KG)'] = '';
             });
 
-            const headers = Object.keys(rows[0]);
+            const sortedRows = this.sortRowsByFactura(rows);
+            const headers = this.getComprasOutputHeaders();
+
+            const outputRows = sortedRows.map(row => {
+                const outputRow = {};
+
+                for (const header of headers) {
+                    outputRow[header] = row[header] ?? '';
+                }
+
+                return outputRow;
+            });
 
             const newSheet =
                 XLSX.utils.json_to_sheet(
-                    rows,
+                    outputRows,
                     { header: headers }
                 );
+
+            this.applyVentasFacturaZebraStyle(newSheet, outputRows, headers);
 
             const newWorkbook =
                 XLSX.utils.book_new();
@@ -937,11 +1168,12 @@ export class IntrastatController {
             });
 
         } catch (error) {
-
-            console.error(error);
+            console.error('ERROR COMPRAS INTRASTAT:', error);
 
             return res.status(500).json({
-                error: 'Error compras intrastat'
+                error: error.message || 'Error compras intrastat',
+                detail: error.detail || '',
+                code: error.code || '',
             });
         }
     }

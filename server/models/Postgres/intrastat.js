@@ -46,6 +46,60 @@ export class IntrastatModel {
         return rows[0] || null;
     }
 
+    static async getKilometrosVentaByFacturaList(facturasList) {
+        if (!Array.isArray(facturasList) || !facturasList.length) return {};
+
+        const condiciones = facturasList.map((_, i) =>
+            `(UPPER(TRIM(CAST(a.codserfacventa AS text))) = $${i * 2 + 1}
+        AND TRIM(CAST(a.nfacventa AS text)) = $${i * 2 + 2})`
+        ).join(' OR ');
+
+        const valores = facturasList.flatMap(factura => [
+            String(factura.codserfacventa).trim().toUpperCase(),
+            String(factura.nfacventa).trim()
+        ]);
+
+        const query = `
+        SELECT
+            a.codserfacventa,
+            a.nfacventa,
+            COALESCE(MAX(NULLIF(TRIM(CAST(a.razentre AS text)), '')), '') AS razentre,
+            COALESCE(MAX(NULLIF(TRIM(CAST(cli.codclien AS text)), '')), '') AS codclien,
+            COALESCE(MAX(NULLIF(TRIM(CAST(cli.razclien AS text)), '')), '') AS razclien,
+            COALESCE(MAX(NULLIF(TRIM(CAST(cmp.kmsedehastacliente AS text)), '')), '') AS kmsedehastacliente,
+            COALESCE(MAX(NULLIF(TRIM(CAST(cmp.kmfronteraalcliente AS text)), '')), '') AS kmfronteraalcliente
+        FROM albventa a
+        LEFT JOIN clientes cli
+            ON UPPER(TRIM(CAST(cli.razclien AS text))) = UPPER(TRIM(CAST(a.razentre AS text)))
+        LEFT JOIN clientescmpadi cmp
+            ON UPPER(TRIM(CAST(cmp.codclien AS text))) = UPPER(TRIM(CAST(cli.codclien AS text)))
+        WHERE ${condiciones}
+        GROUP BY
+            a.codserfacventa,
+            a.nfacventa
+    `;
+
+        const { rows } = await pool.query(query, valores);
+
+        const result = {};
+
+        for (const row of rows) {
+            const key = `${row.codserfacventa}-${row.nfacventa}`
+                .replace(/\s+/g, '')
+                .toUpperCase();
+
+            result[key] = {
+                razentre: row.razentre || '',
+                codclien: row.codclien || '',
+                razclien: row.razclien || '',
+                kmsedehastacliente: row.kmsedehastacliente || '',
+                kmfronteraalcliente: row.kmfronteraalcliente || '',
+            };
+        }
+
+        return result;
+    }
+
     static async getPortesByFactura({ codserfacventa, nfacventa }) {
         const query = `
             SELECT impportes
@@ -81,7 +135,164 @@ export class IntrastatModel {
         return Number(rows[0]?.impbase || 0);
     }
 
+    static async getLineasVentasIntrastatFaltantesPorMes({
+        mesIntrastat,
+        facturasExistentes = [],
+    }) {
+        if (!mesIntrastat) return [];
 
+        const [year, month] = String(mesIntrastat).split('-').map(Number);
+
+        if (!year || !month) return [];
+
+        const fechaInicioSql = `${year}-${String(month).padStart(2, '0')}-01`;
+        const fechaFinDate = new Date(year, month, 1);
+        const fechaFinSql = fechaFinDate.toISOString().slice(0, 10);
+
+        const valores = [fechaInicioSql, fechaFinSql];
+
+        const facturasExistentesNormalizadas = facturasExistentes
+            .filter(Boolean)
+            .map(factura =>
+                String(factura)
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, '')
+            );
+
+        let filtroFacturasExistentes = '';
+
+        if (facturasExistentesNormalizadas.length > 0) {
+            valores.push(facturasExistentesNormalizadas);
+
+            filtroFacturasExistentes = `
+            AND (
+                UPPER(
+                    REPLACE(
+                        TRIM(CAST(a.codserfacventa AS text)) || '-' || TRIM(CAST(a.nfacventa AS text)),
+                        ' ',
+                        ''
+                    )
+                ) <> ALL($${valores.length}::text[])
+            )
+        `;
+        }
+
+        const query = `
+        WITH lineas AS (
+            SELECT
+                a.codserfacventa,
+                a.nfacventa,
+                a.nalbventa,
+                a.fecha AS fecha_albaran,
+
+                f.fecconta AS fecha_factura,
+                f.codclien,
+
+                a.razentre,
+
+                l.linea,
+                l.codprodu,
+                l.codiva,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS importe_facturado,
+
+                COALESCE(CAST(c.nif AS text), '') AS nif_vies,
+                COALESCE(CAST(c.codpais AS text), '') AS codpais_cliente,
+
+                COALESCE(CAST(p.codintrastat AS text), '') AS codintrastat,
+                COALESCE(CAST(p.codpaisorigen AS text), '') AS codpaisorigen,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.cantidad AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS unidades_suplementarias,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(p.kilos AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS kilos_producto
+            FROM facventa f
+            JOIN albventa a
+                ON UPPER(TRIM(CAST(a.codserfacventa AS text))) = UPPER(TRIM(CAST(f.codserfacventa AS text)))
+               AND TRIM(CAST(a.nfacventa AS text)) = TRIM(CAST(f.nfacventa AS text))
+
+            JOIN albventa_linea l
+                ON l.nalbventa = a.nalbventa
+               AND UPPER(TRIM(CAST(l.codserfacventa AS text))) = UPPER(TRIM(CAST(a.codserfacventa AS text)))
+               AND TRIM(CAST(l.nfacventa AS text)) = TRIM(CAST(a.nfacventa AS text))
+
+            LEFT JOIN clientes c
+                ON UPPER(TRIM(CAST(c.codclien AS text))) = UPPER(TRIM(CAST(f.codclien AS text)))
+
+            LEFT JOIN productos p
+                ON UPPER(TRIM(CAST(p.codprodu AS text))) = UPPER(TRIM(CAST(l.codprodu AS text)))
+
+            WHERE f.fecconta >= $1
+              AND f.fecconta < $2
+
+              AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = '04'
+
+              AND COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+              ) <> 0
+
+              ${filtroFacturasExistentes}
+        )
+        SELECT
+            *,
+            ROUND(
+                kilos_producto * unidades_suplementarias,
+                3
+            ) AS masa_neta
+        FROM lineas
+        ORDER BY
+            codserfacventa,
+            nfacventa,
+            nalbventa,
+            linea
+    `;
+
+        const { rows } = await pool.query(query, valores);
+
+        return rows;
+    }
 
     static async getDescripcionByCodproduList(codproduList) {
         if (!codproduList.length) return {};
@@ -97,10 +308,10 @@ export class IntrastatModel {
         const placeholders = unique.map((_, i) => `$${i + 1}`).join(',');
 
         const query = `
-            SELECT codprodu, codtipo
-            FROM productos
-            WHERE UPPER(TRIM(codprodu)) IN (${placeholders})
-        `;
+        SELECT codprodu, codtipo, codmarca
+        FROM productos
+        WHERE UPPER(TRIM(codprodu)) IN (${placeholders})
+    `;
 
         const { rows } = await pool.query(query, unique);
 
@@ -117,6 +328,12 @@ export class IntrastatModel {
         for (const row of rows) {
             const cod = String(row.codprodu).trim().toUpperCase();
             const tipo = String(row.codtipo || '').trim();
+            const marca = String(row.codmarca || '').trim().toUpperCase();
+
+            if (marca === 'CON') {
+                result[cod] = 'ARTICULO PARA DECORACION';
+                continue;
+            }
 
             result[cod] = mapCodtipoToDescripcion[tipo] || '';
         }
@@ -539,6 +756,215 @@ export class IntrastatModel {
         }
 
         return map;
+    }
+
+    static async getFacturasCompraConIvaNoPermitidoByList({
+        facturasList,
+        codigosPermitidos,
+    }) {
+        if (!Array.isArray(facturasList) || facturasList.length === 0) {
+            return [];
+        }
+
+        const condiciones = facturasList.map((_, index) =>
+            `(UPPER(TRIM(CAST(a.codserfaccompra AS text))) = $${index * 2 + 1}
+          AND TRIM(CAST(a.nfaccompra AS text)) = $${index * 2 + 2})`
+        ).join(' OR ');
+
+        const valores = facturasList.flatMap(factura => [
+            String(factura.codserfaccompra).trim().toUpperCase(),
+            String(factura.nfaccompra).trim()
+        ]);
+
+        const codigosPermitidosNormalizados = codigosPermitidos.map(codigo =>
+            String(codigo).trim().padStart(2, '0')
+        );
+
+        valores.push(codigosPermitidosNormalizados);
+        const codigosPermitidosIndex = valores.length;
+
+        const query = `
+        SELECT DISTINCT
+            a.codserfaccompra,
+            a.nfaccompra
+        FROM albcompra a
+        JOIN albcompra_linea l
+            ON l.nalbcompra = a.nalbcompra
+        WHERE (${condiciones})
+          AND TRIM(COALESCE(CAST(l.codserfaccompra AS text), '')) = TRIM(CAST(a.codserfaccompra AS text))
+          AND TRIM(COALESCE(CAST(l.nfaccompra AS text), '')) = TRIM(CAST(a.nfaccompra AS text))
+          AND COALESCE(l.impbruto, 0) <> 0
+          AND (
+                l.codiva IS NULL
+                OR TRIM(CAST(l.codiva AS text)) = ''
+                OR LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') <> ALL($${codigosPermitidosIndex}::text[])
+          )
+        ORDER BY
+            a.codserfaccompra,
+            a.nfaccompra
+    `;
+
+        const { rows } = await pool.query(query, valores);
+
+        return rows;
+    }
+
+    static async getLineasComprasIntrastatFaltantesPorMes({
+        mesIntrastat,
+        facturasExistentes = [],
+    }) {
+        if (!mesIntrastat) return [];
+
+        const [year, month] = String(mesIntrastat).split('-').map(Number);
+
+        if (!year || !month) return [];
+
+        const fechaInicioSql = `${year}-${String(month).padStart(2, '0')}-01`;
+        const fechaFinDate = new Date(year, month, 1);
+        const fechaFinSql = fechaFinDate.toISOString().slice(0, 10);
+
+        const valores = [fechaInicioSql, fechaFinSql];
+
+        const facturasExistentesNormalizadas = facturasExistentes
+            .filter(Boolean)
+            .map(factura =>
+                String(factura)
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, '')
+            );
+
+        let filtroFacturasExistentes = '';
+
+        if (facturasExistentesNormalizadas.length > 0) {
+            valores.push(facturasExistentesNormalizadas);
+
+            filtroFacturasExistentes = `
+            AND (
+                UPPER(
+                    REPLACE(
+                        TRIM(CAST(a.codserfaccompra AS text)) || '-' || TRIM(CAST(a.nfaccompra AS text)),
+                        ' ',
+                        ''
+                    )
+                ) <> ALL($${valores.length}::text[])
+            )
+        `;
+        }
+
+        const query = `
+        WITH lineas AS (
+            SELECT
+                a.codserfaccompra,
+                a.nfaccompra,
+                a.nalbcompra,
+
+                f.fecconta AS fecha_factura,
+                f.codprove,
+
+                l.linea,
+                l.codprodu,
+                l.codiva,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS importe_facturado,
+
+                COALESCE(CAST(pv.nif AS text), '') AS nif_vies,
+                COALESCE(CAST(pv.codpais AS text), '') AS codpais_proveedor,
+
+                COALESCE(CAST(pr.codintrastat AS text), '') AS codintrastat,
+                COALESCE(CAST(pr.codpaisorigen AS text), '') AS codpaisorigen,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.cantidad AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS unidades_suplementarias,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(pr.kilos AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS kilos_producto
+            FROM faccompra f
+            JOIN albcompra a
+                ON UPPER(TRIM(CAST(a.codserfaccompra AS text))) = UPPER(TRIM(CAST(f.codserfaccompra AS text)))
+               AND TRIM(CAST(a.nfaccompra AS text)) = TRIM(CAST(f.nfaccompra AS text))
+
+            JOIN albcompra_linea l
+                ON l.nalbcompra = a.nalbcompra
+               AND UPPER(TRIM(CAST(l.codserfaccompra AS text))) = UPPER(TRIM(CAST(a.codserfaccompra AS text)))
+               AND TRIM(CAST(l.nfaccompra AS text)) = TRIM(CAST(a.nfaccompra AS text))
+
+            LEFT JOIN proveedores pv
+                ON UPPER(TRIM(CAST(pv.codprove AS text))) = UPPER(TRIM(CAST(f.codprove AS text)))
+
+            LEFT JOIN productos pr
+                ON UPPER(TRIM(CAST(pr.codprodu AS text))) = UPPER(TRIM(CAST(l.codprodu AS text)))
+
+            WHERE f.fecconta >= $1
+              AND f.fecconta < $2
+
+              AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = '04'
+
+              AND COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+              ) <> 0
+
+              AND UPPER(TRIM(CAST(COALESCE(l.codprodu, '') AS text))) <> 'PORTES75'
+
+              ${filtroFacturasExistentes}
+        )
+        SELECT
+            *,
+            ROUND(
+                kilos_producto * unidades_suplementarias,
+                3
+            ) AS masa_neta
+        FROM lineas
+        ORDER BY
+            codserfaccompra,
+            nfaccompra,
+            nalbcompra,
+            linea
+    `;
+
+        const { rows } = await pool.query(query, valores);
+
+        return rows;
     }
 
     static async getFacturasCompraConIvaIncorrectoByList(facturas) {

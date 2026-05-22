@@ -242,6 +242,7 @@ function ReservasTejido() {
     const [loadingLotesLine, setLoadingLotesLine] = useState(null);
 
     const productSuggestAbortRef = useRef({});
+    const formReservaRef = useRef(null);
 
     const lastReservaId = useMemo(() => {
         return reservas.reduce((maxId, reserva) => {
@@ -297,6 +298,17 @@ function ReservasTejido() {
             console.error('No se pudieron cargar reservas activas nuevas:', err);
         }
     }, [token, lastReservaId]);
+
+    useEffect(() => {
+        if (!editingId) return;
+
+        window.requestAnimationFrame(() => {
+            formReservaRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        });
+    }, [editingId, activeView]);
 
     useEffect(() => {
         loadReservas();
@@ -766,8 +778,6 @@ function ReservasTejido() {
         });
 
         setProductSearchTerms(nextProductSearchTerms);
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const buildPayload = () => ({
@@ -1611,6 +1621,7 @@ function ReservasTejido() {
 
                 {!isAlmacenUser && activeView === 'gestion' && (
                     <form
+                        ref={formReservaRef}
                         onSubmit={handleSubmit}
                         className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6"
                     >

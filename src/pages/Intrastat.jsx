@@ -8,7 +8,7 @@ function Intrastat() {
     const [facturasIva, setFacturasIva] = useState([]);
     const [loading, setLoading] = useState(false);
     const [tipo, setTipo] = useState('ventas');
-
+    const [mesIntrastat, setMesIntrastat] = useState('');
     const handleGenerar = async () => {
         if (!file) return;
 
@@ -17,7 +17,7 @@ function Intrastat() {
         setFacturasIva([]);
 
         try {
-            const result = await uploadIntrastatExcel(file, tipo);
+            const result = await uploadIntrastatExcel(file, tipo, mesIntrastat);
 
             setFacturasIva(result.facturasIvaIncorrecto || []);
             setErrores(result.errores || []);
@@ -110,6 +110,19 @@ function Intrastat() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <label className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-gray-700">
+                        Mes Intrastat
+                    </span>
+
+                    <input
+                        type="month"
+                        value={mesIntrastat}
+                        onChange={(event) => setMesIntrastat(event.target.value)}
+                        className="rounded border px-3 py-2"
+                        disabled={tipo !== 'ventas'}
+                    />
+                </label>
                 <label className="mb-3 block text-sm font-medium text-slate-700">
                     Archivo Excel
                 </label>
