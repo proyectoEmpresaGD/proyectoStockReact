@@ -12,6 +12,35 @@ export class StockController {
         }
     }
 
+    async getControlStockFilters(req, res) {
+        try {
+            const filters = await StockModel.getControlStockFilters();
+            res.json(filters);
+        } catch (error) {
+            console.error('Error fetching control stock filters:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getControlStock(req, res) {
+        try {
+            const { provider = '', collection = '', productName = '', monthsBack = 12, limit = 500 } = req.query;
+
+            const data = await StockModel.getControlStock({
+                provider,
+                collection,
+                productName,
+                monthsBack,
+                limit,
+            });
+
+            res.json(data);
+        } catch (error) {
+            console.error('Error fetching control stock:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     // ✅ NUEVO: /api/stock/fechas?codes=ARE01299,FLA0001...
     // dentro de StockController
     async getFechas(req, res) {

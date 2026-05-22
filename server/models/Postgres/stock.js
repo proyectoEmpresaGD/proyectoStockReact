@@ -1,5 +1,6 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { FAMILY_NAME_BY_CODE } from '../../constants/familyNames.js';
 
 dotenv.config();
 
@@ -135,6 +136,12 @@ export class StockModel {
             console.error('Error fetching DatCompra data from PostgreSQL:', error.message);
             return new Map();
         }
+    }
+
+    static getFamilyName(codfamilia) {
+        const code = String(codfamilia || '').trim();
+
+        return FAMILY_NAME_BY_CODE[code] || code || '';
     }
 
     /**
@@ -340,6 +347,319 @@ export class StockModel {
         } catch (error) {
             console.error('Error fetching stock:', error);
             throw new Error('Error fetching stock');
+        }
+    }
+
+    static toSafeNumber(value, fallback = 0) {
+        const numberValue = Number(value);
+        return Number.isFinite(numberValue) ? numberValue : fallback;
+    }
+
+    static getControlStockMonthsBack(value) {
+        const months = Number.parseInt(value, 10);
+        if (!Number.isFinite(months)) return 12;
+        return Math.min(Math.max(months, 1), 36);
+    }
+
+    static async getControlStockFilters() {
+        try {
+            const { rows: providers } = await pool.query(`
+            SELECT DISTINCT
+                provider.codprove,
+                COALESCE(proveedores.razprove, provider.codprove) AS nombre_proveedor
+            FROM (
+                SELECT NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') AS codprove
+                FROM albcompra_linea
+                LEFT JOIN faccompra
+                    ON faccompra.ejercicio = albcompra_linea.ejercicio
+                   AND faccompra.canal = albcompra_linea.canal
+                   AND faccompra.codserfaccompra = albcompra_linea.codserfaccompra
+                   AND faccompra.nfaccompra = albcompra_linea.nfaccompra
+                WHERE NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') IS NOT NULL
+            ) provider
+            LEFT JOIN proveedores
+                ON TRIM(proveedores.codprove::text) = provider.codprove
+            ORDER BY nombre_proveedor
+        `);
+
+            const { rows: families } = await pool.query(`
+            SELECT DISTINCT
+                NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia
+            FROM productos
+            WHERE NULLIF(TRIM(productos.codfamil::text), '') IS NOT NULL
+            ORDER BY codfamilia
+        `);
+
+            return {
+                providers: providers.map((row) => ({
+                    value: row.codprove,
+                    label: row.nombre_proveedor,
+                })),
+                collections: families.map((row) => ({
+                    value: row.codfamilia,
+                    label: StockModel.getFamilyName(row.codfamilia),
+                })),
+            };
+        } catch (error) {
+            console.error('Error fetching control stock filters:', {
+                message: error.message,
+                detail: error.detail,
+                code: error.code,
+                position: error.position,
+            });
+
+            throw new Error('Error fetching control stock filters');
+        }
+    }
+
+    static async getControlStock({ provider = '', collection = '', productName = '', monthsBack = 12, limit = 500 }) {
+        const safeMonthsBack = StockModel.getControlStockMonthsBack(monthsBack);
+        const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 500, 1), 2000);
+
+        const filters = [];
+        const params = [safeMonthsBack, safeLimit];
+        let paramIndex = params.length + 1;
+
+        if (provider) {
+            filters.push(`COALESCE(ultimo_proveedor.codprove, '') = $${paramIndex++}`);
+            params.push(String(provider).trim());
+        }
+
+        if (collection) {
+            filters.push(`COALESCE(productos_base.codfamilia, '') = $${paramIndex++}`);
+            params.push(String(collection).trim());
+        }
+
+        if (productName) {
+            const tokens = String(productName)
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+
+            for (const token of tokens) {
+                filters.push(`productos_base.desprodu ILIKE $${paramIndex++}`);
+                params.push(`%${token}%`);
+            }
+        }
+
+        const extraFilters = filters.length ? `AND ${filters.join(' AND ')}` : '';
+
+        try {
+            const { rows } = await pool.query(
+                `
+            WITH ultimo_proveedor AS (
+                SELECT DISTINCT ON (
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+                )
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') AS codprove,
+                    COALESCE(proveedores.razprove, NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '')) AS nombre_proveedor
+                FROM albcompra_linea
+                LEFT JOIN faccompra
+                    ON faccompra.ejercicio = albcompra_linea.ejercicio
+                AND faccompra.canal = albcompra_linea.canal
+                AND faccompra.codserfaccompra = albcompra_linea.codserfaccompra
+                AND faccompra.nfaccompra = albcompra_linea.nfaccompra
+                LEFT JOIN proveedores
+                    ON TRIM(proveedores.codprove::text) = NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '')
+                WHERE NULLIF(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '') IS NOT NULL
+                ORDER BY
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
+                    COALESCE(faccompra.fecha, albcompra_linea.fecha) DESC NULLS LAST
+            ),
+            stock_almacen AS (
+                SELECT
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    SUM(COALESCE(stock.stockactual, 0))::numeric AS stock_stockactual,
+                    SUM(COALESCE(stock.canpenrecib, 0))::numeric AS canpenrecib,
+                    SUM(COALESCE(stock.canpenservir, 0))::numeric AS canpenservir
+                FROM stock
+                WHERE TRIM(COALESCE(stock.codalmac::text, '')) ~ '^0+$'
+                GROUP BY UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+            ),
+            stock_lotes_tipo_101 AS (
+                SELECT
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    SUM(COALESCE(stocklotes.stockactual, 0))::numeric AS stock_lotes_actual
+                FROM stocklotes
+                WHERE TRIM(COALESCE(stocklotes.codalmac::text, '')) ~ '^0+$'
+                GROUP BY UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+            ),
+            productos_base AS (
+                SELECT
+                    productos.codprodu,
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(productos.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    COALESCE(productos.desprodu, '') AS desprodu,
+                    COALESCE(productos.coleccion, '') AS coleccion,
+                    NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia,
+                    COALESCE(productos.codmarca, '') AS codmarca,
+                    COALESCE(TRIM(productos.codtipo::text), '') AS tipo
+                FROM productos
+                WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+                AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+            ),
+            consumo_mensual AS (
+                SELECT
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    DATE_TRUNC('month', COALESCE(faccompra.fecha, albcompra_linea.fecha))::date AS fecha_mes,
+                    SUM(ABS(COALESCE(albcompra_linea.cantidad, 0)))::numeric AS consumo
+                FROM albcompra_linea
+                LEFT JOIN faccompra
+                    ON faccompra.ejercicio = albcompra_linea.ejercicio
+                   AND faccompra.canal = albcompra_linea.canal
+                   AND faccompra.codserfaccompra = albcompra_linea.codserfaccompra
+                   AND faccompra.nfaccompra = albcompra_linea.nfaccompra
+                WHERE NULLIF(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '') IS NOT NULL
+                  AND COALESCE(faccompra.fecha, albcompra_linea.fecha) >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
+                  AND COALESCE(faccompra.fecha, albcompra_linea.fecha) < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+                GROUP BY
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
+                    DATE_TRUNC('month', COALESCE(faccompra.fecha, albcompra_linea.fecha))::date
+            ),
+            meses AS (
+                SELECT generate_series(
+                    DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month'),
+                    DATE_TRUNC('month', CURRENT_DATE),
+                    INTERVAL '1 month'
+                )::date AS fecha_mes
+            ),
+            consumo_producto_mes AS (
+                SELECT
+                    productos_base.codprodu_key,
+                    meses.fecha_mes
+                FROM productos_base
+                CROSS JOIN meses
+            ),
+            resumen_consumo AS (
+                SELECT
+                    consumo_producto_mes.codprodu_key,
+                    SUM(COALESCE(consumo_mensual.consumo, 0))::numeric AS consumo_total_periodo,
+                    AVG(COALESCE(consumo_mensual.consumo, 0))::numeric AS consumo_medio_mensual,
+                    json_agg(
+                        json_build_object(
+                            'year', EXTRACT(YEAR FROM consumo_producto_mes.fecha_mes)::int,
+                            'month', EXTRACT(MONTH FROM consumo_producto_mes.fecha_mes)::int,
+                            'label', TO_CHAR(consumo_producto_mes.fecha_mes, 'YYYY-MM'),
+                            'consumption', COALESCE(consumo_mensual.consumo, 0)
+                        )
+                        ORDER BY consumo_producto_mes.fecha_mes
+                    ) AS monthly_history
+                FROM consumo_producto_mes
+                LEFT JOIN consumo_mensual
+                    ON consumo_mensual.codprodu_key = consumo_producto_mes.codprodu_key
+                   AND consumo_mensual.fecha_mes = consumo_producto_mes.fecha_mes
+                GROUP BY consumo_producto_mes.codprodu_key
+            )
+            SELECT
+                productos_base.codprodu,
+                productos_base.desprodu,
+                productos_base.coleccion,
+                productos_base.codfamilia,
+                productos_base.codmarca,
+                productos_base.tipo,
+                COALESCE(ultimo_proveedor.codprove, '') AS codprove,
+                COALESCE(ultimo_proveedor.nombre_proveedor, ultimo_proveedor.codprove, '') AS nombre_proveedor,
+
+                CASE
+                    WHEN productos_base.tipo = '101'
+                        THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                    ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                END::numeric AS stockactual,
+
+                COALESCE(stock_almacen.canpenrecib, 0)::numeric AS canpenrecib,
+                COALESCE(stock_almacen.canpenservir, 0)::numeric AS canpenservir,
+                COALESCE(resumen_consumo.consumo_total_periodo, 0)::numeric AS total_period_consumption,
+                COALESCE(resumen_consumo.consumo_medio_mensual, 0)::numeric AS avg_monthly_consumption,
+
+                GREATEST(
+                    CEIL(
+                        COALESCE(resumen_consumo.consumo_medio_mensual, 0)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                    ),
+                    0
+                )::numeric AS recommended_next_month,
+
+                GREATEST(
+                    CEIL(
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                    ),
+                    0
+                )::numeric AS recommended_next_three_months,
+
+                COALESCE(resumen_consumo.monthly_history, '[]'::json) AS monthly_history
+            FROM productos_base
+            LEFT JOIN stock_almacen
+                ON stock_almacen.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN stock_lotes_tipo_101
+                ON stock_lotes_tipo_101.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN ultimo_proveedor
+                ON ultimo_proveedor.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN resumen_consumo
+                ON resumen_consumo.codprodu_key = productos_base.codprodu_key
+            WHERE 1 = 1
+              ${extraFilters}
+              AND COALESCE(resumen_consumo.consumo_total_periodo, 0) > 0
+              AND (
+                    (
+                        productos_base.tipo = '101'
+                        AND COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0) < 30
+                    )
+                    OR (
+                        productos_base.tipo = '103'
+                        AND COALESCE(stock_almacen.stock_stockactual, 0) < 15
+                    )
+                    OR (
+                        productos_base.tipo IN ('105', '106', '109')
+                        AND COALESCE(stock_almacen.stock_stockactual, 0) < 10
+                    )
+              )
+            ORDER BY
+                recommended_next_month DESC,
+                recommended_next_three_months DESC,
+                avg_monthly_consumption DESC,
+                productos_base.desprodu ASC
+            LIMIT $2
+            `,
+                params
+            );
+
+            return rows.map((row) => ({
+                ...row,
+                nombre_familia: StockModel.getFamilyName(row.codfamilia),
+                stockactual: StockModel.toSafeNumber(row.stockactual),
+                canpenrecib: StockModel.toSafeNumber(row.canpenrecib),
+                canpenservir: StockModel.toSafeNumber(row.canpenservir),
+                total_period_consumption: StockModel.toSafeNumber(row.total_period_consumption),
+                avg_monthly_consumption: StockModel.toSafeNumber(row.avg_monthly_consumption),
+                recommended_next_month: StockModel.toSafeNumber(row.recommended_next_month),
+                recommended_next_three_months: StockModel.toSafeNumber(row.recommended_next_three_months),
+                monthly_history: Array.isArray(row.monthly_history)
+                    ? row.monthly_history.map((item) => ({
+                        ...item,
+                        consumption: StockModel.toSafeNumber(item.consumption),
+                    }))
+                    : [],
+            }));
+        } catch (error) {
+            console.error('Error fetching control stock filters:', {
+                message: error.message,
+                detail: error.detail,
+                code: error.code,
+                position: error.position,
+            });
+
+            throw error;
         }
     }
 

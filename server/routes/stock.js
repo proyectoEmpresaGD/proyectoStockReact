@@ -6,6 +6,9 @@ export const createStockRouter = () => {
     const stockRouter = Router();
     const stockController = new StockController();
 
+    stockRouter.get('/control-stock/filters', stockController.getControlStockFilters.bind(stockController));
+    stockRouter.get('/control-stock', stockController.getControlStock.bind(stockController));
+
     stockRouter.get('/', stockController.getAll.bind(stockController));
 
     // ✅ endpoint fechas (ANTES de "/:codprodu")
