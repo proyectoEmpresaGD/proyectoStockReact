@@ -141,10 +141,17 @@ export class StockController {
 
     async getLowStockAlerts(req, res) {
         try {
-            const { telas, libros, perchas } = await StockModel.getLowStockAlertsFiltered();
+            const days = Number(req.query.days || 90);
+            const leadDays = Number(req.query.leadDays || 60);
+
+            const { telas, libros, perchas } = await StockModel.getLowStockAlertsFiltered({
+                days,
+                leadDays,
+            });
+
             res.json({ telas, libros, perchas });
         } catch (error) {
-            console.error("Error fetching low stock alerts:", error);
+            console.error('Error fetching low stock alerts:', error);
             res.status(500).json({ error: error.message });
         }
     }

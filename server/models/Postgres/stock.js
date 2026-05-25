@@ -500,21 +500,32 @@ export class StockModel {
             ),
             consumo_mensual AS (
                 SELECT
-                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
-                    DATE_TRUNC('month', COALESCE(faccompra.fecha, albcompra_linea.fecha))::date AS fecha_mes,
-                    SUM(ABS(COALESCE(albcompra_linea.cantidad, 0)))::numeric AS consumo
-                FROM albcompra_linea
-                LEFT JOIN faccompra
-                    ON faccompra.ejercicio = albcompra_linea.ejercicio
-                   AND faccompra.canal = albcompra_linea.canal
-                   AND faccompra.codserfaccompra = albcompra_linea.codserfaccompra
-                   AND faccompra.nfaccompra = albcompra_linea.nfaccompra
-                WHERE NULLIF(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '') IS NOT NULL
-                  AND COALESCE(faccompra.fecha, albcompra_linea.fecha) >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
-                  AND COALESCE(faccompra.fecha, albcompra_linea.fecha) < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    DATE_TRUNC('month', facventa.fecha)::date AS fecha_mes,
+                    SUM(ABS(COALESCE(albventa_linea.cantidad, 0)))::numeric AS consumo
+                FROM facventa
+                INNER JOIN albventa
+                    ON albventa.codclien = facventa.codclien
+                AND (
+                        (
+                            albventa.codserfacventa = facventa.codserfacventa
+                            AND albventa.nfacventa = facventa.nfacventa
+                        )
+                        OR (
+                            albventa.codseralbventa = facventa.codalbar
+                            AND albventa.nalbventa = facventa.nalbar
+                        )
+                )
+                INNER JOIN albventa_linea
+                    ON albventa_linea.codseralbventa = albventa.codseralbventa
+                AND albventa_linea.nalbventa = albventa.nalbventa
+                AND albventa_linea.codclien = albventa.codclien
+                WHERE NULLIF(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '') IS NOT NULL
+                AND facventa.fecha >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
+                AND facventa.fecha < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
                 GROUP BY
-                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
-                    DATE_TRUNC('month', COALESCE(faccompra.fecha, albcompra_linea.fecha))::date
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
+                    DATE_TRUNC('month', facventa.fecha)::date
             ),
             meses AS (
                 SELECT generate_series(
@@ -954,19 +965,180 @@ export class StockModel {
         return { telas, libros, perchas };
     }
 
-    static async getLowStockAlertsFiltered() {
+    static async getLowStockAlertsFiltered({ days = 90, leadDays = 60 } = {}) {
         try {
             const query = `
-        SELECT s.codprodu, s.stockactual, p.desprodu, COALESCE(p.coleccion, '') AS coleccion
-        FROM stock s
-        LEFT JOIN productos p ON s.codprodu = p.codprodu
-        WHERE ${CODALMAC_CERO_FILTER}
-      `;
+            SELECT
+                s.codprodu,
+                s.stockactual,
+                p.desprodu,
+                COALESCE(p.coleccion, '') AS coleccion
+            FROM stock s
+            LEFT JOIN productos p ON s.codprodu = p.codprodu
+            WHERE ${CODALMAC_CERO_FILTER}
+                AND s.codprodu IS NOT NULL
+                AND TRIM(s.codprodu) <> ''
+        `;
+
             const { rows } = await pool.query(query);
-            return StockModel.filterStockItems(rows);
+            const alerts = StockModel.filterStockItems(rows);
+
+            const alertItems = [
+                ...alerts.telas,
+                ...alerts.libros,
+                ...alerts.perchas,
+            ];
+
+            const codes = alertItems.map((item) => item.codprodu);
+
+            const salesMap = await StockModel.getSalesSummaryByProductCodes({
+                codes,
+                days,
+                leadDays,
+            });
+
+            const addRecommendations = (items) =>
+                items.map((item) =>
+                    StockModel.calculateStockRecommendation(
+                        item,
+                        salesMap.get(StockModel.normalizeCode(item.codprodu)),
+                        leadDays
+                    )
+                );
+
+            return {
+                telas: addRecommendations(alerts.telas),
+                libros: addRecommendations(alerts.libros),
+                perchas: addRecommendations(alerts.perchas),
+            };
         } catch (error) {
             console.error('Error in getLowStockAlertsFiltered:', error);
             throw new Error('Error fetching low stock alerts');
         }
+    }
+
+    static buildSalesSummaryMap(salesRows = [], days = 90, leadDays = 60) {
+        const salesMap = new Map();
+
+        for (const row of salesRows) {
+            const codprodu = StockModel.normalizeCode(row.codprodu);
+            if (!codprodu) continue;
+
+            const previous = salesMap.get(codprodu) || {
+                codprodu,
+                totalSold: 0,
+                dailySales: [],
+            };
+
+            const quantity = Number(row.cantidad_total || 0);
+
+            previous.totalSold += quantity;
+            previous.dailySales.push({
+                fecha: row.fecha,
+                cantidad: quantity,
+            });
+
+            salesMap.set(codprodu, previous);
+        }
+
+        for (const [codprodu, summary] of salesMap.entries()) {
+            const avgDailySales = summary.totalSold / days;
+
+            salesMap.set(codprodu, {
+                ...summary,
+                totalSold: Number(summary.totalSold.toFixed(2)),
+                avgDailySales: Number(avgDailySales.toFixed(4)),
+                leadDays,
+            });
+        }
+
+        return salesMap;
+    }
+
+    static calculateStockRecommendation(item, salesSummary, leadDays = 60) {
+        const stockactual = Number(item.stockactual || 0);
+        const totalSold = Number(salesSummary?.totalSold || 0);
+        const avgDailySales = Number(salesSummary?.avgDailySales || 0);
+
+        const estimatedNeed = avgDailySales * leadDays;
+        const recommendedQty = Math.max(0, Math.ceil(estimatedNeed - stockactual));
+
+        const coverageDays =
+            avgDailySales > 0
+                ? Math.floor(stockactual / avgDailySales)
+                : null;
+
+        let urgency = 'baja';
+
+        if (avgDailySales > 0 && coverageDays !== null) {
+            if (coverageDays <= 15) {
+                urgency = 'alta';
+            } else if (coverageDays <= 30) {
+                urgency = 'media';
+            }
+        }
+
+        if (stockactual <= 0 && totalSold > 0) {
+            urgency = 'alta';
+        }
+
+        return {
+            ...item,
+            ventasPeriodo: totalSold,
+            ventaMediaDiaria: avgDailySales,
+            diasCobertura: coverageDays,
+            cantidadRecomendada: recommendedQty,
+            urgencia: urgency,
+            ventasDiarias: salesSummary?.dailySales || [],
+        };
+    }
+
+    static async getSalesSummaryByProductCodes({ codes, days = 90, leadDays = 60 }) {
+        const normalizedCodes = [
+            ...new Set(
+                codes
+                    .map((code) => StockModel.normalizeCode(code))
+                    .filter(Boolean)
+            ),
+        ];
+
+        if (!normalizedCodes.length) return new Map();
+
+        const safeDays = Number.isFinite(Number(days)) ? Number(days) : 90;
+        const safeLeadDays = Number.isFinite(Number(leadDays)) ? Number(leadDays) : 60;
+
+        const query = `
+        SELECT
+            TRIM(avl.codprodu) AS codprodu,
+            TO_CHAR(DATE(fv.fecha), 'YYYY-MM-DD') AS fecha,
+            SUM(COALESCE(avl.cantidad, 0)) AS cantidad_total
+        FROM facventa fv
+        INNER JOIN albventa av
+            ON av.codclien = fv.codclien
+            AND (
+                (
+                    av.codserfacventa = fv.codserfacventa
+                    AND av.nfacventa = fv.nfacventa
+                )
+                OR (
+                    av.codseralbventa = fv.codalbar
+                    AND av.nalbventa = fv.nalbar
+                )
+            )
+        INNER JOIN albventa_linea avl
+            ON avl.codseralbventa = av.codseralbventa
+            AND avl.nalbventa = av.nalbventa
+            AND avl.codclien = av.codclien
+        WHERE TRIM(COALESCE(avl.codprodu, '')) = ANY($1)
+            AND fv.fecha >= CURRENT_DATE - ($2::int * INTERVAL '1 day')
+            AND avl.codprodu IS NOT NULL
+            AND TRIM(avl.codprodu) <> ''
+        GROUP BY TRIM(avl.codprodu), DATE(fv.fecha)
+        ORDER BY TRIM(avl.codprodu), DATE(fv.fecha)
+    `;
+
+        const { rows } = await pool.query(query, [normalizedCodes, safeDays]);
+
+        return StockModel.buildSalesSummaryMap(rows, safeDays, safeLeadDays);
     }
 }

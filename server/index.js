@@ -27,7 +27,7 @@ import { createAnalyticsRouter } from "./routes/analytics.js";
 import pool from "./db/pool.js";
 import { createIntrastatRouter } from './routes/intrastat.js';
 import { createReservasRouter } from "./routes/reservas.js";
-
+import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -69,6 +69,7 @@ app.use("/api/pedventa", authMiddleware, createPedVentaRouter());
 app.use("/api/equivalencias", authMiddleware, createEquivalenciasRouter());
 app.use("/api/libros", authMiddleware, createLibroRouter());
 app.use("/api/visits", authMiddleware, createVisitaRouter());
+app.use("/api/client-purchases", authMiddleware, createClientPurchasesRouter());
 app.use("/api/reservas", authMiddleware, createReservasRouter());
 app.use("/api/notas", createNotasRouter());
 app.use("/api/calendario", authMiddleware, createCalendarioRouter());
