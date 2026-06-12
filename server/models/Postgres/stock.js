@@ -249,52 +249,54 @@ export class StockModel {
 
     // ✅ /api/stock: NO calcular fecha aquí
     static async getAll({ empresa, ejercicio }) {
-        const params = [];
-        const filters = [
+        const stockParams = [];
+        const stockFilters = [
+            CODALMAC_CERO_FILTER,
+        ];
+
+        const lotesParams = [];
+        const lotesFilters = [
             "TRIM(COALESCE(sl.codalmac::text, '')) ~ '^0+$'",
         ];
 
         if (empresa) {
-            params.push(empresa);
-            filters.push(`sl.empresa = $${params.length}`);
+            stockParams.push(empresa);
+            stockFilters.push(`s.empresa = $${stockParams.length}`);
+
+            lotesParams.push(empresa);
+            lotesFilters.push(`sl.empresa = $${lotesParams.length}`);
         }
 
         if (ejercicio) {
-            params.push(ejercicio);
-            filters.push(`sl.ejercicio = $${params.length}`);
+            stockParams.push(ejercicio);
+            stockFilters.push(`s.ejercicio = $${stockParams.length}`);
+
+            lotesParams.push(ejercicio);
+            lotesFilters.push(`sl.ejercicio = $${lotesParams.length}`);
         }
 
-        const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+        const stockWhereClause = stockFilters.length
+            ? `WHERE ${stockFilters.join(' AND ')}`
+            : '';
+
+        const lotesWhereClause = lotesFilters.length
+            ? `WHERE ${lotesFilters.join(' AND ')}`
+            : '';
 
         try {
             const { rows } = await pool.query(
                 `
-            SELECT
-                stock_resumido.codprodu,
-                stock_resumido.stocktotal,
-                stock_resumido.stockreservado,
-                stock_resumido.stockactual,
-                COALESCE(s.canpenrecib, 0) AS canpenrecib,
-                COALESCE(s.canpenservir, 0) AS canpenservir,
-                COALESCE(s.canpenentra, 0) AS canpenentra,
-                COALESCE(s.canpensalida, 0) AS canpensalida,
-                COALESCE(s.canpenfabri, 0) AS canpenfabri,
-                COALESCE(s.canpenconsum, 0) AS canpenconsum,
-                s.stockprevisto,
-                s.empresa,
-                s.ejercicio,
-                p.desprodu
-            FROM (
+            WITH stock_lotes_resumido AS (
                 SELECT
                     sl.codprodu,
-                    SUM(sl.stockactual) AS stocktotal,
-                    COALESCE(SUM(reservas.stockreservado), 0) AS stockreservado,
+                    SUM(sl.stockactual) AS stocktotal_lotes,
+                    COALESCE(SUM(reservas.stockreservado), 0) AS stockreservado_lotes,
                     SUM(
                         GREATEST(
                             sl.stockactual - COALESCE(reservas.stockreservado, 0),
                             0
                         )
-                    ) AS stockactual
+                    ) AS stockactual_lotes
                 FROM stocklotes sl
                 LEFT JOIN (
                     SELECT
@@ -312,17 +314,49 @@ export class StockModel {
                 ) reservas
                     ON reservas.codprodu = UPPER(sl.codprodu)
                    AND reservas.codlote = TRIM(sl.codlote)
-                ${whereClause}
+                ${lotesWhereClause}
                 GROUP BY sl.codprodu
-            ) stock_resumido
-            LEFT JOIN stock s
-                ON UPPER(s.codprodu) = UPPER(stock_resumido.codprodu)
-               AND ${CODALMAC_CERO_FILTER}
+            )
+            SELECT
+                s.codprodu,
+
+                CASE
+                    WHEN stock_lotes_resumido.codprodu IS NULL
+                        THEN COALESCE(s.stockactual, 0)
+                    ELSE COALESCE(stock_lotes_resumido.stocktotal_lotes, 0)
+                END AS stocktotal,
+
+                CASE
+                    WHEN stock_lotes_resumido.codprodu IS NULL
+                        THEN 0
+                    ELSE COALESCE(stock_lotes_resumido.stockreservado_lotes, 0)
+                END AS stockreservado,
+
+                CASE
+                    WHEN stock_lotes_resumido.codprodu IS NULL
+                        THEN COALESCE(s.stockactual, 0)
+                    ELSE COALESCE(stock_lotes_resumido.stockactual_lotes, 0)
+                END AS stockactual,
+
+                COALESCE(s.canpenrecib, 0) AS canpenrecib,
+                COALESCE(s.canpenservir, 0) AS canpenservir,
+                COALESCE(s.canpenentra, 0) AS canpenentra,
+                COALESCE(s.canpensalida, 0) AS canpensalida,
+                COALESCE(s.canpenfabri, 0) AS canpenfabri,
+                COALESCE(s.canpenconsum, 0) AS canpenconsum,
+                s.stockprevisto,
+                s.empresa,
+                s.ejercicio,
+                p.desprodu
+            FROM stock s
+            LEFT JOIN stock_lotes_resumido
+                ON UPPER(stock_lotes_resumido.codprodu) = UPPER(s.codprodu)
             LEFT JOIN productos p
-                ON UPPER(p.codprodu) = UPPER(stock_resumido.codprodu)
-            ORDER BY stock_resumido.codprodu;
+                ON UPPER(p.codprodu) = UPPER(s.codprodu)
+            ${stockWhereClause}
+            ORDER BY s.codprodu;
             `,
-                params
+                [...lotesParams, ...stockParams]
             );
 
             const codproduList = rows.map((row) => row.codprodu);
