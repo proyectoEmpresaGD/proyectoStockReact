@@ -23,13 +23,15 @@ export default function ProductLotLabelsPreview({
                     key={lot.labelKey || `${lot.codprodu}-${lot.codlote}-${lot.labelCopyIndex}-${index}`}
                     className="label-print-page"
                 >
-                    <ProductLotLabel
-                        product={product || lot.product}
-                        lot={lot}
-                        labelWidthCm={labelWidthCm}
-                        labelHeightCm={labelHeightCm}
-                        onRemove={onRemoveLabel}
-                    />
+                    <div className="label-rotate-wrapper">
+                        <ProductLotLabel
+                            product={product || lot.product}
+                            lot={lot}
+                            labelWidthCm={labelWidthCm}
+                            labelHeightCm={labelHeightCm}
+                            onRemove={onRemoveLabel}
+                        />
+                    </div>
                 </div>
             ))}
         </div>

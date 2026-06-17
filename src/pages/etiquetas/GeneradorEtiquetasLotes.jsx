@@ -109,10 +109,9 @@ export default function GeneradorEtiquetasLotes() {
             body,
             #root {
                 width: ${config.labelHeightCm}cm !important;
-                height: ${config.labelWidthCm}cm !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
+                overflow: visible !important;
                 background: white !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
@@ -138,7 +137,6 @@ export default function GeneradorEtiquetasLotes() {
                 left: 0 !important;
                 top: 0 !important;
                 width: ${config.labelHeightCm}cm !important;
-                height: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 background: white !important;
@@ -156,6 +154,7 @@ export default function GeneradorEtiquetasLotes() {
 
             .label-print-page {
                 position: relative !important;
+                display: block !important;
                 width: ${config.labelHeightCm}cm !important;
                 height: ${config.labelWidthCm}cm !important;
                 margin: 0 !important;
@@ -169,25 +168,34 @@ export default function GeneradorEtiquetasLotes() {
             }
 
             .label-print-page:last-child {
-                page-break-after: auto !important;
-                break-after: auto !important;
+                page-break-after: always !important;
+                break-after: page !important;
             }
 
-            .label-print-page .lot-label {
+            .label-rotate-wrapper {
                 position: absolute !important;
                 left: 50% !important;
                 top: 50% !important;
+                width: ${config.labelWidthCm}cm !important;
+                height: ${config.labelHeightCm}cm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                transform: translate(-50%, -50%) rotate(90deg) !important;
+                transform-origin: center center !important;
+                overflow: hidden !important;
+                background: white !important;
+            }
+
+            .label-rotate-wrapper .lot-label {
                 width: calc(${config.labelWidthCm}cm - 0.8cm) !important;
                 height: calc(${config.labelHeightCm}cm - 0.8cm) !important;
-                margin: 0 !important;
+                margin: 0.4cm !important;
                 padding: 0.25cm !important;
                 box-sizing: border-box !important;
                 border: 1px solid #000 !important;
                 background: white !important;
                 color: black !important;
                 overflow: hidden !important;
-                transform: translate(-50%, -50%) rotate(90deg) !important;
-                transform-origin: center center !important;
                 page-break-after: auto !important;
                 break-after: auto !important;
                 page-break-inside: avoid !important;
