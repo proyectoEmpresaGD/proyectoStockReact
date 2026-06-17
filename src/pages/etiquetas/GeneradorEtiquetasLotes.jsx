@@ -192,7 +192,7 @@ export default function GeneradorEtiquetasLotes() {
                 overflow: hidden !important;
 
                 transform-origin: top left !important;
-                transform: rotate(90deg) scale(0.85) !important;
+                transform: rotate(90deg) scale(1) !important;
 
                 page-break-after: auto !important;
                 break-after: auto !important;
