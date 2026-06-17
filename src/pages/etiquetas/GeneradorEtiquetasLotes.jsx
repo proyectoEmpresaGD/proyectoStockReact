@@ -167,30 +167,33 @@ export default function GeneradorEtiquetasLotes() {
                 break-inside: avoid !important;
             }
 
-            .label-rotate-wrapper {
+            .label-print-page .lot-label {
                 position: absolute !important;
-                left: 50% !important;
-                top: 50% !important;
+
+                /*
+                    Página física: 10 x 15 cm.
+                    Etiqueta real: 15 x 10 cm.
+                    Escala: 85%.
+                    Posicionamiento fijo para que no dependa del centrado por porcentaje.
+                */
+                left: calc(${config.labelHeightCm}cm * 0.925) !important;
+                top: calc(${config.labelWidthCm}cm * 0.075) !important;
+
                 width: ${config.labelWidthCm}cm !important;
                 height: ${config.labelHeightCm}cm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                transform: translate(-50%, -50%) rotate(90deg) !important;
-                transform-origin: center center !important;
-                overflow: hidden !important;
-                background: white !important;
-            }
 
-            .label-rotate-wrapper .lot-label {
-                width: calc(${config.labelWidthCm}cm - 0.2cm) !important;
-                height: calc(${config.labelHeightCm}cm - 0.2cm) !important;
                 margin: 0 !important;
                 padding: 0.25cm !important;
                 box-sizing: border-box !important;
+
                 border: 1px solid #000 !important;
                 background: white !important;
                 color: black !important;
                 overflow: hidden !important;
+
+                transform-origin: top left !important;
+                transform: rotate(90deg) scale(0.85) !important;
+
                 page-break-after: auto !important;
                 break-after: auto !important;
                 page-break-inside: avoid !important;

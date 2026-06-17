@@ -22,7 +22,7 @@ export default function ProductLotLabel({
 
     return (
         <article
-            className="lot-label relative flex break-inside-avoid flex-col justify-between overflow-hidden border border-slate-900 bg-white p-2 text-slate-950"
+            className="lot-label relative flex break-inside-avoid flex-col overflow-hidden border border-slate-900 bg-white p-2 text-slate-950"
             style={{
                 width: `${labelWidthCm}cm`,
                 height: `${labelHeightCm}cm`,
@@ -53,14 +53,14 @@ export default function ProductLotLabel({
                 </div>
             </header>
 
-            <section className="grid grid-cols-2 gap-4">
+            <section className="mt-4 grid flex-1 grid-cols-2 items-center gap-4">
                 <div className="flex flex-col items-center rounded border border-slate-300 p-1">
                     <p className="mb-1 text-[13px] font-bold uppercase">
                         Producto
                     </p>
 
                     <div className="bg-white p-1">
-                        <QRCode value={productCode} size={82} />
+                        <QRCode value={productCode} size={100} />
                     </div>
 
                     <p className="mt-1 break-all text-center font-mono text-[13px] leading-tight">
@@ -74,7 +74,7 @@ export default function ProductLotLabel({
                     </p>
 
                     <div className="bg-white p-1">
-                        <QRCode value={lotCode} size={82} />
+                        <QRCode value={lotCode} size={100} />
                     </div>
 
                     <p className="mt-1 break-all text-center font-mono text-[13px] leading-tight">
