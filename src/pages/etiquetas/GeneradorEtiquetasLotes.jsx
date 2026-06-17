@@ -99,63 +99,102 @@ export default function GeneradorEtiquetasLotes() {
         <div className="min-h-screen bg-slate-100 p-4 text-slate-900 md:p-8">
             <style>
                 {`
-                    @media print {
-                        @page {
-                            size: ${config.labelWidthCm}cm ${config.labelHeightCm}cm landscape;
-                            margin: 0;
-                        }
+        @media print {
+            @page {
+                size: ${config.labelHeightCm}cm ${config.labelWidthCm}cm portrait;
+                margin: 0;
+            }
 
-                        html,
-                        body {
-                            width: ${config.labelWidthCm}cm !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            background: white !important;
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
+            html,
+            body,
+            #root {
+                width: ${config.labelHeightCm}cm !important;
+                height: ${config.labelWidthCm}cm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
 
-                        .no-print {
-                            display: none !important;
-                        }
+            body * {
+                visibility: hidden !important;
+            }
 
-                        #lot-label-print-area {
-                            width: ${config.labelWidthCm}cm !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            background: white !important;
-                            box-shadow: none !important;
-                        }
+            #lot-label-print-area,
+            #lot-label-print-area * {
+                visibility: visible !important;
+            }
 
-                        #lot-label-print-area > div {
-                            display: block !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            gap: 0 !important;
-                        }
+            .no-print,
+            .no-print * {
+                display: none !important;
+                visibility: hidden !important;
+            }
 
-                        .lot-label {
-                            width: calc(${config.labelWidthCm}cm - 1cm) !important;
-                            height: calc(${config.labelHeightCm}cm - 1cm) !important;
-                            margin: 0.5cm !important;
-                            padding: 0.3cm !important;
-                            box-sizing: border-box !important;
-                            border: 1px solid #000 !important;
-                            background: white !important;
-                            color: black !important;
-                            overflow: hidden !important;
-                            page-break-inside: avoid !important;
-                            break-inside: avoid !important;
-                            page-break-after: always !important;
-                            break-after: page !important;
-                        }
+            #lot-label-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: ${config.labelHeightCm}cm !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
 
-                        .lot-label:last-child {
-                            page-break-after: auto !important;
-                            break-after: auto !important;
-                        }
-                    }
-                `}
+            .label-preview-container {
+                display: block !important;
+                width: ${config.labelHeightCm}cm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                gap: 0 !important;
+            }
+
+            .label-print-page {
+                position: relative !important;
+                width: ${config.labelHeightCm}cm !important;
+                height: ${config.labelWidthCm}cm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background: white !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .label-print-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            .label-print-page .lot-label {
+                position: absolute !important;
+                left: 50% !important;
+                top: 50% !important;
+                width: calc(${config.labelWidthCm}cm - 0.8cm) !important;
+                height: calc(${config.labelHeightCm}cm - 0.8cm) !important;
+                margin: 0 !important;
+                padding: 0.25cm !important;
+                box-sizing: border-box !important;
+                border: 1px solid #000 !important;
+                background: white !important;
+                color: black !important;
+                overflow: hidden !important;
+                transform: translate(-50%, -50%) rotate(90deg) !important;
+                transform-origin: center center !important;
+                page-break-after: auto !important;
+                break-after: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+        }
+    `}
             </style>
 
             <section className="no-print mb-6 rounded-2xl bg-white p-5 shadow">
@@ -319,14 +358,14 @@ export default function GeneradorEtiquetasLotes() {
                             </select>
 
                             <p className="text-xs text-slate-500">
-                                Etiqueta individual imprime una etiqueta por página. Para PDF usa Hoja A4.
+                                Etiqueta individual imprime una etiqueta por página en vertical, con el diseño rotado.
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Ancho cm
+                                    Ancho real cm
                                 </span>
 
                                 <input
@@ -343,7 +382,7 @@ export default function GeneradorEtiquetasLotes() {
 
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Alto cm
+                                    Alto real cm
                                 </span>
 
                                 <input
@@ -399,7 +438,7 @@ export default function GeneradorEtiquetasLotes() {
                             </p>
 
                             <p className="mt-2">
-                                Para máquina de etiquetas usa modo Etiqueta individual, ancho 15 cm y alto 10 cm.
+                                Para máquina de etiquetas usa modo Etiqueta individual. El papel será 10 x 15 cm y el diseño se rotará.
                             </p>
                         </div>
 

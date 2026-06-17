@@ -17,16 +17,20 @@ export default function ProductLotLabelsPreview({
     }
 
     return (
-        <div className="flex flex-wrap gap-4">
+        <div className="label-preview-container flex flex-wrap gap-4">
             {lots.map((lot, index) => (
-                <ProductLotLabel
+                <div
                     key={lot.labelKey || `${lot.codprodu}-${lot.codlote}-${lot.labelCopyIndex}-${index}`}
-                    product={product || lot.product}
-                    lot={lot}
-                    labelWidthCm={labelWidthCm}
-                    labelHeightCm={labelHeightCm}
-                    onRemove={onRemoveLabel}
-                />
+                    className="label-print-page"
+                >
+                    <ProductLotLabel
+                        product={product || lot.product}
+                        lot={lot}
+                        labelWidthCm={labelWidthCm}
+                        labelHeightCm={labelHeightCm}
+                        onRemove={onRemoveLabel}
+                    />
+                </div>
             ))}
         </div>
     );
