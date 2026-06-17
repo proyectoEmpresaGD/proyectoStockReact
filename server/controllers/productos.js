@@ -135,7 +135,7 @@ export class ProductController {
         !/(FUERA DE COLECCIÓN)/i.test(product.desprodu) &&
         !/(PERCHAS)/i.test(product.desprodu) &&
         !/(FUERA DE COLECCION)/i.test(product.desprodu) &&
-        ['ARE', 'FLA', 'CJM', 'HAR'].includes(product.codmarca)
+        ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(product.codmarca)
       ));
       res.json(validProducts);
     } catch (error) {

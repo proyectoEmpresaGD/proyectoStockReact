@@ -32,7 +32,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     const [subDropdownOpen, setSubDropdownOpen] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuthContext();
-
+    const isDecoAndYouUser =
+        String(user?.username || '').trim().toUpperCase() === 'DECOANDYOU';
     const toggleDropdown = (section) => {
         setDropdownOpen((prev) => (prev === section ? '' : section));
         setSubDropdownOpen('');
@@ -46,13 +47,28 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
         (text || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const filterLinksByRole = (links) => {
-        const role = user?.role;
+        const role = String(user?.role || '').trim().toLowerCase();
+        const username = String(user?.username || '').trim().toUpperCase();
+
         return links.filter((link) => {
             if (link.external) return true;
             if (!role) return false;
 
-            const hasStaticRole = !link.roles || link.roles.includes(role);
-            const hasDynamicRouteAccess = typeof link.to === 'string' && userCanAccessRoute(role, link.to);
+            const hiddenForUsers = Array.isArray(link.hiddenForUsers)
+                ? link.hiddenForUsers.map((item) => String(item).trim().toUpperCase())
+                : [];
+
+            if (hiddenForUsers.includes(username)) {
+                return false;
+            }
+
+            const linkRoles = Array.isArray(link.roles)
+                ? link.roles.map((linkRole) => String(linkRole).trim().toLowerCase())
+                : null;
+
+            const hasStaticRole = !linkRoles || linkRoles.includes(role);
+            const hasDynamicRouteAccess =
+                typeof link.to === 'string' && userCanAccessRoute(role, link.to);
 
             return hasStaticRole || hasDynamicRouteAccess;
         });
@@ -87,9 +103,21 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaUsers className="mr-3 text-lg" />,
                 dropdown: 'clientes',
                 links: [
-                    { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] },
-                    { to: '/agenda', label: 'Agenda', icon: <FaRegCalendarAlt className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] },
-                    { to: '/notas', label: 'Notas', icon: <FaRegStickyNote className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] }
+                    { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion', 'decoandyou'] },
+                    {
+                        to: '/agenda',
+                        label: 'Agenda',
+                        icon: <FaRegCalendarAlt className="mr-3 text-lg" />,
+                        roles: ['admin', 'comercial', 'administracion'],
+                        hiddenForUsers: ['DECOANDYOU'],
+                    },
+                    {
+                        to: '/notas',
+                        label: 'Notas',
+                        icon: <FaRegStickyNote className="mr-3 text-lg" />,
+                        roles: ['admin', 'comercial', 'administracion'],
+                        hiddenForUsers: ['DECOANDYOU'],
+                    }
                 ]
             },
             {
@@ -115,11 +143,17 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaCubes className="mr-3 text-lg" />,
                 dropdown: 'productos',
                 links: [
-                    { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
+                    { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion', 'decoandyou'] },
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
-                    { to: '/fichaTecnica', label: 'Ficha Tecnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion'] },
-                    { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
+                    { to: '/fichaTecnica', label: 'Ficha Tecnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
+                    { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    {
+                        to: '/etiquetas-lotes',
+                        label: 'Etiquetas por lote',
+                        icon: <FaTag className="mr-3 text-lg" />,
+                        roles: ['admin', 'almacen']
+                    },
                 ]
             },
             {
@@ -251,6 +285,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 <div className="flex-1 min-h-0 overflow-y-auto pb-10">
                     <ul className="mt-2 space-y-1.5 px-3">
                         {sections.map((section, index) => {
+                            const role = user?.role;
+
+                            if (!role) return null;
+
+                            const canAccessSection =
+                                !section.roles || section.roles.includes(role);
+
+                            if (!canAccessSection) return null;
+
                             const links = Array.isArray(section.links) ? section.links : [];
                             const roleFiltered = filterLinksByRole(links);
 

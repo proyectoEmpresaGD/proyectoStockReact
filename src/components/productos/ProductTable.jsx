@@ -36,19 +36,48 @@ const ProductTable = ({ products, fetchProductLots }) => {
         return String(value);
     };
 
-    const formatFutureDateFromDays = (days) => {
+    const EXTRA_BUSINESS_DAYS = 5;
+
+    const isWeekend = (date) => {
+        const day = date.getDay();
+        return day === 0 || day === 6;
+    };
+
+    const addBusinessDays = (startDate, businessDays) => {
+        const date = new Date(startDate);
+        date.setHours(0, 0, 0, 0);
+
+        let addedDays = 0;
+
+        while (addedDays < businessDays) {
+            date.setDate(date.getDate() + 1);
+
+            if (!isWeekend(date)) {
+                addedDays += 1;
+            }
+        }
+
+        return date;
+    };
+
+    const getTotalBusinessDays = (days) => {
         const n = parseInt(days, 10);
 
         if (days === null || days === undefined || days === "" || Number.isNaN(n)) {
+            return null;
+        }
+
+        return n + EXTRA_BUSINESS_DAYS;
+    };
+
+    const formatFutureDateFromDays = (days) => {
+        const totalBusinessDays = getTotalBusinessDays(days);
+
+        if (totalBusinessDays === null) {
             return "—";
         }
 
-        const date = new Date();
-
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() + n);
-
-        return date.toLocaleDateString("es-ES");
+        return addBusinessDays(new Date(), totalBusinessDays).toLocaleDateString("es-ES");
     };
 
     const normalizeLot = (l, idx) => {
@@ -429,7 +458,8 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
     const AvailabilityBox = ({ p }) => {
         const metros = safeValue(p.cantminima);
-        const dias = safeDays(p.plaentre);
+        const totalBusinessDays = getTotalBusinessDays(p.plaentre);
+        const dias = totalBusinessDays ?? "—";
         const fecha = formatFutureDateFromDays(p.plaentre);
 
         return (
@@ -442,7 +472,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                     <span className="font-bold">metros</span>{" "}
                     en un plazo aproximado de{" "}
                     <span className="font-extrabold text-base md:text-lg">{dias}</span>{" "}
-                    <span className="font-bold">días</span>{" "}
+                    <span className="font-bold">días laborables</span>{" "}
                     después de la confirmación del pedido.
                 </p>
 

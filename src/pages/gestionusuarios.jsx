@@ -1,679 +1,694 @@
-// src/pages/gestionusuarios.jsx
-// Perfil.jsx
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useAuthContext } from '../Auth/AuthContext';
-import { Eye, EyeOff, Trash2, Edit3, Save } from 'lucide-react';
-import { FaUser, FaEnvelope, FaUserShield } from 'react-icons/fa';
-import { getRoleOptions } from '../utils/roleAccessConfig';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FaEdit, FaPlus, FaTimes, FaTrash, FaKey } from 'react-icons/fa';
+import { generatePassword } from '../utils/generatePassword';
 
-const Perfil = () => {
-    const { logout, token } = useAuthContext();
-    const [user, setUser] = useState(null);
-    const [usuarios, setUsuarios] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [newUser, setNewUser] = useState({ nombre: '', username: '', email: '', password: '', role: 'user' });
-    const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [userToDelete, setUserToDelete] = useState(null);
-    const [editUserId, setEditUserId] = useState(null);
-    const [editUserData, setEditUserData] = useState({});
-    const [notification, setNotification] = useState('');
-    const [imagenPerfil, setImagenPerfil] = useState(null);
-    const [previewImagenPerfil, setPreviewImagenPerfil] = useState(null);
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-    const [pendingRoles, setPendingRoles] = useState({});
-    const [updatingRoleId, setUpdatingRoleId] = useState(null);
+const INITIAL_USER_FORM = {
+    username: '',
+    password: '',
+    role: 'user',
+    nombre: '',
+    apellido1: '',
+    apellido2: '',
+    dni: '',
+    tipo_jornada: 'intensiva',
+    email: '',
+    departamento: '',
+    dias_vacaciones_anuales: '',
+    codrepre: '',
+    codrepres: '',
+    imagenperfil: null,
+};
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const PASSWORD_LENGTH = 12;
 
-    // Solo roles gestionados por backend
-    const [roleOptions, setRoleOptions] = useState(getRoleOptions());
+const roles = [
+    'admin',
+    'comercial',
+    'decoandyou',
+    'almacen',
+    'ventas',
+    'user',
+    'rrhh',
+    'administracion',
+    'administrativo',
+];
 
-    useEffect(() => {
-        const fetchPerfil = async () => {
-            try {
-                const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                setUser(res.data);
+const jornadas = [
+    'intensiva',
+    'partida',
+    'reducida',
+];
 
-                if (res.data.role === 'admin') {
-                    const usersRes = await axios.get(`${API_BASE_URL}/api/auth/users`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    setUsuarios(usersRes.data);
-                }
-            } catch (err) {
-                console.error('Error al cargar perfil', err);
-                logout();
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchPerfil();
-    }, [API_BASE_URL, logout, token]);
-
-    useEffect(() => {
-        return () => {
-            if (previewImagenPerfil) URL.revokeObjectURL(previewImagenPerfil);
-        };
-    }, [previewImagenPerfil]);
-
-    useEffect(() => {
-        const fetchRoleCatalog = async () => {
-            if (!token) return;
-            try {
-                const response = await axios.get(`${API_BASE_URL}/api/auth/roles-catalog`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                const backendRoles = Array.isArray(response.data?.roles) ? response.data.roles : [];
-                if (backendRoles.length > 0) {
-                    setRoleOptions(backendRoles);
-                }
-            } catch (error) {
-                console.error('No se pudo cargar el catálogo de roles:', error);
-            }
-        };
-
-        fetchRoleCatalog();
-    }, [API_BASE_URL, token]);
-
-    useEffect(() => {
-        const mappedRoles = usuarios.reduce((acc, currentUser) => {
-            acc[currentUser.id] = currentUser.role;
-            return acc;
-        }, {});
-        setPendingRoles(mappedRoles);
-    }, [usuarios]);
-
-    const showNotif = (message) => {
-        setNotification(message);
-        setTimeout(() => setNotification(''), 3000);
-    };
-
-    const renderRoleOptions = () => (
-        <>
-            <optgroup label="Roles de sistema (backend)">
-                {roleOptions.map((role) => (
-                    <option key={role} value={role}>{role}</option>
-                ))}
-            </optgroup>
-        </>
-    );
-
-    const handleRoleChangeSelect = (id, selectedRole) => {
-        setPendingRoles((prev) => ({ ...prev, [id]: selectedRole }));
-    };
-
-    const handleRoleChange = async (id) => {
-        const userToUpdate = usuarios.find((item) => item.id === id);
-        const newRole = pendingRoles[id];
-
-        if (!userToUpdate || !newRole || userToUpdate.role === newRole) {
-            return;
-        }
-
-        if (!roleOptions.includes(newRole)) {
-            showNotif('El rol seleccionado no es válido');
-            return;
-        }
-
-        setUpdatingRoleId(id);
-        try {
-            await axios.post(`${API_BASE_URL}/api/auth/users/update-role`, { userId: id, newRole }, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
-            showNotif(`Rol de ${userToUpdate.username} actualizado a ${newRole}`);
-        } catch (err) {
-            console.error('Error actualizando rol:', err);
-            showNotif('Error al actualizar rol');
-        } finally {
-            setUpdatingRoleId(null);
-        }
-    };
-
-    const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
-
-    const handleCreateUser = async () => {
-        const { nombre, username, email, password, role } = newUser;
-
-        if (!nombre || !username || !email || !password) {
-            return showNotif('Todos los campos son obligatorios');
-        }
-
-        if (!validateEmail(email)) {
-            return showNotif('El correo electrónico ingresado no es válido');
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('nombre', nombre);
-            formData.append('username', username);
-            formData.append('email', email);
-            formData.append('password', password);
-            formData.append('role', role);
-
-            if (imagenPerfil) {
-                formData.append('imagen', imagenPerfil);
-            }
-
-            await axios.post(`${API_BASE_URL}/api/auth/users/create-with-image`, formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-
-            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            setUsuarios(res.data);
-            setNewUser({ nombre: '', username: '', email: '', password: '', role: 'user' });
-            setImagenPerfil(null);
-            setPreviewImagenPerfil(null);
-            setShowCreateForm(false);
-            showNotif('Usuario creado correctamente');
-        } catch (err) {
-            console.error('Error creando usuario:', err);
-            showNotif('Error al crear el usuario');
-        }
-    };
-
-    const confirmDeleteUser = (id) => {
-        setUserToDelete(id);
-        setShowConfirmModal(true);
-    };
-
-    const handleDeleteConfirmed = async () => {
-        try {
-            await axios.delete(`${API_BASE_URL}/api/auth/users/${userToDelete}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setUsuarios(prev => prev.filter(u => u.id !== userToDelete));
-            setShowConfirmModal(false);
-            setUserToDelete(null);
-            showNotif('Usuario eliminado correctamente');
-        } catch (err) {
-            console.error('Error eliminando usuario:', err);
-            const backendMessage = err?.response?.data?.message;
-            showNotif(backendMessage || 'Error al eliminar usuario');
-        }
-    };
-
-    const handleEditUser = (user) => {
-        setEditUserId(user.id);
-        setEditUserData({
-            username: user.username,
-            email: user.email,
-            nombre: user.nombre,
-            role: user.role
-        });
-        setImagenPerfil(null);
-
-        setTimeout(() => {
-            const input = document.getElementById(`input-${user.id}`);
-            if (input) {
-                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 100);
-    };
-
-    const handleSaveUser = async (id) => {
-        const originalUser = usuarios.find(u => u.id === id);
-
-        if (editUserData.email && editUserData.email !== originalUser.email) {
-            if (!validateEmail(editUserData.email)) {
-                return showNotif('El correo electrónico ingresado no es válido');
-            }
-        }
-
-        try {
-            await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, editUserData, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (imagenPerfil) {
-                const formData = new FormData();
-                formData.append('imagen', imagenPerfil);
-
-                await axios.post(`${API_BASE_URL}/api/auth/users/${id}/upload-imagenperfil`, formData, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'multipart/form-data'
-                    }
-                });
-            }
-
-            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setUsuarios(res.data);
-
-            setEditUserId(null);
-            setImagenPerfil(null);
-            showNotif('Usuario actualizado correctamente');
-        } catch (err) {
-            console.error('Error al actualizar usuario:', err);
-            showNotif('Error al actualizar el usuario');
-        }
-    };
-
-    const filteredUsuarios = usuarios.filter(u =>
-        u.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center h-screen app-bg">
-                <p className="text-slate-600 text-lg">Cargando perfil...</p>
-            </div>
-        );
+const normalizeCodrepresForDisplay = (codrepres) => {
+    if (Array.isArray(codrepres)) {
+        return codrepres.join(', ');
     }
 
+    if (typeof codrepres === 'string') {
+        return codrepres.replace(/[{}"]/g, '');
+    }
+
+    return '';
+};
+
+function GestionUsuarios() {
+    const [users, setUsers] = useState([]);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [newUser, setNewUser] = useState(INITIAL_USER_FORM);
+    const [editUser, setEditUser] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const token = useMemo(() => localStorage.getItem('token'), []);
+
+    const authHeaders = useMemo(() => ({
+        Authorization: `Bearer ${token}`,
+    }), [token]);
+
+    const resetMessages = () => {
+        setErrorMessage('');
+        setSuccessMessage('');
+    };
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        resetMessages();
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
+                headers: authHeaders,
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudieron cargar los usuarios');
+            }
+
+            const data = await response.json();
+            setUsers(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+            setErrorMessage(error.message || 'Error cargando usuarios');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const handleOpenCreateModal = () => {
+        resetMessages();
+        setNewUser(INITIAL_USER_FORM);
+        setIsCreateModalOpen(true);
+    };
+
+    const handleCloseCreateModal = () => {
+        setIsCreateModalOpen(false);
+        setNewUser(INITIAL_USER_FORM);
+    };
+
+    const handleOpenEditModal = (user) => {
+        resetMessages();
+
+        setEditUser({
+            id: user.id,
+            username: user.username || '',
+            role: user.role || 'user',
+            nombre: user.nombre || '',
+            apellido1: user.apellido1 || '',
+            apellido2: user.apellido2 || '',
+            dni: user.dni || '',
+            tipo_jornada: user.tipo_jornada || 'intensiva',
+            email: user.email || '',
+            departamento: user.departamento || '',
+            dias_vacaciones_anuales: user.dias_vacaciones_anuales ?? '',
+            codrepre: user.codrepre || '',
+            codrepres: normalizeCodrepresForDisplay(user.codrepres),
+        });
+
+        setIsEditModalOpen(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setIsEditModalOpen(false);
+        setEditUser(null);
+    };
+
+    const handleGeneratePassword = () => {
+        const generatedPassword = generatePassword(PASSWORD_LENGTH);
+
+        setNewUser((prev) => ({
+            ...prev,
+            password: generatedPassword,
+        }));
+    };
+
+    const handleNewUserChange = (field, value) => {
+        setNewUser((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+    };
+
+    const handleEditUserChange = (field, value) => {
+        setEditUser((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+    };
+
+    const buildUserFormData = (userData) => {
+        const formData = new FormData();
+
+        formData.append('username', userData.username.trim());
+        formData.append('password', userData.password);
+        formData.append('role', userData.role);
+        formData.append('nombre', userData.nombre.trim());
+        formData.append('apellido1', userData.apellido1.trim());
+        formData.append('apellido2', userData.apellido2.trim());
+        formData.append('dni', userData.dni.trim());
+        formData.append('tipo_jornada', userData.tipo_jornada);
+        formData.append('email', userData.email.trim());
+        formData.append('departamento', userData.departamento.trim());
+        formData.append('dias_vacaciones_anuales', userData.dias_vacaciones_anuales);
+        formData.append('codrepre', userData.codrepre.trim());
+        formData.append('codrepres', userData.codrepres.trim());
+
+        if (userData.imagenperfil) {
+            formData.append('imagen', userData.imagenperfil);
+        }
+
+        return formData;
+    };
+
+    const handleCreateUser = async (event) => {
+        event.preventDefault();
+        resetMessages();
+
+        if (!newUser.username.trim() || !newUser.password || !newUser.role) {
+            setErrorMessage('Usuario, contraseña y rol son obligatorios');
+            return;
+        }
+
+        setSaving(true);
+
+        try {
+            const formData = buildUserFormData(newUser);
+
+            const response = await fetch(`${API_BASE_URL}/api/auth/users/create-with-image`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error creando usuario');
+            }
+
+            setSuccessMessage('Usuario creado correctamente');
+            handleCloseCreateModal();
+            await fetchUsers();
+        } catch (error) {
+            console.error('Error creando usuario:', error);
+            setErrorMessage(error.message || 'Error creando usuario');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleUpdateUser = async (event) => {
+        event.preventDefault();
+        resetMessages();
+
+        if (!editUser?.id) {
+            setErrorMessage('Usuario no válido');
+            return;
+        }
+
+        if (!editUser.username.trim() || !editUser.role) {
+            setErrorMessage('Usuario y rol son obligatorios');
+            return;
+        }
+
+        setSaving(true);
+
+        try {
+            const payload = {
+                username: editUser.username.trim(),
+                role: editUser.role,
+                nombre: editUser.nombre.trim(),
+                apellido1: editUser.apellido1.trim(),
+                apellido2: editUser.apellido2.trim(),
+                dni: editUser.dni.trim(),
+                tipo_jornada: editUser.tipo_jornada,
+                email: editUser.email.trim(),
+                departamento: editUser.departamento.trim(),
+                dias_vacaciones_anuales: editUser.dias_vacaciones_anuales,
+                codrepre: editUser.codrepre.trim(),
+                codrepres: editUser.codrepres.trim(),
+            };
+
+            const response = await fetch(`${API_BASE_URL}/api/auth/users/${editUser.id}`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeaders,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error actualizando usuario');
+            }
+
+            setSuccessMessage('Usuario actualizado correctamente');
+            handleCloseEditModal();
+            await fetchUsers();
+        } catch (error) {
+            console.error('Error actualizando usuario:', error);
+            setErrorMessage(error.message || 'Error actualizando usuario');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteUser = async (userId) => {
+        const confirmed = window.confirm('¿Seguro que quieres eliminar este usuario?');
+
+        if (!confirmed) return;
+
+        resetMessages();
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/auth/users/${userId}`, {
+                method: 'DELETE',
+                headers: authHeaders,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error eliminando usuario');
+            }
+
+            setSuccessMessage('Usuario eliminado correctamente');
+            await fetchUsers();
+        } catch (error) {
+            console.error('Error eliminando usuario:', error);
+            setErrorMessage(error.message || 'Error eliminando usuario');
+        }
+    };
+
     return (
-        <div className="min-h-screen app-bg px-3 pb-8 pt-20 sm:px-4 md:px-8">
-            <div className="mx-auto max-w-6xl rounded-[28px] border border-white/60 bg-white/85 p-4 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur-xl sm:p-6 md:p-8">
-                {user.role === 'admin' && (
-                    <>
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">Gestión de Usuarios</h3>
-
-                            {notification && (
-                                <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-2xl border border-sky-200 bg-white/95 px-6 py-3 text-sm font-medium text-sky-700 shadow-[0_20px_45px_-28px_rgba(14,116,144,0.55)] backdrop-blur">
-                                    {notification}
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => setShowCreateForm(!showCreateForm)}
-                                className="min-h-[44px] rounded-xl bg-gradient-to-b from-slate-900 to-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-slate-600"
-                            >
-                                {showCreateForm ? 'Cancelar' : 'Crear Usuario'}
-                            </button>
-                        </div>
-
-                        {showCreateForm && (
-                            <div className="mb-6 rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur">
-                                {/* Imagen estilo Discord */}
-                                <div className="flex flex-col items-center mb-6">
-                                    <div className="relative w-28 h-28 group">
-                                        {previewImagenPerfil ? (
-                                            <img
-                                                src={previewImagenPerfil}
-                                                alt="Preview"
-                                                className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full rounded-full bg-gray-200 border-2 border-white shadow-md flex items-center justify-center text-gray-500 text-3xl font-bold">
-                                                {newUser.username?.[0] ? newUser.username[0].toUpperCase() : "+"}
-                                            </div>
-                                        )}
-
-                                        <label
-                                            htmlFor="create-avatar"
-                                            className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="w-5 h-5 text-white group-hover:text-white transition"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <path d="M12 20h9" />
-                                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                                            </svg>
-                                        </label>
-
-                                        <input
-                                            id="create-avatar"
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                if (e.target.files[0]) {
-                                                    const file = e.target.files[0];
-                                                    setImagenPerfil(file);
-                                                    setPreviewImagenPerfil(URL.createObjectURL(file));
-                                                } else {
-                                                    setImagenPerfil(null);
-                                                    setPreviewImagenPerfil(null);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                    {previewImagenPerfil && (
-                                        <span className="text-sm text-gray-600 mt-2">Vista previa seleccionada</span>
-                                    )}
-                                </div>
-
-                                {/* Formulario */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Nombre"
-                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                                        value={newUser.nombre}
-                                        onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Usuario"
-                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                                        value={newUser.username}
-                                        onChange={(e) =>
-                                            setNewUser({ ...newUser, username: e.target.value.toUpperCase() })
-                                        }
-                                    />
-                                    <input
-                                        type="email"
-                                        placeholder="Email"
-                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                                        value={newUser.email}
-                                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                                    />
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="Contraseña"
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                                            value={newUser.password}
-                                            onChange={(e) =>
-                                                setNewUser({ ...newUser, password: e.target.value.toUpperCase() })
-                                            }
-                                        />
-                                        <button
-                                            type="button"
-                                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
-                                    </div>
-                                    <select
-                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                                        value={newUser.role}
-                                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                                    >
-                                        {renderRoleOptions()}
-                                    </select>
-                                </div>
-
-                                <button
-                                    onClick={handleCreateUser}
-                                    className="rounded-xl bg-gradient-to-b from-sky-600 to-sky-700 px-6 py-2.5 text-sm font-semibold text-white transition hover:from-sky-500 hover:to-sky-600"
-                                >
-                                    Guardar Usuario
-                                </button>
-                            </div>
-                        )}
-
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre de usuario..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 shadow-sm"
-                        />
-                        <p className="mb-4 text-xs text-slate-500">
-                            Para cambiar un rol: selecciona el nuevo valor en el desplegable y pulsa <strong>Actualizar rol</strong>. Solo se pueden asignar roles definidos por backend desde este selector.
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+            <div className="mx-auto max-w-7xl">
+                <div className="mb-6 flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            Gestión de usuarios
+                        </h1>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Crear, editar y asignar roles, departamentos y códigos comerciales.
                         </p>
+                    </div>
 
-                        <div className="overflow-auto rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_25px_55px_-40px_rgba(15,23,42,0.55)]">
-                            <table className="min-w-full table-auto border border-slate-200 bg-white text-sm text-slate-700">
-                                <thead className="sticky top-0 z-10 bg-slate-100/90 text-slate-800 backdrop-blur">
+                    <button
+                        type="button"
+                        onClick={handleOpenCreateModal}
+                        className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                        <FaPlus className="mr-2" />
+                        Nuevo usuario
+                    </button>
+                </div>
+
+                {errorMessage && (
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {errorMessage}
+                    </div>
+                )}
+
+                {successMessage && (
+                    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                        {successMessage}
+                    </div>
+                )}
+
+                <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Usuario</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Nombre</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Email</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Rol</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Departamento</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Cod. repre</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Cod. repres</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">Acciones</th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                                {loading ? (
                                     <tr>
-                                        <th className="p-3 text-left">Foto</th>
-                                        <th className="p-3 text-left">Nombre</th>
-                                        <th className="p-3 text-left">Usuario</th>
-                                        <th className="p-3 text-left">Email</th>
-                                        <th className="p-3 text-left">Rol</th>
-                                        <th className="p-3 text-left">Cambiar Rol</th>
-                                        <th className="p-3 text-left">Acciones</th>
+                                        <td colSpan="8" className="px-4 py-8 text-center text-sm text-slate-500">
+                                            Cargando usuarios...
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredUsuarios.map((u) => (
-                                        <tr key={u.id} className="border-t border-slate-100 hover:bg-slate-50">
-                                            <td className="p-3">
-                                                {u.imagenperfil_url ? (
-                                                    <img
-                                                        src={u.imagenperfil_url}
-                                                        alt="perfil"
-                                                        className="w-10 h-10 rounded-full object-cover border border-gray-300"
-                                                    />
-                                                ) : (
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white shadow-sm">
-                                                        {u.username?.charAt(0).toUpperCase() || "?"}
-                                                    </div>
-                                                )}
+                                ) : users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="8" className="px-4 py-8 text-center text-sm text-slate-500">
+                                            No hay usuarios.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    users.map((user) => (
+                                        <tr key={user.id} className="hover:bg-slate-50">
+                                            <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                                                {user.username}
                                             </td>
-
-                                            <td className="p-3">{u.nombre}</td>
-                                            <td className="p-3">{u.username}</td>
-                                            <td className="p-3">{u.email}</td>
-                                            <td className="p-3 capitalize">{u.role}</td>
-
-                                            <td className="p-3">
-                                                <select
-                                                    value={pendingRoles[u.id] || u.role}
-                                                    onChange={(e) => handleRoleChangeSelect(u.id, e.target.value)}
-                                                    className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm shadow-sm"
-                                                >
-                                                    {renderRoleOptions()}
-                                                </select>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {[user.nombre, user.apellido1, user.apellido2].filter(Boolean).join(' ') || '-'}
                                             </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {user.email || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                    {user.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {user.departamento || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {user.codrepre || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {normalizeCodrepresForDisplay(user.codrepres) || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="inline-flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenEditModal(user)}
+                                                        className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                                                        title="Editar"
+                                                    >
+                                                        <FaEdit />
+                                                    </button>
 
-                                            <td className="p-3 flex items-center gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRoleChange(u.id)}
-                                                    disabled={updatingRoleId === u.id || (pendingRoles[u.id] || u.role) === u.role}
-                                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-                                                    title="Guardar cambio de rol"
-                                                >
-                                                    <Save size={14} />
-                                                    {updatingRoleId === u.id ? 'Guardando...' : 'Actualizar rol'}
-                                                </button>
-
-                                                <button
-                                                    onClick={() => handleEditUser(u)}
-                                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:text-slate-800"
-                                                >
-                                                    <Edit3 size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => confirmDeleteUser(u.id)}
-                                                    className="rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-600 transition hover:text-red-800"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteUser(user.id)}
+                                                        className="rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
+                                                        title="Eliminar"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                        {editUserId && (
-                            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/40">
-                                <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md relative">
-                                    <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Editar Usuario</h2>
+            {isCreateModalOpen && (
+                <UserModal
+                    title="Crear nuevo usuario"
+                    mode="create"
+                    userData={newUser}
+                    saving={saving}
+                    onClose={handleCloseCreateModal}
+                    onSubmit={handleCreateUser}
+                    onChange={handleNewUserChange}
+                    onGeneratePassword={handleGeneratePassword}
+                />
+            )}
 
-                                    <div className="relative w-28 h-28 mx-auto group mb-4">
-                                        {previewImagenPerfil || usuarios.find((u) => u.id === editUserId)?.imagenperfil ? (
-                                            <img
-                                                src={
-                                                    previewImagenPerfil
-                                                        ? previewImagenPerfil
-                                                        : `https://bassari.eu/FotosPerfilAppGestion/${editUserId}/${encodeURIComponent(
-                                                            usuarios.find((u) => u.id === editUserId)?.imagenperfil || ''
-                                                        )}`
-                                                }
-                                                alt="Imagen de perfil"
-                                                className="w-full h-full rounded-full object-cover border-2 border-white shadow-md"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full rounded-full bg-gray-200 border-2 border-white shadow-md flex items-center justify-center text-gray-500 text-3xl font-bold">
-                                                +
-                                            </div>
-                                        )}
+            {isEditModalOpen && editUser && (
+                <UserModal
+                    title="Editar usuario"
+                    mode="edit"
+                    userData={editUser}
+                    saving={saving}
+                    onClose={handleCloseEditModal}
+                    onSubmit={handleUpdateUser}
+                    onChange={handleEditUserChange}
+                />
+            )}
+        </div>
+    );
+}
 
-                                        <label
-                                            htmlFor="upload-avatar"
-                                            className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                                        >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="w-5 h-5 text-white group-hover:text-white transition"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <path d="M12 20h9" />
-                                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                                            </svg>
-                                        </label>
+function UserModal({
+    title,
+    mode,
+    userData,
+    saving,
+    onClose,
+    onSubmit,
+    onChange,
+    onGeneratePassword,
+}) {
+    const isCreateMode = mode === 'create';
 
-                                        <input
-                                            id="upload-avatar"
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                if (e.target.files[0]) {
-                                                    const file = e.target.files[0];
-                                                    setImagenPerfil(file);
-                                                    setPreviewImagenPerfil(URL.createObjectURL(file));
-                                                } else {
-                                                    setImagenPerfil(null);
-                                                    setPreviewImagenPerfil(null);
-                                                }
-                                            }}
-                                        />
-                                    </div>
+    return (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/50 p-4">
+            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+                        <p className="text-sm text-slate-500">
+                            {isCreateMode
+                                ? 'Genera la contraseña y completa los datos del usuario.'
+                                : 'Modifica los datos del usuario seleccionado.'}
+                        </p>
+                    </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-700 text-sm">
-                                        <div className="sm:col-span-2">
-                                            <label className="text-sm text-gray-600 mb-1 block">Nombre</label>
-                                            <div className="flex items-center gap-3">
-                                                <FaUser className="text-gray-500 text-lg" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Nombre"
-                                                    className="border p-2 rounded w-full"
-                                                    value={editUserData.nombre}
-                                                    onChange={(e) => setEditUserData({ ...editUserData, nombre: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    >
+                        <FaTimes />
+                    </button>
+                </div>
 
-                                        <div className="sm:col-span-2">
-                                            <label className="text-sm text-gray-600 mb-1 block">Usuario</label>
-                                            <div className="flex items-center gap-3">
-                                                <FaUserShield className="text-gray-500 text-lg" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Usuario"
-                                                    className="border p-2 rounded w-full"
-                                                    value={editUserData.username}
-                                                    onChange={(e) => setEditUserData({ ...editUserData, username: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
+                <form onSubmit={onSubmit} className="p-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <FormField label="Usuario" required>
+                            <input
+                                type="text"
+                                value={userData.username}
+                                onChange={(e) => onChange('username', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                                required
+                            />
+                        </FormField>
 
-                                        <div className="sm:col-span-2">
-                                            <label className="text-sm text-gray-600 mb-1 block">Correo electrónico</label>
-                                            <div className="flex items-center gap-3">
-                                                <FaEnvelope className="text-gray-500 text-lg" />
-                                                <input
-                                                    type="email"
-                                                    placeholder="Email"
-                                                    className="border p-2 rounded w-full"
-                                                    value={editUserData.email}
-                                                    onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
+                        {isCreateMode && (
+                            <FormField label="Contraseña" required>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={userData.password}
+                                        onChange={(e) => onChange('password', e.target.value)}
+                                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                                        required
+                                    />
 
-                                        <div className="sm:col-span-2">
-                                            <label className="text-sm text-gray-600 mb-1 block">Rol</label>
-                                            <div className="flex items-center gap-3">
-                                                <FaUserShield className="text-gray-500 text-lg" />
-                                                <select
-                                                    className="border p-2 rounded w-full"
-                                                    value={editUserData.role}
-                                                    onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
-                                                >
-                                                    {renderRoleOptions()}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-3 mt-6">
-                                        <button
-                                            onClick={() => {
-                                                setEditUserId(null);
-                                                setImagenPerfil(null);
-                                                setPreviewImagenPerfil(null);
-                                            }}
-                                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            onClick={() => handleSaveUser(editUserId)}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                                        >
-                                            Guardar
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={onGeneratePassword}
+                                        className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                        title="Generar contraseña"
+                                    >
+                                        <FaKey />
+                                    </button>
                                 </div>
-                            </div>
+                            </FormField>
                         )}
 
-                        {showConfirmModal && (
-                            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
-                                <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
-                                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Confirmar eliminación</h2>
-                                    <p className="text-gray-600 mb-6">¿Estás seguro de que deseas eliminar este usuario?</p>
-                                    <div className="flex justify-end space-x-4">
-                                        <button
-                                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-                                            onClick={() => setShowConfirmModal(false)}
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                                            onClick={handleDeleteConfirmed}
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                        <FormField label="Rol" required>
+                            <select
+                                value={userData.role}
+                                onChange={(e) => onChange('role', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                                required
+                            >
+                                {roles.map((role) => (
+                                    <option key={role} value={role}>
+                                        {role}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
+
+                        <FormField label="Tipo de jornada">
+                            <select
+                                value={userData.tipo_jornada}
+                                onChange={(e) => onChange('tipo_jornada', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            >
+                                {jornadas.map((jornada) => (
+                                    <option key={jornada} value={jornada}>
+                                        {jornada}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
+
+                        <FormField label="Nombre">
+                            <input
+                                type="text"
+                                value={userData.nombre}
+                                onChange={(e) => onChange('nombre', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Primer apellido">
+                            <input
+                                type="text"
+                                value={userData.apellido1}
+                                onChange={(e) => onChange('apellido1', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Segundo apellido">
+                            <input
+                                type="text"
+                                value={userData.apellido2}
+                                onChange={(e) => onChange('apellido2', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="DNI">
+                            <input
+                                type="text"
+                                value={userData.dni}
+                                onChange={(e) => onChange('dni', e.target.value.toUpperCase())}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Email">
+                            <input
+                                type="email"
+                                value={userData.email}
+                                onChange={(e) => onChange('email', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Departamento">
+                            <input
+                                type="text"
+                                value={userData.departamento}
+                                onChange={(e) => onChange('departamento', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Días vacaciones anuales">
+                            <input
+                                type="number"
+                                min="0"
+                                value={userData.dias_vacaciones_anuales}
+                                onChange={(e) => onChange('dias_vacaciones_anuales', e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Código representante principal">
+                            <input
+                                type="text"
+                                value={userData.codrepre}
+                                onChange={(e) => onChange('codrepre', e.target.value.toUpperCase())}
+                                placeholder="020"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        <FormField label="Códigos representantes adicionales">
+                            <input
+                                type="text"
+                                value={userData.codrepres}
+                                onChange={(e) => onChange('codrepres', e.target.value.toUpperCase())}
+                                placeholder="021,022,030"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </FormField>
+
+                        {isCreateMode && (
+                            <FormField label="Imagen de perfil">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => onChange('imagenperfil', e.target.files?.[0] || null)}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                                />
+                            </FormField>
                         )}
-                    </>
-                )}
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-5">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                            disabled={saving}
+                        >
+                            Cancelar
+                        </button>
+
+                        <button
+                            type="submit"
+                            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={saving}
+                        >
+                            {saving
+                                ? 'Guardando...'
+                                : isCreateMode
+                                    ? 'Crear usuario'
+                                    : 'Guardar cambios'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
-};
+}
 
-export default Perfil;
+function FormField({ label, required = false, children }) {
+    return (
+        <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                {label}
+                {required && <span className="text-red-500"> *</span>}
+            </span>
+            {children}
+        </label>
+    );
+}
+
+export default GestionUsuarios;

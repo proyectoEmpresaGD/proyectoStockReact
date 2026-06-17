@@ -4,7 +4,8 @@ import SearchBar from '../components/productos/SearchBar';
 import ProductTable from '../components/productos/ProductTable';
 import PaginationControls from '../components/PaginationControls';
 import { useAuthContext } from '../Auth/AuthContext';
-import { AiOutlineLoading3Quarters } from 'react-icons/ai';
+import { AiOutlineLoading3Quarters, AiOutlineSearch } from 'react-icons/ai';
+import { FaTimes } from 'react-icons/fa';
 import PageShell from '../common/PageShell.jsx';
 
 function Stock() {
@@ -14,23 +15,19 @@ function Stock() {
 
     const [stocks, setStocks] = useState([]);
     const [loadingStock, setLoadingStock] = useState(false);
-
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [loadingFechas, setLoadingFechas] = useState(false);
     const [error, setError] = useState(null);
-
     const [resultsRaw, setResultsRaw] = useState([]);
     const [combinedResults, setCombinedResults] = useState([]);
-
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
-
     const [fechasByCode, setFechasByCode] = useState({});
-    const requestedFechasRef = useRef(new Set());
+    const [showHelpModal, setShowHelpModal] = useState(false);
 
+    const itemsPerPage = 10;
+    const requestedFechasRef = useRef(new Set());
     const wrapperRef = useRef(null);
     const suggestAbortRef = useRef(null);
     const searchAbortRef = useRef(null);
@@ -51,15 +48,9 @@ function Stock() {
 
     const productKeys = useCallback(
         (product) => {
-            const full = normStr(
-                getAny(product, ['codprodu', 'CODPRODU', 'codigo', 'code', 'referencia'])
-            );
-
+            const full = normStr(getAny(product, ['codprodu', 'CODPRODU', 'codigo', 'code', 'referencia']));
             const num = onlyDigits(full);
-
-            const marca = normStr(
-                getAny(product, ['codmarca', 'CODMARCA', 'marca', 'MARCA'])
-            );
+            const marca = normStr(getAny(product, ['codmarca', 'CODMARCA', 'marca', 'MARCA']));
 
             return { full, num, marca };
         },
@@ -93,35 +84,21 @@ function Stock() {
                     'quantity',
                 ]);
 
-                const stockTotalRaw = getAny(lote, [
-                    'stocktotal',
-                    'STOCKTOTAL',
-                    'stock_total',
-                ]);
-
-                const stockReservadoRaw = getAny(lote, [
-                    'stockreservado',
-                    'STOCKRESERVADO',
-                    'stock_reservado',
-                ]);
+                const stockTotalRaw = getAny(lote, ['stocktotal', 'STOCKTOTAL', 'stock_total']);
+                const stockReservadoRaw = getAny(lote, ['stockreservado', 'STOCKRESERVADO', 'stock_reservado']);
 
                 const stockDisponible = Number.parseFloat(stockDisponibleRaw || 0);
                 const stockReservado = Number.parseFloat(stockReservadoRaw || 0);
 
                 const stockTotal = Number.parseFloat(
-                    stockTotalRaw ??
-                    Number(stockDisponible || 0) + Number(stockReservado || 0)
+                    stockTotalRaw ?? Number(stockDisponible || 0) + Number(stockReservado || 0)
                 );
 
                 return {
                     codlote: String(codloteVal ?? ''),
-                    stockactual: Number.isFinite(stockDisponible)
-                        ? stockDisponible.toFixed(2)
-                        : '0.00',
+                    stockactual: Number.isFinite(stockDisponible) ? stockDisponible.toFixed(2) : '0.00',
                     stocktotal: Number.isFinite(stockTotal) ? stockTotal.toFixed(2) : '0.00',
-                    stockreservado: Number.isFinite(stockReservado)
-                        ? stockReservado.toFixed(2)
-                        : '0.00',
+                    stockreservado: Number.isFinite(stockReservado) ? stockReservado.toFixed(2) : '0.00',
                 };
             })
             .filter((lote) => lote.codlote !== '');
@@ -182,19 +159,11 @@ function Stock() {
 
                     return {
                         ...product,
-                        stockactual: Number.isFinite(stockDisponible)
-                            ? stockDisponible.toFixed(2)
-                            : '0.00',
+                        stockactual: Number.isFinite(stockDisponible) ? stockDisponible.toFixed(2) : '0.00',
                         stocktotal: Number.isFinite(stockTotal) ? stockTotal.toFixed(2) : '0.00',
-                        stockreservado: Number.isFinite(stockReservado)
-                            ? stockReservado.toFixed(2)
-                            : '0.00',
-                        canpenrecib: stock
-                            ? parseFloat(stock.canpenrecib || 0).toFixed(2)
-                            : '0.00',
-                        canpenservir: stock
-                            ? parseFloat(stock.canpenservir || 0).toFixed(2)
-                            : '0.00',
+                        stockreservado: Number.isFinite(stockReservado) ? stockReservado.toFixed(2) : '0.00',
+                        canpenrecib: stock ? parseFloat(stock.canpenrecib || 0).toFixed(2) : '0.00',
+                        canpenservir: stock ? parseFloat(stock.canpenservir || 0).toFixed(2) : '0.00',
                         fechaestimada: fechasByCode[key] || null,
                         plaentre: stock?.plaentre || null,
                         cantminima: stock?.cantminima || null,
@@ -220,7 +189,6 @@ function Stock() {
                 return response.json();
             })
             .then((stockData) => {
-                console.log('STOCK API DATA:', stockData.slice?.(0, 5) || stockData);
                 setStocks(Array.isArray(stockData) ? stockData : []);
             })
             .catch((err) => setError(err.message))
@@ -250,11 +218,7 @@ function Stock() {
         if (!token) return;
         if (!resultsRaw.length) return;
 
-        const visibleList = resultsRaw.slice(
-            (currentPage - 1) * itemsPerPage,
-            currentPage * itemsPerPage
-        );
-
+        const visibleList = resultsRaw.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
         const codesAll = visibleList.map((product) => normStr(product.codprodu)).filter(Boolean);
         const codes = codesAll.filter((code) => !requestedFechasRef.current.has(code));
 
@@ -271,19 +235,12 @@ function Stock() {
 
         setLoadingFechas(true);
 
-        fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/stock/fechas?codes=${encodeURIComponent(
-                codes.join(',')
-            )}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: controller.signal,
-                cache: 'no-store',
-            }
-        )
-            .then((response) =>
-                response.ok ? response.json() : Promise.reject(new Error('Error loading fechas'))
-            )
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock/fechas?codes=${encodeURIComponent(codes.join(','))}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+            cache: 'no-store',
+        })
+            .then((response) => (response.ok ? response.json() : Promise.reject(new Error('Error loading fechas'))))
             .then((data) => setFechasByCode((prev) => ({ ...prev, ...data })))
             .catch((err) => {
                 if (err?.name === 'AbortError') return;
@@ -430,7 +387,6 @@ function Stock() {
             const { full, num, marca } = productKeys(product);
             const numNoZeros = String(Number(num || 0));
             const marcaClean = String(marca || '').trim().toUpperCase();
-
             const almQuery = 'alm=0';
 
             const candidates = [full, num, numNoZeros, `${marcaClean}${num}`, `${marcaClean}${numNoZeros}`]
@@ -446,8 +402,9 @@ function Stock() {
             });
 
             const tryFetch = async (candidate) => {
-                const url = `${import.meta.env.VITE_API_BASE_URL
-                    }/api/stocklotes/stocklotes/${encodeURIComponent(candidate)}?${almQuery}`;
+                const url = `${import.meta.env.VITE_API_BASE_URL}/api/stocklotes/stocklotes/${encodeURIComponent(
+                    candidate
+                )}?${almQuery}`;
 
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -516,13 +473,27 @@ function Stock() {
 
     return (
         <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20">
-            <h1 className="mb-4 text-center text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                Stock
-            </h1>
+            <div className="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="text-center sm:text-left">
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+                        Stock
+                    </h1>
 
-            <p className="mb-6 text-center text-sm text-slate-500 md:text-base">
-                Herramienta de búsqueda de productos y lotes.
-            </p>
+                    <p className="mt-2 text-sm text-slate-500 md:text-base">
+                        Herramienta de búsqueda de productos y lotes.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => setShowHelpModal(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                    title="Cómo funciona"
+                >
+                    <AiOutlineSearch className="text-lg" />
+                    Cómo funciona
+                </button>
+            </div>
 
             <div ref={wrapperRef} className="mb-6">
                 <SearchBar
@@ -577,6 +548,74 @@ function Stock() {
                         />
                     )}
                 </>
+            )}
+
+            {showHelpModal && (
+                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/50 p-4">
+                    <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    Cómo funciona el apartado de Stock
+                                </h2>
+                                <p className="text-sm text-slate-500">
+                                    Guía rápida para interpretar los resultados.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowHelpModal(false)}
+                                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 px-5 py-5 text-sm leading-relaxed text-slate-600">
+                            <div>
+                                <h3 className="font-semibold text-slate-900">Buscador</h3>
+                                <p>
+                                    Puedes buscar por referencia, código de producto. Para visualizar el producto se puede dar a enter para ver todas las coincidencias del nombre o
+                                    hacer clic en la que se quiere en la pequeña ventana de sugerencias que se desplegara del buscador.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold text-slate-900">Stock disponible</h3>
+                                <p>
+                                    El stock disponible muestra las unidades actuales después de tener en cuenta las
+                                    reservas.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold text-slate-900">Lotes</h3>
+                                <p>
+                                    Si un producto tiene varios lotes, puedes consultar el detalle para ver la
+                                    disponibilidad real de cada lote.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold text-slate-900">Fecha estimada</h3>
+                                <p>
+                                    La fecha estimada se calcula usando días laborables.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end border-t border-slate-200 px-5 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setShowHelpModal(false)}
+                                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            >
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </PageShell>
     );

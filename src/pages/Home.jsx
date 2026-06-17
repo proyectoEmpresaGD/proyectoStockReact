@@ -5,23 +5,25 @@ import { useAuthContext } from '../Auth/AuthContext.jsx';
 
 function Home() {
     const navigate = useNavigate();
-    const { token, logout } = useAuthContext();
-
+    const { token, logout, user } = useAuthContext();
+    const rolesWithoutKpis = ['comercial', 'decoandyou'];
     const [totalClients, setTotalClients] = useState(0); // Total de clientes registrados
     const [totalProducts, setTotalProducts] = useState(0); // Total de productos registrados
     const [totalStock, setTotalStock] = useState(0); // Stock total disponible
     const [totalOrders, setTotalOrders] = useState(0); // Total de pedidos únicos
     const [isLoading, setIsLoading] = useState(true); // Estado de carga
-
+    const shouldHideKpis = rolesWithoutKpis.includes(
+        String(user?.role || '').trim().toLowerCase()
+    );
     useEffect(() => {
-        if (!token) {
+        if (!token || shouldHideKpis) {
             setIsLoading(false);
             return;
         }
 
-        fetchData(); // Llama a la función para obtener los datos al cargar el componente
+        fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token]);
+    }, [token, shouldHideKpis]);
 
     const fetchData = async () => {
         try {
@@ -154,31 +156,33 @@ function Home() {
                     })}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</p>
-                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalClients}</h3>
-                        <p className="mt-2 text-sm text-slate-500">Registros activos en la base de datos.</p>
-                    </div>
+                {!shouldHideKpis && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</p>
+                            <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalClients}</h3>
+                            <p className="mt-2 text-sm text-slate-500">Registros activos en la base de datos.</p>
+                        </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Productos</p>
-                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalProducts}</h3>
-                        <p className="mt-2 text-sm text-slate-500">Items disponibles para gestión.</p>
-                    </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Productos</p>
+                            <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalProducts}</h3>
+                            <p className="mt-2 text-sm text-slate-500">Items disponibles para gestión.</p>
+                        </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Stock total</p>
-                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalStock}</h3>
-                        <p className="mt-2 text-sm text-slate-500">Unidades totales en inventario.</p>
-                    </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Stock total</p>
+                            <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalStock}</h3>
+                            <p className="mt-2 text-sm text-slate-500">Unidades totales en inventario.</p>
+                        </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pedidos</p>
-                        <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalOrders}</h3>
-                        <p className="mt-2 text-sm text-slate-500">Pedidos únicos procesados.</p>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pedidos</p>
+                            <h3 className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '...' : totalOrders}</h3>
+                            <p className="mt-2 text-sm text-slate-500">Pedidos únicos procesados.</p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

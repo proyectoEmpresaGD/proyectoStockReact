@@ -32,7 +32,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/estiquetaSinQR', label: 'Etiqueta sin QR' },
     { path: '/EtiquetaPersonalizable', label: 'Etiqueta personalizable' },
     { path: '/EtiquetaCameo', label: 'Etiqueta Cameo' },
-
+    { path: '/etiquetas-lotes', label: 'Etiquetas por lote' },
     { path: '/libro', label: 'LIBRO' },
     { path: '/libroNormativa', label: 'Libro Normativa' },
     { path: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)' },
@@ -78,17 +78,29 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/agenda',
             '/notas',
             '/stock',
-            '/fichaTecnica',
-            ...DOCUMENT_LABEL_ROUTES,
             '/perfilusuario',
             '/fichar',
             '/rrhh/vacaciones'
         ]
     },
+
+    decoandyou: {
+        name: 'comercial',
+        permissions: ['users.read', 'stock.read', 'sales.read', 'labels.read'],
+        routes: [
+            '/',
+            '/clients',
+            '/stock',
+            '/perfilusuario'
+        ]
+
+    },
+
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],
         routes: [
+            '/etiquetas-lotes',
             '/',
             '/stock',
             '/equivalencias',

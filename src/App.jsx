@@ -7,7 +7,7 @@ import Home from './pages/Home';
 import Stock from './pages/paginaStock';
 import Clients from './pages/paginaclients';
 import Admin from './pages/Admin';
-
+import GeneradorEtiquetasLotes from './pages/etiquetas/GeneradorEtiquetasLotes.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
@@ -119,6 +119,11 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
+
+                          <Route path="/etiquetas" element={<Etiquetas />} />
+                          <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
+                          <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
+                          <Route path="/etiquetas-lotes" element={<GeneradorEtiquetasLotes />} />
 
                           <Route
                             path='/reservasTejido'

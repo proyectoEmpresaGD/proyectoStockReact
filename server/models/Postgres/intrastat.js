@@ -102,18 +102,22 @@ export class IntrastatModel {
 
     static async getPortesByFactura({ codserfacventa, nfacventa }) {
         const query = `
-            SELECT impportes
-            FROM facventa
-            WHERE codserfacventa = $1
-            AND nfacventa = $2
-            ORDER BY ejercicio DESC NULLS LAST
-            LIMIT 1
-        `;
+        SELECT impportes, portes
+        FROM facventa
+        WHERE codserfacventa = $1
+        AND nfacventa = $2
+        ORDER BY ejercicio DESC NULLS LAST
+        LIMIT 1
+    `;
 
         const { rows } = await pool.query(query, [
             codserfacventa,
             String(nfacventa),
         ]);
+
+        const tipoPortes = this.normalize(rows[0]?.portes);
+
+        if (tipoPortes !== 'P') return 0;
 
         return Number(rows[0]?.impportes || 0);
     }
@@ -133,6 +137,188 @@ export class IntrastatModel {
         ]);
 
         return Number(rows[0]?.impbase || 0);
+    }
+
+    static async getLineasVentasIntrastatFaltantesPorFacturaList({
+        mesIntrastat,
+        facturasExistentes = [],
+    }) {
+        if (!mesIntrastat) return [];
+        if (!Array.isArray(facturasExistentes) || facturasExistentes.length === 0) return [];
+
+        const [year, month] = String(mesIntrastat).split('-').map(Number);
+
+        if (!year || !month) return [];
+
+        const fechaInicioSql = `${year}-${String(month).padStart(2, '0')}-01`;
+        const fechaFinDate = new Date(year, month, 1);
+        const fechaFinSql = fechaFinDate.toISOString().slice(0, 10);
+
+        const facturasNormalizadas = facturasExistentes
+            .filter(Boolean)
+            .map(factura =>
+                String(factura)
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, '')
+            );
+
+        if (!facturasNormalizadas.length) return [];
+
+        const query = `
+        WITH facturas_con_varios_albaranes AS (
+            SELECT
+                a.codserfacventa,
+                a.nfacventa
+            FROM albventa a
+            WHERE (
+                UPPER(
+                    REPLACE(
+                        TRIM(CAST(a.codserfacventa AS text)) || '-' || TRIM(CAST(a.nfacventa AS text)),
+                        ' ',
+                        ''
+                    )
+                ) = ANY($3::text[])
+            )
+            GROUP BY
+                a.codserfacventa,
+                a.nfacventa
+            HAVING COUNT(DISTINCT a.nalbventa) > 1
+        ),
+        lineas AS (
+            SELECT
+                a.codserfacventa,
+                a.nfacventa,
+                a.nalbventa,
+                a.fecha AS fecha_albaran,
+
+                f.fecconta AS fecha_factura,
+                f.codclien,
+
+                a.razentre,
+
+                l.linea,
+                l.codprodu,
+                l.codiva,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS importe_facturado,
+
+                COALESCE(CAST(c.nif AS text), '') AS nif_vies,
+                COALESCE(CAST(c.codpais AS text), '') AS codpais_cliente,
+
+                COALESCE(CAST(p.codintrastat AS text), '') AS codintrastat,
+                COALESCE(CAST(p.codpaisorigen AS text), '') AS codpaisorigen,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.cantidad AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS unidades_suplementarias,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(p.kilos AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS kilos_producto
+            FROM facventa f
+            JOIN albventa a
+                ON UPPER(TRIM(CAST(a.codserfacventa AS text))) = UPPER(TRIM(CAST(f.codserfacventa AS text)))
+               AND TRIM(CAST(a.nfacventa AS text)) = TRIM(CAST(f.nfacventa AS text))
+
+            JOIN facturas_con_varios_albaranes fv
+                ON UPPER(TRIM(CAST(fv.codserfacventa AS text))) = UPPER(TRIM(CAST(a.codserfacventa AS text)))
+               AND TRIM(CAST(fv.nfacventa AS text)) = TRIM(CAST(a.nfacventa AS text))
+
+            JOIN albventa_linea l
+                ON l.nalbventa = a.nalbventa
+               AND UPPER(TRIM(CAST(l.codserfacventa AS text))) = UPPER(TRIM(CAST(a.codserfacventa AS text)))
+               AND TRIM(CAST(l.nfacventa AS text)) = TRIM(CAST(a.nfacventa AS text))
+
+            LEFT JOIN clientes c
+                ON UPPER(TRIM(CAST(c.codclien AS text))) = UPPER(TRIM(CAST(f.codclien AS text)))
+
+            LEFT JOIN productos p
+                ON UPPER(TRIM(CAST(p.codprodu AS text))) = UPPER(TRIM(CAST(l.codprodu AS text)))
+
+            WHERE f.fecconta >= $1
+              AND f.fecconta < $2
+
+              AND (
+                    UPPER(
+                        REPLACE(
+                            TRIM(CAST(a.codserfacventa AS text)) || '-' || TRIM(CAST(a.nfacventa AS text)),
+                            ' ',
+                            ''
+                        )
+                    ) = ANY($3::text[])
+              )
+
+              AND (
+                    a.fecha < $1
+                    OR a.fecha >= $2
+              )
+
+              AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = '04'
+
+              AND COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+              ) <> 0
+        )
+        SELECT
+            *,
+            ROUND(
+                kilos_producto * unidades_suplementarias,
+                3
+            ) AS masa_neta
+        FROM lineas
+        ORDER BY
+            codserfacventa,
+            nfacventa,
+            nalbventa,
+            linea
+    `;
+
+        const { rows } = await pool.query(query, [
+            fechaInicioSql,
+            fechaFinSql,
+            facturasNormalizadas,
+        ]);
+
+        return rows;
     }
 
     static async getLineasVentasIntrastatFaltantesPorMes({
@@ -533,6 +719,8 @@ export class IntrastatModel {
         return result;
     }
 
+
+
     static async getFacturasCompraByList(facturas) {
         if (!facturas.length) return {};
 
@@ -617,18 +805,22 @@ export class IntrastatModel {
 
     static async getPortesByFacturaCompra({ codserfaccompra, nfaccompra }) {
         const query = `
-            SELECT impportes
-            FROM faccompra
-            WHERE codserfaccompra = $1
-            AND nfaccompra = $2
-            ORDER BY ejercicio DESC NULLS LAST
-            LIMIT 1
-        `;
+        SELECT impportes, portes
+        FROM faccompra
+        WHERE codserfaccompra = $1
+        AND nfaccompra = $2
+        ORDER BY ejercicio DESC NULLS LAST
+        LIMIT 1
+    `;
 
         const { rows } = await pool.query(query, [
             codserfaccompra,
             String(nfaccompra),
         ]);
+
+        const tipoPortes = this.normalize(rows[0]?.portes);
+
+        if (tipoPortes !== 'P') return 0;
 
         return Number(rows[0]?.impportes || 0);
     }
@@ -805,6 +997,187 @@ export class IntrastatModel {
     `;
 
         const { rows } = await pool.query(query, valores);
+
+        return rows;
+    }
+
+    static async getLineasComprasIntrastatFaltantesPorFacturaList({
+        mesIntrastat,
+        facturasExistentes = [],
+    }) {
+        if (!mesIntrastat) return [];
+        if (!Array.isArray(facturasExistentes) || facturasExistentes.length === 0) return [];
+
+        const [year, month] = String(mesIntrastat).split('-').map(Number);
+
+        if (!year || !month) return [];
+
+        const fechaInicioSql = `${year}-${String(month).padStart(2, '0')}-01`;
+        const fechaFinDate = new Date(year, month, 1);
+        const fechaFinSql = fechaFinDate.toISOString().slice(0, 10);
+
+        const facturasNormalizadas = facturasExistentes
+            .filter(Boolean)
+            .map(factura =>
+                String(factura)
+                    .trim()
+                    .toUpperCase()
+                    .replace(/\s+/g, '')
+            );
+
+        if (!facturasNormalizadas.length) return [];
+
+        const query = `
+        WITH facturas_con_varios_albaranes AS (
+            SELECT
+                a.codserfaccompra,
+                a.nfaccompra
+            FROM albcompra a
+            WHERE (
+                UPPER(
+                    REPLACE(
+                        TRIM(CAST(a.codserfaccompra AS text)) || '-' || TRIM(CAST(a.nfaccompra AS text)),
+                        ' ',
+                        ''
+                    )
+                ) = ANY($3::text[])
+            )
+            GROUP BY
+                a.codserfaccompra,
+                a.nfaccompra
+            HAVING COUNT(DISTINCT a.nalbcompra) > 1
+        ),
+        lineas AS (
+            SELECT
+                a.codserfaccompra,
+                a.nfaccompra,
+                a.nalbcompra,
+
+                f.fecconta AS fecha_factura,
+                f.codprove,
+
+                l.linea,
+                l.codprodu,
+                l.codiva,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS importe_facturado,
+
+                COALESCE(CAST(pv.nif AS text), '') AS nif_vies,
+                COALESCE(CAST(pv.codpais AS text), '') AS codpais_proveedor,
+
+                COALESCE(CAST(pr.codintrastat AS text), '') AS codintrastat,
+                COALESCE(CAST(pr.codpaisorigen AS text), '') AS codpaisorigen,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.cantidad AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS unidades_suplementarias,
+
+                COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(pr.kilos AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+                ) AS kilos_producto
+            FROM faccompra f
+            JOIN albcompra a
+                ON UPPER(TRIM(CAST(a.codserfaccompra AS text))) = UPPER(TRIM(CAST(f.codserfaccompra AS text)))
+               AND TRIM(CAST(a.nfaccompra AS text)) = TRIM(CAST(f.nfaccompra AS text))
+
+            JOIN facturas_con_varios_albaranes fv
+                ON UPPER(TRIM(CAST(fv.codserfaccompra AS text))) = UPPER(TRIM(CAST(a.codserfaccompra AS text)))
+               AND TRIM(CAST(fv.nfaccompra AS text)) = TRIM(CAST(a.nfaccompra AS text))
+
+            JOIN albcompra_linea l
+                ON l.nalbcompra = a.nalbcompra
+               AND UPPER(TRIM(CAST(l.codserfaccompra AS text))) = UPPER(TRIM(CAST(a.codserfaccompra AS text)))
+               AND TRIM(CAST(l.nfaccompra AS text)) = TRIM(CAST(a.nfaccompra AS text))
+
+            LEFT JOIN proveedores pv
+                ON UPPER(TRIM(CAST(pv.codprove AS text))) = UPPER(TRIM(CAST(f.codprove AS text)))
+
+            LEFT JOIN productos pr
+                ON UPPER(TRIM(CAST(pr.codprodu AS text))) = UPPER(TRIM(CAST(l.codprodu AS text)))
+
+            WHERE f.fecconta >= $1
+              AND f.fecconta < $2
+
+              AND (
+                    UPPER(
+                        REPLACE(
+                            TRIM(CAST(a.codserfaccompra AS text)) || '-' || TRIM(CAST(a.nfaccompra AS text)),
+                            ' ',
+                            ''
+                        )
+                    ) = ANY($3::text[])
+              )
+
+              AND (
+                    a.fecha < $1
+                    OR a.fecha >= $2
+              )
+
+              AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = '04'
+
+              AND COALESCE(
+                    NULLIF(
+                        regexp_replace(
+                            REPLACE(CAST(l.impbruto AS text), ',', '.'),
+                            '[^0-9.-]',
+                            '',
+                            'g'
+                        ),
+                        ''
+                    )::numeric,
+                    0
+              ) <> 0
+
+              AND UPPER(TRIM(CAST(COALESCE(l.codprodu, '') AS text))) <> 'PORTES75'
+        )
+        SELECT
+            *,
+            ROUND(
+                kilos_producto * unidades_suplementarias,
+                3
+            ) AS masa_neta
+        FROM lineas
+        ORDER BY
+            codserfaccompra,
+            nfaccompra,
+            nalbcompra,
+            linea
+    `;
+
+        const { rows } = await pool.query(query, [
+            fechaInicioSql,
+            fechaFinSql,
+            facturasNormalizadas,
+        ]);
 
         return rows;
     }
@@ -1006,6 +1379,8 @@ export class IntrastatModel {
         return rows;
     }
 
+
+
     static async getImportesExtraByFacturaCompra(facturas) {
 
         if (!facturas.length) return {};
@@ -1035,8 +1410,9 @@ export class IntrastatModel {
             -- CON DESCRIPCION
             AND TRIM(COALESCE(desprodu, '')) <> ''
 
-            -- IGNORAR CUADRES
+            -- IGNORAR CUADRES Y AJUSTES
             AND UPPER(TRIM(desprodu)) NOT LIKE '%CUADRE%'
+            AND UPPER(TRIM(desprodu)) NOT LIKE '%AJUSTE%'
 
             -- SOLO LINEAS CON IMPORTE
             AND COALESCE(impbruto, 0) <> 0

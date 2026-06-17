@@ -32,7 +32,6 @@ export class IntrastatController {
             'KM_ESPANA',
             'KM_FRONTERA',
             'FACTURA ABONO',
-            'IMP. FAC. ABONO',
             'AJUSTE_REDONDEO',
             'AGREGADA_POR_FACTURA_MES',
             'ERROR_FACTURA',
@@ -66,7 +65,7 @@ export class IntrastatController {
     }
 
     getVentasZebraFillColor() {
-        return 'A3A3A3';
+        return 'D6D6D6';
     }
 
     normalizeFacturaForSort(factura) {
@@ -126,13 +125,143 @@ export class IntrastatController {
         });
     }
 
+    applyVentasReferenceExcelStyle(sheet, rows, headers) {
+        if (!sheet['!ref']) return;
+
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+
+        const coloredHeaders = new Set([
+            'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)',
+            'CONDICIONES DE ENTREGA',
+            'DESCRIPCION_MERCANCIA',
+            'CODIGO DE LAS MERCANCÍAS ',
+            'UNIDADES SUPLEMENTARIAS',
+            'MODALIDAD DE TRANSPORTE (N1)',
+            'PAIS DE ORIGEN (A2)',
+            'MASA NETA EN KG',
+            'KM_ESPANA',
+            'KM_FRONTERA',
+        ]);
+
+        const boldCenteredColumns = new Set([
+            'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)',
+            'CONDICIONES DE ENTREGA',
+            'DESCRIPCION_MERCANCIA',
+            'CODIGO DE LAS MERCANCÍAS ',
+            'UNIDADES SUPLEMENTARIAS',
+            'MODALIDAD DE TRANSPORTE (N1)',
+            'PAIS DE ORIGEN (A2)',
+            'MASA NETA EN KG',
+            'IMPORTE FACTURA',
+            'KM_ESPANA',
+            'KM_FRONTERA',
+        ]);
+
+        const numberFormatByHeader = {
+            'UNIDADES SUPLEMENTARIAS': '#,##0.00',
+            'MASA NETA EN KG': '#,##0.00',
+            'IMPORTE FACTURADO': '#,##0.00',
+            'IMPORTE FACTURA': '#,##0.00',
+            PORTES: '#,##0.00',
+        };
+
+        const orangeFill = {
+            patternType: 'solid',
+            fgColor: {
+                rgb: 'FDEADA',
+            },
+        };
+
+        headers.forEach((header, colIndex) => {
+            const shouldColorHeader = coloredHeaders.has(header);
+            const shouldBoldAndCenter = boldCenteredColumns.has(header);
+            const numberFormat = numberFormatByHeader[header];
+
+            for (let rowIndex = range.s.r; rowIndex <= range.e.r; rowIndex++) {
+                const cellAddress = XLSX.utils.encode_cell({
+                    r: rowIndex,
+                    c: colIndex,
+                });
+
+                if (!sheet[cellAddress]) {
+                    sheet[cellAddress] = {
+                        t: 's',
+                        v: '',
+                    };
+                }
+
+                const isHeaderRow = rowIndex === 0;
+
+                sheet[cellAddress].s = {
+                    ...(sheet[cellAddress].s || {}),
+
+                    font: {
+                        ...(sheet[cellAddress].s?.font || {}),
+                        name: 'Calibri',
+                        sz: 11,
+                        bold: isHeaderRow || shouldBoldAndCenter,
+                    },
+
+                    alignment: {
+                        ...(sheet[cellAddress].s?.alignment || {}),
+                        horizontal: isHeaderRow || shouldBoldAndCenter
+                            ? 'center'
+                            : sheet[cellAddress].s?.alignment?.horizontal,
+                        vertical: 'center',
+                        wrapText: isHeaderRow,
+                    },
+
+                    ...(isHeaderRow && shouldColorHeader
+                        ? { fill: orangeFill }
+                        : {}),
+
+                    ...(numberFormat && !isHeaderRow
+                        ? { numFmt: numberFormat }
+                        : {}),
+                };
+            }
+        });
+
+        if (!sheet['!cols']) sheet['!cols'] = [];
+
+        headers.forEach((header, colIndex) => {
+            if (header === 'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)') {
+                sheet['!cols'][colIndex] = { wch: 20 };
+                return;
+            }
+
+            if (header === 'DESCRIPCION_MERCANCIA') {
+                sheet['!cols'][colIndex] = { wch: 28 };
+                return;
+            }
+
+            if (header === 'CODIGO DE LAS MERCANCÍAS ') {
+                sheet['!cols'][colIndex] = { wch: 18 };
+                return;
+            }
+
+            if (header === 'MODALIDAD DE TRANSPORTE (N1)') {
+                sheet['!cols'][colIndex] = { wch: 20 };
+                return;
+            }
+
+            sheet['!cols'][colIndex] = { wch: 14 };
+        });
+
+        if (!sheet['!rows']) sheet['!rows'] = [];
+
+        sheet['!rows'][0] = {
+            hpt: 45,
+        };
+    }
+
     formatVentasOutputRows(rows) {
         return rows.map(row => ({
             'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
                 row['ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)'] ?? '',
 
             'CONDICIONES DE ENTREGA':
-                row.CODINCOTERMS ?? '',
+                row.INCOTERMS ?? '',
 
             'DESCRIPCION_MERCANCIA':
                 row.DESCRIPCION_MERCANCIA ?? '',
@@ -176,9 +305,6 @@ export class IntrastatController {
             'FACTURA ABONO':
                 row['FACTURA ABONO'] ?? '',
 
-            'IMP. FAC. ABONO':
-                row['IMP. FAC. ABONO'] ?? '',
-
             AJUSTE_REDONDEO:
                 row.AJUSTE_REDONDEO ?? '',
 
@@ -212,9 +338,7 @@ export class IntrastatController {
                 .toUpperCase()
                 .replace(/\s+/g, '');
 
-            if (!factura) {
-                continue;
-            }
+            if (!factura) continue;
 
             if (factura !== previousFactura) {
                 previousFactura = factura;
@@ -223,9 +347,7 @@ export class IntrastatController {
 
             const shouldApplyGrey = currentBlockIndex % 2 !== 0;
 
-            if (!shouldApplyGrey) {
-                continue;
-            }
+            if (!shouldApplyGrey) continue;
 
             for (let colIndex = range.s.c; colIndex <= range.e.c; colIndex++) {
                 const cellAddress = XLSX.utils.encode_cell({
@@ -241,6 +363,7 @@ export class IntrastatController {
                 }
 
                 sheet[cellAddress].s = {
+                    ...(sheet[cellAddress].s || {}),
                     fill: {
                         patternType: 'solid',
                         fgColor: {
@@ -272,6 +395,7 @@ export class IntrastatController {
         };
     }
 
+
     parseFactura(factura) {
         if (!factura) return null;
 
@@ -281,6 +405,31 @@ export class IntrastatController {
             codserfacventa: serie?.trim(),
             nfacventa: numero?.trim(),
         };
+    }
+
+    isFacturaAbonoVentas(factura) {
+        const normalized = String(factura || '')
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, '');
+
+        return /^[A-ZÀ-Ÿ]{2}/.test(normalized);
+    }
+
+    setImporteAbonoVentas(rows) {
+        return rows.map(row => {
+            const factura = row.FACTURA || '';
+
+            if (!this.isFacturaAbonoVentas(factura)) {
+                return row;
+            }
+
+            return {
+                ...row,
+                'FACTURA ABONO': row['IMPORTE FACTURA'] ?? '',
+                'IMPORTE FACTURA': '',
+            };
+        });
     }
 
     async generarVentas(req, res) {
@@ -461,6 +610,61 @@ export class IntrastatController {
 
                     facturasMap.get(facturaKey).push(nuevaRow);
                 }
+
+                const lineasAlbaranesFueraMes =
+                    await IntrastatModel.getLineasVentasIntrastatFaltantesPorFacturaList({
+                        mesIntrastat,
+                        facturasExistentes,
+                    });
+
+                for (const linea of lineasAlbaranesFueraMes) {
+                    const facturaKey = `${linea.codserfacventa}-${linea.nfacventa}`
+                        .replace(/\s+/g, '')
+                        .toUpperCase();
+
+                    if (!facturasMap.has(facturaKey)) continue;
+
+                    const facturaVisible =
+                        `${String(linea.codserfacventa).trim()}-${String(linea.nfacventa).trim()}`;
+
+                    const nuevaRow = {
+                        [FACTURA_KEY]: facturaVisible,
+                        FACTURA: facturaVisible,
+
+                        [IMPORTE_FACTURADO_KEY]:
+                            Number(linea.importe_facturado || 0),
+
+                        [IMPORTE_FACTURA_KEY]: 0,
+                        [PORTES_KEY]: 0,
+
+                        CODPRODU:
+                            linea.codprodu || '',
+
+                        'NIF VIES':
+                            linea.nif_vies || '',
+
+                        'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
+                            linea.codpais_cliente || '',
+
+                        'CODIGO DE LAS MERCANCÍAS ':
+                            linea.codintrastat || '',
+
+                        'UNIDADES SUPLEMENTARIAS':
+                            Number(linea.unidades_suplementarias || 0),
+
+                        'MASA NETA EN KG':
+                            Number(linea.masa_neta || 0),
+
+                        'PAIS DE ORIGEN (A2)':
+                            linea.codpaisorigen || '',
+
+                        AGREGADA_POR_FACTURA_MES:
+                            'SI - ALBARAN FUERA DEL MES EN FACTURA CON VARIOS ALBARANES',
+                    };
+
+                    rows.push(nuevaRow);
+                    facturasMap.get(facturaKey).push(nuevaRow);
+                }
             }
 
             const incotermsMap =
@@ -522,7 +726,7 @@ export class IntrastatController {
                 importeBaseBD = Number(Number(importeBaseBD).toFixed(2));
 
                 let diferencia = Number((importeBaseBD - totalLineas).toFixed(2));
-                const ajusteMaximo = 0.04;
+                const ajusteMaximo = 0.15;
 
                 if (Math.abs(diferencia) <= ajusteMaximo && lineas.length > 0) {
                     const ultimaLinea = lineas[lineas.length - 1];
@@ -595,11 +799,13 @@ export class IntrastatController {
             });
 
             const sortedRows = this.sortRowsByFactura(rows);
-            const outputRows = this.formatVentasOutputRows(sortedRows);
+            const rowsConImporteAbono = this.setImporteAbonoVentas(sortedRows);
+            const outputRows = this.formatVentasOutputRows(rowsConImporteAbono);
             const headers = this.getVentasOutputHeaders();
 
             const newSheet = XLSX.utils.json_to_sheet(outputRows, { header: headers });
 
+            this.applyVentasReferenceExcelStyle(newSheet, outputRows, headers);
             this.applyVentasFacturaZebraStyle(newSheet, outputRows, headers);
 
             const newWorkbook = XLSX.utils.book_new();
@@ -611,8 +817,36 @@ export class IntrastatController {
                 type: 'buffer'
             });
 
+            const getNombreMesIntrastat = (mesIntrastat) => {
+                if (!mesIntrastat) return 'sin_mes';
+
+                const [year, month] = String(mesIntrastat).split('-');
+
+                const nombresMeses = [
+                    'enero',
+                    'febrero',
+                    'marzo',
+                    'abril',
+                    'mayo',
+                    'junio',
+                    'julio',
+                    'agosto',
+                    'septiembre',
+                    'octubre',
+                    'noviembre',
+                    'diciembre',
+                ];
+
+                const monthIndex = Number(month) - 1;
+                const nombreMes = nombresMeses[monthIndex];
+
+                if (!year || !nombreMes) return 'sin_mes';
+
+                return `${nombreMes}_${year}`;
+            };
+
             return res.json({
-                fileName: `intrastat_${Date.now()}.xlsx`,
+                fileName: `Intrastat_ventas_${getNombreMesIntrastat(mesIntrastat)}.xlsx`,
                 fileBase64: buffer.toString('base64'),
                 errores: erroresFacturas,
                 facturasIvaIncorrecto
@@ -812,6 +1046,67 @@ export class IntrastatController {
 
                     facturasMap.get(facturaKey).push(nuevaRow);
                 }
+
+                const lineasAlbaranesFueraMes =
+                    await IntrastatModel.getLineasComprasIntrastatFaltantesPorFacturaList({
+                        mesIntrastat,
+                        facturasExistentes,
+                    });
+
+                for (const linea of lineasAlbaranesFueraMes) {
+                    const facturaKey = `${linea.codserfaccompra}-${linea.nfaccompra}`
+                        .replace(/\s+/g, '')
+                        .toUpperCase();
+
+                    if (!facturasMap.has(facturaKey)) continue;
+
+                    const facturaVisible =
+                        `${String(linea.codserfaccompra).trim()}-${String(linea.nfaccompra).trim()}`;
+
+                    const nuevaRow = {
+                        [FACTURA_KEY]: facturaVisible,
+                        FACTURA: facturaVisible,
+
+                        [IMPORTE_FACTURADO_KEY]:
+                            Number(linea.importe_facturado || 0),
+
+                        [IMPORTE_FACTURA_KEY]: 0,
+                        [PORTES_KEY]: 0,
+
+                        CODPRODU:
+                            linea.codprodu || '',
+
+                        'NIF VIES':
+                            linea.nif_vies || '',
+
+                        'ESTADO MIEMBRO DE PROCEDENCIA/DESTINO (A2)':
+                            linea.codpais_proveedor || '',
+
+                        PAIS:
+                            linea.codpais_proveedor || '',
+
+                        [PAIS_DESTINO_KEY]:
+                            linea.codpais_proveedor || '',
+
+                        'CODIGO DE LAS MERCANCÍAS ':
+                            linea.codintrastat || '',
+
+                        'UNIDADES SUPLEMENTARIAS':
+                            Number(linea.unidades_suplementarias || 0),
+
+                        'MASA NETA EN KG':
+                            Number(linea.masa_neta || 0),
+
+                        'PAIS DE ORIGEN (A2)':
+                            linea.codpaisorigen || '',
+
+                        AGREGADA_POR_FACTURA_MES:
+                            'SI - ALBARAN FUERA DEL MES EN FACTURA CON VARIOS ALBARANES',
+                    };
+
+                    rows.push(nuevaRow);
+                    facturasMap.get(facturaKey).push(nuevaRow);
+                }
             }
 
             const facturasData =
@@ -961,7 +1256,7 @@ export class IntrastatController {
                         (totalBD - totalLineas).toFixed(2)
                     );
 
-                const ajusteMaximo = 0.04;
+                const ajusteMaximo = 0.15;
 
                 if (
                     Math.abs(diferencia) <= ajusteMaximo
@@ -1155,15 +1450,39 @@ export class IntrastatController {
                 }
             );
 
-            return res.json({
-                fileName:
-                    `intrastat_compras_${Date.now()}.xlsx`,
+            const getNombreMesIntrastat = (mesIntrastat) => {
+                if (!mesIntrastat) return 'sin_mes';
 
+                const [year, month] = String(mesIntrastat).split('-');
+
+                const nombresMeses = [
+                    'enero',
+                    'febrero',
+                    'marzo',
+                    'abril',
+                    'mayo',
+                    'junio',
+                    'julio',
+                    'agosto',
+                    'septiembre',
+                    'octubre',
+                    'noviembre',
+                    'diciembre',
+                ];
+
+                const monthIndex = Number(month) - 1;
+                const nombreMes = nombresMeses[monthIndex];
+
+                if (!year || !nombreMes) return 'sin_mes';
+
+                return `${nombreMes}_${year}`;
+            };
+
+            return res.json({
+                fileName: `Intrastat_compras_${getNombreMesIntrastat(mesIntrastat)}.xlsx`,
                 fileBase64:
                     buffer.toString('base64'),
-
                 errores: erroresFacturas,
-
                 facturasIvaIncorrecto
             });
 
