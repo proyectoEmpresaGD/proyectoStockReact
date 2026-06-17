@@ -167,11 +167,6 @@ export default function GeneradorEtiquetasLotes() {
                 break-inside: avoid !important;
             }
 
-            .label-print-page:last-child {
-                page-break-after: always !important;
-                break-after: page !important;
-            }
-
             .label-rotate-wrapper {
                 position: absolute !important;
                 left: 50% !important;
@@ -187,9 +182,9 @@ export default function GeneradorEtiquetasLotes() {
             }
 
             .label-rotate-wrapper .lot-label {
-                width: calc(${config.labelWidthCm}cm - 0.8cm) !important;
-                height: calc(${config.labelHeightCm}cm - 0.8cm) !important;
-                margin: 0.4cm !important;
+                width: calc(${config.labelWidthCm}cm - 0.2cm) !important;
+                height: calc(${config.labelHeightCm}cm - 0.2cm) !important;
+                margin: 0 !important;
                 padding: 0.25cm !important;
                 box-sizing: border-box !important;
                 border: 1px solid #000 !important;
