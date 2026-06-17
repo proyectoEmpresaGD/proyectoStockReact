@@ -170,14 +170,8 @@ export default function GeneradorEtiquetasLotes() {
             .label-print-page .lot-label {
                 position: absolute !important;
 
-                /*
-                    Página física: 10 x 15 cm.
-                    Etiqueta real: 15 x 10 cm.
-                    Escala: 85%.
-                    Posicionamiento fijo para que no dependa del centrado por porcentaje.
-                */
-                left: calc(${config.labelHeightCm}cm * 0.925) !important;
-                top: calc(${config.labelWidthCm}cm * 0.075) !important;
+                left: calc(${config.labelHeightCm}cm - 0.3cm) !important;
+                top: 0.3cm !important;
 
                 width: ${config.labelWidthCm}cm !important;
                 height: ${config.labelHeightCm}cm !important;
@@ -192,7 +186,7 @@ export default function GeneradorEtiquetasLotes() {
                 overflow: hidden !important;
 
                 transform-origin: top left !important;
-                transform: rotate(90deg) scale(1) !important;
+                transform: rotate(90deg) scale(0.94) !important;
 
                 page-break-after: auto !important;
                 break-after: auto !important;
