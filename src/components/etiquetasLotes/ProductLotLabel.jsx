@@ -60,10 +60,10 @@ export default function ProductLotLabel({
                     </p>
 
                     <div className="bg-white p-1">
-                        <QRCode value={productCode} size={100} />
+                        <QRCode value={productCode} size={130} />
                     </div>
 
-                    <p className="mt-1 break-all text-center font-mono text-[13px] leading-tight">
+                    <p className="mt-1 break-all text-center font-mono text-[18px] leading-tight">
                         {productCode}
                     </p>
                 </div>
@@ -74,17 +74,17 @@ export default function ProductLotLabel({
                     </p>
 
                     <div className="bg-white p-1">
-                        <QRCode value={lotCode} size={100} />
+                        <QRCode value={lotCode} size={130} />
                     </div>
 
-                    <p className="mt-1 break-all text-center font-mono text-[13px] leading-tight">
+                    <p className="mt-1 break-all text-center font-mono text-[18px] leading-tight">
                         {lotCode}
                     </p>
                 </div>
             </section>
 
             <footer className="border-t border-slate-300 pt-1 text-[16px] leading-tight text-slate-700">
-                <span className="font-semibold">Stock:</span> {formatStock(lot.stockactual)}
+                <span className="font-semibold">Stock Inicial:</span> {formatStock(lot.stockactual)}
             </footer>
         </article>
     );

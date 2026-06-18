@@ -287,8 +287,11 @@ function EtiquetaPerchasEstampados() {
             </div>
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
-                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
+                    <p className="font-extrabold flex items-center w-[240px]">
+                        Pattern:{' '}
+                        <span className="font-light ml-1 mb-[2px] ">
+                            {selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}
+                        </span>
                     </p>
                     <p className="font-extrabold flex items-center">
                         Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
@@ -352,8 +355,11 @@ function EtiquetaPerchasEstampados() {
 
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
-                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    <p className="font-extrabold flex items-center w-[240px]">
+                        Pattern:{' '}
+                        <span className="font-light ml-1 mb-[2px] ">
+                            {selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}
+                        </span>
                     </p>
                     <p className="font-extrabold flex items-center">
                         Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
@@ -422,8 +428,11 @@ function EtiquetaPerchasEstampados() {
             </div>
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
-                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    <p className="font-extrabold flex items-center w-[240px]">
+                        Pattern:{' '}
+                        <span className="font-light ml-1 mb-[2px] ">
+                            {selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}
+                        </span>
                     </p>
                     <p className="font-extrabold flex items-center">
                         Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
@@ -493,8 +502,11 @@ function EtiquetaPerchasEstampados() {
 
             <div className="text-content text-[9px] grid grid-cols-3">
                 <div>
-                    <p className="font-extrabold flex items-center">
-                        Pattern: <span className="font-light ml-1 mb-[2px]">{selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}</span>
+                    <p className="font-extrabold flex items-center w-[240px]">
+                        Pattern:{' '}
+                        <span className="font-light ml-1 mb-[2px] ">
+                            {selectedProduct.nombre} {selectedProduct.tonalidad} {selectedProduct.shade}
+                        </span>
                     </p>
                     <p className="font-extrabold flex items-center">
                         Weight: <span className="font-light ml-1 mb-[2px]">{selectedProduct.gramaje} g/m²</span>
