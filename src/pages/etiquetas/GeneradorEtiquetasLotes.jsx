@@ -64,9 +64,15 @@ export default function GeneradorEtiquetasLotes() {
 
         document.body.classList.add('print-export-mode');
 
+        let cleanTimeoutId;
+
         const cleanPrintMode = () => {
             document.body.classList.remove('print-export-mode');
             window.removeEventListener('afterprint', cleanPrintMode);
+
+            if (cleanTimeoutId) {
+                clearTimeout(cleanTimeoutId);
+            }
         };
 
         window.addEventListener('afterprint', cleanPrintMode);
@@ -79,7 +85,7 @@ export default function GeneradorEtiquetasLotes() {
 
         window.print();
 
-        setTimeout(cleanPrintMode, 1500);
+        cleanTimeoutId = setTimeout(cleanPrintMode, 8000);
     };
 
     const handlePdf = async () => {
@@ -136,16 +142,12 @@ export default function GeneradorEtiquetasLotes() {
                 {`
                     .pdf-export-mode .no-print,
                     .pdf-export-mode .no-print *,
-                    .pdf-export-mode .remove-label-button,
-                    .print-export-mode .no-print,
-                    .print-export-mode .no-print *,
-                    .print-export-mode .remove-label-button {
+                    .pdf-export-mode .remove-label-button {
                         display: none !important;
                         visibility: hidden !important;
                     }
 
-                    .pdf-export-mode #lot-label-print-area,
-                    .print-export-mode #lot-label-print-area {
+                    .pdf-export-mode #lot-label-print-area {
                         position: static !important;
                         width: 21cm !important;
                         margin: 0 !important;
@@ -155,8 +157,7 @@ export default function GeneradorEtiquetasLotes() {
                         overflow: visible !important;
                     }
 
-                    .pdf-export-mode .sheet-preview-container,
-                    .print-export-mode .sheet-preview-container {
+                    .pdf-export-mode .sheet-preview-container {
                         display: block !important;
                         width: 21cm !important;
                         margin: 0 !important;
@@ -165,8 +166,7 @@ export default function GeneradorEtiquetasLotes() {
                         overflow: visible !important;
                     }
 
-                    .pdf-export-mode .sheet-print-page,
-                    .print-export-mode .sheet-print-page {
+                    .pdf-export-mode .sheet-print-page {
                         display: flex !important;
                         flex-direction: column !important;
                         align-items: center !important;
@@ -191,14 +191,12 @@ export default function GeneradorEtiquetasLotes() {
                         break-inside: avoid !important;
                     }
 
-                    .pdf-export-mode .sheet-print-page:not(:first-child),
-                    .print-export-mode .sheet-print-page:not(:first-child) {
+                    .pdf-export-mode .sheet-print-page:not(:first-child) {
                         page-break-before: always !important;
                         break-before: page !important;
                     }
 
-                    .pdf-export-mode .label-print-page,
-                    .print-export-mode .label-print-page {
+                    .pdf-export-mode .label-print-page {
                         position: static !important;
                         display: block !important;
 
@@ -220,8 +218,7 @@ export default function GeneradorEtiquetasLotes() {
                         break-inside: avoid !important;
                     }
 
-                    .pdf-export-mode .label-print-page .lot-label,
-                    .print-export-mode .label-print-page .lot-label {
+                    .pdf-export-mode .label-print-page .lot-label {
                         position: static !important;
 
                         width: ${config.labelWidthCm}cm !important;
@@ -246,13 +243,11 @@ export default function GeneradorEtiquetasLotes() {
                         break-inside: avoid !important;
                     }
 
-                    .pdf-export-mode .label-header,
-                    .print-export-mode .label-header {
+                    .pdf-export-mode .label-header {
                         padding-right: 0 !important;
                     }
 
-                    .pdf-export-mode .label-product-name,
-                    .print-export-mode .label-product-name {
+                    .pdf-export-mode .label-product-name {
                         max-height: none !important;
                         overflow: visible !important;
                         white-space: normal !important;
