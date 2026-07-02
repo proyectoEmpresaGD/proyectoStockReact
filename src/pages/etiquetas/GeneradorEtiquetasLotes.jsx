@@ -54,11 +54,35 @@ export default function GeneradorEtiquetasLotes() {
 
     const isSingleLabelMode = config.printMode === LOT_LABEL_PRINT_MODES.singleLabel;
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
+        if (!printRef.current || visibleLots.length === 0) return;
+
+        if (isSingleLabelMode) {
+            window.print();
+            return;
+        }
+
+        document.body.classList.add('print-export-mode');
+
+        const cleanPrintMode = () => {
+            document.body.classList.remove('print-export-mode');
+            window.removeEventListener('afterprint', cleanPrintMode);
+        };
+
+        window.addEventListener('afterprint', cleanPrintMode);
+
+        await new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+
         window.print();
+
+        setTimeout(cleanPrintMode, 1500);
     };
 
-    const handlePdf = () => {
+    const handlePdf = async () => {
         if (!printRef.current || visibleLots.length === 0 || isSingleLabelMode) return;
 
         const baseName = selectedProduct
@@ -67,13 +91,21 @@ export default function GeneradorEtiquetasLotes() {
 
         const fileName = sanitizeFileName(baseName);
 
+        document.body.classList.add('pdf-export-mode');
+
+        await new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+
         html2pdf()
             .set({
-                margin: [0.4, 0.4, 0.4, 0.4],
+                margin: 0,
                 filename: `${fileName}.pdf`,
                 image: { type: 'jpeg', quality: 1 },
                 html2canvas: {
-                    scale: 3,
+                    scale: 2,
                     useCORS: true,
                     allowTaint: false,
                     backgroundColor: '#ffffff',
@@ -85,13 +117,16 @@ export default function GeneradorEtiquetasLotes() {
                 },
                 pagebreak: {
                     mode: ['css', 'legacy'],
-                    avoid: ['.lot-label'],
+                    avoid: ['.lot-label', '.label-print-page'],
                 },
             })
             .from(printRef.current)
             .save()
             .catch((pdfError) => {
                 console.error('Error generando PDF de etiquetas por lote:', pdfError);
+            })
+            .finally(() => {
+                document.body.classList.remove('pdf-export-mode');
             });
     };
 
@@ -99,102 +134,358 @@ export default function GeneradorEtiquetasLotes() {
         <div className="min-h-screen bg-slate-100 p-4 text-slate-900 md:p-8">
             <style>
                 {`
-        @media print {
-            @page {
-                size: ${config.labelHeightCm}cm ${config.labelWidthCm}cm portrait;
-                margin: 0;
-            }
+                    .pdf-export-mode .no-print,
+                    .pdf-export-mode .no-print *,
+                    .pdf-export-mode .remove-label-button,
+                    .print-export-mode .no-print,
+                    .print-export-mode .no-print *,
+                    .print-export-mode .remove-label-button {
+                        display: none !important;
+                        visibility: hidden !important;
+                    }
 
-            html,
-            body,
-            #root {
-                width: ${config.labelHeightCm}cm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: visible !important;
-                background: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
+                    .pdf-export-mode #lot-label-print-area,
+                    .print-export-mode #lot-label-print-area {
+                        position: static !important;
+                        width: 21cm !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        box-shadow: none !important;
+                        overflow: visible !important;
+                    }
 
-            body * {
-                visibility: hidden !important;
-            }
+                    .pdf-export-mode .sheet-preview-container,
+                    .print-export-mode .sheet-preview-container {
+                        display: block !important;
+                        width: 21cm !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        overflow: visible !important;
+                    }
 
-            #lot-label-print-area,
-            #lot-label-print-area * {
-                visibility: visible !important;
-            }
+                    .pdf-export-mode .sheet-print-page,
+                    .print-export-mode .sheet-print-page {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        gap: 0.2cm !important;
 
-            .no-print,
-            .no-print * {
-                display: none !important;
-                visibility: hidden !important;
-            }
+                        width: 21cm !important;
+                        height: 28.7cm !important;
 
-            #lot-label-print-area {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: ${config.labelHeightCm}cm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                box-shadow: none !important;
-                overflow: visible !important;
-            }
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        box-sizing: border-box !important;
 
-            .label-preview-container {
-                display: block !important;
-                width: ${config.labelHeightCm}cm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                gap: 0 !important;
-            }
+                        overflow: hidden !important;
+                        background: white !important;
 
-            .label-print-page {
-                position: relative !important;
-                display: block !important;
-                width: ${config.labelHeightCm}cm !important;
-                height: ${config.labelWidthCm}cm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-                background: white !important;
-                page-break-after: always !important;
-                break-after: page !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }
+                        page-break-after: auto !important;
+                        break-after: auto !important;
+                        page-break-before: auto !important;
+                        break-before: auto !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
 
-            .label-print-page .lot-label {
-                position: absolute !important;
+                    .pdf-export-mode .sheet-print-page:not(:first-child),
+                    .print-export-mode .sheet-print-page:not(:first-child) {
+                        page-break-before: always !important;
+                        break-before: page !important;
+                    }
 
-                left: calc(${config.labelHeightCm}cm - 0.3cm) !important;
-                top: 0.3cm !important;
+                    .pdf-export-mode .label-print-page,
+                    .print-export-mode .label-print-page {
+                        position: static !important;
+                        display: block !important;
 
-                width: ${config.labelWidthCm}cm !important;
-                height: ${config.labelHeightCm}cm !important;
+                        width: ${config.labelWidthCm}cm !important;
+                        height: ${config.labelHeightCm}cm !important;
 
-                margin: 0 !important;
-                padding: 0.25cm !important;
-                box-sizing: border-box !important;
+                        flex: 0 0 auto !important;
 
-                border: 1px solid #000 !important;
-                background: white !important;
-                color: black !important;
-                overflow: hidden !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        overflow: hidden !important;
+                        background: white !important;
 
-                transform-origin: top left !important;
-                transform: rotate(90deg) scale(0.94) !important;
+                        page-break-after: auto !important;
+                        break-after: auto !important;
+                        page-break-before: auto !important;
+                        break-before: auto !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
 
-                page-break-after: auto !important;
-                break-after: auto !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }
-        }
-    `}
+                    .pdf-export-mode .label-print-page .lot-label,
+                    .print-export-mode .label-print-page .lot-label {
+                        position: static !important;
+
+                        width: ${config.labelWidthCm}cm !important;
+                        height: ${config.labelHeightCm}cm !important;
+
+                        margin: 0 !important;
+                        padding: 0.2cm !important;
+                        box-sizing: border-box !important;
+
+                        border: 1px solid #000 !important;
+                        background: white !important;
+                        color: black !important;
+                        overflow: hidden !important;
+
+                        transform: none !important;
+
+                        page-break-after: auto !important;
+                        break-after: auto !important;
+                        page-break-before: auto !important;
+                        break-before: auto !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+
+                    .pdf-export-mode .label-header,
+                    .print-export-mode .label-header {
+                        padding-right: 0 !important;
+                    }
+
+                    .pdf-export-mode .label-product-name,
+                    .print-export-mode .label-product-name {
+                        max-height: none !important;
+                        overflow: visible !important;
+                        white-space: normal !important;
+                    }
+
+                    @media print {
+                        html,
+                        body,
+                        #root {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background: white !important;
+                            overflow: visible !important;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+
+                        .no-print,
+                        .no-print * {
+                            display: none !important;
+                            visibility: hidden !important;
+                        }
+
+                        body.print-export-mode * {
+                            visibility: hidden !important;
+                        }
+
+                        body.print-export-mode #lot-label-print-area,
+                        body.print-export-mode #lot-label-print-area * {
+                            visibility: visible !important;
+                        }
+
+                        body.print-export-mode #lot-label-print-area {
+                            position: absolute !important;
+                            left: 0 !important;
+                            top: 0 !important;
+                            display: block !important;
+                            width: 21cm !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background: white !important;
+                            box-shadow: none !important;
+                            overflow: visible !important;
+                        }
+
+                        ${isSingleLabelMode
+                        ? `
+                                    @page {
+                                        size: ${config.labelHeightCm}cm ${config.labelWidthCm}cm portrait;
+                                        margin: 0;
+                                    }
+
+                                    html,
+                                    body,
+                                    #root {
+                                        width: ${config.labelHeightCm}cm !important;
+                                    }
+
+                                    #lot-label-print-area {
+                                        position: static !important;
+                                        width: ${config.labelHeightCm}cm !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        background: white !important;
+                                        box-shadow: none !important;
+                                        overflow: visible !important;
+                                    }
+
+                                    .label-preview-container {
+                                        display: block !important;
+                                        width: ${config.labelHeightCm}cm !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        gap: 0 !important;
+                                    }
+
+                                    .label-print-page {
+                                        position: relative !important;
+                                        display: block !important;
+                                        width: ${config.labelHeightCm}cm !important;
+                                        height: ${config.labelWidthCm}cm !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        overflow: hidden !important;
+                                        background: white !important;
+                                        page-break-after: always !important;
+                                        break-after: page !important;
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+
+                                    .label-print-page .lot-label {
+                                        position: absolute !important;
+                                        left: calc(${config.labelHeightCm}cm - 0.3cm) !important;
+                                        top: 0.3cm !important;
+
+                                        width: ${config.labelWidthCm}cm !important;
+                                        height: ${config.labelHeightCm}cm !important;
+
+                                        margin: 0 !important;
+                                        padding: 0.25cm !important;
+                                        box-sizing: border-box !important;
+
+                                        border: 1px solid #000 !important;
+                                        background: white !important;
+                                        color: black !important;
+                                        overflow: hidden !important;
+
+                                        transform-origin: top left !important;
+                                        transform: rotate(90deg) scale(0.94) !important;
+
+                                        page-break-after: auto !important;
+                                        break-after: auto !important;
+                                        page-break-before: auto !important;
+                                        break-before: auto !important;
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+                                `
+                        : `
+                                    @page {
+                                        size: A4 portrait;
+                                        margin: 0;
+                                    }
+
+                                    html,
+                                    body,
+                                    #root {
+                                        width: 21cm !important;
+                                        height: auto !important;
+                                        overflow: visible !important;
+                                        background: white !important;
+                                    }
+
+                                    #lot-label-print-area {
+                                        position: static !important;
+                                        width: 21cm !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        background: white !important;
+                                        box-shadow: none !important;
+                                        overflow: visible !important;
+                                    }
+
+                                    .sheet-preview-container {
+                                        display: block !important;
+                                        width: 21cm !important;
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        background: white !important;
+                                        overflow: visible !important;
+                                    }
+
+                                    .sheet-print-page {
+                                        display: flex !important;
+                                        flex-direction: column !important;
+                                        align-items: center !important;
+                                        justify-content: center !important;
+                                        gap: 0.2cm !important;
+
+                                        width: 21cm !important;
+                                        height: 28.7cm !important;
+
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        box-sizing: border-box !important;
+
+                                        overflow: hidden !important;
+                                        background: white !important;
+
+                                        page-break-after: auto !important;
+                                        break-after: auto !important;
+                                        page-break-before: auto !important;
+                                        break-before: auto !important;
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+
+                                    .sheet-print-page:not(:first-child) {
+                                        page-break-before: always !important;
+                                        break-before: page !important;
+                                    }
+
+                                    .label-print-page {
+                                        position: static !important;
+                                        display: block !important;
+
+                                        width: ${config.labelWidthCm}cm !important;
+                                        height: ${config.labelHeightCm}cm !important;
+
+                                        flex: 0 0 auto !important;
+
+                                        margin: 0 !important;
+                                        padding: 0 !important;
+                                        overflow: hidden !important;
+                                        background: white !important;
+
+                                        page-break-after: auto !important;
+                                        break-after: auto !important;
+                                        page-break-before: auto !important;
+                                        break-before: auto !important;
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+
+                                    .label-print-page .lot-label {
+                                        position: static !important;
+
+                                        width: ${config.labelWidthCm}cm !important;
+                                        height: ${config.labelHeightCm}cm !important;
+
+                                        margin: 0 !important;
+                                        padding: 0.2cm !important;
+                                        box-sizing: border-box !important;
+
+                                        border: 1px solid #000 !important;
+                                        background: white !important;
+                                        color: black !important;
+                                        overflow: hidden !important;
+
+                                        transform: none !important;
+
+                                        page-break-after: auto !important;
+                                        break-after: auto !important;
+                                        page-break-before: auto !important;
+                                        break-before: auto !important;
+                                        page-break-inside: avoid !important;
+                                        break-inside: avoid !important;
+                                    }
+                                `
+                    }
+                    }
+                `}
             </style>
 
             <section className="no-print mb-6 rounded-2xl bg-white p-5 shadow">
@@ -347,7 +638,15 @@ export default function GeneradorEtiquetasLotes() {
 
                             <select
                                 value={config.printMode}
-                                onChange={(event) => updateConfig({ printMode: event.target.value })}
+                                onChange={(event) => {
+                                    const printMode = event.target.value;
+
+                                    updateConfig({
+                                        printMode,
+                                        labelWidthCm: printMode === LOT_LABEL_PRINT_MODES.sheet ? 15 : 15,
+                                        labelHeightCm: printMode === LOT_LABEL_PRINT_MODES.sheet ? 9 : 10,
+                                    });
+                                }}
                                 className={inputClassName}
                             >
                                 {LOT_LABEL_PRINT_MODE_OPTIONS.map((option) => (
@@ -358,14 +657,14 @@ export default function GeneradorEtiquetasLotes() {
                             </select>
 
                             <p className="text-xs text-slate-500">
-                                Etiqueta individual imprime una etiqueta por página en vertical, con el diseño rotado.
+                                Hoja A4 imprime 3 etiquetas por folio. Etiqueta individual imprime una por página.
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Ancho real cm
+                                    Ancho cm
                                 </span>
 
                                 <input
@@ -382,7 +681,7 @@ export default function GeneradorEtiquetasLotes() {
 
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Alto real cm
+                                    Alto cm
                                 </span>
 
                                 <input
@@ -391,7 +690,7 @@ export default function GeneradorEtiquetasLotes() {
                                     step="0.1"
                                     value={config.labelHeightCm}
                                     onChange={(event) =>
-                                        updateConfig({ labelHeightCm: Number(event.target.value) || 10 })
+                                        updateConfig({ labelHeightCm: Number(event.target.value) || 9 })
                                     }
                                     className={inputClassName}
                                 />
@@ -438,7 +737,7 @@ export default function GeneradorEtiquetasLotes() {
                             </p>
 
                             <p className="mt-2">
-                                Para máquina de etiquetas usa modo Etiqueta individual. El papel será 10 x 15 cm y el diseño se rotará.
+                                En Hoja A4 usa 15 x 9 cm para sacar 3 etiquetas por folio.
                             </p>
                         </div>
 
@@ -488,6 +787,7 @@ export default function GeneradorEtiquetasLotes() {
                     labelWidthCm={config.labelWidthCm}
                     labelHeightCm={config.labelHeightCm}
                     onRemoveLabel={removeLabel}
+                    labelsPerPage={isSingleLabelMode ? 1 : 3}
                 />
             </section>
         </div>
