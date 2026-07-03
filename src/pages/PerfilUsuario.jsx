@@ -49,6 +49,7 @@ const PerfilUsuario = () => {
     };
     const handleSaveUserFromModal = async () => {
         const { id, nombre, username, email } = selectedUserToEdit;
+        const token = localStorage.getItem('token');
 
         try {
             await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, {
@@ -59,7 +60,7 @@ const PerfilUsuario = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            const res = await axios.get('${API_BASE_URL}/api/auth/users', {
+            const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -71,7 +72,6 @@ const PerfilUsuario = () => {
             showNotif('Error al actualizar el usuario');
         }
     };
-
 
     return (
         <div className="min-h-screen app-bg flex items-center justify-center px-3 py-6 sm:px-4 sm:py-10">
