@@ -51,7 +51,7 @@ const PerfilUsuario = () => {
         const { id, nombre, username, email } = selectedUserToEdit;
 
         try {
-            await axios.put(`/api/auth/users/${id}`, {
+            await axios.put(`${API_BASE_URL}/api/auth/users/${id}`, {
                 nombre: nombre.trim(),
                 username: username.trim(),
                 email: email.trim()
@@ -59,7 +59,7 @@ const PerfilUsuario = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            const res = await axios.get('/api/auth/users', {
+            const res = await axios.get('${API_BASE_URL}/api/auth/users', {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
