@@ -46,7 +46,7 @@ export const LOT_LABEL_PRINT_MODE_OPTIONS = [
 
 export const DEFAULT_LOT_LABEL_CONFIG = {
     scanMode: LOT_LABEL_SCAN_MODES.productEnterLotEnter,
-    printMode: LOT_LABEL_PRINT_MODES.singleLabel,
+    printMode: LOT_LABEL_PRINT_MODES.sheet,
     onlyAvailableStock: true,
     copiesPerLot: 1,
     labelWidthCm: 15,
