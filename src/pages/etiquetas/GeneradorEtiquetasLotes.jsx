@@ -54,41 +54,49 @@ export default function GeneradorEtiquetasLotes() {
 
     const isSingleLabelMode = config.printMode === LOT_LABEL_PRINT_MODES.singleLabel;
 
-    const getPdfOptions = (fileName) => ({
-        margin: 0,
-        filename: `${fileName}.pdf`,
-        image: {
-            type: 'jpeg',
-            quality: 1,
-        },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: '#ffffff',
-        },
-        jsPDF: {
-            unit: 'cm',
-            format: 'a4',
-            orientation: 'portrait',
-        },
-        pagebreak: {
-            mode: ['css', 'legacy'],
-            avoid: ['.lot-label', '.label-print-page'],
-        },
-    });
+    const handlePrint = async () => {
+        if (!printRef.current || visibleLots.length === 0) return;
 
-    const getPdfFileName = () => {
-        const baseName = selectedProduct
-            ? `${selectedProduct.codprodu}_${selectedProduct.desprodu}`
-            : selectedCollection ||
-            nameSearchTerm ||
-            'etiquetas-lotes';
+        if (isSingleLabelMode) {
+            window.print();
+            return;
+        }
 
-        return sanitizeFileName(baseName);
+        document.body.classList.add('print-export-mode');
+
+        let cleanTimeoutId;
+
+        const cleanPrintMode = () => {
+            document.body.classList.remove('print-export-mode');
+            window.removeEventListener('afterprint', cleanPrintMode);
+
+            if (cleanTimeoutId) {
+                clearTimeout(cleanTimeoutId);
+            }
+        };
+
+        window.addEventListener('afterprint', cleanPrintMode);
+
+        await new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
+
+        window.print();
+
+        cleanTimeoutId = setTimeout(cleanPrintMode, 8000);
     };
 
-    const preparePdfExport = async () => {
+    const handlePdf = async () => {
+        if (!printRef.current || visibleLots.length === 0 || isSingleLabelMode) return;
+
+        const baseName = selectedProduct
+            ? `${selectedProduct.codprodu}_${selectedProduct.desprodu}`
+            : selectedCollection || nameSearchTerm || 'etiquetas-lotes';
+
+        const fileName = sanitizeFileName(baseName);
+
         document.body.classList.add('pdf-export-mode');
 
         await new Promise((resolve) => {
@@ -96,124 +104,36 @@ export default function GeneradorEtiquetasLotes() {
                 requestAnimationFrame(resolve);
             });
         });
-    };
 
-    const handlePrint = async () => {
-        if (
-            !printRef.current ||
-            visibleLots.length === 0
-        ) {
-            return;
-        }
-
-        if (isSingleLabelMode) {
-            window.print();
-            return;
-        }
-
-        /*
-         * Android puede bloquear una ventana creada después de una
-         * operación asíncrona. Por eso se abre antes de generar el PDF.
-         */
-        const pdfWindow = window.open('', '_blank');
-
-        if (!pdfWindow) {
-            console.error(
-                'El navegador ha bloqueado la ventana de impresión.'
-            );
-            return;
-        }
-
-        pdfWindow.document.write(`
-        <!doctype html>
-        <html lang="es">
-            <head>
-                <meta charset="UTF-8" />
-                <meta
-                    name="viewport"
-                    content="width=device-width, initial-scale=1"
-                />
-                <title>Preparando impresión</title>
-            </head>
-
-            <body
-                style="
-                    margin: 0;
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: Arial, sans-serif;
-                    background: #f8fafc;
-                    color: #0f172a;
-                "
-            >
-                <p>Preparando documento para imprimir...</p>
-            </body>
-        </html>
-    `);
-
-        pdfWindow.document.close();
-
-        try {
-            const fileName = getPdfFileName();
-
-            await preparePdfExport();
-
-            const pdfBlob = await html2pdf()
-                .set(getPdfOptions(fileName))
-                .from(printRef.current)
-                .outputPdf('blob');
-
-            const pdfUrl = URL.createObjectURL(pdfBlob);
-
-            pdfWindow.location.replace(pdfUrl);
-
-            /*
-             * El enlace se mantiene durante un tiempo para que el visor
-             * PDF de Android pueda terminar de cargarlo.
-             */
-            window.setTimeout(() => {
-                URL.revokeObjectURL(pdfUrl);
-            }, 60000);
-        } catch (printError) {
-            console.error(
-                'Error preparando la impresión de etiquetas:',
-                printError
-            );
-
-            pdfWindow.close();
-        } finally {
-            document.body.classList.remove('pdf-export-mode');
-        }
-    };
-
-    const handlePdf = async () => {
-        if (
-            !printRef.current ||
-            visibleLots.length === 0 ||
-            isSingleLabelMode
-        ) {
-            return;
-        }
-
-        try {
-            const fileName = getPdfFileName();
-
-            await preparePdfExport();
-
-            await html2pdf()
-                .set(getPdfOptions(fileName))
-                .from(printRef.current)
-                .save();
-        } catch (pdfError) {
-            console.error(
-                'Error generando PDF de etiquetas por lote:',
-                pdfError
-            );
-        } finally {
-            document.body.classList.remove('pdf-export-mode');
-        }
+        html2pdf()
+            .set({
+                margin: 0,
+                filename: `${fileName}.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                },
+                jsPDF: {
+                    unit: 'cm',
+                    format: 'a4',
+                    orientation: 'portrait',
+                },
+                pagebreak: {
+                    mode: ['css', 'legacy'],
+                    avoid: ['.lot-label', '.label-print-page'],
+                },
+            })
+            .from(printRef.current)
+            .save()
+            .catch((pdfError) => {
+                console.error('Error generando PDF de etiquetas por lote:', pdfError);
+            })
+            .finally(() => {
+                document.body.classList.remove('pdf-export-mode');
+            });
     };
 
     return (
