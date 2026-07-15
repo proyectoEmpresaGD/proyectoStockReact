@@ -265,9 +265,7 @@ function Stock() {
     );
 
     useEffect(() => {
-        const normalizedSearchTerm = searchTerm.trim();
-
-        if (normalizedSearchTerm.length < 2 || !token) {
+        if (searchTerm.length < 3 || !token) {
             suggestAbortRef.current?.abort?.();
             setSuggestions([]);
             return;
@@ -281,7 +279,7 @@ function Stock() {
         const timeout = setTimeout(() => {
             fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/products/search?query=${encodeURIComponent(
-                    normalizedSearchTerm
+                    searchTerm
                 )}&limit=200`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
@@ -297,11 +295,7 @@ function Stock() {
                 })
                 .then((data) => {
                     const validSuggestions = Array.isArray(data)
-                        ? data
-                            .filter(isValidProduct)
-                            .filter((product) =>
-                                fuzzyFilter(product, normalizedSearchTerm)
-                            )
+                        ? data.filter(isValidProduct).filter((product) => fuzzyFilter(product, searchTerm))
                         : [];
 
                     setSuggestions(validSuggestions);
