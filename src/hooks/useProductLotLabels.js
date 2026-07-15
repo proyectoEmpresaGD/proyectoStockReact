@@ -8,6 +8,7 @@ import {
 } from '../services/productLotLabelsClient';
 import { DEFAULT_LOT_LABEL_CONFIG } from '../components/etiquetasLotes/productLotLabelConstants';
 import { buildLotQrValue } from '../components/etiquetasLotes/buildLotQrValue';
+import { getCompleteLotStock } from '../components/etiquetasLotes/productLotStock';
 
 const normalizeText = (value) => String(value || '').trim();
 
@@ -315,7 +316,7 @@ export const useProductLotLabels = ({ token }) => {
 
     const visibleLots = useMemo(() => {
         const filteredLots = config.onlyAvailableStock
-            ? lots.filter((lot) => Number(lot.stockactual) > 0)
+            ? lots.filter((lot) => getCompleteLotStock(lot) > 0)
             : lots;
 
         const copies = Math.max(Number(config.copiesPerLot) || 1, 1);

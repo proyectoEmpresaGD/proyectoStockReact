@@ -1,5 +1,6 @@
 import React from 'react';
 import QRCode from 'react-qr-code';
+import { getCompleteLotStock } from './productLotStock';
 
 const formatStock = (value) => {
     const numberValue = Number(value);
@@ -80,7 +81,10 @@ export default function ProductLotLabel({
             </section>
 
             <footer className="label-footer shrink-0 border-t border-slate-300 pt-1 text-[15px] leading-tight text-slate-700">
-                <span className="font-semibold">Stock Inicial:</span> {formatStock(lot.stockactual)}
+                <span className="font-semibold">
+                    Stock Inicial:
+                </span>{' '}
+                {formatStock(getCompleteLotStock(lot))}
             </footer>
         </article>
     );
