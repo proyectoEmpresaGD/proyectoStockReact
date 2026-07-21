@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import PageShell from '../common/PageShell.jsx';
 import { uploadIntrastatExcel } from '../services/intrastatClient.js';
-
+import { useAuthContext } from '../Auth/AuthContext.jsx';
 function Intrastat() {
+    const { token } = useAuthContext();
     const [file, setFile] = useState(null);
     const [errores, setErrores] = useState([]);
     const [facturasIva, setFacturasIva] = useState([]);
@@ -17,7 +18,12 @@ function Intrastat() {
         setFacturasIva([]);
 
         try {
-            const result = await uploadIntrastatExcel(file, tipo, mesIntrastat);
+            const result = await uploadIntrastatExcel(
+                file,
+                tipo,
+                mesIntrastat,
+                token
+            );
 
             setFacturasIva(result.facturasIvaIncorrecto || []);
             setErrores(result.errores || []);

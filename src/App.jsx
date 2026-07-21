@@ -22,6 +22,7 @@ import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
 import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
 import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
 import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
+import GeneradorEtiquetasLotes from './pages/etiquetas/GeneradorEtiquetasLotes.jsx';
 import EntradasPage from './pages/EntradasPages.jsx';
 import LowStockAlertsPage from './pages/LowStockAlertsPage.jsx';
 import PaginaMapaClientes from './pages/paginamapaclientes.jsx';
@@ -134,6 +135,14 @@ function App() {
                             element={
                               <ProtectedRoute>
                                 <ReservasTejido />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/etiquetas-lotes"
+                            element={
+                              <ProtectedRoute>
+                                <GeneradorEtiquetasLotes />
                               </ProtectedRoute>
                             }
                           />

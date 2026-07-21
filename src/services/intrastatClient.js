@@ -1,29 +1,92 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:1234')
-    .replace(/\/$/, '');
+const API_BASE = (
+    import.meta.env.VITE_API_BASE_URL ||
+    'http://localhost:1234'
+).replace(/\/$/, '');
+
+function requireToken(token) {
+    if (!token) {
+        throw new Error(
+            'No hay una sesión válida. Vuelve a iniciar sesión.'
+        );
+    }
+}
+
+async function parseErrorResponse(
+    response,
+    fallbackMessage
+) {
+    try {
+        const contentType =
+            response.headers.get('content-type') || '';
+
+        if (
+            contentType.includes('application/json')
+        ) {
+            const data = await response.json();
+
+            return (
+                data?.error ||
+                data?.message ||
+                fallbackMessage
+            );
+        }
+
+        const text = await response.text();
+
+        return text || fallbackMessage;
+    } catch {
+        return fallbackMessage;
+    }
+}
 
 export async function uploadIntrastatExcel(
     file,
     tipo = 'ventas',
-    mesIntrastat = ''
+    mesIntrastat = '',
+    token
 ) {
+    requireToken(token);
+
+    if (!file) {
+        throw new Error(
+            'Debes seleccionar un archivo Excel.'
+        );
+    }
+
     const formData = new FormData();
 
     formData.append('file', file);
     formData.append('tipo', tipo);
-    formData.append('mesIntrastat', mesIntrastat || '');
+    formData.append(
+        'mesIntrastat',
+        mesIntrastat || ''
+    );
 
-    const response = await fetch(`${API_BASE}/api/intrastat/ventas`, {
-        method: 'POST',
-        body: formData,
-    });
+    const response = await fetch(
+        `${API_BASE}/api/intrastat/ventas`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        }
+    );
 
     if (!response.ok) {
-        let errorMessage = 'Error Intrastat';
+        const errorMessage =
+            await parseErrorResponse(
+                response,
+                'Error generando Intrastat'
+            );
 
-        try {
-            const data = await response.json();
-            errorMessage = data?.error || errorMessage;
-        } catch {
+        if (
+            response.status === 401 ||
+            response.status === 403
+        ) {
+            throw new Error(
+                'Tu sesión ha expirado o no tienes permisos.'
+            );
         }
 
         throw new Error(errorMessage);
@@ -32,20 +95,41 @@ export async function uploadIntrastatExcel(
     return response.json();
 }
 
-async function getFacturasIvaIncorrectoFromExcel(facturas) {
+export async function getFacturasIvaIncorrectoFromExcel(
+    facturas,
+    token
+) {
+    requireToken(token);
+
     const response = await fetch(
         `${API_BASE}/api/intrastat/facturas-iva-incorrecto-excel`,
         {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({ facturas }),
         }
     );
 
     if (!response.ok) {
-        throw new Error('Error cargando IVA incorrecto');
+        const errorMessage =
+            await parseErrorResponse(
+                response,
+                'Error cargando las facturas con IVA incorrecto'
+            );
+
+        if (
+            response.status === 401 ||
+            response.status === 403
+        ) {
+            throw new Error(
+                'Tu sesión ha expirado o no tienes permisos.'
+            );
+        }
+
+        throw new Error(errorMessage);
     }
 
     return response.json();

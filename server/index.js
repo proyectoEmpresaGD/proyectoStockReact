@@ -34,6 +34,31 @@ const __dirname = dirname(__filename);
 const app = express();
 app.disable("x-powered-by");
 
+function cronAuthMiddleware(req, res, next) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authorization = req.headers.authorization;
+
+  if (!cronSecret) {
+    console.error(
+      "CRON_SECRET no está configurado en las variables de entorno."
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error: "Cron secret is not configured",
+    });
+  }
+
+  if (authorization !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({
+      ok: false,
+      error: "Unauthorized",
+    });
+  }
+
+  next();
+}
+
 // ✅ CORS SIEMPRE lo primero
 const corsHandler = corsMiddleware();
 app.use(corsHandler);
@@ -188,23 +213,56 @@ if (process.env.ENABLE_CRON === "true") {
 }
 
 // Test endpoints
-app.get("/api/test-send-visits-email", async (req, res) => {
-  try {
-    await sendWeeklyVisitsEmail();
-    res.send("Visitas enviadas (prueba).");
-  } catch {
-    res.status(500).send("Error prueba visitas.");
-  }
-});
+// Endpoints utilizados por los cron jobs de Vercel
+app.get(
+  "/api/test-send-visits-email",
+  cronAuthMiddleware,
+  async (req, res) => {
+    try {
+      await sendWeeklyVisitsEmail();
 
-app.get("/api/test-send-stock-alerts", async (req, res) => {
-  try {
-    await sendWeeklyStockAlerts(true);
-    res.send("Alertas de stock enviadas (prueba).");
-  } catch {
-    res.status(500).send("Error prueba stock.");
+      return res.status(200).json({
+        ok: true,
+        message: "Visitas enviadas correctamente.",
+      });
+    } catch (error) {
+      console.error(
+        "Error ejecutando el envío semanal de visitas:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudo ejecutar el envío semanal de visitas.",
+      });
+    }
   }
-});
+);
+
+app.get(
+  "/api/test-send-stock-alerts",
+  cronAuthMiddleware,
+  async (req, res) => {
+    try {
+      await sendWeeklyStockAlerts(true);
+
+      return res.status(200).json({
+        ok: true,
+        message: "Alertas de stock enviadas correctamente.",
+      });
+    } catch (error) {
+      console.error(
+        "Error ejecutando las alertas de stock:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudieron ejecutar las alertas de stock.",
+      });
+    }
+  }
+);
 
 // Proxy imágenes externas
 app.get("/api/proxy", async (req, res) => {
