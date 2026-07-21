@@ -146,7 +146,6 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
-
                           <Route
                             path="/clients"
                             element={
