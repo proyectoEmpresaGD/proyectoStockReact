@@ -25,7 +25,7 @@ import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.js
 import EntradasPage from './pages/EntradasPages.jsx';
 import LowStockAlertsPage from './pages/LowStockAlertsPage.jsx';
 import PaginaMapaClientes from './pages/paginamapaclientes.jsx';
-import PaginaMapaEspaña from './pages/paginamapaespaña.jsx';
+import PaginaMapaEspaña from './pages/paginamapaespana.jsx';
 import VerifyBatch from './pages/VerifyBatch.jsx';
 import PerfilUsuario from './pages/PerfilUsuario.jsx';
 import AgendaPage from './pages/paginaagenda.jsx';
