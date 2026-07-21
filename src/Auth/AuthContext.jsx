@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import jwt_decode from 'jwt-decode';
+import { decodeJwtPayload } from '../utils/jwt';
 import { hydrateRoleAccessFromBackend } from '../utils/roleAccessConfig';
 const AuthContext = createContext();
 
@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (token) {
             try {
-                const decoded = jwt_decode(token);
+                const decoded = decodeJwtPayload(token);
                 setUser(decoded);
 
                 hydrateRoleAccessFromBackend({
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
                 token: newToken
             });
 
-            const decoded = jwt_decode(newToken);
+            const decoded = decodeJwtPayload(newToken);
             setUser(decoded);
         } catch (error) {
             console.error("Error decoding token after login:", error.message);

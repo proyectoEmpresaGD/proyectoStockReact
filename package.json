@@ -10,55 +10,46 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.5.2",
-    "@fortawesome/free-solid-svg-icons": "^6.5.2",
+    "@fortawesome/fontawesome-svg-core": "^6.6.0",
+    "@fortawesome/free-solid-svg-icons": "^6.6.0",
     "@fortawesome/react-fontawesome": "^0.2.2",
-    "@headlessui/react": "^2.1.1",
-    "axios": "^1.9.0",
-    "canvg": "^4.0.2",
+    "@headlessui/react": "^2.2.0",
+    "axios": "^1.15.1",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.0.0",
-    "jspdf-autotable": "^5.0.2",
-    "jwt-decode": "^3.1.2",
-    "lightweight-charts": "^5.0.2",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.511.0",
     "moment-timezone": "^0.5.45",
-    "pdf-lib": "^1.17.1",
-    "pdf-parse": "^2.4.3",
     "pdfjs-dist": "^5.4.449",
     "piexifjs": "^1.0.6",
-    "react": "^18.2.0",
+    "react": "^18.3.1",
     "react-big-calendar": "^1.19.2",
-    "react-dom": "^18.2.0",
+    "react-dom": "^18.3.1",
     "react-icons": "^5.2.1",
-    "react-moveable": "^0.56.0",
     "react-qr-code": "^2.0.15",
-    "react-rnd": "^10.5.1",
-    "react-router-dom": "^6.23.1",
+    "react-router-dom": "^6.30.4",
     "react-select": "^5.8.0",
     "react-signature-canvas": "^1.0.6",
     "react-simple-maps": "^3.0.0",
     "react-toastify": "^11.0.5",
-    "react-tooltip": "^5.29.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
+    "@types/react": "^18.3.23",
     "@types/react-big-calendar": "^1.16.2",
-    "@types/react-dom": "^18.2.22",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
-    "postcss": "^8.4.38",
+    "postcss": "^8.5.10",
     "tailwindcss": "^3.4.4",
-    "vite": "^6.2.3"
+    "vite": "^6.4.2"
   },
   "overrides": {
     "d3-color": "^3.1.0",
@@ -67,6 +58,7 @@
     "tar-fs": "^2.1.4"
   },
   "engines": {
-    "node": ">=18.17 <22"
+    "node": ">=18.18 <23",
+    "npm": ">=9"
   }
 }

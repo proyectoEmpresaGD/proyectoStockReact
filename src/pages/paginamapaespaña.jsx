@@ -9,7 +9,7 @@ const PaginaMapaEspaña = () => {
     }, []);
 
     return (
-        <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20">
+        <PageShell maxWidth="max-w-7xl" className="mt-16 sm:mt-20">
             {loading ? (
                 <div className="text-center text-slate-600">Cargando mapa...</div>
             ) : (

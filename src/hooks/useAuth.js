@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import jwt_decode from 'jwt-decode';
+import { decodeJwtPayload } from '../utils/jwt';
 
 export const useAuth = () => {
     const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -46,7 +46,7 @@ export const useAuth = () => {
     useEffect(() => {
         if (token) {
             try {
-                const decoded = jwt_decode(token);
+                const decoded = decodeJwtPayload(token);
                 const expiration = decoded.exp * 1000;
                 if (Date.now() >= expiration) {
                     refreshAuthToken();

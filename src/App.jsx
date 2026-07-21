@@ -7,7 +7,6 @@ import Home from './pages/Home';
 import Stock from './pages/paginaStock';
 import Clients from './pages/paginaclients';
 import Admin from './pages/Admin';
-import GeneradorEtiquetasLotes from './pages/etiquetas/GeneradorEtiquetasLotes.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
@@ -38,6 +37,7 @@ import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
 import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
 import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
 import FacturacionAnalyticsPage from './pages/FacturacionAnalyticsPage.jsx';
+// import ComprasAnalyticsPage from './pages/ComprasAnalyticsPage.jsx';
 import FichaTecnicaPage from './pages/fichaTecnica/fichaTenica.jsx'
 import ReservasTejido from './pages/reservas.jsx';
 
@@ -59,7 +59,7 @@ function App() {
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -105,11 +105,20 @@ function App() {
                           <Route
                             path="/analitica-facturacion"
                             element={
-                              <ProtectedRoute requiredRole={"rrhh"}>
+                              <ProtectedRoute>
                                 <FacturacionAnalyticsPage />
                               </ProtectedRoute>
                             }
                           />
+
+                          {/* <Route
+                            path="/analitica-compras"
+                            element={
+                              <ProtectedRoute>
+                                <ComprasAnalyticsPage />
+                              </ProtectedRoute>
+                            }
+                          /> */}
 
                           <Route
                             path="/stock"
@@ -119,11 +128,6 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
-
-                          <Route path="/etiquetas" element={<Etiquetas />} />
-                          <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
-                          <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
-                          <Route path="/etiquetas-lotes" element={<GeneradorEtiquetasLotes />} />
 
                           <Route
                             path='/reservasTejido'

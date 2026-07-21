@@ -1,6 +1,15 @@
 import { AnalyticsModel } from '../models/Postgres/analytics.js';
 
 export class AnalyticsController {
+    async getDashboard(req, res) {
+        try {
+            const result = await AnalyticsModel.getDashboard(req.query);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async getFilters(req, res) {
         try {
             const result = await AnalyticsModel.getFilters(req.query);
@@ -37,6 +46,26 @@ export class AnalyticsController {
         }
     }
 
+
+
+    async getBusinessLines(req, res) {
+        try {
+            const result = await AnalyticsModel.getBusinessLines(req.query);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getBusinessUnits(req, res) {
+        try {
+            const result = await AnalyticsModel.getBusinessUnits(req.query);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async getTop(req, res) {
         try {
             const result = await AnalyticsModel.getTop(req.query);
@@ -49,6 +78,15 @@ export class AnalyticsController {
     async getInvoices(req, res) {
         try {
             const result = await AnalyticsModel.getInvoices(req.query);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getDataQuality(req, res) {
+        try {
+            const result = await AnalyticsModel.getDataQuality(req.query);
             res.json(result);
         } catch (error) {
             res.status(500).json({ error: error.message });

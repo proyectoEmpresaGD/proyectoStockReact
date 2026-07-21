@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from './AuthContext';
-import jwt_decode from 'jwt-decode';
+import { decodeJwtPayload } from '../utils/jwt';
 import { getFirstAccessibleRoute, userCanAccessRoute } from '../utils/roleAccessConfig';
 
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     }
 
     try {
-        const decoded = jwt_decode(token);
+        const decoded = decodeJwtPayload(token);
         const currentRole = decoded.role;
         const canAccessCurrentRoute = userCanAccessRoute(currentRole, location.pathname);
         const fallbackRoute = getFirstAccessibleRoute(currentRole);

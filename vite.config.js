@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     optimizeDeps: {
-      include: ['jwt-decode', 'qrcode.react'],
+      include: ['qrcode.react'],
     },
 
     server: {

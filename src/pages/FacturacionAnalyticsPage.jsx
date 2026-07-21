@@ -1,6 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
 import { analyticsClient } from '../services/analyticsClient';
+import {
+    BUSINESS_UNIT_KEYS,
+    BUSINESS_UNITS,
+    BUSINESS_LINES,
+    getBusinessLineLabel,
+    getBusinessUnitForSerie,
+    getBusinessUnitLabel,
+    getMovementTypeLabel,
+    getSerieConfig,
+    getSeriesForBusinessUnit,
+    isCreditSerie,
+    isProjectSerie,
+} from '../Constants/facturacionSeries';
 
 // Apple-ish formatting: clean, consistent
 const money = new Intl.NumberFormat('es-ES', {
@@ -13,6 +26,31 @@ const number = new Intl.NumberFormat('es-ES');
 
 const fmtDay = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit' });
 const fmtFull = new Intl.DateTimeFormat('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+const fmtWeekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' });
+
+const COMPARE_MODES = {
+    BUSINESS_DAY: 'business_day',
+    CALENDAR_DATE: 'calendar_date',
+};
+
+const COMPARE_MODE_OPTIONS = [
+    {
+        key: COMPARE_MODES.BUSINESS_DAY,
+        label: 'Día laborable equivalente',
+        shortLabel: 'Laborable equivalente',
+        description: 'Compara el 1er laborable con el 1er laborable, el 2º con el 2º, etc. Recomendado para ventas.',
+    },
+    {
+        key: COMPARE_MODES.CALENDAR_DATE,
+        label: 'Fecha exacta',
+        shortLabel: 'Fecha exacta',
+        description: 'Compara la misma fecha de calendario. Útil para comprobación contable/fiscal.',
+    },
+];
+
+function getCompareModeConfig(mode) {
+    return COMPARE_MODE_OPTIONS.find((item) => item.key === mode) || COMPARE_MODE_OPTIONS[0];
+}
 
 const kpiFormat = (value, type = 'number') => {
     if (value === null || value === undefined) return '—';
@@ -148,6 +186,384 @@ function KpiTile({ label, value, hint, trend }) {
     );
 }
 
+
+function MetricBadge({ children, tone = 'slate' }) {
+    const toneClasses = {
+        slate: 'border-slate-200 bg-slate-50 text-slate-700',
+        teal: 'border-teal-200 bg-teal-50 text-teal-700',
+        indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+        emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        rose: 'border-rose-200 bg-rose-50 text-rose-700',
+        amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    };
+
+    return (
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${toneClasses[tone] || toneClasses.slate}`}>
+            {children}
+        </span>
+    );
+}
+
+function SeriesTypeBadge({ serie }) {
+    const config = getSerieConfig(serie);
+    const isProject = isProjectSerie(serie);
+    const isCredit = isCreditSerie(serie);
+    const tone = isProject ? 'indigo' : isCredit ? 'rose' : config.includeInMainAnalytics === false ? 'amber' : 'teal';
+    return <MetricBadge tone={tone}>{getBusinessLineLabel(serie)}</MetricBadge>;
+}
+
+function QuickActionButton({ active = false, children, onClick, title }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                active
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+function BusinessUnitToggle({ activeKey, onChange }) {
+    return (
+        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1">
+            {BUSINESS_UNITS.map((unit) => (
+                <button
+                    key={unit.key}
+                    type="button"
+                    onClick={() => onChange(unit.key)}
+                    title={unit.description}
+                    className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                        activeKey === unit.key ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                >
+                    {unit.shortLabel}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function BusinessUnitComparisonCard({ stats, compareYear }) {
+    const safeStats = stats || {};
+    const tejido = safeStats[BUSINESS_UNIT_KEYS.FABRIC] || {};
+    const proyectos = safeStats[BUSINESS_UNIT_KEYS.PROJECTS] || {};
+
+    const total = clampFiniteNumber(safeStats.totalVentas, 0);
+    const totalCompare = clampFiniteNumber(safeStats.totalVentasCompare, 0);
+
+    const tejidoPct = total > 0 ? (clampFiniteNumber(tejido.ventas, 0) / total) * 100 : 0;
+    const proyectosPct = total > 0 ? (clampFiniteNumber(proyectos.ventas, 0) / total) * 100 : 0;
+    const tejidoComparePct = totalCompare > 0 ? (clampFiniteNumber(tejido.ventasCompare, 0) / totalCompare) * 100 : 0;
+    const proyectosComparePct = totalCompare > 0 ? (clampFiniteNumber(proyectos.ventasCompare, 0) / totalCompare) * 100 : 0;
+    const hasCompare = Boolean(compareYear);
+
+    const UnitCard = ({ title, data, pct, tone = 'teal', yearLabel = null, isCompare = false }) => {
+        const isTeal = tone === 'teal';
+        const wrapperClass = isTeal
+            ? isCompare
+                ? 'rounded-2xl border border-teal-100 bg-white p-4'
+                : 'rounded-2xl border border-teal-100 bg-teal-50/60 p-4'
+            : isCompare
+                ? 'rounded-2xl border border-indigo-100 bg-white p-4'
+                : 'rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4';
+        const titleClass = isTeal ? 'text-sm font-semibold text-teal-900' : 'text-sm font-semibold text-indigo-900';
+        const badgeTone = isTeal ? 'teal' : 'indigo';
+
+        return (
+            <div className={wrapperClass}>
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <div className={titleClass}>{title}</div>
+                        {yearLabel ? <div className="mt-0.5 text-xs font-medium text-slate-500">{yearLabel}</div> : null}
+                    </div>
+                    <MetricBadge tone={badgeTone}>{pctFormat(pct)}</MetricBadge>
+                </div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">
+                    {kpiFormat(data.ventas, 'money')}
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <div>
+                        <div className="text-slate-500">Facturas</div>
+                        <div className="font-medium tabular-nums text-slate-800">{kpiFormat(data.facturas)}</div>
+                    </div>
+                    <div>
+                        <div className="text-slate-500">Ticket medio</div>
+                        <div className="font-medium tabular-nums text-slate-800">{kpiFormat(data.ticketMedio, 'money')}</div>
+                    </div>
+                </div>
+                {isCompare && data.variacionVsCompare !== null && data.variacionVsCompare !== undefined ? (
+                    <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                        Variación actual vs {compareYear}:{' '}
+                        <span className="font-semibold tabular-nums text-slate-950">{pctFormat(data.variacionVsCompare)}</span>
+                    </div>
+                ) : null}
+            </div>
+        );
+    };
+
+    const tejidoActual = {
+        ventas: tejido.ventas,
+        facturas: tejido.facturas,
+        ticketMedio: tejido.ticketMedio,
+    };
+    const proyectosActual = {
+        ventas: proyectos.ventas,
+        facturas: proyectos.facturas,
+        ticketMedio: proyectos.ticketMedio,
+    };
+    const tejidoCompare = {
+        ventas: tejido.ventasCompare,
+        facturas: tejido.facturasCompare,
+        ticketMedio: tejido.ticketMedioCompare,
+        variacionVsCompare: tejido.variacionVsCompare,
+    };
+    const proyectosCompare = {
+        ventas: proyectos.ventasCompare,
+        facturas: proyectos.facturasCompare,
+        ticketMedio: proyectos.ticketMedioCompare,
+        variacionVsCompare: proyectos.variacionVsCompare,
+    };
+
+    return (
+        <Card
+            title="Tejido vs Proyectos"
+            subtitle={`Clasificación automática por serie: Proyectos son las series que empiezan por H; Tejido el resto${compareYear ? ` · comparando con ${compareYear}` : ''}.`}
+        >
+            <div className="space-y-5">
+                <div>
+                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
+                        <span>Periodo actual</span>
+                        <span>{pctFormat(tejidoPct)} / {pctFormat(proyectosPct)}</span>
+                    </div>
+                    <div className="overflow-hidden rounded-full bg-slate-100 h-4" aria-label={`Reparto actual: Tejido ${pctFormat(tejidoPct)}, Proyectos ${pctFormat(proyectosPct)}`}>
+                        <div className="h-4 bg-teal-500" style={{ width: `${Math.min(Math.max(tejidoPct, 0), 100)}%` }} />
+                        <div
+                            className="h-4 bg-indigo-500 -mt-4"
+                            style={{
+                                marginLeft: `${Math.min(Math.max(tejidoPct, 0), 100)}%`,
+                                width: `${Math.min(Math.max(proyectosPct, 0), 100)}%`,
+                            }}
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <UnitCard title="Tejido" data={tejidoActual} pct={tejidoPct} tone="teal" />
+                    <UnitCard title="Proyectos" data={proyectosActual} pct={proyectosPct} tone="indigo" />
+                </div>
+
+                {hasCompare ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-semibold text-slate-900">Datos {compareYear}</div>
+                                <div className="text-xs text-slate-600">Mismo periodo comparado, separado de los datos actuales.</div>
+                            </div>
+                            <MetricBadge tone="slate">{kpiFormat(totalCompare, 'money')}</MetricBadge>
+                        </div>
+
+                        <div className="mb-3 overflow-hidden rounded-full bg-white h-3" aria-label={`Reparto ${compareYear}: Tejido ${pctFormat(tejidoComparePct)}, Proyectos ${pctFormat(proyectosComparePct)}`}>
+                            <div className="h-3 bg-teal-300" style={{ width: `${Math.min(Math.max(tejidoComparePct, 0), 100)}%` }} />
+                            <div
+                                className="h-3 bg-indigo-300 -mt-3"
+                                style={{
+                                    marginLeft: `${Math.min(Math.max(tejidoComparePct, 0), 100)}%`,
+                                    width: `${Math.min(Math.max(proyectosComparePct, 0), 100)}%`,
+                                }}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <UnitCard title="Tejido" data={tejidoCompare} pct={tejidoComparePct} tone="teal" yearLabel={String(compareYear)} isCompare />
+                            <UnitCard title="Proyectos" data={proyectosCompare} pct={proyectosComparePct} tone="indigo" yearLabel={String(compareYear)} isCompare />
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        </Card>
+    );
+}
+
+function BusinessLineBadge({ serie }) {
+    const config = getSerieConfig(serie);
+    const isCredit = isCreditSerie(serie);
+    const tone = config.businessLine === 'contract' ? 'indigo' : isCredit ? 'rose' : 'teal';
+
+    return <MetricBadge tone={tone}>{getBusinessLineLabel(serie)}</MetricBadge>;
+}
+
+function BusinessLinesOverview({ data, compareYear }) {
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const bySeries = Array.isArray(data?.by_series) ? data.by_series : [];
+    const mainRows = rows.filter((row) => row.grupo === 'principal');
+    const specialRows = rows.filter((row) => row.grupo !== 'principal');
+    const totalNeto = clampFiniteNumber(data?.totalNeto, 0);
+    const topLine = [...mainRows].sort((a, b) => Math.abs(clampFiniteNumber(b.neto, 0)) - Math.abs(clampFiniteNumber(a.neto, 0)))[0];
+
+    const LineCard = ({ row }) => {
+        const neto = clampFiniteNumber(row.neto, 0);
+        const ventas = clampFiniteNumber(row.ventas, 0);
+        const abonos = clampFiniteNumber(row.abonos, 0);
+        const pct = totalNeto ? (neto / totalNeto) * 100 : 0;
+
+        return (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-semibold text-slate-900">{row.label}</div>
+                        <div className="mt-0.5 text-xs text-slate-500">{row.grupo === 'principal' ? 'Línea principal' : 'Operación especial'}</div>
+                    </div>
+                    <MetricBadge tone={row.grupo === 'principal' ? 'teal' : 'amber'}>{pctFormat(pct)}</MetricBadge>
+                </div>
+                <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">{kpiFormat(neto, 'money')}</div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                        <div className="text-slate-500">Ventas</div>
+                        <div className="font-medium text-slate-800 tabular-nums">{kpiFormat(ventas, 'money')}</div>
+                    </div>
+                    <div>
+                        <div className="text-slate-500">Abonos</div>
+                        <div className="font-medium text-rose-700 tabular-nums">{kpiFormat(abonos, 'money')}</div>
+                    </div>
+                    <div>
+                        <div className="text-slate-500">Facturas</div>
+                        <div className="font-medium text-slate-800 tabular-nums">{kpiFormat(row.numero_facturas)}</div>
+                    </div>
+                </div>
+                {compareYear ? (
+                    <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                        {compareYear}: <span className="font-semibold tabular-nums">{kpiFormat(row.neto_compare, 'money')}</span>
+                        <span className="ml-2 text-slate-500">Δ {pctFormat(row.variacion_vs_compare)}</span>
+                    </div>
+                ) : null}
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-4">
+            <Card
+                title="Líneas de negocio"
+                subtitle="Clasificación oficial por series: tejido, papel, wallpaper, muestrarios, contract y operaciones especiales separadas."
+                right={topLine ? <MetricBadge tone="teal">Líder: {topLine.label}</MetricBadge> : null}
+            >
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <KpiTile label="Neto líneas" value={kpiFormat(data?.totalNeto || 0, 'money')} hint="Suma de impbruto respetando ventas y abonos." />
+                    <KpiTile label="Ventas" value={kpiFormat(data?.totalVentas || 0, 'money')} hint="Series de venta configuradas." />
+                    <KpiTile label="Abonos/devoluciones" value={kpiFormat(data?.totalAbonos || 0, 'money')} hint="Series de abono y devoluciones separadas." />
+                    <KpiTile label="Facturas" value={kpiFormat(data?.totalFacturas || 0)} hint="Documentos del periodo filtrado." />
+                </div>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {mainRows.map((row) => <LineCard key={row.linea} row={row} />)}
+                {!mainRows.length ? (
+                    <Card title="Sin líneas principales">
+                        <div className="text-sm text-slate-600">No hay datos de líneas principales con los filtros actuales.</div>
+                    </Card>
+                ) : null}
+            </div>
+
+            <Card title="Operaciones especiales" subtitle="Anticipos, devoluciones, transportes, alquileres, vehículos y operaciones especiales no se mezclan con producto.">
+                <ModernTableShell>
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 text-slate-600">
+                            <tr>
+                                <th className="px-4 py-3 text-left">Operación</th>
+                                <th className="px-4 py-3 text-right">Neto</th>
+                                <th className="px-4 py-3 text-right">Ventas</th>
+                                <th className="px-4 py-3 text-right">Abonos</th>
+                                <th className="px-4 py-3 text-right">Facturas</th>
+                                {compareYear ? <th className="px-4 py-3 text-right">Δ vs {compareYear}</th> : null}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {specialRows.map((row) => (
+                                <tr key={row.linea} className="hover:bg-slate-50">
+                                    <td className="px-4 py-3 font-medium text-slate-900">{row.label}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.neto, 'money')}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.ventas, 'money')}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-rose-700">{kpiFormat(row.abonos, 'money')}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.numero_facturas)}</td>
+                                    {compareYear ? <td className="px-4 py-3 text-right tabular-nums">{pctFormat(row.variacion_vs_compare)}</td> : null}
+                                </tr>
+                            ))}
+                            {!specialRows.length ? (
+                                <tr>
+                                    <td className="px-4 py-4 text-slate-500" colSpan={compareYear ? 6 : 5}>Sin operaciones especiales en el periodo.</td>
+                                </tr>
+                            ) : null}
+                        </tbody>
+                    </table>
+                </ModernTableShell>
+            </Card>
+
+            <Card title="Detalle por serie" subtitle="Cada serie queda vinculada a su línea de negocio y tipo de movimiento.">
+                <ModernTableShell>
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 text-slate-600">
+                            <tr>
+                                <th className="px-4 py-3 text-left">Serie</th>
+                                <th className="px-4 py-3 text-left">Descripción</th>
+                                <th className="px-4 py-3 text-left">Línea</th>
+                                <th className="px-4 py-3 text-left">Movimiento</th>
+                                <th className="px-4 py-3 text-right">Importe</th>
+                                <th className="px-4 py-3 text-right">Facturas</th>
+                                <th className="px-4 py-3 text-right">Ticket medio</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {bySeries.map((row) => (
+                                <tr key={`${row.linea}-${row.serie}`} className="hover:bg-slate-50">
+                                    <td className="px-4 py-3 font-semibold text-slate-950">{row.serie || '—'}</td>
+                                    <td className="px-4 py-3 text-slate-700">{row.serie_label || '—'}</td>
+                                    <td className="px-4 py-3"><BusinessLineBadge serie={row.serie} /></td>
+                                    <td className="px-4 py-3 text-slate-700">{getMovementTypeLabel(row.serie)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.total, 'money')}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.numero_facturas)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums">{kpiFormat(row.ticket_medio, 'money')}</td>
+                                </tr>
+                            ))}
+                            {!bySeries.length ? (
+                                <tr>
+                                    <td className="px-4 py-4 text-slate-500" colSpan={7}>Sin datos por serie.</td>
+                                </tr>
+                            ) : null}
+                        </tbody>
+                    </table>
+                </ModernTableShell>
+            </Card>
+        </div>
+    );
+}
+
+
+function InsightCard({ label, value, detail, tone = 'slate' }) {
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-950 tabular-nums">{value}</div>
+                    {detail ? <div className="mt-1 text-xs text-slate-500">{detail}</div> : null}
+                </div>
+                <MetricBadge tone={tone}>Insight</MetricBadge>
+            </div>
+        </div>
+    );
+}
+
+function ModernTableShell({ children }) {
+    return <div className="overflow-auto rounded-2xl border border-slate-200">{children}</div>;
+}
+
+
 // =========================
 // ✅ No laborables (Montilla, Córdoba)
 // - Fines de semana: sábado/domingo (también no laborables en tu empresa)
@@ -184,78 +600,120 @@ function isoUTC(year, month1to12, day) {
     return new Date(Date.UTC(year, month1to12 - 1, day)).toISOString().slice(0, 10);
 }
 
-// ✅ Festivos OFICIALES Andalucía (incluye traslados) — 2025/2026 cerrados.
-// (Para otros años queda fallback; si los usarás, conviene añadirlos también)
-function fixedHolidaysISOForYear(year) {
+function holidayEntry(year, month1to12, day, name, type = 'Nacional') {
+    return {
+        date: isoUTC(year, month1to12, day),
+        name,
+        type,
+    };
+}
+
+// Calendario laboral aplicado al módulo de facturación.
+// Ámbito: Montilla (Córdoba), Andalucía.
+// Las fechas locales 2025/2026 están cargadas de forma explícita para evitar que las gráficas
+// dependan de heurísticas cuando se compara contra 2025.
+function fixedHolidayEntriesForYear(year) {
     if (year === 2025) {
         return [
-            isoUTC(2025, 1, 1), // Año Nuevo
-            isoUTC(2025, 1, 6), // Epifanía
-            isoUTC(2025, 2, 28), // Día de Andalucía
-            isoUTC(2025, 5, 1), // Trabajo
-            isoUTC(2025, 8, 15), // Asunción
-            isoUTC(2025, 10, 13), // Traslado Fiesta Nacional (12/10 domingo)
-            isoUTC(2025, 11, 1), // Todos los Santos (sábado)
-            isoUTC(2025, 12, 6), // Constitución (sábado)
-            isoUTC(2025, 12, 8), // Inmaculada
-            isoUTC(2025, 12, 25), // Navidad
+            holidayEntry(2025, 1, 1, 'Año Nuevo', 'Nacional'),
+            holidayEntry(2025, 1, 6, 'Epifanía del Señor', 'Nacional'),
+            holidayEntry(2025, 2, 28, 'Día de Andalucía', 'Autonómico'),
+            holidayEntry(2025, 5, 1, 'Fiesta del Trabajo', 'Nacional'),
+            holidayEntry(2025, 8, 15, 'Asunción de la Virgen', 'Nacional'),
+            holidayEntry(2025, 10, 13, 'Traslado Fiesta Nacional de España', 'Nacional'),
+            holidayEntry(2025, 11, 1, 'Todos los Santos', 'Nacional'),
+            holidayEntry(2025, 12, 6, 'Día de la Constitución Española', 'Nacional'),
+            holidayEntry(2025, 12, 8, 'Inmaculada Concepción', 'Nacional'),
+            holidayEntry(2025, 12, 25, 'Natividad del Señor', 'Nacional'),
         ];
     }
 
     if (year === 2026) {
         return [
-            isoUTC(2026, 1, 1), // Año Nuevo
-            isoUTC(2026, 1, 6), // Epifanía
-            isoUTC(2026, 2, 28), // Día de Andalucía (sábado)
-            isoUTC(2026, 5, 1), // Trabajo
-            isoUTC(2026, 8, 15), // Asunción (sábado)
-            isoUTC(2026, 10, 12), // Fiesta Nacional (lunes)
-            isoUTC(2026, 11, 2), // Traslado Todos los Santos (01/11 domingo)
-            isoUTC(2026, 12, 7), // Traslado Constitución (06/12 domingo)
-            isoUTC(2026, 12, 8), // Inmaculada
-            isoUTC(2026, 12, 25), // Navidad
+            holidayEntry(2026, 1, 1, 'Año Nuevo', 'Nacional'),
+            holidayEntry(2026, 1, 6, 'Epifanía del Señor', 'Nacional'),
+            holidayEntry(2026, 2, 28, 'Día de Andalucía', 'Autonómico'),
+            holidayEntry(2026, 5, 1, 'Fiesta del Trabajo', 'Nacional'),
+            holidayEntry(2026, 8, 15, 'Asunción de la Virgen', 'Nacional'),
+            holidayEntry(2026, 10, 12, 'Fiesta Nacional de España', 'Nacional'),
+            holidayEntry(2026, 11, 2, 'Traslado Todos los Santos', 'Nacional'),
+            holidayEntry(2026, 12, 7, 'Traslado Constitución Española', 'Nacional'),
+            holidayEntry(2026, 12, 8, 'Inmaculada Concepción', 'Nacional'),
+            holidayEntry(2026, 12, 25, 'Natividad del Señor', 'Nacional'),
         ];
     }
 
-    // Fallback (heurística, no garantiza traslados)
+    // Fallback: festivos fijos sin traslados. Para años nuevos conviene cargarlos oficialmente.
     return [
-        isoUTC(year, 1, 1),
-        isoUTC(year, 1, 6),
-        isoUTC(year, 2, 28),
-        isoUTC(year, 5, 1),
-        isoUTC(year, 8, 15),
-        isoUTC(year, 10, 12),
-        isoUTC(year, 11, 1),
-        isoUTC(year, 12, 6),
-        isoUTC(year, 12, 8),
-        isoUTC(year, 12, 25),
+        holidayEntry(year, 1, 1, 'Año Nuevo', 'Nacional'),
+        holidayEntry(year, 1, 6, 'Epifanía del Señor', 'Nacional'),
+        holidayEntry(year, 2, 28, 'Día de Andalucía', 'Autonómico'),
+        holidayEntry(year, 5, 1, 'Fiesta del Trabajo', 'Nacional'),
+        holidayEntry(year, 8, 15, 'Asunción de la Virgen', 'Nacional'),
+        holidayEntry(year, 10, 12, 'Fiesta Nacional de España', 'Nacional'),
+        holidayEntry(year, 11, 1, 'Todos los Santos', 'Nacional'),
+        holidayEntry(year, 12, 6, 'Día de la Constitución Española', 'Nacional'),
+        holidayEntry(year, 12, 8, 'Inmaculada Concepción', 'Nacional'),
+        holidayEntry(year, 12, 25, 'Natividad del Señor', 'Nacional'),
     ];
 }
 
-function holyWeekHolidaysISOForYear(year) {
+function holyWeekHolidayEntriesForYear(year) {
     const easter = easterSunday(year);
     const maundyThu = addDaysUTC(easter, -3); // Jueves Santo
     const goodFri = addDaysUTC(easter, -2); // Viernes Santo
-    return [maundyThu.toISOString().slice(0, 10), goodFri.toISOString().slice(0, 10)];
+    return [
+        { date: maundyThu.toISOString().slice(0, 10), name: 'Jueves Santo', type: 'Autonómico' },
+        { date: goodFri.toISOString().slice(0, 10), name: 'Viernes Santo', type: 'Nacional' },
+    ];
 }
 
-function montillaLocalHolidaysISOForYear(year) {
-    // Locales Montilla:
-    // 2025: 14/07/2025 y 08/09/2025
-    // 2026: 14/07/2026 y 07/09/2026
-    if (year === 2025) return [isoUTC(2025, 7, 14), isoUTC(2025, 9, 8)];
-    if (year === 2026) return [isoUTC(2026, 7, 14), isoUTC(2026, 9, 7)];
+function montillaLocalHolidayEntriesForYear(year) {
+    if (year === 2025) {
+        return [
+            holidayEntry(2025, 7, 14, 'San Francisco Solano', 'Local Montilla'),
+            holidayEntry(2025, 9, 8, 'Fiesta de la Vendimia', 'Local Montilla'),
+        ];
+    }
+
+    if (year === 2026) {
+        return [
+            holidayEntry(2026, 7, 14, 'San Francisco Solano', 'Local Montilla'),
+            holidayEntry(2026, 9, 7, 'Fiesta de la Vendimia', 'Local Montilla'),
+        ];
+    }
+
     return [];
 }
 
+function laborCalendarEntriesForYear(year) {
+    const byDate = new Map();
+    [...fixedHolidayEntriesForYear(year), ...holyWeekHolidayEntriesForYear(year), ...montillaLocalHolidayEntriesForYear(year)]
+        .forEach((entry) => {
+            if (!entry?.date) return;
+            const existing = byDate.get(entry.date);
+            if (existing) {
+                byDate.set(entry.date, {
+                    ...existing,
+                    name: `${existing.name} / ${entry.name}`,
+                    type: existing.type === entry.type ? existing.type : `${existing.type} + ${entry.type}`,
+                });
+            } else {
+                byDate.set(entry.date, entry);
+            }
+        });
+
+    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function laborCalendarEntriesForYears(years) {
+    return (years || [])
+        .flatMap((year) => laborCalendarEntriesForYear(Number(year)))
+        .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function buildNonWorkingSetForYears(years) {
-    const set = new Set();
-    for (const y of years) {
-        fixedHolidaysISOForYear(y).forEach((x) => set.add(x));
-        holyWeekHolidaysISOForYear(y).forEach((x) => set.add(x));
-        montillaLocalHolidaysISOForYear(y).forEach((x) => set.add(x));
-    }
-    return set;
+    return new Set(laborCalendarEntriesForYears(years).map((entry) => entry.date));
 }
 
 function isWeekendUTC(dUTC) {
@@ -296,15 +754,201 @@ function daysBetweenInclusive(fromISO, toISO) {
     return diff >= 0 ? diff + 1 : 0;
 }
 
-function indexTotalsByISO(rows) {
+function isoFromUTCDate(dateUTC) {
+    return dateUTC instanceof Date && !Number.isNaN(dateUTC.getTime()) ? dateUTC.toISOString().slice(0, 10) : '';
+}
+
+function buildComparisonDateLists(fromISO, toISO, compareYear, compareMode, nonWorkingSet) {
+    const mode = getCompareModeConfig(compareMode).key;
+    const shiftedRange = shiftRangeToYear(fromISO, toISO, Number(compareYear));
+
+    if (mode === COMPARE_MODES.CALENDAR_DATE) {
+        return {
+            mode,
+            currentDates: buildDateList(fromISO, toISO, { excludeNonWorking: false }),
+            compareDates: buildDateList(shiftedRange.from, shiftedRange.to, { excludeNonWorking: false }),
+            shiftedRange,
+        };
+    }
+
+    // Modo recomendado para ventas:
+    // compara posiciones laborables equivalentes usando el calendario laboral Montilla/Córdoba.
+    return {
+        mode: COMPARE_MODES.BUSINESS_DAY,
+        currentDates: buildDateList(fromISO, toISO, { excludeNonWorking: true, nonWorkingSet }),
+        compareDates: buildDateList(shiftedRange.from, shiftedRange.to, { excludeNonWorking: true, nonWorkingSet }),
+        shiftedRange,
+    };
+}
+
+
+function getLaborCalendarStatsForRange(fromISO, toISO, calendarEntries = []) {
+    const dateList = buildDateList(fromISO, toISO, { excludeNonWorking: false });
+    const holidayMap = new Map((calendarEntries || []).map((entry) => [entry.date, entry]));
+    const holidaysInRange = [];
+
+    let weekendDays = 0;
+    let holidayDays = 0;
+    let holidayOnWeekend = 0;
+    let workingDays = 0;
+
+    for (const d of dateList) {
+        const iso = d.toISOString().slice(0, 10);
+        const isWeekend = isWeekendUTC(d);
+        const holiday = holidayMap.get(iso);
+
+        if (isWeekend) weekendDays += 1;
+        if (holiday) {
+            holidayDays += 1;
+            if (isWeekend) holidayOnWeekend += 1;
+            holidaysInRange.push(holiday);
+        }
+
+        if (!isWeekend && !holiday) workingDays += 1;
+    }
+
+    return {
+        calendarDays: dateList.length,
+        workingDays,
+        weekendDays,
+        holidayDays,
+        holidayOnWeekend,
+        nonWorkingDays: dateList.length - workingDays,
+        holidaysInRange,
+    };
+}
+
+function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }) {
+    const [open, setOpen] = useState(false);
+    const calendarEntries = useMemo(() => laborCalendarEntriesForYears(yearsInPlay), [yearsInPlay]);
+
+    const currentStats = useMemo(
+        () => getLaborCalendarStatsForRange(fromISO, toISO, calendarEntries),
+        [fromISO, toISO, calendarEntries]
+    );
+
+    const compareRange = useMemo(() => {
+        if (!compareYear) return null;
+        return shiftRangeToYear(fromISO, toISO, Number(compareYear));
+    }, [fromISO, toISO, compareYear]);
+
+    const compareStats = useMemo(
+        () => (compareRange ? getLaborCalendarStatsForRange(compareRange.from, compareRange.to, calendarEntries) : null),
+        [compareRange, calendarEntries]
+    );
+
+    const byYear = useMemo(
+        () =>
+            (yearsInPlay || [])
+                .map((year) => ({
+                    year,
+                    entries: laborCalendarEntriesForYear(Number(year)),
+                }))
+                .sort((a, b) => Number(a.year) - Number(b.year)),
+        [yearsInPlay]
+    );
+
+    const statItems = [
+        { label: 'Días calendario', value: currentStats.calendarDays },
+        { label: 'Días laborables', value: currentStats.workingDays },
+        { label: 'Festivos en rango', value: currentStats.holidayDays },
+        { label: 'Fines de semana', value: currentStats.weekendDays },
+    ];
+
+    return (
+        <Card
+            title="Calendario laboral aplicado"
+            subtitle="Montilla, Córdoba · excluye sábados, domingos y festivos en gráficas; las tablas siguen mostrando todas las facturas."
+            right={
+                <button
+                    type="button"
+                    onClick={() => setOpen((value) => !value)}
+                    aria-expanded={open}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                >
+                    {open ? 'Ocultar festivos' : 'Ver festivos'}
+                </button>
+            }
+        >
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {statItems.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div className="text-xs font-medium text-slate-600">{item.label}</div>
+                        <div className="mt-1 text-xl font-semibold text-slate-950 tabular-nums">{kpiFormat(item.value)}</div>
+                    </div>
+                ))}
+            </div>
+
+            {compareStats ? (
+                <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-950">
+                    <span className="font-semibold">Comparativa {compareYear}:</span>{' '}
+                    {safeFormatFull(compareRange.from)} - {safeFormatFull(compareRange.to)} · {compareStats.workingDays} días laborables · {compareStats.holidayDays} festivos en rango.
+                </div>
+            ) : null}
+
+            <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                <span className="font-semibold">Regla aplicada:</span> las gráficas usan días laborables de Montilla. Las tablas de facturas y comparación no ocultan sábados, domingos ni festivos para no perder movimientos reales.
+            </div>
+
+            {open ? (
+                <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {byYear.map(({ year, entries }) => (
+                        <div key={year} className="rounded-2xl border border-slate-200 overflow-hidden">
+                            <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                Festivos {year} · Montilla
+                            </div>
+                            <div className="max-h-80 overflow-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-white">
+                                        <tr className="text-left border-b border-slate-200">
+                                            <th className="px-4 py-2 font-semibold text-slate-700">Fecha</th>
+                                            <th className="px-4 py-2 font-semibold text-slate-700">Festivo</th>
+                                            <th className="px-4 py-2 font-semibold text-slate-700">Tipo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {entries.map((entry) => (
+                                            <tr key={`${year}-${entry.date}`} className="border-b border-slate-100 last:border-0">
+                                                <td className="px-4 py-2 tabular-nums text-slate-800">{safeFormatFull(entry.date)}</td>
+                                                <td className="px-4 py-2 text-slate-700">{entry.name}</td>
+                                                <td className="px-4 py-2">
+                                                    <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+                                                        {entry.type}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {!entries.length ? (
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-4 text-slate-500">
+                                                    No hay festivos locales cargados para este año. Se usa fallback de festivos fijos.
+                                                </td>
+                                            </tr>
+                                        ) : null}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+        </Card>
+    );
+}
+
+function indexValueByISO(rows, field = 'total') {
     const map = new Map();
     (rows || []).forEach((r) => {
         const k = r?.period ? String(r.period).slice(0, 10) : r?.label ? String(r.label).slice(0, 10) : '';
         if (!isValidISODateString(k)) return;
-        const v = clampFiniteNumber(r?.total, 0);
+        const v = clampFiniteNumber(r?.[field], 0);
         map.set(k, v);
     });
     return map;
+}
+
+function indexTotalsByISO(rows) {
+    return indexValueByISO(rows, 'total');
 }
 
 function axisTicksX(dateList, tickCount) {
@@ -324,23 +968,56 @@ function axisTicksX(dateList, tickCount) {
     });
 }
 
-function makePath(points, width, height, pad, maxYOverride = null) {
-    const innerW = width - pad.l - pad.r;
+function buildChartDomain(pointGroups) {
+    const values = (pointGroups || [])
+        .flat()
+        .map((p) => clampFiniteNumber(p?.y, 0))
+        .filter(Number.isFinite);
+
+    const minValue = Math.min(0, ...values);
+    const maxValue = Math.max(1, ...values);
+
+    if (minValue === maxValue) {
+        return { minValue: 0, maxValue: Math.max(1, maxValue) };
+    }
+
+    const padding = Math.max((maxValue - minValue) * 0.08, 1);
+    return {
+        minValue: minValue < 0 ? minValue - padding : 0,
+        maxValue: maxValue + padding,
+    };
+}
+
+function valueToChartY(value, height, pad, domain) {
     const innerH = height - pad.t - pad.b;
+    const minValue = clampFiniteNumber(domain?.minValue, 0);
+    const maxValue = Math.max(minValue + 1, clampFiniteNumber(domain?.maxValue, 1));
+    const normalized = (clampFiniteNumber(value, 0) - minValue) / (maxValue - minValue);
+    return pad.t + (1 - normalized) * innerH;
+}
+
+function makePath(points, width, height, pad, domainOverride = null) {
+    const innerW = width - pad.l - pad.r;
     if (!points.length) return '';
 
-    const ys = points.map((p) => clampFiniteNumber(p.y, 0));
-    const computedMax = Math.max(1, ...ys);
-    const maxY = Number.isFinite(maxYOverride) ? Math.max(1, maxYOverride) : computedMax;
+    const domain = domainOverride || buildChartDomain([points]);
 
     return points
         .map((p, idx) => {
             const x = pad.l + (idx / Math.max(points.length - 1, 1)) * innerW;
-            const yVal = clampFiniteNumber(p.y, 0);
-            const y = pad.t + (1 - yVal / maxY) * innerH;
+            const y = valueToChartY(p.y, height, pad, domain);
             return `${idx === 0 ? 'M' : 'L'}${x},${y}`;
         })
         .join(' ');
+}
+
+function getSvgViewBoxX(evt, viewBoxWidth) {
+    const svg = evt.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return 0;
+    const clientX = evt.clientX ?? evt.nativeEvent?.clientX ?? 0;
+    const localX = clientX - rect.left;
+    return (localX / rect.width) * viewBoxWidth;
 }
 
 function sumPoints(points) {
@@ -368,22 +1045,49 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
         () => buildDateList(fromISO, toISO, { excludeNonWorking, nonWorkingSet }),
         [fromISO, toISO, excludeNonWorking, nonWorkingSet]
     );
-    const map = useMemo(() => indexTotalsByISO(rows), [rows]);
+
+    const totalMap = useMemo(() => indexValueByISO(rows, 'total'), [rows]);
+    const ventasMap = useMemo(() => indexValueByISO(rows, 'ventas_positivas'), [rows]);
+    const abonosMap = useMemo(() => indexValueByISO(rows, 'abonos_negativos'), [rows]);
+    const netoMap = useMemo(() => indexValueByISO(rows, 'neto'), [rows]);
 
     const points = useMemo(
         () =>
-            dateList.map((d, i) => ({
-                i,
-                date: d,
-                y: map.get(d.toISOString().slice(0, 10)) ?? 0,
-            })),
-        [dateList, map]
+            dateList.map((d, i) => {
+                const key = d.toISOString().slice(0, 10);
+                return {
+                    i,
+                    date: d,
+                    y: ventasMap.get(key) ?? totalMap.get(key) ?? 0,
+                    total: totalMap.get(key) ?? ventasMap.get(key) ?? 0,
+                    abonos: abonosMap.get(key) ?? 0,
+                    neto: netoMap.get(key) ?? totalMap.get(key) ?? ventasMap.get(key) ?? 0,
+                };
+            }),
+        [dateList, totalMap, ventasMap, abonosMap, netoMap]
     );
 
-    const path = useMemo(() => makePath(points, width, height, pad), [points]);
+    const abonoPoints = useMemo(
+        () =>
+            points.map((p) => ({
+                i: p.i,
+                date: p.date,
+                y: p.abonos,
+            })),
+        [points]
+    );
 
-    // ✅ Cambio clave: mostrar TOTAL del rango (no “último día”)
+    const hasAbonos = useMemo(() => abonoPoints.some((p) => clampFiniteNumber(p.y, 0) < 0), [abonoPoints]);
+    const domain = useMemo(
+        () => buildChartDomain(hasAbonos ? [points, abonoPoints] : [points]),
+        [points, abonoPoints, hasAbonos]
+    );
+    const path = useMemo(() => makePath(points, width, height, pad, domain), [points, domain]);
+    const abonosPath = useMemo(() => (hasAbonos ? makePath(abonoPoints, width, height, pad, domain) : ''), [abonoPoints, domain, hasAbonos]);
+
     const totalRange = useMemo(() => sumPoints(points), [points]);
+    const totalRawRange = useMemo(() => points.reduce((acc, p) => acc + clampFiniteNumber(p.total, 0), 0), [points]);
+    const abonosRange = useMemo(() => abonoPoints.reduce((acc, p) => acc + clampFiniteNumber(p.y, 0), 0), [abonoPoints]);
     const lastNZ = useMemo(() => lastNonZeroPoint(points), [points]);
     const daysWithSales = useMemo(() => countDaysWithSales(points), [points]);
 
@@ -392,9 +1096,7 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
 
     const onMove = (evt) => {
         if (!points.length) return;
-        const svg = evt.currentTarget;
-        const rect = svg.getBoundingClientRect();
-        const x = evt.clientX - rect.left;
+        const x = getSvgViewBoxX(evt, width);
         const innerW = width - pad.l - pad.r;
         const rel = (x - pad.l) / innerW;
         const idx = Math.round(rel * (points.length - 1));
@@ -406,6 +1108,7 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
 
     const rangeDaysLaborables = dateList.length;
     const rangeDaysCalendario = daysBetweenInclusive(fromISO, toISO);
+    const zeroY = valueToChartY(0, height, pad, domain);
 
     return (
         <div className="w-full">
@@ -414,8 +1117,9 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                 <div className="text-xs text-slate-500 tabular-nums">
                     Rango: {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
                     {excludeNonWorking ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días`} ·{' '}
-                    Total: {kpiFormat(totalRange, 'money')} · Días con ventas: {kpiFormat(daysWithSales)}{' '}
-                    {lastNZ ? `· Último con ventas: ${kpiFormat(lastNZ.y, 'money')}` : ''}
+                    Facturación positiva: {kpiFormat(totalRange, 'money')} · Total impbruto: {kpiFormat(totalRawRange, 'money')} · Días con ventas: {kpiFormat(daysWithSales)}
+                    {hasAbonos ? ` · Abonos: ${kpiFormat(abonosRange, 'money')}` : ''}
+                    {lastNZ ? ` · Último con ventas: ${kpiFormat(lastNZ.y, 'money')}` : ''}
                 </div>
             </div>
 
@@ -426,14 +1130,14 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                 onMouseLeave={onLeave}
                 style={{ cursor: points.length ? 'crosshair' : 'default' }}
             >
-                <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e2e8f0" strokeWidth="2" />
+                <line x1={pad.l} y1={zeroY} x2={width - pad.r} y2={zeroY} stroke={hasAbonos ? '#94a3b8' : '#e2e8f0'} strokeWidth="2" />
 
                 {ticks.map((t) => {
                     const innerW = width - pad.l - pad.r;
                     const x = pad.l + (t.idx / Math.max(points.length - 1, 1)) * innerW;
                     return (
                         <g key={t.idx}>
-                            <line x1={x} y1={height - pad.b} x2={x} y2={height - pad.b + 8} stroke="#cbd5e1" strokeWidth="2" />
+                            <line x1={x} y1={zeroY} x2={x} y2={zeroY + 8} stroke="#cbd5e1" strokeWidth="2" />
                             <text x={x} y={height - 18} textAnchor="middle" fontSize="11" fill="#64748b">
                                 {fmtDay.format(t.date)}
                             </text>
@@ -441,29 +1145,50 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                     );
                 })}
 
+                {hasAbonos ? <path d={abonosPath} fill="none" stroke="#dc2626" strokeWidth="2.5" strokeDasharray="7 5" /> : null}
                 <path d={path} fill="none" stroke="#2563eb" strokeWidth="3" />
 
                 {hoverIdx !== null && points[hoverIdx] ? (
                     (() => {
                         const innerW = width - pad.l - pad.r;
-                        const innerH = height - pad.t - pad.b;
-                        const maxY = Math.max(1, ...points.map((p) => clampFiniteNumber(p.y, 0)));
                         const x = pad.l + (hoverIdx / Math.max(points.length - 1, 1)) * innerW;
-                        const y = pad.t + (1 - clampFiniteNumber(points[hoverIdx].y, 0) / maxY) * innerH;
+                        const y = valueToChartY(points[hoverIdx].y, height, pad, domain);
+                        const yAbono = valueToChartY(points[hoverIdx].abonos, height, pad, domain);
                         return (
                             <>
                                 <line x1={x} y1={pad.t} x2={x} y2={height - pad.b} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6 6" />
                                 <circle cx={x} cy={y} r="4.5" fill="#2563eb" />
+                                {hasAbonos && points[hoverIdx].abonos < 0 ? <circle cx={x} cy={yAbono} r="4" fill="#dc2626" /> : null}
                             </>
                         );
                     })()
                 ) : null}
             </svg>
 
+            {hasAbonos ? (
+                <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-2">
+                        <span className="w-3 h-0.5 bg-blue-600 inline-block" /> Facturación positiva
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> Abonos informativos
+                    </span>
+                </div>
+            ) : null}
+
             {hoverIdx !== null && points[hoverIdx] ? (
                 <div className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                     <div className="font-medium">{fmtFull.format(points[hoverIdx].date)}</div>
-                    <div className="tabular-nums">Total: {kpiFormat(points[hoverIdx].y, 'money')}</div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <div className="tabular-nums">Facturación: {kpiFormat(points[hoverIdx].y, 'money')}</div>
+                        <div className="tabular-nums text-slate-500">Total impbruto: {kpiFormat(points[hoverIdx].total, 'money')}</div>
+                        {hasAbonos ? (
+                            <>
+                                <div className="tabular-nums text-red-600">Abonos: {kpiFormat(points[hoverIdx].abonos, 'money')}</div>
+                                <div className="tabular-nums text-slate-500">Neto informativo: {kpiFormat(points[hoverIdx].neto, 'money')}</div>
+                            </>
+                        ) : null}
+                    </div>
                 </div>
             ) : (
                 <div className="mt-3 text-xs text-slate-500">Mueve el ratón sobre el gráfico para ver el detalle del día.</div>
@@ -482,6 +1207,7 @@ function CompareLineChart({
     fromISO,
     toISO,
     title = 'Evolución (Diaria)',
+    compareMode = COMPARE_MODES.BUSINESS_DAY,
     excludeNonWorking = true,
     nonWorkingSet,
 }) {
@@ -489,47 +1215,41 @@ function CompareLineChart({
     const height = 420;
     const pad = { l: 52, r: 18, t: 18, b: 54 };
 
-    const dateList = useMemo(
-        () => buildDateList(fromISO, toISO, { excludeNonWorking, nonWorkingSet }),
-        [fromISO, toISO, excludeNonWorking, nonWorkingSet]
+    const comparisonLists = useMemo(
+        () => buildComparisonDateLists(fromISO, toISO, Number(compareLabel), compareMode, nonWorkingSet),
+        [fromISO, toISO, compareLabel, compareMode, nonWorkingSet]
     );
 
-    const curMap = useMemo(() => indexTotalsByISO(currentRows), [currentRows]);
-    const cmpMap = useMemo(() => indexTotalsByISO(compareRows), [compareRows]);
+    const dateList = comparisonLists.currentDates;
+    const compareDateList = comparisonLists.compareDates;
+    const compareModeConfig = getCompareModeConfig(comparisonLists.mode);
 
-    const compareFrom = useMemo(() => {
-        const f = safeDateFromISO(fromISO);
-        if (!f) return null;
-        const y = Number(compareLabel);
-        if (!Number.isFinite(y)) return null;
-        const ff = new Date(f);
-        ff.setUTCFullYear(y);
-        return ff.toISOString().slice(0, 10);
-    }, [fromISO, compareLabel]);
+    const curMap = useMemo(() => indexValueByISO(currentRows, 'total'), [currentRows]);
+    const curVentasMap = useMemo(() => indexValueByISO(currentRows, 'ventas_positivas'), [currentRows]);
+    const curAbonosMap = useMemo(() => indexValueByISO(currentRows, 'abonos_negativos'), [currentRows]);
+    const curNetoMap = useMemo(() => indexValueByISO(currentRows, 'neto'), [currentRows]);
 
-    const compareTo = useMemo(() => {
-        const t = safeDateFromISO(toISO);
-        if (!t) return null;
-        const y = Number(compareLabel);
-        if (!Number.isFinite(y)) return null;
-        const tt = new Date(t);
-        tt.setUTCFullYear(y);
-        return tt.toISOString().slice(0, 10);
-    }, [toISO, compareLabel]);
-
-    const compareDateList = useMemo(() => {
-        if (!compareFrom || !compareTo) return [];
-        return buildDateList(compareFrom, compareTo, { excludeNonWorking, nonWorkingSet });
-    }, [compareFrom, compareTo, excludeNonWorking, nonWorkingSet]);
+    const cmpMap = useMemo(() => indexValueByISO(compareRows, 'total'), [compareRows]);
+    const cmpVentasMap = useMemo(() => indexValueByISO(compareRows, 'ventas_positivas'), [compareRows]);
+    const cmpAbonosMap = useMemo(() => indexValueByISO(compareRows, 'abonos_negativos'), [compareRows]);
+    const cmpNetoMap = useMemo(() => indexValueByISO(compareRows, 'neto'), [compareRows]);
 
     const pointsCur = useMemo(
         () =>
-            dateList.map((d, i) => ({
-                i,
-                date: d,
-                y: curMap.get(d.toISOString().slice(0, 10)) ?? 0,
-            })),
-        [dateList, curMap]
+            dateList.map((d, i) => {
+                const key = d.toISOString().slice(0, 10);
+                const total = curMap.get(key) ?? 0;
+                const ventas = curVentasMap.get(key) ?? total;
+                return {
+                    i,
+                    date: d,
+                    y: ventas,
+                    total,
+                    abonos: curAbonosMap.get(key) ?? 0,
+                    neto: curNetoMap.get(key) ?? total,
+                };
+            }),
+        [dateList, curMap, curVentasMap, curAbonosMap, curNetoMap]
     );
 
     const pointsCmp = useMemo(
@@ -538,28 +1258,50 @@ function CompareLineChart({
                 const cd = compareDateList[i];
                 const key = cd ? cd.toISOString().slice(0, 10) : '';
                 const missing = !cd;
-                return { i, date: d, y: key ? cmpMap.get(key) ?? 0 : 0, missing };
+                const total = key ? cmpMap.get(key) ?? 0 : 0;
+                const ventas = key ? cmpVentasMap.get(key) ?? total : 0;
+                return {
+                    i,
+                    date: d,
+                    y: ventas,
+                    total,
+                    abonos: key ? cmpAbonosMap.get(key) ?? 0 : 0,
+                    neto: key ? cmpNetoMap.get(key) ?? total : 0,
+                    missing,
+                };
             }),
-        [dateList, compareDateList, cmpMap]
+        [dateList, compareDateList, cmpMap, cmpVentasMap, cmpAbonosMap, cmpNetoMap]
     );
 
-    const maxY = useMemo(() => {
-        const ys = [
-            ...pointsCur.map((p) => clampFiniteNumber(p.y, 0)),
-            ...pointsCmp.map((p) => clampFiniteNumber(p.y, 0)),
-        ];
-        return Math.max(1, ...ys);
-    }, [pointsCur, pointsCmp]);
+    const abonosCur = useMemo(() => pointsCur.map((p) => ({ i: p.i, date: p.date, y: p.abonos })), [pointsCur]);
+    const abonosCmp = useMemo(() => pointsCmp.map((p) => ({ i: p.i, date: p.date, y: p.missing ? 0 : p.abonos })), [pointsCmp]);
+    const hasAbonosCur = useMemo(() => abonosCur.some((p) => clampFiniteNumber(p.y, 0) < 0), [abonosCur]);
+    const hasAbonosCmp = useMemo(() => abonosCmp.some((p) => clampFiniteNumber(p.y, 0) < 0), [abonosCmp]);
+    const hasAbonos = hasAbonosCur || hasAbonosCmp;
 
-    const pathCur = useMemo(() => makePath(pointsCur, width, height, pad, maxY), [pointsCur, maxY]);
-    const pathCmp = useMemo(() => makePath(pointsCmp, width, height, pad, maxY), [pointsCmp, maxY]);
+    const domain = useMemo(
+        () => buildChartDomain(hasAbonos ? [pointsCur, pointsCmp, abonosCur, abonosCmp] : [pointsCur, pointsCmp]),
+        [pointsCur, pointsCmp, abonosCur, abonosCmp, hasAbonos]
+    );
 
-    // ✅ Cambio clave: mostrar TOTAL de rango (no “último día”)
+    const pathCur = useMemo(() => makePath(pointsCur, width, height, pad, domain), [pointsCur, domain]);
+    const pathCmp = useMemo(() => makePath(pointsCmp, width, height, pad, domain), [pointsCmp, domain]);
+    const pathAbonosCur = useMemo(() => (hasAbonosCur ? makePath(abonosCur, width, height, pad, domain) : ''), [abonosCur, domain, hasAbonosCur]);
+    const pathAbonosCmp = useMemo(() => (hasAbonosCmp ? makePath(abonosCmp, width, height, pad, domain) : ''), [abonosCmp, domain, hasAbonosCmp]);
+
     const totalCur = useMemo(() => sumPoints(pointsCur), [pointsCur]);
+    const totalRawCur = useMemo(() => pointsCur.reduce((acc, p) => acc + clampFiniteNumber(p.total, 0), 0), [pointsCur]);
     const totalCmp = useMemo(
         () => pointsCmp.reduce((acc, p) => acc + (p.missing ? 0 : clampFiniteNumber(p.y, 0)), 0),
         [pointsCmp]
     );
+    const totalRawCmp = useMemo(
+        () => pointsCmp.reduce((acc, p) => acc + (p.missing ? 0 : clampFiniteNumber(p.total, 0)), 0),
+        [pointsCmp]
+    );
+    const abonosTotalCur = useMemo(() => abonosCur.reduce((acc, p) => acc + clampFiniteNumber(p.y, 0), 0), [abonosCur]);
+    const abonosTotalCmp = useMemo(() => abonosCmp.reduce((acc, p) => acc + clampFiniteNumber(p.y, 0), 0), [abonosCmp]);
+
     const daysWithSalesCur = useMemo(() => countDaysWithSales(pointsCur), [pointsCur]);
     const daysWithSalesCmp = useMemo(
         () => pointsCmp.reduce((acc, p) => acc + (!p.missing && clampFiniteNumber(p.y, 0) > 0 ? 1 : 0), 0),
@@ -571,9 +1313,7 @@ function CompareLineChart({
 
     const onMove = (evt) => {
         if (!dateList.length) return;
-        const svg = evt.currentTarget;
-        const rect = svg.getBoundingClientRect();
-        const x = evt.clientX - rect.left;
+        const x = getSvgViewBoxX(evt, width);
         const innerW = width - pad.l - pad.r;
         const rel = (x - pad.l) / innerW;
         const idx = Math.round(rel * (dateList.length - 1));
@@ -585,8 +1325,8 @@ function CompareLineChart({
 
     const rangeDaysLaborables = dateList.length;
     const rangeDaysCalendario = daysBetweenInclusive(fromISO, toISO);
-
     const missingCount = useMemo(() => pointsCmp.reduce((acc, p) => acc + (p.missing ? 1 : 0), 0), [pointsCmp]);
+    const zeroY = valueToChartY(0, height, pad, domain);
 
     return (
         <div className="w-full">
@@ -594,10 +1334,12 @@ function CompareLineChart({
                 <div className="text-sm font-semibold text-slate-800">{title}</div>
                 <div className="text-xs text-slate-500 tabular-nums">
                     Rango: {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
-                    {excludeNonWorking ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días`} ·{' '}
-                    Total Actual: {kpiFormat(totalCur, 'money')} · Total {compareLabel}:{' '}
-                    {kpiFormat(totalCmp, 'money')} · Días con ventas: {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
-                    {missingCount ? ` · Faltan ${missingCount} laborables en ${compareLabel}` : ''}
+                    Modo: {compareModeConfig.shortLabel} ·{' '}
+                    {comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días calendario`} ·{' '}
+                    Facturación positiva Actual: {kpiFormat(totalCur, 'money')} · {compareLabel}:{' '}
+                    {kpiFormat(totalCmp, 'money')} · Total impbruto: {kpiFormat(totalRawCur, 'money')} / {kpiFormat(totalRawCmp, 'money')} · Días con ventas: {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
+                    {hasAbonos ? ` · Abonos: ${kpiFormat(abonosTotalCur, 'money')} / ${kpiFormat(abonosTotalCmp, 'money')}` : ''}
+                    {missingCount ? ` · Faltan ${missingCount} ${comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? 'laborables' : 'días'} en ${compareLabel}` : ''}
                 </div>
             </div>
 
@@ -608,14 +1350,14 @@ function CompareLineChart({
                 onMouseLeave={onLeave}
                 style={{ cursor: dateList.length ? 'crosshair' : 'default' }}
             >
-                <line x1={pad.l} y1={height - pad.b} x2={width - pad.r} y2={height - pad.b} stroke="#e2e8f0" strokeWidth="2" />
+                <line x1={pad.l} y1={zeroY} x2={width - pad.r} y2={zeroY} stroke={hasAbonos ? '#94a3b8' : '#e2e8f0'} strokeWidth="2" />
 
                 {ticks.map((t) => {
                     const innerW = width - pad.l - pad.r;
                     const x = pad.l + (t.idx / Math.max(dateList.length - 1, 1)) * innerW;
                     return (
                         <g key={t.idx}>
-                            <line x1={x} y1={height - pad.b} x2={x} y2={height - pad.b + 8} stroke="#cbd5e1" strokeWidth="2" />
+                            <line x1={x} y1={zeroY} x2={x} y2={zeroY + 8} stroke="#cbd5e1" strokeWidth="2" />
                             <text x={x} y={height - 18} textAnchor="middle" fontSize="11" fill="#64748b">
                                 {fmtDay.format(t.date)}
                             </text>
@@ -623,45 +1365,81 @@ function CompareLineChart({
                     );
                 })}
 
+                {hasAbonosCmp ? <path d={pathAbonosCmp} fill="none" stroke="#f87171" strokeWidth="2" strokeDasharray="4 5" /> : null}
+                {hasAbonosCur ? <path d={pathAbonosCur} fill="none" stroke="#dc2626" strokeWidth="2.5" strokeDasharray="7 5" /> : null}
                 <path d={pathCmp} fill="none" stroke="#94a3b8" strokeWidth="3" strokeDasharray="8 6" />
                 <path d={pathCur} fill="none" stroke="#2563eb" strokeWidth="3" />
 
                 {hoverIdx !== null ? (
                     (() => {
                         const innerW = width - pad.l - pad.r;
-                        const innerH = height - pad.t - pad.b;
                         const x = pad.l + (hoverIdx / Math.max(dateList.length - 1, 1)) * innerW;
-                        const yCur = pad.t + (1 - clampFiniteNumber(pointsCur[hoverIdx]?.y ?? 0, 0) / maxY) * innerH;
-                        const yCmp = pad.t + (1 - clampFiniteNumber(pointsCmp[hoverIdx]?.y ?? 0, 0) / maxY) * innerH;
+                        const yCur = valueToChartY(pointsCur[hoverIdx]?.y ?? 0, height, pad, domain);
+                        const yCmp = valueToChartY(pointsCmp[hoverIdx]?.y ?? 0, height, pad, domain);
+                        const yAbonoCur = valueToChartY(pointsCur[hoverIdx]?.abonos ?? 0, height, pad, domain);
+                        const yAbonoCmp = valueToChartY(pointsCmp[hoverIdx]?.abonos ?? 0, height, pad, domain);
                         return (
                             <>
                                 <line x1={x} y1={pad.t} x2={x} y2={height - pad.b} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="6 6" />
                                 <circle cx={x} cy={yCur} r="4.5" fill="#2563eb" />
                                 <circle cx={x} cy={yCmp} r="4.0" fill="#94a3b8" />
+                                {hasAbonosCur && pointsCur[hoverIdx]?.abonos < 0 ? <circle cx={x} cy={yAbonoCur} r="4" fill="#dc2626" /> : null}
+                                {hasAbonosCmp && pointsCmp[hoverIdx]?.abonos < 0 ? <circle cx={x} cy={yAbonoCmp} r="3.5" fill="#f87171" /> : null}
                             </>
                         );
                     })()
                 ) : null}
             </svg>
 
-            <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-0.5 bg-blue-600 inline-block" /> Actual
                 </span>
                 <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-0.5 bg-slate-400 inline-block" style={{ borderTop: '2px dashed #94a3b8' }} /> {compareLabel}
                 </span>
+                {hasAbonosCur ? (
+                    <span className="inline-flex items-center gap-2">
+                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> Abonos actual
+                    </span>
+                ) : null}
+                {hasAbonosCmp ? (
+                    <span className="inline-flex items-center gap-2">
+                        <span className="w-3 h-0.5 bg-red-400 inline-block" /> Abonos {compareLabel}
+                    </span>
+                ) : null}
             </div>
 
             {hoverIdx !== null && dateList[hoverIdx] ? (
                 <div className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
-                    <div className="font-medium">{fmtFull.format(dateList[hoverIdx])}</div>
+                    <div className="font-medium">
+                        {fmtFull.format(dateList[hoverIdx])}
+                        {comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? (
+                            <span className="ml-2 text-xs font-normal text-slate-500">Laborable #{hoverIdx + 1}</span>
+                        ) : null}
+                    </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <div className="tabular-nums">Actual: {kpiFormat(pointsCur[hoverIdx]?.y ?? 0, 'money')}</div>
+                        <div className="tabular-nums">Actual facturación: {kpiFormat(pointsCur[hoverIdx]?.y ?? 0, 'money')}</div>
+                        <div className="tabular-nums text-slate-500">Actual impbruto: {kpiFormat(pointsCur[hoverIdx]?.total ?? 0, 'money')}</div>
                         <div className="tabular-nums text-slate-500">
-                            {compareLabel}:{' '}
+                            {compareLabel} facturación:{' '}
                             {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.y ?? 0, 'money')}
+                            {!pointsCmp[hoverIdx]?.missing && compareDateList[hoverIdx] ? (
+                                <span className="ml-1 text-slate-400">({fmtFull.format(compareDateList[hoverIdx])})</span>
+                            ) : null}
                         </div>
+                        <div className="tabular-nums text-slate-500">
+                            {compareLabel} impbruto:{' '}
+                            {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.total ?? 0, 'money')}
+                        </div>
+                        {hasAbonos ? (
+                            <>
+                                <div className="tabular-nums text-red-600">Abono actual: {kpiFormat(pointsCur[hoverIdx]?.abonos ?? 0, 'money')}</div>
+                                <div className="tabular-nums text-red-400">
+                                    Abono {compareLabel}: {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.abonos ?? 0, 'money')}
+                                </div>
+                            </>
+                        ) : null}
                     </div>
                 </div>
             ) : (
@@ -703,25 +1481,41 @@ function Ranking({ title, rows }) {
 
 const TABS = [
     { key: 'resumen', label: 'Resumen' },
-    { key: 'comparacion', label: 'Comparación' },
+    { key: 'lineas', label: 'Líneas de negocio' },
+    { key: 'unidades', label: 'Tejido / Proyectos' },
     { key: 'series', label: 'Series' },
-    { key: 'tendencias', label: 'Tendencias' },
     { key: 'facturas', label: 'Facturas' },
     { key: 'clientes', label: 'Clientes' },
-    { key: 'compliance', label: 'Compliance' },
+    { key: 'calidad', label: 'Calidad datos' },
+    { key: 'compliance', label: 'Fiscal / Compliance' },
+    { key: 'comparacion', label: 'Comparación' },
 ];
 
+function daysInUTCMonth(year, monthOneBased) {
+    return new Date(Date.UTC(year, monthOneBased, 0)).getUTCDate();
+}
+
+function shiftISOToYearSafe(iso, year) {
+    const d = safeDateFromISO(iso);
+    const targetYear = Number(year);
+    if (!d || !Number.isFinite(targetYear)) return null;
+
+    const month = d.getUTCMonth() + 1;
+    const day = Math.min(d.getUTCDate(), daysInUTCMonth(targetYear, month));
+
+    return new Date(Date.UTC(targetYear, month - 1, day)).toISOString().slice(0, 10);
+}
+
 function shiftRangeToYear(fromISO, toISO, year) {
-    const fromD = safeDateFromISO(fromISO);
-    const toD = safeDateFromISO(toISO);
-    if (!fromD || !toD || !Number.isFinite(Number(year))) {
+    const targetYear = Number(year);
+    if (!Number.isFinite(targetYear)) {
         return { from: `${year}-01-01`, to: `${year}-12-31` };
     }
-    const nf = new Date(fromD);
-    const nt = new Date(toD);
-    nf.setUTCFullYear(Number(year));
-    nt.setUTCFullYear(Number(year));
-    return { from: nf.toISOString().slice(0, 10), to: nt.toISOString().slice(0, 10) };
+
+    return {
+        from: shiftISOToYearSafe(fromISO, targetYear) || `${targetYear}-01-01`,
+        to: shiftISOToYearSafe(toISO, targetYear) || `${targetYear}-12-31`,
+    };
 }
 
 // =========================
@@ -778,6 +1572,12 @@ function FacturacionAnalyticsPageInner() {
         canales: [],
         clientes: [],
         complianceStates: [],
+        vendedores: [],
+        formasPago: [],
+        zonas: [],
+        rutas: [],
+        departamentos: [],
+        tiposFactura: [],
     });
 
     const [filters, setFilters] = useState(() => {
@@ -810,8 +1610,17 @@ function FacturacionAnalyticsPageInner() {
             canal: params.getAll('canal[]'),
             cliente: params.getAll('cliente[]'),
             compliance: params.getAll('compliance[]'),
+            vendedor: params.getAll('vendedor[]'),
+            formaPago: params.getAll('formaPago[]'),
+            zona: params.getAll('zona[]'),
+            ruta: params.getAll('ruta[]'),
+            departamento: params.getAll('departamento[]'),
+            tipoFactura: params.getAll('tipoFactura[]'),
+            amountMin: params.get('amountMin') || '',
+            amountMax: params.get('amountMax') || '',
             rectificativas: params.get('rectificativas') || '',
             granularity: params.get('granularity') || 'day',
+            compareMode: getCompareModeConfig(params.get('compareMode') || COMPARE_MODES.BUSINESS_DAY).key,
             compareYear,
             search: '',
             sort: 'fecha',
@@ -851,6 +1660,9 @@ function FacturacionAnalyticsPageInner() {
         timeseries: { series: [], compare_series: [], series_by_serie: [], yoy_mom: [], heatmap: [] },
         invoices: { rows: [], total: 0, page: 1, pageSize: 40 },
         compliance: { rows: [], alerts: [] },
+        businessUnits: null,
+        businessLines: null,
+        dataQuality: { summary: null, checks: [], by_series: [], recommendations: [] },
     });
 
     const [reqState, setReqState] = useState({
@@ -890,12 +1702,35 @@ function FacturacionAnalyticsPageInner() {
     }, []);
 
     const [searchDraft, setSearchDraft] = useState(filters.search || '');
+    const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
     useEffect(() => {
         const t = setTimeout(() => {
             setFilters((f) => (f.search === searchDraft ? f : { ...f, search: searchDraft, page: 1 }));
         }, 350);
         return () => clearTimeout(t);
     }, [searchDraft]);
+
+    useEffect(() => {
+        setSelectedInvoice(null);
+    }, [
+        filters.from,
+        filters.to,
+        filters.series,
+        filters.canal,
+        filters.cliente,
+        filters.vendedor,
+        filters.formaPago,
+        filters.zona,
+        filters.ruta,
+        filters.departamento,
+        filters.tipoFactura,
+        filters.amountMin,
+        filters.amountMax,
+        filters.rectificativas,
+        filters.search,
+    ]);
 
     const reqId = useRef(0);
     const retryTick = useRef(0);
@@ -908,13 +1743,19 @@ function FacturacionAnalyticsPageInner() {
     useEffect(() => {
         analyticsClient
             .getFilters()
-            .then((meta) => normalizeApiResult(meta, { series: [], canales: [], clientes: [], complianceStates: [] }))
+            .then((meta) => normalizeApiResult(meta, { series: [], canales: [], clientes: [], complianceStates: [], vendedores: [], formasPago: [], zonas: [], rutas: [], departamentos: [], tiposFactura: [] }))
             .then((meta) =>
                 setFiltersMeta({
                     series: Array.isArray(meta?.series) ? meta.series : [],
                     canales: Array.isArray(meta?.canales) ? meta.canales : [],
                     clientes: Array.isArray(meta?.clientes) ? meta.clientes : [],
                     complianceStates: Array.isArray(meta?.complianceStates) ? meta.complianceStates : [],
+                    vendedores: Array.isArray(meta?.vendedores) ? meta.vendedores : [],
+                    formasPago: Array.isArray(meta?.formasPago) ? meta.formasPago : [],
+                    zonas: Array.isArray(meta?.zonas) ? meta.zonas : [],
+                    rutas: Array.isArray(meta?.rutas) ? meta.rutas : [],
+                    departamentos: Array.isArray(meta?.departamentos) ? meta.departamentos : [],
+                    tiposFactura: Array.isArray(meta?.tiposFactura) ? meta.tiposFactura : [],
                 })
             )
             .catch((err) => {
@@ -926,53 +1767,63 @@ function FacturacionAnalyticsPageInner() {
             });
     }, []);
 
+    const dashboardFilters = useMemo(() => {
+        const { search, page, pageSize, sort, ...rest } = filters;
+        return rest;
+    }, [
+        filters.from,
+        filters.to,
+        filters.series,
+        filters.canal,
+        filters.cliente,
+        filters.compliance,
+        filters.vendedor,
+        filters.formaPago,
+        filters.zona,
+        filters.ruta,
+        filters.departamento,
+        filters.tipoFactura,
+        filters.amountMin,
+        filters.amountMax,
+        filters.rectificativas,
+        filters.granularity,
+        filters.compareMode,
+        filters.compareYear,
+    ]);
+
+    const isAbortError = (error) => error?.name === 'AbortError';
+
     useEffect(() => {
         if (!isValidISODateString(filters.from) || !isValidISODateString(filters.to)) return;
 
         const params = new URLSearchParams();
-        Object.entries(filters).forEach(([k, v]) => {
-            if (!v || ['search', 'page', 'pageSize', 'sort'].includes(k)) return;
+        Object.entries(dashboardFilters).forEach(([k, v]) => {
+            if (!v) return;
             if (Array.isArray(v)) v.forEach((item) => params.append(`${k}[]`, item));
             else params.set(k, String(v));
         });
         window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    }, [dashboardFilters, filters.from, filters.to]);
 
+    useEffect(() => {
+        if (!isValidISODateString(dashboardFilters.from) || !isValidISODateString(dashboardFilters.to)) return;
+
+        const controller = new AbortController();
         const myReq = ++reqId.current;
-
-        const safe = async (label, promise, fallback) => {
-            try {
-                const res = await promise;
-                return normalizeApiResult(res, fallback);
-            } catch (error) {
-                console.error(`Analytics request error (${label}):`, error);
-                setReqState((s) => {
-                    if (s.error) return s;
-                    return { ...s, error: { where: label, message: error?.message || String(error), raw: error } };
-                });
-                return fallback;
-            }
-        };
 
         setReqState((s) => ({ ...s, loading: true, error: null }));
 
-        Promise.all([
-            safe('getSummary', analyticsClient.getSummary(filters), null),
-            safe('getSeries', analyticsClient.getSeries(filters), []),
-            safe('getTimeseries', analyticsClient.getTimeseries(filters), {
-                series: [],
-                compare_series: [],
-                series_by_serie: [],
-                yoy_mom: [],
-                heatmap: [],
-            }),
-            safe('getInvoices', analyticsClient.getInvoices(filters), { rows: [], total: 0, page: 1, pageSize: filters.pageSize }),
-            safe('getCompliance', analyticsClient.getCompliance(filters), { rows: [], alerts: [] }),
-        ])
-            .then(([summaryRaw, seriesRaw, timeseriesRaw, invoicesRaw, complianceRaw]) => {
+        analyticsClient
+            .getDashboard(dashboardFilters, { signal: controller.signal })
+            .then((dashboardRaw) => {
                 if (myReq !== reqId.current) return;
 
-                const summary = summaryRaw && typeof summaryRaw === 'object' ? summaryRaw : null;
-                const series = Array.isArray(seriesRaw) ? seriesRaw : [];
+                const dashboard = dashboardRaw && typeof dashboardRaw === 'object' ? dashboardRaw : {};
+
+                const summary = dashboard.summary && typeof dashboard.summary === 'object' ? dashboard.summary : null;
+                const series = Array.isArray(dashboard.series) ? dashboard.series : [];
+
+                const timeseriesRaw = dashboard.timeseries;
                 const timeseries =
                     timeseriesRaw && typeof timeseriesRaw === 'object'
                         ? {
@@ -984,6 +1835,82 @@ function FacturacionAnalyticsPageInner() {
                         }
                         : { series: [], compare_series: [], series_by_serie: [], yoy_mom: [], heatmap: [] };
 
+                const complianceRaw = dashboard.compliance;
+                const compliance =
+                    complianceRaw && typeof complianceRaw === 'object'
+                        ? {
+                            rows: Array.isArray(complianceRaw.rows) ? complianceRaw.rows : [],
+                            alerts: Array.isArray(complianceRaw.alerts) ? complianceRaw.alerts : [],
+                        }
+                        : { rows: [], alerts: [] };
+
+                const businessUnitsRaw = dashboard.businessUnits;
+                const businessUnits =
+                    businessUnitsRaw && typeof businessUnitsRaw === 'object' && Array.isArray(businessUnitsRaw.rows)
+                        ? {
+                            ...businessUnitsRaw,
+                            rows: Array.isArray(businessUnitsRaw.rows) ? businessUnitsRaw.rows : [],
+                            by_series: Array.isArray(businessUnitsRaw.by_series) ? businessUnitsRaw.by_series : [],
+                        }
+                        : null;
+
+                const businessLinesRaw = dashboard.businessLines;
+                const businessLines =
+                    businessLinesRaw && typeof businessLinesRaw === 'object' && Array.isArray(businessLinesRaw.rows)
+                        ? {
+                            ...businessLinesRaw,
+                            rows: Array.isArray(businessLinesRaw.rows) ? businessLinesRaw.rows : [],
+                            by_series: Array.isArray(businessLinesRaw.by_series) ? businessLinesRaw.by_series : [],
+                        }
+                        : null;
+
+                const dataQualityRaw = dashboard.dataQuality;
+                const dataQuality =
+                    dataQualityRaw && typeof dataQualityRaw === 'object'
+                        ? {
+                            summary: dataQualityRaw.summary && typeof dataQualityRaw.summary === 'object' ? dataQualityRaw.summary : null,
+                            checks: Array.isArray(dataQualityRaw.checks) ? dataQualityRaw.checks : [],
+                            by_series: Array.isArray(dataQualityRaw.by_series) ? dataQualityRaw.by_series : [],
+                            recommendations: Array.isArray(dataQualityRaw.recommendations) ? dataQualityRaw.recommendations : [],
+                        }
+                        : { summary: null, checks: [], by_series: [], recommendations: [] };
+
+                setData((current) => ({
+                    ...current,
+                    summary,
+                    series,
+                    timeseries,
+                    compliance,
+                    businessUnits,
+                    businessLines,
+                    dataQuality,
+                }));
+                setReqState((s) => ({ ...s, lastOkAt: new Date().toISOString() }));
+            })
+            .catch((error) => {
+                if (isAbortError(error)) return;
+                console.error('Analytics request error (getDashboard):', error);
+                setReqState((s) => ({
+                    ...s,
+                    error: { where: 'getDashboard', message: error?.message || String(error), raw: error },
+                }));
+            })
+            .finally(() => {
+                if (myReq !== reqId.current) return;
+                setReqState((s) => ({ ...s, loading: false }));
+            });
+
+        return () => controller.abort();
+    }, [dashboardFilters]);
+
+    useEffect(() => {
+        if (!isValidISODateString(filters.from) || !isValidISODateString(filters.to)) return;
+
+        const controller = new AbortController();
+
+        analyticsClient
+            .getInvoices(filters, { signal: controller.signal })
+            .then((invoicesRaw) => {
                 const invoices =
                     invoicesRaw && typeof invoicesRaw === 'object'
                         ? {
@@ -994,25 +1921,72 @@ function FacturacionAnalyticsPageInner() {
                         }
                         : { rows: [], total: 0, page: 1, pageSize: filters.pageSize };
 
-                const compliance =
-                    complianceRaw && typeof complianceRaw === 'object'
-                        ? {
-                            rows: Array.isArray(complianceRaw.rows) ? complianceRaw.rows : [],
-                            alerts: Array.isArray(complianceRaw.alerts) ? complianceRaw.alerts : [],
-                        }
-                        : { rows: [], alerts: [] };
-
-                setData({ summary, series, timeseries, invoices, compliance });
-                setReqState((s) => ({ ...s, lastOkAt: new Date().toISOString() }));
+                setData((current) => ({ ...current, invoices }));
             })
-            .finally(() => {
-                if (myReq !== reqId.current) return;
-                setReqState((s) => ({ ...s, loading: false }));
+            .catch((error) => {
+                if (isAbortError(error)) return;
+                console.error('Analytics request error (getInvoices):', error);
+                setReqState((s) => {
+                    if (s.error) return s;
+                    return { ...s, error: { where: 'getInvoices', message: error?.message || String(error), raw: error } };
+                });
             });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters, retryTick.current]);
+
+        return () => controller.abort();
+    }, [filters]);
 
     const seriesOptions = useMemo(() => (filtersMeta.series || []).map((s) => ({ value: s, label: s })), [filtersMeta.series]);
+    const toSelectOptions = (items = []) => items.map((value) => ({ value, label: value }));
+    const vendedorOptions = useMemo(() => toSelectOptions(filtersMeta.vendedores), [filtersMeta.vendedores]);
+    const formaPagoOptions = useMemo(() => toSelectOptions(filtersMeta.formasPago), [filtersMeta.formasPago]);
+    const zonaOptions = useMemo(() => toSelectOptions(filtersMeta.zonas), [filtersMeta.zonas]);
+    const rutaOptions = useMemo(() => toSelectOptions(filtersMeta.rutas), [filtersMeta.rutas]);
+    const departamentoOptions = useMemo(() => toSelectOptions(filtersMeta.departamentos), [filtersMeta.departamentos]);
+    const tipoFacturaOptions = useMemo(() => toSelectOptions(filtersMeta.tiposFactura), [filtersMeta.tiposFactura]);
+    const canalOptions = useMemo(() => toSelectOptions(filtersMeta.canales), [filtersMeta.canales]);
+    const clienteOptions = useMemo(() => toSelectOptions(filtersMeta.clientes), [filtersMeta.clientes]);
+
+    const setMultiFilter = (key, selected) => {
+        setFilters((f) => ({ ...f, [key]: (selected || []).map((x) => x.value), page: 1 }));
+    };
+
+    const clearAdvancedFilters = () => {
+        setFilters((f) => ({
+            ...f,
+            canal: [],
+            cliente: [],
+            vendedor: [],
+            formaPago: [],
+            zona: [],
+            ruta: [],
+            departamento: [],
+            tipoFactura: [],
+            amountMin: '',
+            amountMax: '',
+            rectificativas: '',
+            page: 1,
+        }));
+    };
+
+    const advancedFiltersCount = [
+        filters.canal?.length,
+        filters.cliente?.length,
+        filters.vendedor?.length,
+        filters.formaPago?.length,
+        filters.zona?.length,
+        filters.ruta?.length,
+        filters.departamento?.length,
+        filters.tipoFactura?.length,
+        filters.amountMin ? 1 : 0,
+        filters.amountMax ? 1 : 0,
+        filters.rectificativas ? 1 : 0,
+    ].reduce((acc, value) => acc + clampFiniteNumber(value, 0), 0);
+
+    const applyInvoiceQuickFilter = (patch) => {
+        setTab('facturas');
+        setShowAdvancedFilters(true);
+        setFilters((f) => ({ ...f, ...patch, page: 1 }));
+    };
 
     const applyQuickRange = (days) => {
         const to = new Date();
@@ -1062,7 +2036,7 @@ function FacturacionAnalyticsPageInner() {
     const nonWorkingSet = useMemo(() => buildNonWorkingSetForYears(yearsInPlay), [yearsInPlay]);
 
     const exportCsv = () => {
-        const headers = ['canal', 'serie', 'nfacventa', 'fecha', 'cliente', 'razentre', 'impbruto', 'impiva', 'imptotal', 'estadosii'];
+        const headers = ['canal', 'serie', 'nfacventa', 'fecha', 'cliente', 'razentre', 'nomcomer', 'nifentre', 'codforpago', 'codvend', 'impbruto', 'impiva', 'imptotal', 'es_rectificativa', 'estadosii'];
         const lines = [headers.join(',')].concat(
             (data.invoices.rows || []).map((r) =>
                 headers.map((h) => `"${(r?.[h] ?? '').toString().replaceAll('"', '""')}"`).join(',')
@@ -1084,7 +2058,20 @@ function FacturacionAnalyticsPageInner() {
     const iva = summary?.iva_total;
 
     const facturas = summary?.numero_facturas;
+    const pedidos = clampFiniteNumber(summary?.numero_pedidos, 0);
+    const lineasPedido = clampFiniteNumber(summary?.lineas_pedido, 0);
+    const pedidosPorFactura = clampFiniteNumber(summary?.pedidos_por_factura, 0);
+    const ticketMedioPedido = clampFiniteNumber(summary?.ticket_medio_pedido, 0);
+    const pedidosDisponible = Boolean(summary?.pedidos_disponible);
     const ticketMedioBruto = facturas ? clampFiniteNumber(ventasBruto, 0) / Math.max(clampFiniteNumber(facturas, 1), 1) : 0;
+    const rectificativasConteo = clampFiniteNumber(summary?.rectificativas_conteo, 0);
+    const rectificativasImpacto = clampFiniteNumber(summary?.rectificativas_impacto, 0);
+    const ventasAjustadasRectificativas = summary?.ventas_ajustadas_rectificativas === null || summary?.ventas_ajustadas_rectificativas === undefined
+        ? null
+        : clampFiniteNumber(summary?.ventas_ajustadas_rectificativas, 0);
+    const dataQualitySummary = data.dataQuality?.summary || null;
+    const costeCoberturaPct = clampFiniteNumber(dataQualitySummary?.coste_cobertura_pct, 0);
+    const margenDisponible = Boolean(dataQualitySummary?.margen_disponible);
 
     const variation = summary?.variacion_vs_periodo_anterior;
     const variationTrend =
@@ -1118,10 +2105,15 @@ function FacturacionAnalyticsPageInner() {
 
         const fromISO = filters.from;
         const toISO = filters.to;
+        const modeConfig = getCompareModeConfig(filters.compareMode);
 
-        const dateList = buildDateList(fromISO, toISO, { excludeNonWorking, nonWorkingSet });
+        const { currentDates: dateList, compareDates: compareDateList, shiftedRange, mode } =
+            buildComparisonDateLists(fromISO, toISO, Number(compareYear), filters.compareMode, nonWorkingSet);
+
         if (!dateList.length) {
             return {
+                compareMode: mode,
+                compareModeLabel: modeConfig.label,
                 sumCur: 0,
                 sumCmp: 0,
                 avgCur: 0,
@@ -1133,26 +2125,21 @@ function FacturacionAnalyticsPageInner() {
                 worstCur: { y: 0, date: null },
                 deltaTotal: 0,
                 deltaTotalPct: null,
+                actualCalendarDays: daysBetweenInclusive(fromISO, toISO),
+                compareCalendarDays: daysBetweenInclusive(shiftedRange.from, shiftedRange.to),
+                actualBusinessDays: 0,
+                compareBusinessDays: compareDateList.length,
+                missingCount: 0,
                 rows: [],
             };
         }
 
         const curMap = indexTotalsByISO(data.timeseries?.series || []);
         const cmpMap = indexTotalsByISO(data.timeseries?.compare_series || []);
-
-        const f = safeDateFromISO(fromISO);
-        const t = safeDateFromISO(toISO);
-        if (!f || !t) return null;
-
-        const cf = new Date(f);
-        cf.setUTCFullYear(Number(compareYear));
-        const ct = new Date(t);
-        ct.setUTCFullYear(Number(compareYear));
-
-        const compareDateList = buildDateList(cf.toISOString().slice(0, 10), ct.toISOString().slice(0, 10), {
-            excludeNonWorking,
-            nonWorkingSet,
-        });
+        const curAbonosMap = indexValueByISO(data.timeseries?.series || [], 'abonos_negativos');
+        const cmpAbonosMap = indexValueByISO(data.timeseries?.compare_series || [], 'abonos_negativos');
+        const curNetoMap = indexValueByISO(data.timeseries?.series || [], 'neto');
+        const cmpNetoMap = indexValueByISO(data.timeseries?.compare_series || [], 'neto');
 
         let sumCur = 0;
         let sumCmp = 0;
@@ -1163,13 +2150,17 @@ function FacturacionAnalyticsPageInner() {
         let worstCur = { y: Infinity, date: null };
 
         const rows = dateList.map((d, idx) => {
-            const iso = d.toISOString().slice(0, 10);
+            const iso = isoFromUTCDate(d);
             const cur = clampFiniteNumber(curMap.get(iso) ?? 0, 0);
 
             const cd = compareDateList[idx];
-            const cmpKey = cd ? cd.toISOString().slice(0, 10) : null;
+            const cmpKey = cd ? isoFromUTCDate(cd) : null;
             const cmpMissing = !cmpKey;
             const cmp = cmpKey ? clampFiniteNumber(cmpMap.get(cmpKey) ?? 0, 0) : 0;
+            const curAbonos = clampFiniteNumber(curAbonosMap.get(iso) ?? 0, 0);
+            const cmpAbonos = cmpKey ? clampFiniteNumber(cmpAbonosMap.get(cmpKey) ?? 0, 0) : 0;
+            const curNeto = clampFiniteNumber(curNetoMap.get(iso) ?? cur, cur);
+            const cmpNeto = cmpKey ? clampFiniteNumber(cmpNetoMap.get(cmpKey) ?? cmp, cmp) : 0;
 
             sumCur += cur;
             sumCmp += cmp;
@@ -1184,10 +2175,19 @@ function FacturacionAnalyticsPageInner() {
             const deltaPct = cmpMissing || cmp === 0 ? null : (delta / cmp) * 100;
 
             return {
+                index: idx + 1,
                 date: d,
                 iso,
+                weekday: fmtWeekday.format(d),
+                compareDate: cd || null,
+                compareIso: cmpKey,
+                compareWeekday: cd ? fmtWeekday.format(cd) : null,
                 cur,
                 cmp,
+                curAbonos,
+                cmpAbonos,
+                curNeto,
+                cmpNeto,
                 cmpMissing,
                 delta,
                 deltaPct,
@@ -1201,7 +2201,15 @@ function FacturacionAnalyticsPageInner() {
         const deltaTotal = sumCur - sumCmp;
         const deltaTotalPct = sumCmp === 0 ? null : (deltaTotal / sumCmp) * 100;
 
+        const actualCalendarDays = daysBetweenInclusive(fromISO, toISO);
+        const compareCalendarDays = daysBetweenInclusive(shiftedRange.from, shiftedRange.to);
+        const actualBusinessDays = buildDateList(fromISO, toISO, { excludeNonWorking: true, nonWorkingSet }).length;
+        const compareBusinessDays = buildDateList(shiftedRange.from, shiftedRange.to, { excludeNonWorking: true, nonWorkingSet }).length;
+        const missingCount = rows.reduce((acc, row) => acc + (row.cmpMissing ? 1 : 0), 0);
+
         return {
+            compareMode: mode,
+            compareModeLabel: modeConfig.label,
             sumCur,
             sumCmp,
             avgCur,
@@ -1213,58 +2221,249 @@ function FacturacionAnalyticsPageInner() {
             worstCur,
             deltaTotal,
             deltaTotalPct,
+            actualCalendarDays,
+            compareCalendarDays,
+            actualBusinessDays,
+            compareBusinessDays,
+            missingCount,
             rows,
         };
-    }, [compareYear, filters.from, filters.to, data.timeseries?.series, data.timeseries?.compare_series, excludeNonWorking, nonWorkingSet]);
+    }, [
+        compareYear,
+        filters.from,
+        filters.to,
+        filters.compareMode,
+        data.timeseries?.series,
+        data.timeseries?.compare_series,
+        nonWorkingSet,
+    ]);
+
+
+    const businessUnitStats = useMemo(() => {
+        if (data.businessUnits && Array.isArray(data.businessUnits.rows)) {
+            const initial = {
+                totalVentas: clampFiniteNumber(data.businessUnits.totalVentas, 0),
+                totalFacturas: clampFiniteNumber(data.businessUnits.totalFacturas, 0),
+                totalVentasCompare: data.businessUnits.totalVentasCompare === null || data.businessUnits.totalVentasCompare === undefined ? null : clampFiniteNumber(data.businessUnits.totalVentasCompare, 0),
+                totalFacturasCompare: data.businessUnits.totalFacturasCompare === null || data.businessUnits.totalFacturasCompare === undefined ? null : clampFiniteNumber(data.businessUnits.totalFacturasCompare, 0),
+                [BUSINESS_UNIT_KEYS.FABRIC]: { ventas: 0, facturas: 0, ticketMedio: 0, ventasCompare: null, facturasCompare: null, ticketMedioCompare: null, porcentajeTotalCompare: null, variacionVsCompare: null, rows: [] },
+                [BUSINESS_UNIT_KEYS.PROJECTS]: { ventas: 0, facturas: 0, ticketMedio: 0, ventasCompare: null, facturasCompare: null, ticketMedioCompare: null, porcentajeTotalCompare: null, variacionVsCompare: null, rows: [] },
+            };
+
+            data.businessUnits.rows.forEach((row) => {
+                const unitKey = row?.grupo === BUSINESS_UNIT_KEYS.PROJECTS ? BUSINESS_UNIT_KEYS.PROJECTS : BUSINESS_UNIT_KEYS.FABRIC;
+                initial[unitKey] = {
+                    ventas: clampFiniteNumber(row?.ventas, 0),
+                    facturas: clampFiniteNumber(row?.numero_facturas, 0),
+                    ticketMedio: clampFiniteNumber(row?.ticket_medio, 0),
+                    porcentajeTotal: clampFiniteNumber(row?.porcentaje_total, 0),
+                    ventasCompare: row?.ventas_compare === null || row?.ventas_compare === undefined ? null : clampFiniteNumber(row?.ventas_compare, 0),
+                    facturasCompare: row?.numero_facturas_compare === null || row?.numero_facturas_compare === undefined ? null : clampFiniteNumber(row?.numero_facturas_compare, 0),
+                    ticketMedioCompare: row?.ticket_medio_compare === null || row?.ticket_medio_compare === undefined ? null : clampFiniteNumber(row?.ticket_medio_compare, 0),
+                    porcentajeTotalCompare: row?.porcentaje_total_compare === null || row?.porcentaje_total_compare === undefined ? null : clampFiniteNumber(row?.porcentaje_total_compare, 0),
+                    variacionVsCompare:
+                        row?.variacion_vs_compare === null || row?.variacion_vs_compare === undefined
+                            ? null
+                            : clampFiniteNumber(row?.variacion_vs_compare, 0),
+                    rows: [],
+                };
+            });
+
+            const bySeries = Array.isArray(data.businessUnits.by_series) && data.businessUnits.by_series.length
+                ? data.businessUnits.by_series
+                : data.series || [];
+
+            bySeries.forEach((row) => {
+                const unitKey = row?.grupo === BUSINESS_UNIT_KEYS.PROJECTS || getBusinessUnitForSerie(row?.serie) === BUSINESS_UNIT_KEYS.PROJECTS
+                    ? BUSINESS_UNIT_KEYS.PROJECTS
+                    : BUSINESS_UNIT_KEYS.FABRIC;
+
+                initial[unitKey].rows.push({
+                    serie: row?.serie,
+                    ventas: clampFiniteNumber(row?.ventas ?? row?.total, 0),
+                    numero_facturas: clampFiniteNumber(row?.numero_facturas, 0),
+                    ticket_medio: clampFiniteNumber(row?.ticket_medio, 0),
+                    porcentaje_total: clampFiniteNumber(row?.porcentaje_total, 0),
+                });
+            });
+
+            return initial;
+        }
+
+        const initial = {
+            totalVentas: 0,
+            totalFacturas: 0,
+            [BUSINESS_UNIT_KEYS.FABRIC]: { ventas: 0, facturas: 0, ticketMedio: 0, ventasCompare: null, facturasCompare: null, ticketMedioCompare: null, porcentajeTotalCompare: null, variacionVsCompare: null, rows: [] },
+            [BUSINESS_UNIT_KEYS.PROJECTS]: { ventas: 0, facturas: 0, ticketMedio: 0, ventasCompare: null, facturasCompare: null, ticketMedioCompare: null, porcentajeTotalCompare: null, variacionVsCompare: null, rows: [] },
+        };
+
+        (data.series || []).forEach((row) => {
+            const unit = getBusinessUnitForSerie(row?.serie);
+            const ventas = clampFiniteNumber(row?.ventas, 0);
+            const facturasRow = clampFiniteNumber(row?.numero_facturas, 0);
+
+            initial[unit].ventas += ventas;
+            initial[unit].facturas += facturasRow;
+            initial[unit].rows.push(row);
+            initial.totalVentas += ventas;
+            initial.totalFacturas += facturasRow;
+        });
+
+        initial[BUSINESS_UNIT_KEYS.FABRIC].ticketMedio =
+            initial[BUSINESS_UNIT_KEYS.FABRIC].facturas > 0
+                ? initial[BUSINESS_UNIT_KEYS.FABRIC].ventas / initial[BUSINESS_UNIT_KEYS.FABRIC].facturas
+                : 0;
+        initial[BUSINESS_UNIT_KEYS.PROJECTS].ticketMedio =
+            initial[BUSINESS_UNIT_KEYS.PROJECTS].facturas > 0
+                ? initial[BUSINESS_UNIT_KEYS.PROJECTS].ventas / initial[BUSINESS_UNIT_KEYS.PROJECTS].facturas
+                : 0;
+
+        return initial;
+    }, [data.businessUnits, data.series]);
+
+    const availableSeriesValues = useMemo(() => (filtersMeta.series || []).map((serie) => String(serie)), [filtersMeta.series]);
+
+    const selectedSeriesSet = useMemo(() => new Set(filters.series || []), [filters.series]);
+
+    const activeBusinessUnit = useMemo(() => {
+        const selected = filters.series || [];
+        if (!selected.length) return BUSINESS_UNIT_KEYS.ALL;
+
+        const projectSeries = getSeriesForBusinessUnit(availableSeriesValues, BUSINESS_UNIT_KEYS.PROJECTS);
+        const fabricSeries = getSeriesForBusinessUnit(availableSeriesValues, BUSINESS_UNIT_KEYS.FABRIC);
+
+        const selectedSorted = [...selected].map(String).sort().join('|');
+        const projectSorted = [...projectSeries].map(String).sort().join('|');
+        const fabricSorted = [...fabricSeries].map(String).sort().join('|');
+
+        if (selectedSorted === projectSorted) return BUSINESS_UNIT_KEYS.PROJECTS;
+        if (selectedSorted === fabricSorted) return BUSINESS_UNIT_KEYS.FABRIC;
+
+        return 'custom';
+    }, [filters.series, availableSeriesValues]);
+
+    const applyBusinessUnit = (businessUnit) => {
+        const nextSeries = getSeriesForBusinessUnit(availableSeriesValues, businessUnit);
+        setFilters((f) => ({ ...f, series: nextSeries, page: 1 }));
+    };
+
+    const activeFilterChips = [
+        { key: 'periodo', label: `${fmtFull.format(safeDateFromISO(filters.from) || new Date())} - ${fmtFull.format(safeDateFromISO(filters.to) || new Date())}`, fixed: true },
+        { key: 'businessUnit', label: `Unidad: ${activeBusinessUnit === 'custom' ? 'Series manuales' : activeBusinessUnit === BUSINESS_UNIT_KEYS.ALL ? 'Todas' : activeBusinessUnit === BUSINESS_UNIT_KEYS.PROJECTS ? 'Proyectos' : 'Tejido'}`, fixed: true },
+        filters.compareYear ? { key: 'compareYear', label: `Comparando con ${filters.compareYear}`, onRemove: () => setFilters((f) => ({ ...f, compareYear: null, page: 1 })) } : null,
+        filters.search ? { key: 'search', label: `Buscar: ${filters.search}`, onRemove: () => { setSearchDraft(''); setFilters((f) => ({ ...f, search: '', page: 1 })); } } : null,
+        filters.rectificativas ? { key: 'rectificativas', label: filters.rectificativas === 'yes' ? 'Solo rectificativas' : 'Sin rectificativas', onRemove: () => setFilters((f) => ({ ...f, rectificativas: '', page: 1 })) } : null,
+        filters.amountMin ? { key: 'amountMin', label: `Mín. ${filters.amountMin} €`, onRemove: () => setFilters((f) => ({ ...f, amountMin: '', page: 1 })) } : null,
+        filters.amountMax ? { key: 'amountMax', label: `Máx. ${filters.amountMax} €`, onRemove: () => setFilters((f) => ({ ...f, amountMax: '', page: 1 })) } : null,
+    ].filter(Boolean);
+
+
+    const topSerie = (data.series || [])[0] || summary?.top_series_by_sales?.[0] || null;
+    const totalRowsCount = clampFiniteNumber(data.invoices?.total, 0);
+
 
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
             <div className="max-w-[1200px] mx-auto space-y-4">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900">Analítica de Facturación</h1>
-                        <p className="text-sm text-slate-600 mt-1">
-                            KPI principal: <strong>Bruto (sin impuestos)</strong> (<code>impbruto</code>). IVA se muestra como apoyo.
-                        </p>
-                        <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
-                            {reqState.loading ? <span className="inline-flex items-center gap-2">⏳ Cargando…</span> : <span>✔ Listo</span>}
-                            {reqState.lastOkAt ? <span className="tabular-nums">Última respuesta: {reqState.lastOkAt}</span> : null}
-                            <button className="underline hover:text-slate-700" onClick={() => setShowDebug((v) => !v)}>
-                                {showDebug ? 'Ocultar' : 'Ver'} diagnóstico
-                            </button>
+                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-400 via-slate-900 to-indigo-500" />
+                    <div className="p-5 md:p-7">
+                        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+                            <div className="max-w-3xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <MetricBadge tone="slate">Dashboard</MetricBadge>
+                                    <MetricBadge tone={reqState.loading ? 'amber' : 'emerald'}>
+                                        {reqState.loading ? 'Actualizando datos' : 'Datos cargados'}
+                                    </MetricBadge>
+                                    {activeBusinessUnit === 'custom' ? <MetricBadge tone="amber">Series personalizadas</MetricBadge> : null}
+                                </div>
+                                <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-tight text-slate-950">Facturación</h1>
+                                <p className="mt-2 text-sm md:text-base text-slate-600">
+                                    Resumen comercial y fiscal con foco en ventas netas, comparativa por periodos y separación visual entre <b>Tejido</b> y <b>Proyectos</b>.
+                                </p>
+                                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                    <span className="rounded-full bg-slate-100 px-3 py-1">
+                                        {safeFormatFull(filters.from)} - {safeFormatFull(filters.to)}
+                                    </span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1">
+                                        {excludeNonWorking
+                                            ? buildDateList(filters.from, filters.to, { excludeNonWorking, nonWorkingSet }).length
+                                            : daysBetweenInclusive(filters.from, filters.to)}{' '}
+                                        días laborables
+                                    </span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1">Ventas sin impuestos · impbruto</span>
+                                    {reqState.lastOkAt ? <span className="rounded-full bg-slate-100 px-3 py-1 tabular-nums">Última respuesta: {reqState.lastOkAt}</span> : null}
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2" aria-label="Filtros activos">
+                                    {activeFilterChips.map((chip) => (
+                                        <span key={chip.key} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                                            {chip.label}
+                                            {chip.onRemove ? (
+                                                <button
+                                                    type="button"
+                                                    className="rounded-full text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                                    aria-label={`Quitar filtro ${chip.label}`}
+                                                    onClick={chip.onRemove}
+                                                >
+                                                    ×
+                                                </button>
+                                            ) : null}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row xl:flex-col gap-2 xl:min-w-[260px]">
+                                <div className="flex gap-2 flex-wrap xl:justify-end">
+                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(7)}>
+                                        7 días
+                                    </button>
+                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(30)}>
+                                        30 días
+                                    </button>
+                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(90)}>
+                                        90 días
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2 flex-wrap xl:justify-end">
+                                    <button
+                                        className={`px-4 py-2 rounded-full text-sm border transition ${
+                                            compareYear === 2025 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                        onClick={toggleCompare2025}
+                                        title="Comparar contra 2025. Por defecto se alinea por día laborable equivalente."
+                                    >
+                                        Comparar con 2025
+                                    </button>
+
+                                    {compareYear ? (
+                                        <select
+                                            value={filters.compareMode}
+                                            onChange={(event) => setFilters((f) => ({ ...f, compareMode: getCompareModeConfig(event.target.value).key, page: 1 }))}
+                                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                            aria-label="Modo de comparación"
+                                            title="El modo laborable equivalente evita comparar laborables contra domingos o festivos."
+                                        >
+                                            {COMPARE_MODE_OPTIONS.map((option) => (
+                                                <option key={option.key} value={option.key}>
+                                                    {option.shortLabel}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : null}
+
+                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={forceRetry} title="Reintentar cargar datos">
+                                        Reintentar
+                                    </button>
+
+                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => setShowDebug((v) => !v)}>
+                                        {showDebug ? 'Ocultar diagnóstico' : 'Diagnóstico'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="mt-2 text-xs text-slate-500">
-                            Vista: <b>sin no-laborables</b> (sábados, domingos y festivos oficiales + Montilla 2025/2026).
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                        <Pill>
-                            <span className="text-slate-500 text-xs">Rango</span>
-                            <button className="text-sm font-medium" onClick={() => applyQuickRange(7)}>7 días</button>
-                            <span className="text-slate-300">·</span>
-                            <button className="text-sm font-medium" onClick={() => applyQuickRange(30)}>30 días</button>
-                            <span className="text-slate-300">·</span>
-                            <button className="text-sm font-medium" onClick={() => applyQuickRange(90)}>90 días</button>
-                        </Pill>
-
-                        <button
-                            className={`px-4 py-2 rounded-full text-sm border transition ${compareYear === 2025 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                                }`}
-                            onClick={toggleCompare2025}
-                            title="Comparar el mismo rango contra 2025 (alineado por días laborables)"
-                        >
-                            Comparar con 2025
-                        </button>
-
-                        <button
-                            className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50"
-                            onClick={forceRetry}
-                            title="Reintentar cargar datos"
-                        >
-                            Reintentar
-                        </button>
                     </div>
                 </div>
 
@@ -1304,6 +2503,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Resumen de datos</div>
                                 <div className="mt-2 text-xs space-y-1">
                                     <div>summary: {summary ? '✅' : '❌ (null)'}</div>
+                                    <div>pedidos facturados: {summary?.pedidos_disponible ? kpiFormat(summary?.numero_pedidos) : 'no disponible'}</div>
                                     <div>series: {(data.series || []).length}</div>
                                     <div>timeseries.series: {(data.timeseries?.series || []).length}</div>
                                     <div>timeseries.compare_series: {(data.timeseries?.compare_series || []).length}</div>
@@ -1319,56 +2519,50 @@ function FacturacionAnalyticsPageInner() {
                 ) : null}
 
                 {/* Filter bar */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                        <div className="md:col-span-2">
-                            <div className="text-xs text-slate-500 mb-1">Desde</div>
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 md:p-5">
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-end">
+                        <div className="xl:col-span-2">
+                            <div className="text-xs font-medium text-slate-500 mb-1.5">Desde</div>
                             <input
                                 type="date"
                                 value={fromDraft}
                                 onChange={(e) => setFromDraft(e.target.value)}
                                 onBlur={() => commitDates(fromDraft, toDraft)}
-                                className="w-full border rounded-xl px-3 py-2 text-sm"
+                                className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                             />
                         </div>
 
-                        <div className="md:col-span-2">
-                            <div className="text-xs text-slate-500 mb-1">Hasta</div>
+                        <div className="xl:col-span-2">
+                            <div className="text-xs font-medium text-slate-500 mb-1.5">Hasta</div>
                             <input
                                 type="date"
                                 value={toDraft}
                                 onChange={(e) => setToDraft(e.target.value)}
                                 onBlur={() => commitDates(fromDraft, toDraft)}
-                                className="w-full border rounded-xl px-3 py-2 text-sm"
+                                className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                             />
                         </div>
 
-                        <div className="md:col-span-4">
-                            <div className="text-xs text-slate-500 mb-1">Series</div>
-                            <Select
-                                isMulti
-                                options={seriesOptions}
-                                value={seriesOptions.filter((o) => (filters.series || []).includes(o.value))}
-                                onChange={(selected) => setFilters((f) => ({ ...f, series: (selected || []).map((x) => x.value), page: 1 }))}
-                                placeholder="Todas"
-                            />
-                            <div className="mt-1 flex flex-wrap gap-3">
-                                <button className="text-xs text-slate-500 hover:text-slate-700" onClick={() => setFilters((f) => ({ ...f, series: [], page: 1 }))}>
-                                    Limpiar series
-                                </button>
-                                <button className="text-xs text-slate-500 hover:text-slate-700" onClick={() => fullYear(2025)} title="Ver el año completo 2025">
-                                    Año 2025 completo
-                                </button>
-                                <button className="text-xs text-slate-500 hover:text-slate-700" onClick={() => goToYearSameRange(2025)} title="Mismo rango pero en 2025">
-                                    Ir a 2025 (mismo rango)
-                                </button>
-                            </div>
+                        <div className="xl:col-span-3">
+                            <div className="text-xs font-medium text-slate-500 mb-1.5">Unidad de negocio</div>
+                            <BusinessUnitToggle activeKey={activeBusinessUnit} onChange={applyBusinessUnit} />
+                            {activeBusinessUnit === 'custom' ? <div className="mt-1.5 text-[11px] text-amber-600">Selección manual de series activa.</div> : null}
                         </div>
 
-                        <div className="md:col-span-2">
-                            <div className="text-xs text-slate-500 mb-1">Agrupación</div>
+                        <div className="xl:col-span-3">
+                            <div className="text-xs font-medium text-slate-500 mb-1.5">Buscar</div>
+                            <input
+                                value={searchDraft}
+                                onChange={(e) => setSearchDraft(e.target.value)}
+                                className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                placeholder="Factura / cliente / razón social"
+                            />
+                        </div>
+
+                        <div className="xl:col-span-2">
+                            <div className="text-xs font-medium text-slate-500 mb-1.5">Agrupación</div>
                             <select
-                                className="w-full border rounded-xl px-3 py-2 text-sm"
+                                className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                 value={filters.granularity}
                                 onChange={(e) => setFilters((f) => ({ ...f, granularity: e.target.value }))}
                             >
@@ -1376,32 +2570,226 @@ function FacturacionAnalyticsPageInner() {
                                 <option value="week">Semana</option>
                                 <option value="month">Mes</option>
                             </select>
-                            <div className="mt-1 text-[11px] text-slate-500">
-                                Nota: el gráfico de Evolución se muestra <b>siempre diario</b>.
-                            </div>
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <div className="text-xs text-slate-500 mb-1">Buscar</div>
-                            <input
-                                value={searchDraft}
-                                onChange={(e) => setSearchDraft(e.target.value)}
-                                className="w-full border rounded-xl px-3 py-2 text-sm"
-                                placeholder="Factura / cliente / razón social"
-                            />
                         </div>
                     </div>
 
-                    {dateError ? <div className="mt-2 text-xs text-rose-600">{dateError}</div> : null}
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                            <div className="lg:col-span-7">
+                                <div className="flex items-center justify-between gap-3 mb-2">
+                                    <div className="text-xs font-medium text-slate-500">Series de facturación</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <QuickActionButton active={!filters.series?.length} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.ALL)}>
+                                            Todas
+                                        </QuickActionButton>
+                                        <QuickActionButton active={activeBusinessUnit === BUSINESS_UNIT_KEYS.FABRIC} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.FABRIC)}>
+                                            Tejido
+                                        </QuickActionButton>
+                                        <QuickActionButton active={activeBusinessUnit === BUSINESS_UNIT_KEYS.PROJECTS} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.PROJECTS)}>
+                                            Proyectos
+                                        </QuickActionButton>
+                                        <QuickActionButton active={false} onClick={() => setFilters((f) => ({ ...f, series: [], page: 1 }))}>
+                                            Limpiar
+                                        </QuickActionButton>
+                                    </div>
+                                </div>
+                                <Select
+                                    isMulti
+                                    options={seriesOptions}
+                                    value={seriesOptions.filter((o) => selectedSeriesSet.has(o.value))}
+                                    onChange={(selected) => setFilters((f) => ({ ...f, series: (selected || []).map((x) => x.value), page: 1 }))}
+                                    placeholder="Todas las series"
+                                />
+                            </div>
+
+                            <div className="lg:col-span-5">
+                                <div className="text-xs font-medium text-slate-500 mb-2">Accesos rápidos</div>
+                                <div className="flex flex-wrap gap-2">
+                                    <QuickActionButton onClick={() => fullYear(new Date().getFullYear())}>
+                                        Año actual
+                                    </QuickActionButton>
+                                    <QuickActionButton onClick={() => fullYear(2025)} title="Ver el año completo 2025">
+                                        Año 2025 completo
+                                    </QuickActionButton>
+                                    <QuickActionButton onClick={() => goToYearSameRange(2025)} title="Mismo rango pero en 2025">
+                                        Ir a 2025
+                                    </QuickActionButton>
+                                </div>
+                                <div className="mt-3 text-xs text-slate-500">
+                                    Tejido selecciona las series que no empiezan por <b>H</b>. Proyectos selecciona las series que empiezan por <b>H</b>. Las series de 1 carácter son facturas y las de 2 caracteres son abonos.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-semibold text-slate-800">Filtros avanzados</div>
+                                <div className="text-xs text-slate-600 mt-1">
+                                    Acota por cliente, vendedor, forma de pago, zona, ruta, tipo de factura o rango de importes.
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                    aria-expanded={showAdvancedFilters}
+                                    onClick={() => setShowAdvancedFilters((value) => !value)}
+                                >
+                                    {showAdvancedFilters ? 'Ocultar filtros' : 'Mostrar filtros'} {advancedFiltersCount ? `(${advancedFiltersCount})` : ''}
+                                </button>
+                                {advancedFiltersCount ? (
+                                    <button
+                                        type="button"
+                                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                        onClick={clearAdvancedFilters}
+                                    >
+                                        Limpiar avanzados
+                                    </button>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        {showAdvancedFilters ? (
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Canal</div>
+                                    <Select
+                                        isMulti
+                                        options={canalOptions}
+                                        value={canalOptions.filter((option) => filters.canal?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('canal', selected)}
+                                        placeholder="Todos"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Cliente</div>
+                                    <Select
+                                        isMulti
+                                        options={clienteOptions}
+                                        value={clienteOptions.filter((option) => filters.cliente?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('cliente', selected)}
+                                        placeholder="Todos"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Vendedor</div>
+                                    <Select
+                                        isMulti
+                                        options={vendedorOptions}
+                                        value={vendedorOptions.filter((option) => filters.vendedor?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('vendedor', selected)}
+                                        placeholder="Todos"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Forma de pago</div>
+                                    <Select
+                                        isMulti
+                                        options={formaPagoOptions}
+                                        value={formaPagoOptions.filter((option) => filters.formaPago?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('formaPago', selected)}
+                                        placeholder="Todas"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Zona</div>
+                                    <Select
+                                        isMulti
+                                        options={zonaOptions}
+                                        value={zonaOptions.filter((option) => filters.zona?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('zona', selected)}
+                                        placeholder="Todas"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Ruta</div>
+                                    <Select
+                                        isMulti
+                                        options={rutaOptions}
+                                        value={rutaOptions.filter((option) => filters.ruta?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('ruta', selected)}
+                                        placeholder="Todas"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Departamento</div>
+                                    <Select
+                                        isMulti
+                                        options={departamentoOptions}
+                                        value={departamentoOptions.filter((option) => filters.departamento?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('departamento', selected)}
+                                        placeholder="Todos"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Tipo factura</div>
+                                    <Select
+                                        isMulti
+                                        options={tipoFacturaOptions}
+                                        value={tipoFacturaOptions.filter((option) => filters.tipoFactura?.includes(option.value))}
+                                        onChange={(selected) => setMultiFilter('tipoFactura', selected)}
+                                        placeholder="Todos"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Rectificativas</div>
+                                    <select
+                                        className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        value={filters.rectificativas}
+                                        onChange={(e) => setFilters((f) => ({ ...f, rectificativas: e.target.value, page: 1 }))}
+                                    >
+                                        <option value="">Todas</option>
+                                        <option value="no">Solo normales</option>
+                                        <option value="yes">Solo rectificativas</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Importe mínimo</div>
+                                    <input
+                                        type="number"
+                                        inputMode="decimal"
+                                        value={filters.amountMin}
+                                        onChange={(e) => setFilters((f) => ({ ...f, amountMin: e.target.value, page: 1 }))}
+                                        className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Importe máximo</div>
+                                    <input
+                                        type="number"
+                                        inputMode="decimal"
+                                        value={filters.amountMax}
+                                        onChange={(e) => setFilters((f) => ({ ...f, amountMax: e.target.value, page: 1 }))}
+                                        className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        placeholder="Sin límite"
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {dateError ? <div className="mt-3 text-xs text-rose-600">{dateError}</div> : null}
                 </div>
+
+                <LaborCalendarMontillaPanel
+                    fromISO={filters.from}
+                    toISO={filters.to}
+                    compareYear={compareYear}
+                    yearsInPlay={yearsInPlay}
+                />
 
                 {/* Tabs */}
                 <div className="flex gap-2 flex-wrap">
                     {TABS.map((t) => (
                         <button
                             key={t.key}
+                            type="button"
                             onClick={() => setTab(t.key)}
-                            className={`px-4 py-2 rounded-full text-sm border transition ${tab === t.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            aria-pressed={tab === t.key}
+                            className={`px-4 py-2 rounded-full text-sm border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${tab === t.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
                             {t.label}
@@ -1431,75 +2819,143 @@ function FacturacionAnalyticsPageInner() {
         ========================= */}
                 {tab === 'resumen' && summary && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-                            <KpiTile label="Ventas (bruto)" value={kpiFormat(ventasBruto, 'money')} hint="Suma de impbruto (sin impuestos)." />
-                            <KpiTile label="IVA" value={kpiFormat(iva, 'money')} hint="Indicador fiscal (impuesto). No forma parte del bruto." />
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <KpiTile label="Ventas netas" value={kpiFormat(ventasBruto, 'money')} hint="Suma de impbruto, sin impuestos." />
                             <KpiTile label="Facturas" value={kpiFormat(facturas)} hint="Número de facturas emitidas." />
-                            <KpiTile label="Ticket medio (bruto)" value={kpiFormat(ticketMedioBruto, 'money')} hint="impbruto total / nº facturas." />
+                            <KpiTile
+                                label="Pedidos"
+                                value={pedidosDisponible ? kpiFormat(pedidos) : 'No disponible'}
+                                hint="Pedidos únicos realmente enlazados a facturas mediante albventa_linea."
+                            />
+                            <KpiTile
+                                label="Pedidos/factura"
+                                value={pedidosDisponible ? Number(pedidosPorFactura || 0).toFixed(2) : '—'}
+                                hint={pedidosDisponible ? `Pedidos facturados únicos / facturas. Líneas facturadas de pedido: ${kpiFormat(lineasPedido)}.` : 'La tabla albventa_linea no está disponible o no tiene enlace factura-pedido.'}
+                            />
+                            <KpiTile label="Ticket medio" value={kpiFormat(ticketMedioBruto, 'money')} hint="impbruto total / nº facturas." />
+                            <KpiTile label="Ticket pedido" value={pedidosDisponible ? kpiFormat(ticketMedioPedido, 'money') : '—'} hint="Importe medio por pedido facturado según las líneas enlazadas en albventa_linea." />
 
                             <KpiTile
-                                label={compareYear ? `Δ vs ${compareYear}` : 'Variación'}
-                                value={compareYear ? pctFormat(summary.variacion_vs_compare) : pctFormat(summary.variacion_vs_periodo_anterior)}
-                                hint={compareYear ? `Comparado con el mismo rango en ${compareYear} usando impbruto.` : 'Comparado con el periodo anterior (misma duración) usando impbruto.'}
-                                trend={compareYear ? compareTrend : variationTrend}
+                                label={compareYear ? `Δ vs ${compareYear}` : 'Comparación'}
+                                value={compareYear ? pctFormat(summary.variacion_vs_compare) : 'Sin activar'}
+                                hint={
+                                    compareYear
+                                        ? `Comparado con el mismo rango en ${compareYear} usando impbruto.`
+                                        : 'La variación porcentual se muestra solo cuando activas la comparación. Así evitamos confundirla con el periodo anterior.'
+                                }
+                                trend={compareYear ? compareTrend : { kind: 'flat', text: '—' }}
                             />
 
                             <KpiTile
-                                label="Rango"
-                                value={`${excludeNonWorking
-                                    ? buildDateList(filters.from, filters.to, { excludeNonWorking, nonWorkingSet }).length
-                                    : daysBetweenInclusive(filters.from, filters.to)
-                                    } ${excludeNonWorking ? 'laborables' : 'días'}`}
-                                hint="Cantidad de días en el rango. En esta vista se excluyen no-laborables."
+                                label="Tejido"
+                                value={kpiFormat(businessUnitStats[BUSINESS_UNIT_KEYS.FABRIC]?.ventas, 'money')}
+                                hint="Series que no empiezan por H."
+                            />
+
+                            <KpiTile
+                                label="Proyectos"
+                                value={kpiFormat(businessUnitStats[BUSINESS_UNIT_KEYS.PROJECTS]?.ventas, 'money')}
+                                hint="Series que empiezan por H."
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                            <div className="xl:col-span-2">
+                                <Card
+                                    title="Evolución de ventas"
+                                    subtitle={
+                                        compareYear
+                                            ? `Actual vs ${compareYear} · diario · impbruto · sin no laborables`
+                                            : 'Diario · impbruto · sin no laborables'
+                                    }
+                                >
+                                    {compareYear ? (
+                                        <CompareLineChart
+                                            currentRows={data.timeseries.series || []}
+                                            compareRows={data.timeseries.compare_series || []}
+                                            compareLabel={String(compareYear)}
+                                            fromISO={filters.from}
+                                            toISO={filters.to}
+                                            title="Evolución diaria"
+                                            excludeNonWorking={excludeNonWorking}
+                                            nonWorkingSet={nonWorkingSet}
+                                        />
+                                    ) : (
+                                        <SimpleLineChart
+                                            rows={data.timeseries.series || []}
+                                            fromISO={filters.from}
+                                            toISO={filters.to}
+                                            title="Evolución diaria"
+                                            excludeNonWorking={excludeNonWorking}
+                                            nonWorkingSet={nonWorkingSet}
+                                        />
+                                    )}
+                                </Card>
+                            </div>
+
+                            <BusinessUnitComparisonCard stats={businessUnitStats} compareYear={compareYear} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <InsightCard
+                                label="Serie líder"
+                                value={topSerie?.serie || topSerie?.label || '—'}
+                                detail={topSerie ? `${kpiFormat(topSerie.ventas || topSerie.total || topSerie.value, 'money')} en ventas` : 'Sin serie destacada'}
+                                tone="teal"
+                            />
+                            <InsightCard
+                                label="Facturas listadas"
+                                value={kpiFormat(totalRowsCount || data.invoices?.rows?.length || 0)}
+                                detail="Resultado del filtro actual"
+                                tone="slate"
+                            />
+                            <InsightCard
+                                label="Rectificativas"
+                                value={kpiFormat(rectificativasConteo)}
+                                detail={rectificativasConteo ? `${kpiFormat(rectificativasImpacto, 'money')} en positivo` : 'Sin rectificativas en el rango'}
+                                tone={rectificativasConteo ? 'amber' : 'emerald'}
+                            />
+                            <InsightCard
+                                label="Coste informado"
+                                value={`${costeCoberturaPct.toFixed(2)}%`}
+                                detail={margenDisponible ? 'Margen disponible' : 'Margen no fiable todavía'}
+                                tone={margenDisponible ? 'emerald' : 'slate'}
                             />
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <Card
-                                title="Evolución"
-                                subtitle={
-                                    compareYear
-                                        ? `Actual vs ${compareYear} (mismo rango) — diario (impbruto) — sin no laborables`
-                                        : 'Diario (proceso día a día) — impbruto — sin no laborables'
-                                }
-                            >
-                                {compareYear ? (
-                                    <CompareLineChart
-                                        currentRows={data.timeseries.series || []}
-                                        compareRows={data.timeseries.compare_series || []}
-                                        compareLabel={String(compareYear)}
-                                        fromISO={filters.from}
-                                        toISO={filters.to}
-                                        title="Evolución (Diaria)"
-                                        excludeNonWorking={excludeNonWorking}
-                                        nonWorkingSet={nonWorkingSet}
-                                    />
-                                ) : (
-                                    <SimpleLineChart
-                                        rows={data.timeseries.series || []}
-                                        fromISO={filters.from}
-                                        toISO={filters.to}
-                                        title="Evolución (Diaria)"
-                                        excludeNonWorking={excludeNonWorking}
-                                        nonWorkingSet={nonWorkingSet}
-                                    />
-                                )}
-                            </Card>
-
-                            <Card title="Top series" subtitle="Por ventas (impbruto)">
+                            <Card title="Top series" subtitle="Ranking por ventas netas">
                                 <Ranking title="" rows={summary.top_series_by_sales || []} />
                             </Card>
-                        </div>
 
-                        {compareYear ? (
-                            <div className="text-sm text-slate-600">
-                                Si quieres ver el detalle completo de la comparación (KPIs + tabla día a día), entra al tab <b>“Comparación”</b>.
+                            <div className="lg:col-span-2">
+                                <Card title="Siguiente lectura recomendada" subtitle="Accesos directos para profundizar sin perder contexto">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <button
+                                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
+                                            onClick={() => setTab('unidades')}
+                                        >
+                                            <div className="text-sm font-semibold text-slate-900">Tejido / Proyectos</div>
+                                            <div className="mt-1 text-xs text-slate-500">Compara el peso de cada unidad.</div>
+                                        </button>
+                                        <button
+                                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
+                                            onClick={() => setTab('series')}
+                                        >
+                                            <div className="text-sm font-semibold text-slate-900">Series</div>
+                                            <div className="mt-1 text-xs text-slate-500">Revisa importe, facturas y ticket medio.</div>
+                                        </button>
+                                        <button
+                                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
+                                            onClick={() => setTab(compareYear ? 'comparacion' : 'facturas')}
+                                        >
+                                            <div className="text-sm font-semibold text-slate-900">{compareYear ? 'Comparación' : 'Facturas'}</div>
+                                            <div className="mt-1 text-xs text-slate-500">{compareYear ? `Detalle diario vs ${compareYear}.` : 'Consulta el detalle filtrado.'}</div>
+                                        </button>
+                                    </div>
+                                </Card>
                             </div>
-                        ) : (
-                            <div className="text-sm text-slate-600">
-                                Activa <b>“Comparar con 2025”</b> para ver la comparativa completa y el tab de comparación detallada.
-                            </div>
-                        )}
+                        </div>
                     </div>
                 )}
 
@@ -1524,7 +2980,27 @@ function FacturacionAnalyticsPageInner() {
                             </Card>
                         ) : (
                             <>
-                                <Card title="Comparación detallada" subtitle={`Actual vs ${compareYear} (mismo rango) — diario — métrica: impbruto — sin no laborables`}>
+                                <Card
+                                    title="Comparación detallada"
+                                    subtitle={`Actual vs ${compareYear} · Modo: ${getCompareModeConfig(filters.compareMode).label} · métrica: impbruto`}
+                                    right={
+                                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                            <span className="text-xs text-slate-500">Modo comparación</span>
+                                            <select
+                                                value={filters.compareMode}
+                                                onChange={(event) => setFilters((f) => ({ ...f, compareMode: getCompareModeConfig(event.target.value).key, page: 1 }))}
+                                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                                aria-label="Modo de comparación detallada"
+                                            >
+                                                {COMPARE_MODE_OPTIONS.map((option) => (
+                                                    <option key={option.key} value={option.key}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    }
+                                >
                                     <CompareLineChart
                                         currentRows={data.timeseries.series || []}
                                         compareRows={data.timeseries.compare_series || []}
@@ -1532,43 +3008,108 @@ function FacturacionAnalyticsPageInner() {
                                         fromISO={filters.from}
                                         toISO={filters.to}
                                         title="Evolución (Diaria)"
+                                        compareMode={filters.compareMode}
                                         excludeNonWorking={excludeNonWorking}
                                         nonWorkingSet={nonWorkingSet}
                                     />
                                 </Card>
 
                                 {compareStats ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-                                        <KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint="Suma impbruto en el rango (laborables mostrados)." />
-                                        <KpiTile label={`Total ${compareYear}`} value={kpiFormat(compareStats.sumCmp, 'money')} hint="Suma impbruto en el año comparado (laborables alineados)." />
-                                        <KpiTile label="Δ €" value={kpiFormat(compareStats.deltaTotal, 'money')} hint="Diferencia absoluta (actual - compare)." />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
+                                        <KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint={`Suma impbruto con modo ${compareStats.compareModeLabel}.`} />
+                                        <KpiTile label={`Total ${compareYear}`} value={kpiFormat(compareStats.sumCmp, 'money')} hint="Suma impbruto del periodo comparado alineado según el modo elegido." />
+                                        <KpiTile label="Δ €" value={kpiFormat(compareStats.deltaTotal, 'money')} hint="Diferencia absoluta (actual - comparado)." />
                                         <KpiTile label="Δ %" value={compareStats.deltaTotalPct === null ? '—' : pctFormat(compareStats.deltaTotalPct)} hint="Diferencia porcentual respecto al año comparado." />
-                                        <KpiTile label="Media diaria" value={kpiFormat(compareStats.avgCur, 'money')} hint="Promedio diario actual (laborables mostrados)." />
-                                        <KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint="Nº de días con impbruto > 0 (laborables mostrados)." />
+                                        <KpiTile label="Media por punto" value={kpiFormat(compareStats.avgCur, 'money')} hint="Promedio sobre los días/puntos mostrados en la tabla." />
+                                        <KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint="Nº de puntos con impbruto > 0." />
+                                        <KpiTile
+                                            label="Laborables"
+                                            value={`${compareStats.actualBusinessDays}/${compareStats.compareBusinessDays}`}
+                                            hint={`Laborables actual vs ${compareYear}. Si difieren, usa el modo laborable equivalente.`}
+                                        />
                                     </div>
                                 ) : null}
 
                                 {compareStats ? (
-                                    <Card title="Detalle día a día" subtitle="Tabla completa — alineado por día laborable (si no hay comparable, se muestra “—”)">
+                                    <Card
+                                        title={compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'Detalle por día laborable equivalente' : 'Detalle por fecha exacta'}
+                                        subtitle={
+                                            compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY
+                                                ? `Compara laborable contra laborable: evita enfrentar un lunes de ${new Date(filters.from).getUTCFullYear()} contra un domingo o festivo de ${compareYear}.`
+                                                : 'Tabla por fecha exacta de calendario. Útil para revisión contable/fiscal, pero puede comparar laborables contra domingos o festivos.'
+                                        }
+                                        right={
+                                            <MetricBadge tone={compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'emerald' : 'amber'}>
+                                                {compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'Recomendado ventas' : 'Revisión fiscal'}
+                                            </MetricBadge>
+                                        }
+                                    >
+                                        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Modo activo</div>
+                                                <div className="mt-1 font-semibold text-slate-900">{compareStats.compareModeLabel}</div>
+                                                <div className="mt-1 text-xs text-slate-600">
+                                                    {getCompareModeConfig(compareStats.compareMode).description}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Días calendario</div>
+                                                <div className="mt-1 font-semibold text-slate-900 tabular-nums">
+                                                    {compareStats.actualCalendarDays} / {compareStats.compareCalendarDays}
+                                                </div>
+                                                <div className="mt-1 text-xs text-slate-600">Actual / {compareYear}</div>
+                                            </div>
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Días laborables</div>
+                                                <div className="mt-1 font-semibold text-slate-900 tabular-nums">
+                                                    {compareStats.actualBusinessDays} / {compareStats.compareBusinessDays}
+                                                </div>
+                                                <div className="mt-1 text-xs text-slate-600">
+                                                    {compareStats.missingCount
+                                                        ? `Hay ${compareStats.missingCount} puntos sin equivalente en ${compareYear}.`
+                                                        : 'Comparación completa para los puntos mostrados.'}
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div className="overflow-auto">
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="text-left border-b">
-                                                        <th className="py-3">Día (laborable)</th>
-                                                        <th className="py-3">Actual</th>
-                                                        <th className="py-3">{compareYear}</th>
-                                                        <th className="py-3">Δ €</th>
-                                                        <th className="py-3">Δ %</th>
+                                                        <th className="py-3">#</th>
+                                                        <th className="py-3">Día actual</th>
+                                                        <th className="py-3">Día {compareYear}</th>
+                                                        <th className="py-3 text-right">Actual</th>
+                                                        <th className="py-3 text-right">{compareYear}</th>
+                                                        <th className="py-3 text-right">Abonos actual</th>
+                                                        <th className="py-3 text-right">Abonos {compareYear}</th>
+                                                        <th className="py-3 text-right">Δ €</th>
+                                                        <th className="py-3 text-right">Δ %</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {compareStats.rows.map((r) => (
-                                                        <tr key={r.iso} className="border-b last:border-b-0">
-                                                            <td className="py-3 whitespace-nowrap">{fmtFull.format(r.date)}</td>
-                                                            <td className="py-3 tabular-nums">{kpiFormat(r.cur, 'money')}</td>
-                                                            <td className="py-3 tabular-nums text-slate-600">{r.cmpMissing ? '—' : kpiFormat(r.cmp, 'money')}</td>
-                                                            <td className="py-3 tabular-nums">{r.cmpMissing ? '—' : kpiFormat(r.delta, 'money')}</td>
-                                                            <td className="py-3 tabular-nums">{r.deltaPct === null ? '—' : pctFormat(r.deltaPct)}</td>
+                                                        <tr key={`${r.iso}-${r.index}`} className="border-b last:border-b-0">
+                                                            <td className="py-3 tabular-nums text-slate-500">{r.index}</td>
+                                                            <td className="py-3 whitespace-nowrap">
+                                                                <div>{fmtFull.format(r.date)}</div>
+                                                                <div className="text-xs text-slate-500 capitalize">{r.weekday}</div>
+                                                            </td>
+                                                            <td className="py-3 whitespace-nowrap text-slate-600">
+                                                                {r.compareDate ? (
+                                                                    <>
+                                                                        <div>{fmtFull.format(r.compareDate)}</div>
+                                                                        <div className="text-xs text-slate-500 capitalize">{r.compareWeekday}</div>
+                                                                    </>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                            </td>
+                                                            <td className="py-3 tabular-nums text-right">{kpiFormat(r.cur, 'money')}</td>
+                                                            <td className="py-3 tabular-nums text-right text-slate-600">{r.cmpMissing ? '—' : kpiFormat(r.cmp, 'money')}</td>
+                                                            <td className="py-3 tabular-nums text-right text-red-600">{r.curAbonos ? kpiFormat(r.curAbonos, 'money') : '—'}</td>
+                                                            <td className="py-3 tabular-nums text-right text-red-500">{r.cmpMissing || !r.cmpAbonos ? '—' : kpiFormat(r.cmpAbonos, 'money')}</td>
+                                                            <td className="py-3 tabular-nums text-right">{r.cmpMissing ? '—' : kpiFormat(r.delta, 'money')}</td>
+                                                            <td className="py-3 tabular-nums text-right">{r.deltaPct === null ? '—' : pctFormat(r.deltaPct)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -1598,42 +3139,124 @@ function FacturacionAnalyticsPageInner() {
                     </div>
                 )}
 
+
+                {/* =========================
+            LÍNEAS DE NEGOCIO
+        ========================= */}
+                {tab === 'lineas' && (
+                    <BusinessLinesOverview data={data.businessLines} compareYear={compareYear} />
+                )}
+
+                {/* =========================
+            TEJIDO / PROYECTOS
+        ========================= */}
+                {tab === 'unidades' && (
+                    <div className="space-y-4">
+                        <BusinessUnitComparisonCard stats={businessUnitStats} compareYear={compareYear} />
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {[BUSINESS_UNIT_KEYS.FABRIC, BUSINESS_UNIT_KEYS.PROJECTS].map((unitKey) => {
+                                const unit = businessUnitStats[unitKey] || {};
+                                const isProjects = unitKey === BUSINESS_UNIT_KEYS.PROJECTS;
+                                const title = isProjects ? 'Proyectos' : 'Tejido';
+                                const subtitle = isProjects ? 'Series que empiezan por H' : 'Series que no empiezan por H';
+
+                                return (
+                                    <Card key={unitKey} title={title} subtitle={subtitle}>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                                                <div className="text-xs text-slate-500">Ventas</div>
+                                                <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.ventas, 'money')}</div>
+                                            </div>
+                                            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                                                <div className="text-xs text-slate-500">Facturas</div>
+                                                <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.facturas)}</div>
+                                            </div>
+                                            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                                                <div className="text-xs text-slate-500">Ticket medio</div>
+                                                <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.ticketMedio, 'money')}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <ModernTableShell>
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-slate-50 sticky top-0 z-10">
+                                                        <tr className="text-left border-b border-slate-200">
+                                                            <th className="py-3 px-3">Serie</th>
+                                                            <th className="py-3 px-3 text-right">Ventas</th>
+                                                            <th className="py-3 px-3 text-right">Facturas</th>
+                                                            <th className="py-3 px-3 text-right">% total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {(unit.rows || []).map((row) => (
+                                                            <tr key={`${unitKey}-${row.serie}`} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                                                                <td className="py-3 px-3 font-medium text-slate-800">{row.serie}</td>
+                                                                <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.ventas, 'money')}</td>
+                                                                <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.numero_facturas)}</td>
+                                                                <td className="py-3 px-3 tabular-nums text-right">{pctFormat(row.porcentaje_total)}</td>
+                                                            </tr>
+                                                        ))}
+                                                        {!unit.rows?.length && (
+                                                            <tr>
+                                                                <td className="py-4 px-3 text-slate-500" colSpan={4}>
+                                                                    Sin datos para esta unidad con los filtros actuales.
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </ModernTableShell>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+
                 {/* =========================
             SERIES
         ========================= */}
                 {tab === 'series' && (
-                    <Card title="Series" subtitle="Ventas calculadas sobre impbruto (sin impuestos)">
-                        <div className="overflow-auto">
+                    <Card title="Series" subtitle="Ventas calculadas sobre impbruto. Proyectos son las series que empiezan por H. 1 carácter = factura; 2 caracteres = abono.">
+                        <ModernTableShell>
                             <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-left border-b">
-                                        <th className="py-3">Serie</th>
-                                        <th className="py-3">Ventas (impbruto)</th>
-                                        <th className="py-3">Facturas</th>
-                                        <th className="py-3">Ticket medio</th>
-                                        <th className="py-3">% total</th>
+                                <thead className="bg-slate-50 sticky top-0 z-10">
+                                    <tr className="text-left border-b border-slate-200">
+                                        <th className="py-3 px-3">Serie</th>
+                                        <th className="py-3 px-3">Tipo</th>
+                                        <th className="py-3 px-3 text-right">Ventas</th>
+                                        <th className="py-3 px-3 text-right">Facturas</th>
+                                        <th className="py-3 px-3 text-right">Ticket medio</th>
+                                        <th className="py-3 px-3 text-right">% total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(data.series || []).map((row) => (
-                                        <tr key={row.serie} className="border-b last:border-b-0">
-                                            <td className="py-3">{row.serie}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(row.ventas, 'money')}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(row.numero_facturas)}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(row.ticket_medio, 'money')}</td>
-                                            <td className="py-3 tabular-nums">{pctFormat(row.porcentaje_total)}</td>
+                                        <tr key={row.serie} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                                            <td className="py-3 px-3 font-semibold text-slate-900">{row.serie}</td>
+                                            <td className="py-3 px-3">
+                                                <SeriesTypeBadge serie={row.serie} />
+                                            </td>
+                                            <td className="py-3 px-3 tabular-nums text-right font-medium">{kpiFormat(row.ventas, 'money')}</td>
+                                            <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.numero_facturas)}</td>
+                                            <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.ticket_medio, 'money')}</td>
+                                            <td className="py-3 px-3 tabular-nums text-right">{pctFormat(row.porcentaje_total)}</td>
                                         </tr>
                                     ))}
                                     {!data.series?.length && (
                                         <tr>
-                                            <td className="py-4 text-slate-500" colSpan={5}>
+                                            <td className="py-4 px-3 text-slate-500" colSpan={6}>
                                                 Sin datos para los filtros actuales.
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
-                        </div>
+                        </ModernTableShell>
                     </Card>
                 )}
 
@@ -1693,56 +3316,253 @@ function FacturacionAnalyticsPageInner() {
             FACTURAS
         ========================= */}
                 {tab === 'facturas' && (
-                    <Card
-                        title="Facturas"
-                        subtitle="Detalle (impbruto / IVA / imptotal si el backend lo devuelve)"
-                        right={
-                            <button className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50" onClick={exportCsv}>
-                                Exportar CSV
-                            </button>
-                        }
-                    >
-                        <div className="overflow-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-left border-b">
-                                        <th className="py-3">Fecha</th>
-                                        <th className="py-3">Serie</th>
-                                        <th className="py-3">Nº</th>
-                                        <th className="py-3">Cliente</th>
-                                        <th className="py-3">Razón social</th>
-                                        <th className="py-3">Bruto (impbruto)</th>
-                                        <th className="py-3">IVA</th>
-                                        <th className="py-3">Total (imptotal)</th>
-                                        <th className="py-3">SII</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(data.invoices.rows || []).map((r, i) => (
-                                        <tr key={`${r.serie}-${r.nfacventa}-${i}`} className="border-b last:border-b-0">
-                                            <td className="py-3">{r.fecha ?? '—'}</td>
-                                            <td className="py-3">{r.serie ?? '—'}</td>
-                                            <td className="py-3">{r.nfacventa ?? '—'}</td>
-                                            <td className="py-3">{r.cliente ?? '—'}</td>
-                                            <td className="py-3">{r.razentre ?? '—'}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(r.impbruto ?? 0, 'money')}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(r.impiva ?? 0, 'money')}</td>
-                                            <td className="py-3 tabular-nums">{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</td>
-                                            <td className="py-3">{r.estadosii ?? '—'}</td>
+                    <div className="space-y-4">
+                        <Card
+                            title="Buscador de facturas"
+                            subtitle="Busca dentro del periodo y filtros actuales por número, serie, cliente, razón social, NIF, vendedor, forma de pago, zona o ruta."
+                            right={
+                                <button className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50" onClick={exportCsv}>
+                                    Exportar CSV
+                                </button>
+                            }
+                        >
+                            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500 mb-1.5">Factura / cliente / NIF / vendedor</div>
+                                    <input
+                                        value={searchDraft}
+                                        onChange={(e) => setSearchDraft(e.target.value)}
+                                        className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                        placeholder="Ej: A 23000123, H-1520, cliente, razón social, NIF..."
+                                    />
+                                    <div className="mt-2 text-xs text-slate-500">
+                                        Rango activo: {filters.from} → {filters.to}. La búsqueda respeta fechas, unidad de negocio, series y rectificativas.
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="px-4 py-3 rounded-2xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
+                                        onClick={() => {
+                                            setFilters((f) => ({ ...f, search: searchDraft.trim(), page: 1 }));
+                                            setTab('facturas');
+                                        }}
+                                        disabled={!searchDraft.trim()}
+                                    >
+                                        Buscar
+                                    </button>
+                                    <button
+                                        className="px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium hover:bg-slate-50"
+                                        onClick={() => {
+                                            setSearchDraft('');
+                                            setFilters((f) => ({ ...f, search: '', page: 1 }));
+                                        }}
+                                    >
+                                        Limpiar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2" aria-label="Filtros rápidos de facturas">
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                    onClick={() => applyInvoiceQuickFilter({ rectificativas: '' })}
+                                >
+                                    Todas
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                    onClick={() => applyInvoiceQuickFilter({ rectificativas: 'no' })}
+                                >
+                                    Solo normales
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                    onClick={() => applyInvoiceQuickFilter({ rectificativas: 'yes' })}
+                                >
+                                    Solo rectificativas
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                    onClick={() => setShowAdvancedFilters(true)}
+                                >
+                                    Abrir filtros avanzados
+                                </button>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="text-xs text-slate-500">Resultados</div>
+                                    <div className="text-xl font-semibold tabular-nums">{kpiFormat(data.invoices?.total || 0)}</div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="text-xs text-slate-500">Página</div>
+                                    <div className="text-xl font-semibold tabular-nums">{kpiFormat(data.invoices?.page || 1)}</div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="text-xs text-slate-500">Mostradas</div>
+                                    <div className="text-xl font-semibold tabular-nums">{kpiFormat((data.invoices?.rows || []).length)}</div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <div className="text-xs text-slate-500">Filtro texto</div>
+                                    <div className="text-sm font-semibold truncate">{filters.search || 'Sin búsqueda'}</div>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {selectedInvoice ? (
+                            <Card
+                                title={`Análisis factura ${selectedInvoice.serie || '—'}-${selectedInvoice.nfacventa || '—'}`}
+                                subtitle="Detalle rápido para comprobar cliente, importes y clasificación."
+                                right={
+                                    <button
+                                        className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50"
+                                        onClick={() => setSelectedInvoice(null)}
+                                    >
+                                        Cerrar
+                                    </button>
+                                }
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                                    <KpiTile label="Bruto" value={kpiFormat(selectedInvoice.impbruto || 0, 'money')} hint="Métrica principal actual." />
+                                    <KpiTile label="IVA" value={kpiFormat(selectedInvoice.impiva || 0, 'money')} hint="Importe fiscal de IVA." />
+                                    <KpiTile label="Total" value={kpiFormat(selectedInvoice.imptotal ?? selectedInvoice.imptotfactura ?? 0, 'money')} hint="Total factura." />
+                                    <KpiTile label="Tipo" value={selectedInvoice.es_rectificativa ? 'Rectificativa' : getBusinessUnitLabel(selectedInvoice.serie)} hint={selectedInvoice.es_rectificativa ? 'Factura rectificativa detectada.' : 'Según serie.'} />
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3 text-sm">
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Cliente</div>
+                                        <div className="mt-2 font-semibold text-slate-900">{selectedInvoice.razentre || selectedInvoice.nomcomer || '—'}</div>
+                                        <div className="text-slate-600">Código: {selectedInvoice.cliente || '—'}</div>
+                                        <div className="text-slate-600">NIF: {selectedInvoice.nifentre || '—'}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Clasificación</div>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <SeriesTypeBadge serie={selectedInvoice.serie} />
+                                            <span className="font-semibold text-slate-900">Serie {selectedInvoice.serie || '—'}</span>
+                                        </div>
+                                        <div className="text-slate-600 mt-2">Canal: {selectedInvoice.canal || '—'}</div>
+                                        <div className="text-slate-600">Fecha: {selectedInvoice.fecha_dia || selectedInvoice.fecha || '—'}</div>
+                                        <div className="text-slate-600">Clase: {selectedInvoice.clasefactura || '—'}</div>
+                                        <div className="text-slate-600">Tipo rectificativa: {selectedInvoice.tipfacrectificativa || '—'}</div>
+                                        {selectedInvoice.serierectifica || selectedInvoice.nfacrectifica || selectedInvoice.abonacodserfacventa || selectedInvoice.abonanfacventa ? (
+                                            <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                                Referencia rectificada/abonada: {selectedInvoice.serierectifica || selectedInvoice.abonacodserfacventa || '—'}-{selectedInvoice.nfacrectifica || selectedInvoice.abonanfacventa || '—'}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Gestión</div>
+                                        <div className="mt-2 text-slate-600">Forma pago: {selectedInvoice.codforpago || '—'}</div>
+                                        <div className="text-slate-600">Vendedor: {selectedInvoice.codvend || '—'}</div>
+                                        <div className="text-slate-600">Zona/Ruta: {selectedInvoice.codzona || '—'} / {selectedInvoice.codruta || '—'}</div>
+                                    </div>
+                                </div>
+                            </Card>
+                        ) : null}
+
+                        <Card
+                            title="Facturas"
+                            subtitle="Detalle filtrado con clasificación por unidad de negocio, clase de factura y tipo rectificativa. Pulsa “Analizar” para abrir el detalle."
+                        >
+                            <ModernTableShell>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 sticky top-0 z-10">
+                                        <tr className="text-left border-b border-slate-200">
+                                            <th className="py-3 px-3">Fecha</th>
+                                            <th className="py-3 px-3">Serie</th>
+                                            <th className="py-3 px-3">Tipo</th>
+                                            <th className="py-3 px-3">Nº</th>
+                                            <th className="py-3 px-3">Clase</th>
+                                            <th className="py-3 px-3">Rectif.</th>
+                                            <th className="py-3 px-3">Cliente</th>
+                                            <th className="py-3 px-3">Razón social</th>
+                                            <th className="py-3 px-3">NIF</th>
+                                            <th className="py-3 px-3">Vendedor</th>
+                                            <th className="py-3 px-3 text-right">Bruto</th>
+                                            <th className="py-3 px-3 text-right">IVA</th>
+                                            <th className="py-3 px-3 text-right">Total</th>
+                                            <th className="py-3 px-3 text-right">Acción</th>
                                         </tr>
-                                    ))}
-                                    {!data.invoices.rows?.length && (
-                                        <tr>
-                                            <td className="py-4 text-slate-500" colSpan={9}>
-                                                Sin facturas para los filtros actuales.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
+                                    </thead>
+                                    <tbody>
+                                        {(data.invoices.rows || []).map((r, i) => (
+                                            <tr
+                                                key={`${r.serie}-${r.nfacventa}-${i}`}
+                                                className={`border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70 ${selectedInvoice && selectedInvoice.serie === r.serie && selectedInvoice.nfacventa === r.nfacventa ? 'bg-slate-50' : ''}`}
+                                            >
+                                                <td className="py-3 px-3 whitespace-nowrap">{r.fecha_dia || r.fecha || '—'}</td>
+                                                <td className="py-3 px-3 font-medium">{r.serie ?? '—'}</td>
+                                                <td className="py-3 px-3">
+                                                    {r.es_rectificativa ? (
+                                                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-amber-50 border-amber-200 text-amber-700">
+                                                            Rectificativa
+                                                        </span>
+                                                    ) : (
+                                                        <SeriesTypeBadge serie={r.serie} />
+                                                    )}
+                                                </td>
+                                                <td className="py-3 px-3 font-semibold text-slate-900">{r.nfacventa ?? '—'}</td>
+                                                <td className="py-3 px-3 whitespace-nowrap">{r.clasefactura || '—'}</td>
+                                                <td className="py-3 px-3 whitespace-nowrap">{r.tipfacrectificativa || '—'}</td>
+                                                <td className="py-3 px-3">{r.cliente ?? '—'}</td>
+                                                <td className="py-3 px-3 min-w-[220px]">{r.razentre || r.nomcomer || '—'}</td>
+                                                <td className="py-3 px-3 whitespace-nowrap">{r.nifentre ?? '—'}</td>
+                                                <td className="py-3 px-3">{r.codvend ?? '—'}</td>
+                                                <td className="py-3 px-3 tabular-nums text-right font-medium">{kpiFormat(r.impbruto ?? 0, 'money')}</td>
+                                                <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(r.impiva ?? 0, 'money')}</td>
+                                                <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</td>
+                                                <td className="py-3 px-3 text-right">
+                                                    <button
+                                                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium hover:bg-white"
+                                                        onClick={() => setSelectedInvoice(r)}
+                                                    >
+                                                        Analizar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {!data.invoices.rows?.length && (
+                                            <tr>
+                                                <td className="py-4 px-3 text-slate-500" colSpan={14}>
+                                                    Sin facturas para los filtros actuales. Revisa el rango de fechas o limpia la búsqueda.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </ModernTableShell>
+
+                            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
+                                <div className="text-slate-500">
+                                    Mostrando {(data.invoices?.rows || []).length} de {kpiFormat(data.invoices?.total || 0)} facturas.
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                        disabled={(data.invoices?.page || 1) <= 1}
+                                        onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, (data.invoices?.page || 1) - 1) }))}
+                                    >
+                                        Anterior
+                                    </button>
+                                    <button
+                                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                        disabled={(data.invoices?.page || 1) * (data.invoices?.pageSize || filters.pageSize) >= (data.invoices?.total || 0)}
+                                        onClick={() => setFilters((f) => ({ ...f, page: (data.invoices?.page || 1) + 1 }))}
+                                    >
+                                        Siguiente
+                                    </button>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
                 )}
+
 
                 {/* =========================
             CLIENTES
@@ -1768,6 +3588,138 @@ function FacturacionAnalyticsPageInner() {
                         </div>
                     </Card>
                 )}
+
+
+                {/* =========================
+            CALIDAD DE DATOS
+        ========================= */}
+                {tab === 'calidad' && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <KpiTile
+                                label="Puntuación datos"
+                                value={`${kpiFormat(dataQualitySummary?.data_score ?? 0)}%`}
+                                hint="Indicador interno basado en serie, cliente, número, fecha e importes descuadrados."
+                            />
+                            <KpiTile
+                                label="Venta ajustada"
+                                value={ventasAjustadasRectificativas === null ? '—' : kpiFormat(ventasAjustadasRectificativas, 'money')}
+                                hint="Ventas no rectificativas menos rectificativas. Las rectificativas se tratan en positivo según la regla confirmada."
+                            />
+                            <KpiTile
+                                label="Rectificativas"
+                                value={kpiFormat(dataQualitySummary?.rectificativas ?? rectificativasConteo)}
+                                hint="Detectadas por tipfacrectificativa o campos de factura rectificada."
+                            />
+                            <KpiTile
+                                label="Cobertura coste"
+                                value={`${costeCoberturaPct.toFixed(2)}%`}
+                                hint="Porcentaje de facturas con impcoste positivo. El margen se activa solo con cobertura suficiente."
+                            />
+                        </div>
+
+                        <Card
+                            title="Conclusión automática"
+                            subtitle="Controles derivados de la muestra real de facventa: impbruto se mantiene como métrica principal y VeriFactu queda oculto."
+                        >
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                <div className="lg:col-span-2 space-y-3">
+                                    {(data.dataQuality?.recommendations || []).length ? (
+                                        data.dataQuality.recommendations.map((item) => (
+                                            <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                                {item}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                            Sin recomendaciones para los filtros actuales.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                    <div className="text-xs uppercase tracking-wide text-slate-400">Margen</div>
+                                    <div className="mt-1 text-lg font-semibold text-slate-950">
+                                        {margenDisponible ? kpiFormat(dataQualitySummary?.margen_estimado, 'money') : 'No disponible'}
+                                    </div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                        {dataQualitySummary?.margen_motivo || 'Se necesita impcoste informado para calcular margen fiable.'}
+                                    </div>
+                                    {margenDisponible ? (
+                                        <div className="mt-3">
+                                            <MetricBadge tone="emerald">{pctFormat(dataQualitySummary?.margen_estimado_pct)}</MetricBadge>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </Card>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                            <Card title="Controles de integridad" subtitle="Validaciones básicas para asegurar la calidad de facventa.">
+                                <div className="space-y-2">
+                                    {(data.dataQuality?.checks || []).map((check) => (
+                                        <div key={check.key} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-800">{check.label}</div>
+                                                {check.hint ? <div className="text-xs text-slate-500 mt-0.5">{check.hint}</div> : null}
+                                            </div>
+                                            <MetricBadge tone={check.severity === 'danger' ? 'rose' : check.severity === 'warning' ? 'amber' : 'emerald'}>
+                                                {kpiFormat(check.value)}
+                                            </MetricBadge>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Card>
+
+                            <div className="lg:col-span-4">
+                                <Card title="Calidad por serie" subtitle="Ventas, rectificativas, cobertura de coste y descuadres por serie.">
+                                    <ModernTableShell>
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-slate-50 sticky top-0 z-10">
+                                                <tr className="text-left border-b border-slate-200">
+                                                    <th className="py-3 px-3">Serie</th>
+                                                    <th className="py-3 px-3">Tipo</th>
+                                                    <th className="py-3 px-3 text-right">Ventas</th>
+                                                    <th className="py-3 px-3 text-right">Facturas</th>
+                                                    <th className="py-3 px-3 text-right">Rectificativas</th>
+                                                    <th className="py-3 px-3 text-right">Coste informado</th>
+                                                    <th className="py-3 px-3 text-right">Descuadres</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {(data.dataQuality?.by_series || []).map((row) => {
+                                                    const serieFacturas = clampFiniteNumber(row.facturas, 0);
+                                                    const serieConCoste = clampFiniteNumber(row.facturas_con_coste, 0);
+                                                    const serieCostePct = serieFacturas ? (serieConCoste / serieFacturas) * 100 : 0;
+
+                                                    return (
+                                                        <tr key={row.serie || 'sin-serie'} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                                                            <td className="py-3 px-3 font-semibold text-slate-900">{row.serie || '—'}</td>
+                                                            <td className="py-3 px-3"><SeriesTypeBadge serie={row.serie} /></td>
+                                                            <td className="py-3 px-3 tabular-nums text-right font-medium">{kpiFormat(row.ventas, 'money')}</td>
+                                                            <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.facturas)}</td>
+                                                            <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.rectificativas)}</td>
+                                                            <td className="py-3 px-3 tabular-nums text-right">{serieCostePct.toFixed(2)}%</td>
+                                                            <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.importes_descuadrados)}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {!data.dataQuality?.by_series?.length && (
+                                                    <tr>
+                                                        <td className="py-4 px-3 text-slate-500" colSpan={7}>
+                                                            Sin datos de calidad para los filtros actuales.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </ModernTableShell>
+                                </Card>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
                 {/* =========================
             COMPLIANCE
