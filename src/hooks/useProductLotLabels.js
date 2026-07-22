@@ -48,6 +48,8 @@ export const useProductLotLabels = ({ token }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [nameSearchTerm, setNameSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
+    const [nameSuggestions, setNameSuggestions] = useState([]);
+    const [collectionSuggestions, setCollectionSuggestions] = useState([]);
     const [collections, setCollections] = useState([]);
     const [selectedCollection, setSelectedCollection] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -138,6 +140,8 @@ export const useProductLotLabels = ({ token }) => {
                 setSelectedProduct(cleanProducts.length === 1 ? cleanProducts[0] : null);
                 setLots(finalLots);
                 setSuggestions([]);
+                setNameSuggestions([]);
+                setCollectionSuggestions([]);
                 setExcludedLabelKeys([]);
 
                 if (finalLots.length === 0) {
@@ -188,9 +192,11 @@ export const useProductLotLabels = ({ token }) => {
 
     const fetchSuggestions = useCallback(
         async (query) => {
-            const normalizedQuery = normalizeText(query).toUpperCase();
+            const rawQuery = String(query || '').toUpperCase();
+            const normalizedQuery = rawQuery.trim();
 
-            setSearchTerm(normalizedQuery);
+            // Conservamos el texto tal y como lo escribe el usuario.
+            setSearchTerm(rawQuery);
 
             if (normalizedQuery.length < 2) {
                 setSuggestions([]);
@@ -201,10 +207,14 @@ export const useProductLotLabels = ({ token }) => {
                 const products = await searchProducts({
                     query: normalizedQuery,
                     token,
-                    limit: 10,
+                    limit: 15,
                 });
 
-                setSuggestions(Array.isArray(products) ? products : []);
+                setSuggestions(
+                    uniqueProductsByCode(
+                        Array.isArray(products) ? products : []
+                    )
+                );
             } catch (requestError) {
                 setSuggestions([]);
                 setError(requestError.message);
@@ -212,6 +222,89 @@ export const useProductLotLabels = ({ token }) => {
         },
         [token]
     );
+
+    const fetchNameSuggestions = useCallback(
+        async (value) => {
+            const rawValue = String(value || '').toUpperCase();
+            const normalizedValue = rawValue.trim();
+
+            setNameSearchTerm(rawValue);
+
+            if (normalizedValue.length < 2) {
+                setNameSuggestions([]);
+                return;
+            }
+
+            try {
+                const products = await searchProducts({
+                    query: normalizedValue,
+                    token,
+                    limit: 50,
+                });
+
+                const namesMap = new Map();
+
+                (Array.isArray(products) ? products : []).forEach((product) => {
+                    const productName = normalizeText(product?.desprodu);
+
+                    if (!productName) return;
+
+                    const key = productName.toUpperCase();
+
+                    if (!namesMap.has(key)) {
+                        namesMap.set(key, {
+                            id: key,
+                            value: productName,
+                            label: productName,
+                        });
+                    }
+                });
+
+                setNameSuggestions(Array.from(namesMap.values()));
+            } catch (requestError) {
+                setNameSuggestions([]);
+                setError(requestError.message);
+            }
+        },
+        [token]
+    );
+
+    const filterCollectionSuggestions = useCallback(
+        (value) => {
+            const rawValue = String(value || '').toUpperCase();
+            const normalizedValue = rawValue.trim();
+
+            setSelectedCollection(rawValue);
+
+            const filteredCollections = collections
+                .filter((collection) =>
+                    normalizeText(collection)
+                        .toUpperCase()
+                        .includes(normalizedValue)
+                )
+                .slice(0, 30)
+                .map((collection) => ({
+                    id: collection,
+                    value: collection,
+                    label: collection,
+                }));
+
+            setCollectionSuggestions(
+                normalizedValue ? filteredCollections : []
+            );
+        },
+        [collections]
+    );
+
+    const selectNameSuggestion = useCallback((suggestion) => {
+        setNameSearchTerm(String(suggestion?.value || '').toUpperCase());
+        setNameSuggestions([]);
+    }, []);
+
+    const selectCollectionSuggestion = useCallback((suggestion) => {
+        setSelectedCollection(String(suggestion?.value || '').toUpperCase());
+        setCollectionSuggestions([]);
+    }, []);
 
     const handleSuggestionClick = useCallback(
         async (product) => {
@@ -357,6 +450,8 @@ export const useProductLotLabels = ({ token }) => {
         searchTerm,
         nameSearchTerm,
         suggestions,
+        nameSuggestions,
+        collectionSuggestions,
         collections,
         selectedCollection,
         selectedProduct,
@@ -370,9 +465,15 @@ export const useProductLotLabels = ({ token }) => {
         setSearchTerm,
         setNameSearchTerm,
         setSuggestions,
+        setNameSuggestions,
         setSelectedCollection,
+        setCollectionSuggestions,
         updateConfig,
         fetchSuggestions,
+        fetchNameSuggestions,
+        filterCollectionSuggestions,
+        selectNameSuggestion,
+        selectCollectionSuggestion,
         handleSuggestionClick,
         handleSearchKeyPress,
         loadByName,
