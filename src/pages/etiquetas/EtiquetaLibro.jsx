@@ -9,6 +9,51 @@ import html2canvas from 'html2canvas'; // Importa html2canvas aquí
 import piexif from 'piexifjs';
 
 
+
+// Cambia esta constante a false para recuperar el nombre de archivo original.
+const USE_CARRE_GAME_FILENAME = false;
+
+// Logo optimizado que se muestra únicamente en la fila pequeña de Cares.
+// El archivo debe estar en: public/LogosBase64/EASYCLEAN_SMALL.jpg
+const EASY_CLEAN_SMALL_URL = '/LogosBase64/EASYCLEAN_SMALL.jpg';
+
+const sanitizeFilename = (value) =>
+    String(value || 'ETIQUETA')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9-_ñÑ ]/g, '')
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+
+const buildDownloadFilename = (product) => {
+    if (!product) return 'ETIQUETA_CARRE_GAME';
+
+    if (!USE_CARRE_GAME_FILENAME) {
+        return sanitizeFilename(product.desprodu || product.nombre || product.codprodu || 'ETIQUETA');
+    }
+
+    const productName =
+        product.nombre ||
+        product.desprodu ||
+        product.codprodu ||
+        'PRODUCTO';
+
+    const productColor =
+        product.tonalidad ||
+        product.shade ||
+        product.color ||
+        '';
+
+    return sanitizeFilename(
+        ['ETIQUETA CARRE GAME', productName, productColor]
+            .filter(Boolean)
+            .join(' ')
+    ).toUpperCase();
+};
+
+
 function EtiquetaLibro() {
     const { token } = useAuthContext();
     const [searchTerm, setSearchTerm] = useState('');
@@ -135,12 +180,12 @@ function EtiquetaLibro() {
     };
 
     const handlePrint = () => {
-        const sanitizedProductName = selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_');
+        const downloadFilename = buildDownloadFilename(selectedProduct);
 
         const element = printRef.current;
         const options = {
             margin: [0, 0, 0, 0],
-            filename: `${sanitizedProductName}.pdf`,
+            filename: `${downloadFilename}.pdf`,
             image: { type: 'jpeg', quality: 1 },
             html2canvas: { scale: 6, useCORS: true, allowTaint: false },
             jsPDF: { unit: 'cm', format: [25, 10], orientation: 'landscape' },
@@ -184,7 +229,7 @@ function EtiquetaLibro() {
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
 
-            link.download = `${selectedProduct.desprodu.replace(/[^a-zA-Z0-9-_ñÑ]/g, '_')}.jpg`;
+            link.download = `${buildDownloadFilename(selectedProduct)}.jpg`;
             setDownloadCounter(prev => prev + 1);
 
             link.click();
@@ -206,16 +251,41 @@ function EtiquetaLibro() {
 
         return Array.from(valores)
             .map(node => node.textContent.trim())
-            .filter(m => loadBrandLogosMantenimiento[m])
-            .map((m, index) => (
-                <img
-                    key={index}
-                    src={loadBrandLogosMantenimiento[m]}
-                    alt={m}
-                    className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px]"
-                    title={m}
-                />
-            ));
+            .filter(m => (
+                m === 'EASYCLEAN'
+                    ? Boolean(EASY_CLEAN_SMALL_URL)
+                    : Boolean(loadBrandLogosMantenimiento[m])
+            ))
+            .map((m, index) => {
+                const isEasyClean = m === 'EASYCLEAN';
+
+                if (isEasyClean) {
+                    return (
+                        <img
+                            key={index}
+                            src={EASY_CLEAN_SMALL_URL}
+                            alt="Easy Clean"
+                            className="block w-[30px] h-[14px] object-contain shrink-0"
+                            title="EASYCLEAN"
+                            onError={(event) => {
+                                event.currentTarget.onerror = null;
+                                event.currentTarget.src =
+                                    loadBrandLogosMantenimiento.EASYCLEAN || '';
+                            }}
+                        />
+                    );
+                }
+
+                return (
+                    <img
+                        key={index}
+                        src={loadBrandLogosMantenimiento[m]}
+                        alt={m}
+                        className="w-[15px] h-[15px] mr-2 cursor-pointer mt-[1px] object-contain shrink-0"
+                        title={m}
+                    />
+                );
+            });
     };
 
     const getUsoImages = (usos) => {
@@ -415,7 +485,7 @@ function EtiquetaLibro() {
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                    <div className="flex items-center h-[15px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
@@ -506,7 +576,7 @@ function EtiquetaLibro() {
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                    <div className="flex items-center h-[15px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={100} />
@@ -592,7 +662,7 @@ function EtiquetaLibro() {
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                    <div className="flex items-center h-[15px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
@@ -677,7 +747,7 @@ function EtiquetaLibro() {
                     <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
                     <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
-                    <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
+                    <div className="flex items-center h-[15px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />

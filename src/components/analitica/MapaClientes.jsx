@@ -7,7 +7,6 @@ import {
 } from "react-simple-maps";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../Auth/AuthContext";
-import geoData from "../../assets/world.json";
 
 const DEFAULT_YEAR = String(new Date().getFullYear());
 
@@ -91,8 +90,8 @@ const buildYearOptions = () => {
   return Array.from({ length: 6 }, (_, index) => String(currentYear - index));
 };
 
-const buildCountryRows = (currentData, previousData) =>
-  geoData.features
+const buildCountryRows = (geoData, currentData, previousData) =>
+  (geoData?.features || [])
     .map((geo) => {
       const code = getCountryCode(geo);
       const current = currentData[code] || {};
@@ -130,11 +129,10 @@ const MetricButton = ({ option, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-2xl border px-4 py-3 text-left transition ${
-      active
-        ? "border-blue-500 bg-blue-50 text-blue-900 shadow-sm"
-        : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-slate-50"
-    }`}
+    className={`rounded-2xl border px-4 py-3 text-left transition ${active
+      ? "border-blue-500 bg-blue-50 text-blue-900 shadow-sm"
+      : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-slate-50"
+      }`}
   >
     <span className="block text-sm font-semibold">{option.label}</span>
     <span className="block text-xs text-slate-500">{option.description}</span>
@@ -145,19 +143,19 @@ const MapLegend = ({ metric }) => {
   const items =
     metric === "variacion_pct"
       ? [
-          { color: "#15803d", label: "Sube fuerte" },
-          { color: "#86efac", label: "Sube" },
-          { color: "#e5e7eb", label: "Estable / sin dato" },
-          { color: "#fca5a5", label: "Baja" },
-          { color: "#b91c1c", label: "Baja fuerte" },
-        ]
+        { color: "#15803d", label: "Sube fuerte" },
+        { color: "#86efac", label: "Sube" },
+        { color: "#e5e7eb", label: "Estable / sin dato" },
+        { color: "#fca5a5", label: "Baja" },
+        { color: "#b91c1c", label: "Baja fuerte" },
+      ]
       : [
-          { color: "#1d4ed8", label: "Muy alto" },
-          { color: "#3b82f6", label: "Alto" },
-          { color: "#93c5fd", label: "Medio" },
-          { color: "#bfdbfe", label: "Bajo" },
-          { color: "#e5e7eb", label: "Sin movimiento" },
-        ];
+        { color: "#1d4ed8", label: "Muy alto" },
+        { color: "#3b82f6", label: "Alto" },
+        { color: "#93c5fd", label: "Medio" },
+        { color: "#bfdbfe", label: "Bajo" },
+        { color: "#e5e7eb", label: "Sin movimiento" },
+      ];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
@@ -189,9 +187,56 @@ function MapaClientes() {
   const [center, setCenter] = useState([0, 20]);
   const [zoom, setZoom] = useState(1);
   const [tooltip, setTooltip] = useState(null);
+  const [geoData, setGeoData] = useState(null);
+  const [geoDataLoading, setGeoDataLoading] = useState(true);
+  const [geoDataError, setGeoDataError] = useState("");
   const [error, setError] = useState("");
 
   const previousYear = String(Number(anio) - 1);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadGeoData = async () => {
+      try {
+        setGeoDataLoading(true);
+        setGeoDataError("");
+
+        const response = await fetch("/data/world.json", {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `No se pudo cargar el mapa mundial (error ${response.status})`
+          );
+        }
+
+        const data = await response.json();
+
+        if (!data || !Array.isArray(data.features)) {
+          throw new Error("El archivo world.json no tiene un formato válido");
+        }
+
+        setGeoData(data);
+      } catch (loadError) {
+        if (loadError.name === "AbortError") return;
+
+        console.error("Error cargando world.json:", loadError);
+        setGeoDataError(
+          loadError.message || "No se pudo cargar el mapa mundial"
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setGeoDataLoading(false);
+        }
+      }
+    };
+
+    loadGeoData();
+
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const fetchCountryData = async () => {
@@ -219,8 +264,8 @@ function MapaClientes() {
   }, [anio, previousYear, token]);
 
   const countryRows = useMemo(
-    () => buildCountryRows(currentData, previousData),
-    [currentData, previousData]
+    () => buildCountryRows(geoData, currentData, previousData),
+    [geoData, currentData, previousData]
   );
 
   const rowsByCode = useMemo(
@@ -265,12 +310,12 @@ function MapaClientes() {
 
   const suggestions = useMemo(() => {
     if (!searchTerm) return [];
-    return geoData.features
+    return (geoData?.features || [])
       .map((geo) => ({ name: getCountryName(geo), code: getCountryCode(geo) }))
       .filter((country) => country.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name, "es"))
       .slice(0, 12);
-  }, [searchTerm]);
+  }, [geoData, searchTerm]);
 
   const maxMetricValue = useMemo(() => {
     if (metric === "variacion_pct") return 100;
@@ -299,7 +344,7 @@ function MapaClientes() {
     setSelectedCountry(name);
     if (fromSearch) setSearchTerm("");
 
-    const geo = geoData.features.find(
+    const geo = geoData?.features?.find(
       (item) => getCountryName(item).toLowerCase().trim() === name.toLowerCase().trim()
     );
 
@@ -377,9 +422,9 @@ function MapaClientes() {
         </div>
       </div>
 
-      {error && (
+      {(error || geoDataError) && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+          {geoDataError || error}
         </div>
       )}
 
@@ -441,77 +486,99 @@ function MapaClientes() {
               <MapLegend metric={metric} />
             </div>
 
-            <ComposableMap
-              projection="geoEqualEarth"
-              width={980}
-              height={520}
-              style={{ width: "100%", height: "100%" }}
-            >
-              <ZoomableGroup center={center} zoom={zoom} minZoom={0.8} maxZoom={35}>
-                <Geographies geography={geoData}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const countryName = getCountryName(geo);
-                      const code = getCountryCode(geo);
-                      const row = rowsByCode[code];
-                      const value = getMetricValue(row, metric);
-                      const baseColor = getMapColor(value, metric, maxMetricValue);
-                      const isSelected = selectedRow?.code === code;
+            {geoDataLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+                  <p className="mt-4 text-sm font-medium text-slate-600">
+                    Cargando mapa mundial...
+                  </p>
+                </div>
+              </div>
+            ) : geoDataError || !geoData ? (
+              <div className="flex h-full items-center justify-center p-6">
+                <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+                  <p className="font-semibold text-red-800">
+                    No se pudo mostrar el mapa
+                  </p>
+                  <p className="mt-2 text-sm text-red-700">
+                    {geoDataError || "No se han recibido los datos geográficos."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ComposableMap
+                projection="geoEqualEarth"
+                width={980}
+                height={520}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <ZoomableGroup center={center} zoom={zoom} minZoom={0.8} maxZoom={35}>
+                  <Geographies geography={geoData}>
+                    {({ geographies }) =>
+                      geographies.map((geo) => {
+                        const countryName = getCountryName(geo);
+                        const code = getCountryCode(geo);
+                        const row = rowsByCode[code];
+                        const value = getMetricValue(row, metric);
+                        const baseColor = getMapColor(value, metric, maxMetricValue);
+                        const isSelected = selectedRow?.code === code;
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`País ${countryName}`}
-                          onClick={() => selectCountry(countryName)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              selectCountry(countryName);
-                            }
-                          }}
-                          onMouseEnter={(event) => {
-                            setTooltip({
-                              x: event.clientX,
-                              y: event.clientY,
-                              row: row || { name: countryName, clientes: 0, facturacion_total: 0 },
-                            });
-                          }}
-                          onMouseMove={(event) => {
-                            setTooltip((prev) =>
-                              prev ? { ...prev, x: event.clientX, y: event.clientY } : prev
-                            );
-                          }}
-                          onMouseLeave={() => setTooltip(null)}
-                          style={{
-                            default: {
-                              fill: baseColor,
-                              stroke: isSelected ? "#0f172a" : "#ffffff",
-                              strokeWidth: isSelected ? 0.25 : 0.02,
-                              outline: "none",
-                            },
-                            hover: {
-                              fill: baseColor,
-                              stroke: "#0f172a",
-                              strokeWidth: 0.12,
-                              outline: "none",
-                            },
-                            pressed: {
-                              fill: "#1e40af",
-                              stroke: "#0f172a",
-                              strokeWidth: 0.16,
-                              outline: "none",
-                            },
-                          }}
-                        />
-                      );
-                    })
-                  }
-                </Geographies>
-              </ZoomableGroup>
-            </ComposableMap>
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`País ${countryName}`}
+                            onClick={() => selectCountry(countryName)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                selectCountry(countryName);
+                              }
+                            }}
+                            onMouseEnter={(event) => {
+                              setTooltip({
+                                x: event.clientX,
+                                y: event.clientY,
+                                row: row || { name: countryName, clientes: 0, facturacion_total: 0 },
+                              });
+                            }}
+                            onMouseMove={(event) => {
+                              setTooltip((prev) =>
+                                prev ? { ...prev, x: event.clientX, y: event.clientY } : prev
+                              );
+                            }}
+                            onMouseLeave={() => setTooltip(null)}
+                            style={{
+                              default: {
+                                fill: baseColor,
+                                stroke: isSelected ? "#0f172a" : "#ffffff",
+                                strokeWidth: isSelected ? 0.25 : 0.02,
+                                outline: "none",
+                              },
+                              hover: {
+                                fill: baseColor,
+                                stroke: "#0f172a",
+                                strokeWidth: 0.12,
+                                outline: "none",
+                              },
+                              pressed: {
+                                fill: "#1e40af",
+                                stroke: "#0f172a",
+                                strokeWidth: 0.16,
+                                outline: "none",
+                              },
+                            }}
+                          />
+                        );
+                      })
+                    }
+                  </Geographies>
+                </ZoomableGroup>
+              </ComposableMap>
+            )}
 
             {tooltip && (
               <div

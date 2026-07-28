@@ -34,6 +34,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/EtiquetaCameo', label: 'Etiqueta Cameo' },
     { path: '/etiquetas-lotes', label: 'Etiquetas por lote' },
     { path: '/libro', label: 'LIBRO' },
+    { path: '/libro19x4', label: 'LIBRO 19 x 4 cm' },
     { path: '/libroNormativa', label: 'Libro Normativa' },
     { path: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)' },
     { path: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)' },
@@ -52,6 +53,7 @@ export const AVAILABLE_ROUTES = [
 
 const DOCUMENT_LABEL_ROUTES = [
     '/libro',
+    '/libro19x4',
     '/libroNormativa',
     '/EtiquetasLibro35Tipo1',
     '/EtiquetasLibro35Tipo2',

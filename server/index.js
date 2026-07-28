@@ -101,7 +101,7 @@ app.use("/api/calendario", authMiddleware, createCalendarioRouter());
 app.use("/api/verify", createVerifyRouter());
 app.use("/api/vacaciones", authMiddleware, createVacacionesRouter());
 app.use("/api/analytics", authMiddleware, createAnalyticsRouter());
-app.use("/api/intrastat", createIntrastatRouter());
+app.use("/api/intrastat", authMiddleware, createIntrastatRouter());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Email transporter
 const transporter = nodemailer.createTransport({
