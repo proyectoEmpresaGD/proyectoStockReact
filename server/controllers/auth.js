@@ -505,6 +505,12 @@ export class AuthController {
 
     static async updateUser(req, res) {
         const { id } = req.params;
+        const isAdmin = req.user?.role === 'admin';
+        const isOwnProfile = String(req.user?.id) === String(id);
+
+        if (!isAdmin && !isOwnProfile) {
+            return res.status(403).json({ message: 'No autorizado' });
+        }
 
         const {
             username,
@@ -521,10 +527,32 @@ export class AuthController {
             codrepres,
         } = req.body;
 
+        if (!isAdmin) {
+            const restrictedFields = [
+                'role',
+                'dni',
+                'tipo_jornada',
+                'departamento',
+                'dias_vacaciones_anuales',
+                'codrepre',
+                'codrepres',
+            ];
+
+            const triesToChangeRestrictedField = restrictedFields.some(
+                (field) => req.body[field] !== undefined
+            );
+
+            if (triesToChangeRestrictedField) {
+                return res.status(403).json({
+                    message: 'No tienes permisos para modificar esos campos',
+                });
+            }
+        }
+
         const dataToUpdate = {};
 
         if (username !== undefined) dataToUpdate.username = username;
-        if (role !== undefined) dataToUpdate.role = role;
+        if (role !== undefined && isAdmin) dataToUpdate.role = role;
         if (nombre !== undefined) dataToUpdate.nombre = nombre;
         if (apellido1 !== undefined) dataToUpdate.apellido1 = apellido1;
         if (apellido2 !== undefined) dataToUpdate.apellido2 = apellido2;

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaEdit, FaPlus, FaTimes, FaTrash, FaKey } from 'react-icons/fa';
 import { generatePassword } from '../utils/generatePassword';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 const INITIAL_USER_FORM = {
     username: '',
@@ -53,6 +53,42 @@ const normalizeCodrepresForDisplay = (codrepres) => {
     return '';
 };
 
+const apiRequest = async (path, options = {}) => {
+    const response = await fetch(`${API_BASE_URL}${path}`, options);
+    const contentType = response.headers.get('content-type') || '';
+
+    if (!contentType.includes('application/json')) {
+        const responseText = await response.text();
+        const looksLikeHtml = /<!doctype html|<html/i.test(responseText);
+
+        if (looksLikeHtml) {
+            throw new Error(
+                'La petición ha llegado al frontend en lugar del servidor. Revisa VITE_API_BASE_URL en Vercel y vuelve a desplegar.'
+            );
+        }
+
+        throw new Error(
+            responseText || `Respuesta no válida del servidor (HTTP ${response.status})`
+        );
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
+        }
+
+        if (response.status === 403) {
+            throw new Error('No tienes permisos para gestionar usuarios.');
+        }
+
+        throw new Error(data?.message || `Error del servidor (HTTP ${response.status})`);
+    }
+
+    return data;
+};
+
 function GestionUsuarios() {
     const [users, setUsers] = useState([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -80,15 +116,10 @@ function GestionUsuarios() {
         resetMessages();
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/users`, {
+            const data = await apiRequest('/api/auth/users', {
                 headers: authHeaders,
             });
 
-            if (!response.ok) {
-                throw new Error('No se pudieron cargar los usuarios');
-            }
-
-            const data = await response.json();
             setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -201,17 +232,11 @@ function GestionUsuarios() {
         try {
             const formData = buildUserFormData(newUser);
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/users/create-with-image`, {
+            await apiRequest('/api/auth/users/create-with-image', {
                 method: 'POST',
                 headers: authHeaders,
                 body: formData,
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Error creando usuario');
-            }
 
             setSuccessMessage('Usuario creado correctamente');
             handleCloseCreateModal();
@@ -256,7 +281,7 @@ function GestionUsuarios() {
                 codrepres: editUser.codrepres.trim(),
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/users/${editUser.id}`, {
+            await apiRequest(`/api/auth/users/${editUser.id}`, {
                 method: 'PUT',
                 headers: {
                     ...authHeaders,
@@ -264,12 +289,6 @@ function GestionUsuarios() {
                 },
                 body: JSON.stringify(payload),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Error actualizando usuario');
-            }
 
             setSuccessMessage('Usuario actualizado correctamente');
             handleCloseEditModal();
@@ -290,16 +309,10 @@ function GestionUsuarios() {
         resetMessages();
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/users/${userId}`, {
+            await apiRequest(`/api/auth/users/${userId}`, {
                 method: 'DELETE',
                 headers: authHeaders,
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Error eliminando usuario');
-            }
 
             setSuccessMessage('Usuario eliminado correctamente');
             await fetchUsers();

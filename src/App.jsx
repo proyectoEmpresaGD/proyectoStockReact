@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { HashRouter as Router, Route, Routes } from 'react-router-dom';
+import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './Auth/AuthContext.jsx';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 
@@ -25,8 +25,7 @@ import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.js
 const GeneradorEtiquetasLotes = lazy(() => import('./pages/etiquetas/GeneradorEtiquetasLotes.jsx'));
 const EntradasPage = lazy(() => import('./pages/EntradasPages.jsx'));
 const LowStockAlertsPage = lazy(() => import('./pages/LowStockAlertsPage.jsx'));
-const PaginaMapaClientes = lazy(() => import('./pages/paginamapaclientes.jsx'));
-const PaginaMapaEspaña = lazy(() => import('./pages/paginamapaespana.jsx'));
+const MapasFacturacionPage = lazy(() => import('./pages/MapasFacturacionPage.jsx'));
 const VerifyBatch = lazy(() => import('./pages/VerifyBatch.jsx'));
 import PerfilUsuario from './pages/PerfilUsuario.jsx';
 const AgendaPage = lazy(() => import('./pages/paginaagenda.jsx'));
@@ -188,8 +187,22 @@ function App() {
                             <Route path="/EtiquetasLibro35Tipo1" element={<EtiquetasLibro35Tipo1 />} />
                             <Route path="/EtiquetasLibro35Tipo2" element={<EtiquetasLibro35Tipo2 />} />
                             <Route path="/EtiquetaPersonalizable" element={<EtiquetasPersonalizable />} />
-                            <Route path="/mapa-clientes" element={<PaginaMapaClientes />} />
-                            <Route path="/mapa-españa" element={<PaginaMapaEspaña />} />
+                            <Route
+                              path="/mapas-facturacion"
+                              element={
+                                <ProtectedRoute requiredRole="admin">
+                                  <MapasFacturacionPage />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/mapa-clientes"
+                              element={<Navigate to="/mapas-facturacion?vista=global" replace />}
+                            />
+                            <Route
+                              path="/mapa-españa"
+                              element={<Navigate to="/mapas-facturacion?vista=spain" replace />}
+                            />
                             <Route path="/comprobacionExcel" element={<VerifyBatch />} />
                             <Route path="/perfilusuario" element={<PerfilUsuario />} />
                             <Route path="/agenda" element={<AgendaPage />} />

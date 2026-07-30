@@ -1,0 +1,204 @@
+{
+    "usageHeading": "Usage Instructions",
+    "careHeading": "Care Instructions",
+    "usage": {
+        "1": {
+            "title": "Decorative Upholstery",
+            "details": [
+                "Suitable for decorative upholstery.",
+                "Recommended usage level should be specified for each case.",
+                "Printed fabrics can be used for decorative purposes."
+            ]
+        },
+        "2": {
+            "title": "Upholstery",
+            "details": [
+                "Suitable for upholstery.",
+                "Recommended usage level should be specified for each case.",
+                "Dyed fabrics are well suited for general upholstery use."
+            ]
+        },
+        "3": {
+            "title": "Curtains",
+            "details": [
+                "Suitable for curtains.",
+                "Most of our fabrics are made with natural fibers and eco-friendly dyes.",
+                "It is recommended to line curtains to protect them from sunlight."
+            ]
+        },
+        "4": {
+            "title": "Blinds",
+            "details": [
+                "Suitable for blinds.",
+                "Continuous exposure to sunlight can damage fabrics; protect blinds from direct sun.",
+                "We recommend installing blinds indoors, covered by an additional curtain or blackout layer."
+            ]
+        },
+        "5": {
+            "title": "Bedspreads",
+            "details": [
+                "Suitable for bedspreads.",
+                "It is advisable to back the main fabric with a lining and, if desired, a foam interlining.",
+                "Washing instructions must be followed. Contact our research department for precise care guidelines."
+            ]
+        },
+        "6": {
+            "title": "FR (Flame Retardant)",
+            "details": [
+                "Flame resistant.",
+                "FR fabrics are designed not to ignite or spread flames, providing protection in hazardous environments such as electrical or petrochemical industries.",
+                "Flame resistance is durable and maintained through use and washes."
+            ]
+        },
+        "7": {
+            "title": "IMO (Maritime Use)",
+            "details": [
+                "Suitable for maritime use.",
+                "IMO fabrics comply with maritime safety standards, being flame retardant and designed for use on ships and vessels.",
+                "These fabrics offer fire protection and are mandatory in maritime environments for onboard safety."
+            ]
+        },
+        "8": {
+            "title": "OUTDOOR-INDOOR (Indoor and exterior use)",
+            "details": [
+                "Suitable for outdoor use.",
+                "Outdoor fabrics are designed to withstand weather conditions like sun, rain, and humidity.",
+                "They are durable, UV- and mold-resistant, and easy to maintain—ideal for garden furniture and awnings."
+            ]
+        },
+        "9": {
+            "title": "Paste-the-wall",
+            "details": [
+                "This wallpaper should be hung by applying paste directly to the back of the paper and allowing it to soak in before hanging.",
+                "This traditional hanging method requires more steps than other adhesive techniques."
+            ]
+        },
+        "10": {
+            "title": "Free-match",
+            "details": [
+                "This type of wallpaper does not require pattern matching. Simply hang the strips in any order and the pattern aligns itself, resulting in less waste."
+            ]
+        },
+        "11": {
+            "title": "Moderate Light Fastness",
+            "details": [
+                "Avoid hanging wallpapers with moderate light fastness in areas exposed to significant sunlight, as they will fade more quickly."
+            ]
+        },
+        "12": {
+            "title": "Strippable When Dry",
+            "details": [
+                "Dry-strippable wallpaper allows the top layer to be peeled off the wall, leaving the backing behind when removed.",
+                "This paper can also be removed when dry without the need for water or steam."
+            ]
+        }
+    },
+    "care": {
+        "1": {
+            "title": "Machine Wash 30°C",
+            "details": [
+                "Machine washable at 30°C.",
+                "Do not use detergents containing bleach.",
+                "Do not mix with other colors."
+            ]
+        },
+        "2": {
+            "title": "Machine Wash 40°C",
+            "details": [
+                "Machine washable at 40°C.",
+                "Do not use detergents containing bleach.",
+                "Do not mix with other colors."
+            ]
+        },
+        "3": {
+            "title": "Not Machine Washable",
+            "details": [
+                "If indicated, we recommend hand washing or dry cleaning according to specified instructions.",
+                "Machine washing may cause damage or shrinkage."
+            ]
+        },
+        "4": {
+            "title": "Iron at 120°C",
+            "details": [
+                "It is recommended to iron the fabric on the reverse side up to 120°C."
+            ]
+        },
+        "5": {
+            "title": "Iron at 160°C",
+            "details": [
+                "It is recommended to iron the fabric on the reverse side up to 160°C."
+            ]
+        },
+        "6": {
+            "title": "Iron at 210°C",
+            "details": [
+                "It is recommended to iron the fabric on the reverse side up to 210°C."
+            ]
+        },
+        "7": {
+            "title": "Do Not Iron",
+            "details": [
+                "Special fibers are used in this fabric.",
+                "No ironing is needed to maintain its appearance; steaming is recommended instead."
+            ]
+        },
+        "8": {
+            "title": "Hand Wash",
+            "details": [
+                "Suitable for hand washing in lukewarm water.",
+                "Use only mild transparent soap.",
+                "Do not use unauthorized cleaning agents.",
+                "Do not mix with other colors."
+            ]
+        },
+        "9": {
+            "title": "Do Not Bleach",
+            "details": [
+                "None of our fabrics should be treated with bleach.",
+                "Bleach will alter the original color of the fabric."
+            ]
+        },
+        "10": {
+            "title": "Dry Clean",
+            "details": [
+                "Suitable for dry cleaning without perchloroethylene.",
+                "Use professional upholstery cleaning services."
+            ]
+        },
+        "11": {
+            "title": "Do Not Dry Clean",
+            "details": [
+                "Not suitable for perchloroethylene dry cleaning.",
+                "Only specialized professional services should perform dry cleaning."
+            ]
+        },
+        "12": {
+            "title": "Do Not Tumble Dry",
+            "details": [
+                "After machine washing, hang fabrics to air dry.",
+                "Tumble drying may cause shrinkage and damage."
+            ]
+        },
+        "13": {
+            "title": "Easy Clean",
+            "details": [
+                "Fabrics with EASY CLEAN technology allow quick and easy stain removal.",
+                "Most stains can be removed with water and mild soap."
+            ]
+        },
+        "14": {
+            "title": "Tumble Dry",
+            "details": [
+                "Suitable for tumble drying.",
+                "Recommended on a low heat setting to avoid fabric damage."
+            ]
+        },
+        "15": {
+            "title": "Hang to Dry",
+            "details": [
+                "Suitable for vertical drying.",
+                "Ideal for preventing wrinkles and maintaining the fabric’s original shape."
+            ]
+        }
+    }
+}

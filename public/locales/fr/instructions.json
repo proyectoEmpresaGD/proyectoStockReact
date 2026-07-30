@@ -1,0 +1,204 @@
+{
+    "usageHeading": "Instructions d’utilisation",
+    "careHeading": "Instructions d’entretien",
+    "usage": {
+        "1": {
+            "title": "Tapisserie décorative",
+            "details": [
+                "Convient pour la tapisserie décorative.",
+                "Le niveau d’utilisation recommandé doit être précisé pour chaque cas.",
+                "Les tissus imprimés peuvent être utilisés à des fins décoratives."
+            ]
+        },
+        "2": {
+            "title": "Tapisserie",
+            "details": [
+                "Convient pour la tapisserie.",
+                "Le niveau d’utilisation recommandé doit être précisé pour chaque cas.",
+                "Les tissus teints conviennent parfaitement à un usage général en tapisserie."
+            ]
+        },
+        "3": {
+            "title": "Rideaux",
+            "details": [
+                "Convient pour les rideaux.",
+                "La plupart de nos tissus sont fabriqués avec des fibres naturelles et des teintures écologiques.",
+                "Il est recommandé de doubler les rideaux pour les protéger de la lumière du soleil."
+            ]
+        },
+        "4": {
+            "title": "Stores",
+            "details": [
+                "Convient pour les stores.",
+                "Une exposition continue au soleil peut endommager les tissus ; protégez les stores du soleil direct.",
+                "Nous recommandons d’installer les stores à l’intérieur, recouverts d’un rideau ou d’un écran occultant supplémentaire."
+            ]
+        },
+        "5": {
+            "title": "Couvre-lits",
+            "details": [
+                "Convient pour les couvre-lits.",
+                "Il est conseillé de doubler le tissu principal avec une doublure et, si désiré, un interlock en mousse.",
+                "Les instructions de lavage doivent être respectées. Contactez notre service recherche pour des consignes précises."
+            ]
+        },
+        "6": {
+            "title": "FR (Ignifuge)",
+            "details": [
+                "Ignifuge.",
+                "Les tissus FR sont conçus pour ne pas s’enflammer ni propager les flammes, protégeant ainsi dans des environnements dangereux comme l’industrie électrique ou pétrochimique.",
+                "La résistance au feu est durable et ne se perd pas avec l’usage ni les lavages."
+            ]
+        },
+        "7": {
+            "title": "IMO (Usage maritime)",
+            "details": [
+                "Convient pour un usage maritime.",
+                "Les tissus IMO répondent aux normes de sécurité maritime, étant ignifuges et conçus pour les navires.",
+                "Ces tissus offrent une protection contre l’incendie et sont obligatoires en milieu maritime pour la sécurité à bord."
+            ]
+        },
+        "8": {
+            "title": "Usage extérieur",
+            "details": [
+                "Convient pour l’extérieur.",
+                "Les tissus extérieurs sont conçus pour résister au soleil, à la pluie et à l’humidité.",
+                "Ils sont durables, résistants aux UV et à la moisissure, et faciles à entretenir – parfaits pour le mobilier de jardin et les auvents."
+            ]
+        },
+        "9": {
+            "title": "Encollage sur le papier",
+            "details": [
+                "Le papier peint doit être posé en appliquant la colle directement à l’arrière du papier et en laissant pénétrer avant la pose.",
+                "Cette méthode traditionnelle nécessite plus d’étapes que d’autres techniques de collage."
+            ]
+        },
+        "10": {
+            "title": "Pose libre",
+            "details": [
+                "Ce type de papier peint ne nécessite pas d’alignement de motif. Posez les lés dans l’ordre souhaité et le motif s’alignera, réduisant les déchets."
+            ]
+        },
+        "11": {
+            "title": "Solidité modérée à la lumière",
+            "details": [
+                "Évitez de poser des papiers peints à solidité modérée dans des zones fortement exposées au soleil, car ils se décolorent plus vite."
+            ]
+        },
+        "12": {
+            "title": "Décollable à sec",
+            "details": [
+                "Le papier peint strippable à sec permet de retirer uniquement la couche supérieure, en laissant le support en place.",
+                "Il peut être retiré une fois sec, sans eau ni vapeur."
+            ]
+        }
+    },
+    "care": {
+        "1": {
+            "title": "Lavable en machine 30 °C",
+            "details": [
+                "Lavable en machine à 30 °C.",
+                "Ne pas utiliser de détergents contenant de l’eau de Javel.",
+                "Ne pas mélanger avec d’autres couleurs."
+            ]
+        },
+        "2": {
+            "title": "Lavable en machine 40 °C",
+            "details": [
+                "Lavable en machine à 40 °C.",
+                "Ne pas utiliser de détergents contenant de l’eau de Javel.",
+                "Ne pas mélanger avec d’autres couleurs."
+            ]
+        },
+        "3": {
+            "title": "Ne pas laver en machine",
+            "details": [
+                "Si indiqué, nous recommandons un nettoyage à la main ou à sec selon les instructions.",
+                "Le lavage en machine peut provoquer des dommages ou un rétrécissement."
+            ]
+        },
+        "4": {
+            "title": "Repassage à 120 °C",
+            "details": [
+                "Il est recommandé de repasser le tissu à l’envers à une température maximale de 120 °C."
+            ]
+        },
+        "5": {
+            "title": "Repassage à 160 °C",
+            "details": [
+                "Il est recommandé de repasser le tissu à l’envers à une température maximale de 160 °C."
+            ]
+        },
+        "6": {
+            "title": "Repassage à 210 °C",
+            "details": [
+                "Il est recommandé de repasser le tissu à l’envers à une température maximale de 210 °C."
+            ]
+        },
+        "7": {
+            "title": "Ne pas repasser",
+            "details": [
+                "Des fibres spéciales sont utilisées pour ce tissu.",
+                "Aucun repassage n’est nécessaire; il est préférable de défroisser à la vapeur."
+            ]
+        },
+        "8": {
+            "title": "Lavable à la main",
+            "details": [
+                "Convient pour un lavage à la main à l’eau tiède.",
+                "Utiliser uniquement un savon transparent doux.",
+                "Ne pas utiliser de produits non autorisés.",
+                "Ne pas mélanger avec d’autres couleurs."
+            ]
+        },
+        "9": {
+            "title": "Ne pas blanchir",
+            "details": [
+                "Aucun de nos tissus ne doit être traité avec de l’eau de Javel.",
+                "L’eau de Javel altère la couleur d’origine du tissu."
+            ]
+        },
+        "10": {
+            "title": "Nettoyage à sec",
+            "details": [
+                "Convient pour un nettoyage à sec sans perchloroéthylène.",
+                "Faire appel à un service professionnel de nettoyage de tissus."
+            ]
+        },
+        "11": {
+            "title": "Ne pas nettoyer à sec",
+            "details": [
+                "Non adapté au nettoyage à sec avec perchloroéthylène.",
+                "Seuls des professionnels spécialisés doivent réaliser cette opération."
+            ]
+        },
+        "12": {
+            "title": "Ne pas sécher en machine",
+            "details": [
+                "Après lavage en machine, suspendez le tissu pour sécher à l’air.",
+                "Le sèche-linge peut provoquer rétrécissement et dommages."
+            ]
+        },
+        "13": {
+            "title": "Easy Clean",
+            "details": [
+                "Les tissus dotés de la technologie EASY CLEAN permettent d’éliminer rapidement et facilement les taches.",
+                "La plupart des taches partent avec de l’eau et un savon doux."
+            ]
+        },
+        "14": {
+            "title": "Séchage en machine",
+            "details": [
+                "Convient au séchage en machine.",
+                "Recommandé à basse température pour éviter d’endommager le tissu."
+            ]
+        },
+        "15": {
+            "title": "Séchage vertical",
+            "details": [
+                "Convient au séchage en position verticale.",
+                "Idéal pour éviter les plis et conserver la forme d’origine."
+            ]
+        }
+    }
+}

@@ -93,6 +93,15 @@ export class AnalyticsController {
         }
     }
 
+    async getGeography(req, res) {
+        try {
+            const result = await AnalyticsModel.getGeography(req.query);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
     async getCompliance(req, res) {
         try {
             const result = await AnalyticsModel.getCompliance(req.query);

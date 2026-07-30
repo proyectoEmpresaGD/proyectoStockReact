@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -6,17 +6,36 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { useNavigate } from "react-router-dom";
+import spainJson from "../../assets/españamapa.json";
 import { useAuthContext } from "../../Auth/AuthContext";
 import { analyticsClient } from "../../services/analyticsClient";
+import { provinces } from "../../Constants/constants";
 
 const DEFAULT_YEAR = String(new Date().getFullYear());
 
 const metricOptions = [
-  { key: "facturacion_total", label: "Facturación", description: "Importe total por país" },
+  { key: "facturacion_total", label: "Facturación", description: "Importe total agregado" },
   { key: "clientes", label: "Clientes", description: "Clientes activos con movimiento" },
   { key: "ticket_medio", label: "Ticket medio", description: "Facturación / clientes" },
   { key: "variacion_pct", label: "Crecimiento", description: "Variación contra año anterior" },
 ];
+
+const createProvinceMapping = () => {
+  const mapping = {};
+  provinces.forEach((prov) => {
+    const normalizedLabel = prov.label.trim();
+    mapping[normalizedLabel] = prov.value;
+
+    if (normalizedLabel.includes("/")) {
+      normalizedLabel.split("/").forEach((subLabel) => {
+        mapping[subLabel.trim()] = prov.value;
+      });
+    }
+  });
+  return mapping;
+};
+
+const provinceCodeByName = createProvinceMapping();
 
 const normalizeAmount = (value) => Number(value || 0);
 
@@ -45,10 +64,6 @@ const formatPercent = (value) => {
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const getCountryName = (geo) => geo.properties.ADMIN || geo.properties.name || "Sin nombre";
-
-const getCountryCode = (geo) => (geo.properties.ISO_A2 || "").toUpperCase().trim();
-
 const getMetricValue = (item, metric) => {
   if (!item) return 0;
   return normalizeAmount(item[metric]);
@@ -75,23 +90,23 @@ const getMapColor = (value, metric, maxValue) => {
 
 const getBoundsFromCoordinates = (coordinates) => {
   const flatCoords = coordinates.flat(2);
-  const lats = flatCoords.map((coord) => coord[1]);
-  const lngs = flatCoords.map((coord) => coord[0]);
+  const first = flatCoords[0];
+  const coordsToUse =
+    Array.isArray(first) && first[0] > 0
+      ? flatCoords.map(([lat, lon]) => [lon, lat])
+      : flatCoords;
 
-  return [
-    Math.min(...lngs),
-    Math.min(...lats),
-    Math.max(...lngs),
-    Math.max(...lats),
-  ];
+  const lats = coordsToUse.map((coord) => coord[1]);
+  const lngs = coordsToUse.map((coord) => coord[0]);
+
+  return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
 };
 
-const buildCountryRows = (geoData, currentData, previousData) =>
-  (geoData?.features || [])
-    .map((geo) => {
-      const code = getCountryCode(geo);
-      const current = currentData[code] || {};
-      const previous = previousData[code] || {};
+const buildProvinceRows = (currentData, previousData) =>
+  provinces
+    .map((province) => {
+      const current = currentData[province.value] || {};
+      const previous = previousData[province.value] || {};
       const facturacion = normalizeAmount(current.facturacion_total);
       const clientes = normalizeAmount(current.clientes);
       const previousFacturacion = normalizeAmount(previous.facturacion_total);
@@ -101,8 +116,8 @@ const buildCountryRows = (geoData, currentData, previousData) =>
           : ((facturacion - previousFacturacion) / Math.abs(previousFacturacion)) * 100;
 
       return {
-        code,
-        name: getCountryName(geo),
+        code: province.value,
+        name: province.label,
         clientes,
         facturacion_total: facturacion,
         facturacion_tejido: normalizeAmount(current.facturacion_tejido),
@@ -113,7 +128,7 @@ const buildCountryRows = (geoData, currentData, previousData) =>
         delta: facturacion - previousFacturacion,
       };
     })
-    .filter((row) => row.code && (row.clientes > 0 || row.facturacion_total !== 0 || row.previous_facturacion_total !== 0));
+    .filter((row) => row.clientes > 0 || row.facturacion_total !== 0 || row.previous_facturacion_total !== 0);
 
 const StatCard = ({ label, value, helper }) => (
   <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -127,10 +142,11 @@ const MetricButton = ({ option, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-2xl border px-4 py-3 text-left transition ${active
-      ? "border-blue-500 bg-blue-50 text-blue-900 shadow-sm"
-      : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-slate-50"
-      }`}
+    className={`rounded-2xl border px-4 py-3 text-left transition ${
+      active
+        ? "border-blue-500 bg-blue-50 text-blue-900 shadow-sm"
+        : "border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-slate-50"
+    }`}
   >
     <span className="block text-sm font-semibold">{option.label}</span>
     <span className="block text-xs text-slate-500">{option.description}</span>
@@ -141,19 +157,19 @@ const MapLegend = ({ metric }) => {
   const items =
     metric === "variacion_pct"
       ? [
-        { color: "#15803d", label: "Sube fuerte" },
-        { color: "#86efac", label: "Sube" },
-        { color: "#e5e7eb", label: "Estable / sin dato" },
-        { color: "#fca5a5", label: "Baja" },
-        { color: "#b91c1c", label: "Baja fuerte" },
-      ]
+          { color: "#15803d", label: "Sube fuerte" },
+          { color: "#86efac", label: "Sube" },
+          { color: "#e5e7eb", label: "Estable / sin dato" },
+          { color: "#fca5a5", label: "Baja" },
+          { color: "#b91c1c", label: "Baja fuerte" },
+        ]
       : [
-        { color: "#1d4ed8", label: "Muy alto" },
-        { color: "#3b82f6", label: "Alto" },
-        { color: "#93c5fd", label: "Medio" },
-        { color: "#bfdbfe", label: "Bajo" },
-        { color: "#e5e7eb", label: "Sin movimiento" },
-      ];
+          { color: "#1d4ed8", label: "Muy alto" },
+          { color: "#3b82f6", label: "Alto" },
+          { color: "#93c5fd", label: "Medio" },
+          { color: "#bfdbfe", label: "Bajo" },
+          { color: "#e5e7eb", label: "Sin movimiento" },
+        ];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
@@ -173,7 +189,7 @@ const MapLegend = ({ metric }) => {
   );
 };
 
-function MapaClientes({
+export default function MapaEspaña({
   anio = DEFAULT_YEAR,
   selectedSeries = [],
   metric = "facturacion_total",
@@ -183,67 +199,20 @@ function MapaClientes({
   const navigate = useNavigate();
   const [currentData, setCurrentData] = useState({});
   const [previousData, setPreviousData] = useState({});
-  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [center, setCenter] = useState([0, 20]);
-  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState([-3, 40]);
+  const [zoom, setZoom] = useState(12);
   const [tooltip, setTooltip] = useState(null);
-  const [geoData, setGeoData] = useState(null);
-  const [geoDataLoading, setGeoDataLoading] = useState(true);
-  const [geoDataError, setGeoDataError] = useState("");
   const [error, setError] = useState("");
 
   const previousYear = String(Number(anio) - 1);
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    const loadGeoData = async () => {
-      try {
-        setGeoDataLoading(true);
-        setGeoDataError("");
-
-        const response = await fetch("/data/world.json", {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `No se pudo cargar el mapa mundial (error ${response.status})`
-          );
-        }
-
-        const data = await response.json();
-
-        if (!data || !Array.isArray(data.features)) {
-          throw new Error("El archivo world.json no tiene un formato válido");
-        }
-
-        setGeoData(data);
-      } catch (loadError) {
-        if (loadError.name === "AbortError") return;
-
-        console.error("Error cargando world.json:", loadError);
-        setGeoDataError(
-          loadError.message || "No se pudo cargar el mapa mundial"
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setGeoDataLoading(false);
-        }
-      }
-    };
-
-    loadGeoData();
-
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    const fetchCountryData = async () => {
+    const fetchProvinceData = async () => {
       try {
         setError("");
-        const common = { scope: "country", series: selectedSeries };
+        const common = { scope: "province", series: selectedSeries };
         const [current, previous] = await Promise.all([
           analyticsClient.getGeography({ ...common, from: `${anio}-01-01`, to: `${anio}-12-31` }),
           analyticsClient.getGeography({ ...common, from: `${previousYear}-01-01`, to: `${previousYear}-12-31` }),
@@ -251,78 +220,77 @@ function MapaClientes({
         setCurrentData(current || {});
         setPreviousData(previous || {});
       } catch (fetchError) {
-        setError(fetchError.message || "No se pudo cargar el mapa de clientes");
+        setError(fetchError.message || "No se pudo cargar el mapa de España");
       }
     };
 
-    if (token) fetchCountryData();
+    fetchProvinceData();
   }, [anio, previousYear, token, selectedSeries]);
 
-  const countryRows = useMemo(
-    () => buildCountryRows(geoData, currentData, previousData),
-    [geoData, currentData, previousData]
+  const provinceRows = useMemo(
+    () => buildProvinceRows(currentData, previousData),
+    [currentData, previousData]
   );
 
   const rowsByCode = useMemo(
     () =>
-      countryRows.reduce((acc, row) => {
+      provinceRows.reduce((acc, row) => {
         acc[row.code] = row;
         return acc;
       }, {}),
-    [countryRows]
+    [provinceRows]
   );
 
   const selectedRow = useMemo(
-    () => countryRows.find((row) => row.name === selectedCountry || row.code === selectedCountry),
-    [countryRows, selectedCountry]
+    () => provinceRows.find((row) => row.name === selectedProvince || row.code === selectedProvince),
+    [provinceRows, selectedProvince]
   );
 
   const topRows = useMemo(
     () =>
-      [...countryRows]
+      [...provinceRows]
         .sort((a, b) => getMetricValue(b, metric) - getMetricValue(a, metric))
         .slice(0, 8),
-    [countryRows, metric]
+    [provinceRows, metric]
   );
 
   const riskRows = useMemo(
     () =>
-      countryRows
+      provinceRows
         .filter((row) => Number.isFinite(Number(row.variacion_pct)) && row.variacion_pct < -5)
         .sort((a, b) => a.variacion_pct - b.variacion_pct)
         .slice(0, 5),
-    [countryRows]
+    [provinceRows]
   );
 
   const opportunityRows = useMemo(
     () =>
-      countryRows
+      provinceRows
         .filter((row) => row.clientes > 0)
         .sort((a, b) => b.ticket_medio - a.ticket_medio)
         .slice(0, 5),
-    [countryRows]
+    [provinceRows]
   );
 
-  const suggestions = useMemo(() => {
-    if (!searchTerm) return [];
-    return (geoData?.features || [])
-      .map((geo) => ({ name: getCountryName(geo), code: getCountryCode(geo) }))
-      .filter((country) => country.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name, "es"))
-      .slice(0, 12);
-  }, [geoData, searchTerm]);
+  const filteredProvinces = useMemo(
+    () =>
+      provinces.filter((province) =>
+        province.label.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [searchTerm]
+  );
 
   const maxMetricValue = useMemo(() => {
     if (metric === "variacion_pct") return 100;
-    return Math.max(...countryRows.map((row) => getMetricValue(row, metric)), 0);
-  }, [metric, countryRows]);
+    return Math.max(...provinceRows.map((row) => getMetricValue(row, metric)), 0);
+  }, [metric, provinceRows]);
 
   const totals = useMemo(() => {
-    const facturacion = countryRows.reduce((sum, row) => sum + row.facturacion_total, 0);
-    const tejido = countryRows.reduce((sum, row) => sum + row.facturacion_tejido, 0);
-    const contract = countryRows.reduce((sum, row) => sum + row.facturacion_contract, 0);
-    const previousFacturacion = countryRows.reduce((sum, row) => sum + row.previous_facturacion_total, 0);
-    const clientes = countryRows.reduce((sum, row) => sum + row.clientes, 0);
+    const facturacion = provinceRows.reduce((sum, row) => sum + row.facturacion_total, 0);
+    const tejido = provinceRows.reduce((sum, row) => sum + row.facturacion_tejido, 0);
+    const contract = provinceRows.reduce((sum, row) => sum + row.facturacion_contract, 0);
+    const previousFacturacion = provinceRows.reduce((sum, row) => sum + row.previous_facturacion_total, 0);
+    const clientes = provinceRows.reduce((sum, row) => sum + row.clientes, 0);
     const variacion =
       previousFacturacion === 0
         ? null
@@ -337,40 +305,37 @@ function MapaClientes({
       variacion,
       ticketMedio: clientes > 0 ? facturacion / clientes : 0,
     };
-  }, [countryRows]);
+  }, [provinceRows]);
 
-  const selectCountry = (name, fromSearch = false) => {
-    setSelectedCountry(name);
+  const selectProvince = (name, fromSearch = false) => {
+    setSelectedProvince(name);
     if (fromSearch) setSearchTerm("");
 
-    const geo = geoData?.features?.find(
-      (item) => getCountryName(item).toLowerCase().trim() === name.toLowerCase().trim()
+    const geo = spainJson.features.find(
+      (item) => (item.properties.name || "").toLowerCase().trim() === name.toLowerCase().trim()
     );
 
-    if (!geo) return;
+    if (geo) {
+      const [minLng, minLat, maxLng, maxLat] = getBoundsFromCoordinates(geo.geometry.coordinates);
+      const centerLng = (minLng + maxLng) / 2;
+      const centerLat = (minLat + maxLat) / 2;
+      const width = maxLng - minLng;
 
-    const [minLng, minLat, maxLng, maxLat] = geo.bbox || getBoundsFromCoordinates(geo.geometry.coordinates);
-    const centerLng = (minLng + maxLng) / 2;
-    const centerLat = (minLat + maxLat) / 2;
-    const width = maxLng - minLng;
-
-    setCenter([centerLng, centerLat]);
-    if (width > 50) setZoom(2.2);
-    else if (width > 20) setZoom(3.5);
-    else if (width > 10) setZoom(4.5);
-    else setZoom(6.5);
+      setCenter(width > 10 ? [-4, 37.5] : [centerLng, centerLat]);
+      setZoom(width > 2 ? 28 : width > 1 ? 32 : width > 0.5 ? 34 : 16);
+    }
   };
 
   const resetMap = () => {
-    setSelectedCountry("");
+    setSelectedProvince("");
     setSearchTerm("");
-    setCenter([0, 20]);
-    setZoom(1);
+    setCenter([-3, 40]);
+    setZoom(12);
   };
 
   const goToClients = (row = selectedRow) => {
     if (!row?.code) return;
-    navigate(`/clients?codpais=${row.code}`);
+    navigate(`/clients?codprov=${row.code}`);
   };
 
   const renderMetricValue = (row) => {
@@ -382,9 +347,9 @@ function MapaClientes({
 
   return (
     <div className="w-full">
-      {(error || geoDataError) && (
+      {error && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {geoDataError || error}
+          {error}
         </div>
       )}
 
@@ -394,7 +359,7 @@ function MapaClientes({
         <StatCard label="Contract / Proyectos" value={formatCurrency(totals.contract)} helper="Series H y HH" />
         <StatCard label="Clientes activos" value={formatNumber(totals.clientes)} helper="Clientes con facturas" />
         <StatCard label="Ticket medio" value={formatCurrency(totals.ticketMedio)} helper="Facturación / clientes" />
-        <StatCard label="Países con movimiento" value={formatNumber(countryRows.length)} helper="Según filtros actuales" />
+        <StatCard label="Provincias con movimiento" value={formatNumber(provinceRows.length)} helper="Según filtros actuales" />
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -412,7 +377,7 @@ function MapaClientes({
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Mapa mundial</h2>
+              <h2 className="text-lg font-bold text-slate-900">Mapa provincial</h2>
               <p className="text-sm text-slate-500">
                 Métrica activa: {metricOptions.find((option) => option.key === metric)?.label}
               </p>
@@ -422,23 +387,27 @@ function MapaClientes({
               <div className="relative w-full lg:w-80">
                 <input
                 type="text"
-                placeholder="Buscar país..."
+                placeholder="Buscar provincia..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
-              {suggestions.length > 0 && (
+              {searchTerm && (
                 <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-                  {suggestions.map((country) => (
-                    <button
-                      key={`${country.code}-${country.name}`}
-                      type="button"
-                      onClick={() => selectCountry(country.name, true)}
-                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
-                    >
-                      {country.name}
-                    </button>
-                  ))}
+                  {filteredProvinces.length > 0 ? (
+                    filteredProvinces.map((province) => (
+                      <button
+                        key={province.value}
+                        type="button"
+                        onClick={() => selectProvince(province.label, true)}
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-blue-50"
+                      >
+                        {province.label}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-4 py-3 text-sm text-slate-500">No se encontraron provincias</p>
+                  )}
                 </div>
               )}
               </div>
@@ -457,99 +426,72 @@ function MapaClientes({
               <MapLegend metric={metric} />
             </div>
 
-            {geoDataLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-                  <p className="mt-4 text-sm font-medium text-slate-600">
-                    Cargando mapa mundial...
-                  </p>
-                </div>
-              </div>
-            ) : geoDataError || !geoData ? (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
-                  <p className="font-semibold text-red-800">
-                    No se pudo mostrar el mapa
-                  </p>
-                  <p className="mt-2 text-sm text-red-700">
-                    {geoDataError || "No se han recibido los datos geográficos."}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <ComposableMap
-                projection="geoEqualEarth"
-                width={980}
-                height={520}
-                style={{ width: "100%", height: "100%" }}
-              >
-                <ZoomableGroup center={center} zoom={zoom} minZoom={0.8} maxZoom={35}>
-                  <Geographies geography={geoData}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
-                        const countryName = getCountryName(geo);
-                        const code = getCountryCode(geo);
-                        const row = rowsByCode[code];
-                        const value = getMetricValue(row, metric);
-                        const baseColor = getMapColor(value, metric, maxMetricValue);
-                        const isSelected = selectedRow?.code === code;
+            <ComposableMap projection="geoMercator" style={{ width: "100%", height: "100%" }}>
+              <ZoomableGroup center={center} zoom={zoom} minZoom={1} maxZoom={40}>
+                <Geographies geography={spainJson}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const provinceName = geo.properties.name || "Sin nombre";
+                      const code = provinceCodeByName[provinceName];
+                      const row = code ? rowsByCode[code] : null;
+                      const value = getMetricValue(row, metric);
+                      const baseColor = getMapColor(value, metric, maxMetricValue);
+                      const isSelected = selectedRow?.code === code;
 
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            role="button"
-                            tabIndex={0}
-                            aria-label={`País ${countryName}`}
-                            onClick={() => selectCountry(countryName)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                selectCountry(countryName);
-                              }
-                            }}
-                            onMouseEnter={(event) => {
-                              setTooltip({
-                                x: event.clientX,
-                                y: event.clientY,
-                                row: row || { name: countryName, clientes: 0, facturacion_total: 0 },
-                              });
-                            }}
-                            onMouseMove={(event) => {
-                              setTooltip((prev) =>
-                                prev ? { ...prev, x: event.clientX, y: event.clientY } : prev
-                              );
-                            }}
-                            onMouseLeave={() => setTooltip(null)}
-                            style={{
-                              default: {
-                                fill: baseColor,
-                                stroke: isSelected ? "#0f172a" : "#ffffff",
-                                strokeWidth: isSelected ? 0.25 : 0.02,
-                                outline: "none",
-                              },
-                              hover: {
-                                fill: baseColor,
-                                stroke: "#0f172a",
-                                strokeWidth: 0.12,
-                                outline: "none",
-                              },
-                              pressed: {
-                                fill: "#1e40af",
-                                stroke: "#0f172a",
-                                strokeWidth: 0.16,
-                                outline: "none",
-                              },
-                            }}
-                          />
-                        );
-                      })
-                    }
-                  </Geographies>
-                </ZoomableGroup>
-              </ComposableMap>
-            )}
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Provincia ${provinceName}`}
+                          onClick={() => selectProvince(provinceName)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              selectProvince(provinceName);
+                            }
+                          }}
+                          onMouseEnter={(event) => {
+                            setTooltip({
+                              x: event.clientX,
+                              y: event.clientY,
+                              row: row || { name: provinceName, clientes: 0, facturacion_total: 0 },
+                            });
+                          }}
+                          onMouseMove={(event) => {
+                            setTooltip((prev) =>
+                              prev ? { ...prev, x: event.clientX, y: event.clientY } : prev
+                            );
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
+                          style={{
+                            default: {
+                              fill: baseColor,
+                              outline: "none",
+                              stroke: isSelected ? "#0f172a" : "#ffffff",
+                              strokeWidth: isSelected ? 0.25 : 0.08,
+                            },
+                            hover: {
+                              fill: baseColor,
+                              outline: "none",
+                              stroke: "#0f172a",
+                              strokeWidth: 0.2,
+                            },
+                            pressed: {
+                              fill: "#1e40af",
+                              outline: "none",
+                              stroke: "#0f172a",
+                              strokeWidth: 0.25,
+                            },
+                          }}
+                        />
+                      );
+                    })
+                  }
+                </Geographies>
+              </ZoomableGroup>
+            </ComposableMap>
 
             {tooltip && (
               <div
@@ -571,7 +513,7 @@ function MapaClientes({
 
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
             <div className="grid grid-cols-7 gap-2 bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <span className="col-span-2">País</span>
+              <span className="col-span-2">Provincia</span>
               <span className="text-right">Total</span>
               <span className="text-right">Tejido</span>
               <span className="text-right">Contract</span>
@@ -582,7 +524,7 @@ function MapaClientes({
               <button
                 key={row.code}
                 type="button"
-                onClick={() => selectCountry(row.name)}
+                onClick={() => selectProvince(row.name)}
                 className="grid w-full grid-cols-7 gap-2 px-4 py-3 text-left text-xs transition hover:bg-blue-50 sm:text-sm"
               >
                 <span className="col-span-2 font-medium text-slate-900">{row.name}</span>
@@ -615,12 +557,12 @@ function MapaClientes({
                   onClick={() => goToClients(selectedRow)}
                   className="mt-4 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  Ver clientes del país
+                  Ver clientes de la provincia
                 </button>
               </div>
             ) : (
               <p className="mt-3 text-sm text-slate-500">
-                Haz clic en un país para consultar detalle, rankings y acceso directo a clientes filtrados.
+                Haz clic sobre una provincia para ver su detalle, ranking y acceso directo a clientes filtrados.
               </p>
             )}
           </div>
@@ -632,7 +574,7 @@ function MapaClientes({
                 <button
                   key={row.code}
                   type="button"
-                  onClick={() => selectCountry(row.name)}
+                  onClick={() => selectProvince(row.name)}
                   className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-2 text-left transition hover:border-blue-200 hover:bg-blue-50"
                 >
                   <span className="text-sm font-medium text-slate-800">
@@ -646,13 +588,13 @@ function MapaClientes({
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Oportunidades</h3>
-            <p className="mt-1 text-xs text-slate-500">Países con mayor ticket medio.</p>
+            <p className="mt-1 text-xs text-slate-500">Zonas con mayor ticket medio.</p>
             <div className="mt-3 grid gap-2">
               {opportunityRows.map((row) => (
                 <button
                   key={row.code}
                   type="button"
-                  onClick={() => selectCountry(row.name)}
+                  onClick={() => selectProvince(row.name)}
                   className="flex items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
                 >
                   <span>{row.name}</span>
@@ -664,14 +606,14 @@ function MapaClientes({
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Riesgos</h3>
-            <p className="mt-1 text-xs text-slate-500">Países con caída frente al año anterior.</p>
+            <p className="mt-1 text-xs text-slate-500">Provincias con caída frente al año anterior.</p>
             <div className="mt-3 grid gap-2">
               {riskRows.length > 0 ? (
                 riskRows.map((row) => (
                   <button
                     key={row.code}
                     type="button"
-                    onClick={() => selectCountry(row.name)}
+                    onClick={() => selectProvince(row.name)}
                     className="flex items-center justify-between rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-900"
                   >
                     <span>{row.name}</span>
@@ -690,5 +632,3 @@ function MapaClientes({
     </div>
   );
 }
-
-export default MapaClientes;

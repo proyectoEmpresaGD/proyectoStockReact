@@ -15,6 +15,7 @@ export const createAnalyticsRouter = () => {
     router.get('/business-lines', controller.getBusinessLines.bind(controller));
     router.get('/invoices', controller.getInvoices.bind(controller));
     router.get('/data-quality', controller.getDataQuality.bind(controller));
+    router.get('/geography', controller.getGeography.bind(controller));
     router.get('/compliance', controller.getCompliance.bind(controller));
 
     return router;

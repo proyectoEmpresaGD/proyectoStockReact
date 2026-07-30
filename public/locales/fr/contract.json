@@ -1,0 +1,67 @@
+{
+    "title": "Contractalia",
+    "badge": "CONTRACT",
+    "introduccion": {
+        "p1": "Solution globale pour hôtels et espaces à haute exigence",
+        "p2": "Nous concevons, fabriquons et installons sur mesure, dans le respect des normes FR/OUTDOOR-INDOOR et des délais « just in time »."
+    },
+    "destacado": {
+        "t1": "De l’idée au « go live »",
+        "t2": "Qualité certifiée",
+        "t3": "Délais réels",
+        "p1": "Coordination de bout en bout : prises de mesures, fabrication et installation. Une seule équipe responsable.",
+        "p2": "Tissus FR/IMO, OUTDOOR-INDOOR et haute résistance Martindale sous la marque HARBOUR. Conformité aux normes UNE, DIN, BS, IMO.",
+        "p3": "Planification adaptée au chantier et livraisons « just in time ». Supervision sur site pour zéro surprise."
+    },
+    "team": {
+        "heading": "L’Équipe",
+        "alt": "Équipe",
+        "p1": "L’envie de s’améliorer à chaque décoration, l’ordre dans l’exécution et la réalisation parfaite encouragent la création d’une équipe de professionnels qui voyage dans le monde entier pour installer nos articles réalisés sur mesure pour chaque projet.",
+        "p2": "Chaque hôtel est une nouvelle aventure, une nouvelle expérience d’apprentissage pour enrichir notre savoir-faire et un nouvel espace où nous pouvons démontrer notre dynamisme.",
+        "p3": "Nous formons tous une seule équipe, du premier au dernier, et nous dépendons les uns des autres. Du début du processus de fabrication jusqu’à sa finalisation, ce parcours est guidé par l’amour du travail et de nos collègues.",
+        "bullets": [
+            "Coordination globale de chantier",
+            "Installation sur mesure",
+            "Qualité et délais « just in time »",
+            "Supervision sur site"
+        ]
+    },
+    "department": {
+        "heading": "Le Département",
+        "alt": "Département",
+        "p1": "En 2008, notre entreprise a créé une nouvelle ligne dédiée à l’aménagement hôtelier. Pas à pas, et à travers différents projets, nous avons professionnalisé et automatisé notre division Sur Mesure, en intégrant des machines et en formant notre personnel.",
+        "p2": "Basés sur une confection de qualité et une livraison « just in time », nous avons développé notre propre équipe d’installation. Notre objectif est de façonner l’espace en interprétant l’âme du projet décoratif.",
+        "bullets": [
+            "Confection premium",
+            "Lecture de l’espace et du projet",
+            "Production interne",
+            "Support post-installation"
+        ]
+    },
+    "projects": {
+        "heading": "Projets Remarquables",
+        "alt": "Projets",
+        "p1": "La majeure partie de notre activité est axée sur la décoration de restaurants à thème et d’hôtels 4 et 5 étoiles, dirigés par les plus grands studios de décoration d’Espagne et du monde.",
+        "p2": "Hôtels boutique dans des villes comme Berlin, Cordoue, Lisbonne, Londres, Madrid, Marbella, Rome, Séville, ainsi que de grands complexes hôteliers à Cancún, Punta Cana et en Jamaïque."
+    },
+    "fabrics": {
+        "heading": "Tissus Exclusifs à la Demande",
+        "alt": "Tissus",
+        "p1": "Nous développons des tissus adaptés aux réglementations spécifiques de chaque projet, notamment aux normes UNE, DIN, BS ou IMO. Tous les tissus sont disponibles sous notre marque HARBOUR, offrant une large gamme de textiles ignifuges et d’extérieur.",
+        "tags": [
+            "FR/IMO, OUTDOOR-INDOOR",
+            "OUTDOOR-INDOOR",
+            "Abrasion >100k",
+            "Lavable",
+            "Antibactérien",
+            "Acoustique"
+        ]
+    },
+    "contact": {
+        "heading": "Contactez-nous",
+        "p1": "Si vous avez des questions ou souhaitez plus d’informations sur nos services, n’hésitez pas à nous contacter. Nous sommes à votre disposition !",
+        "p2": "Écrivez-nous à : ",
+        "button": "Envoyer un e-mail",
+        "subject": "CJM Contract"
+    }
+}

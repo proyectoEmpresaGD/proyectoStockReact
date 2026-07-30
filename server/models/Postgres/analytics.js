@@ -2336,6 +2336,73 @@ export class AnalyticsModel {
         return result;
     }
 
+    static async getGeography(rawFilters = {}) {
+        const scope = String(rawFilters.scope || 'country').trim().toLowerCase();
+        if (!['country', 'province'].includes(scope)) {
+            throw new Error("El ámbito geográfico debe ser 'country' o 'province'");
+        }
+
+        const ctx = await buildContextFilters(rawFilters);
+        const key = getCacheKey(`geography:${scope}`, ctx.filters);
+        const cached = getFromCache(key);
+        if (cached) return cached;
+
+        const { clienteKeyExpr, serieKeyExpr, brutoExpr, fechaCol } = ctx.expressions;
+        if (fechaCol === 'NULL' || clienteKeyExpr === 'NULL') return {};
+
+        const geographyColumn = scope === 'province' ? 'codprovi' : 'codpais';
+        const geographyExpr = scope === 'province'
+            ? `NULLIF(TRIM(CAST(c.${geographyColumn} AS text)), '')`
+            : `UPPER(NULLIF(TRIM(CAST(c.${geographyColumn} AS text)), ''))`;
+
+        const q = `
+            WITH filtered_invoices AS (
+                SELECT
+                    ${clienteKeyExpr} AS codclien,
+                    ${serieKeyExpr} AS serie,
+                    ${brutoExpr} AS importe
+                FROM public.facventa
+                ${ctx.whereSql}
+            ),
+            client_geo AS (
+                SELECT
+                    NULLIF(TRIM(CAST(codclien AS text)), '') AS codclien,
+                    MAX(NULLIF(TRIM(CAST(codpais AS text)), '')) AS codpais,
+                    MAX(NULLIF(TRIM(CAST(codprovi AS text)), '')) AS codprovi
+                FROM public.clientes
+                WHERE codclien IS NOT NULL
+                GROUP BY 1
+            )
+            SELECT
+                ${geographyExpr} AS codigo,
+                COUNT(DISTINCT f.codclien)::int AS clientes,
+                COUNT(*)::int AS facturas,
+                COALESCE(SUM(f.importe), 0) AS facturacion_total,
+                COALESCE(SUM(f.importe) FILTER (WHERE ${serieFabricCondition('f.serie')}), 0) AS facturacion_tejido,
+                COALESCE(SUM(f.importe) FILTER (WHERE ${serieProjectCondition('f.serie')}), 0) AS facturacion_contract
+            FROM filtered_invoices f
+            INNER JOIN client_geo c ON c.codclien = f.codclien
+            WHERE ${geographyExpr} IS NOT NULL
+            GROUP BY 1
+            ORDER BY facturacion_total DESC;
+        `;
+
+        const { rows } = await pool.query(q, ctx.values);
+        const result = {};
+        for (const row of rows) {
+            result[row.codigo] = {
+                clientes: Number(row.clientes || 0),
+                facturas: Number(row.facturas || 0),
+                facturacion_total: Number(row.facturacion_total || 0),
+                facturacion_tejido: Number(row.facturacion_tejido || 0),
+                facturacion_contract: Number(row.facturacion_contract || 0),
+            };
+        }
+
+        setInCache(key, result);
+        return result;
+    }
+
     static async getCompliance(rawFilters) {
         const ctx = await buildContextFilters(rawFilters);
 

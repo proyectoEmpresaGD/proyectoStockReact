@@ -1,0 +1,204 @@
+{
+    "usageHeading": "Instrucciones de uso",
+    "careHeading": "Instrucciones de cuidado",
+    "usage": {
+        "1": {
+            "title": "Tapicería decorativa",
+            "details": [
+                "Adecuado para tapicería decorativa.",
+                "El grado de uso recomendado debe especificarse en cada caso.",
+                "Los tejidos estampados pueden usarse con fines decorativos."
+            ]
+        },
+        "2": {
+            "title": "Tapicería",
+            "details": [
+                "Adecuado para tapicería.",
+                "El grado de uso recomendado debe especificarse en cada caso.",
+                "Las telas teñidas están bien preparadas para tapicería general."
+            ]
+        },
+        "3": {
+            "title": "Cortinas",
+            "details": [
+                "Adecuado para cortinas.",
+                "La mayoría de nuestras telas están hechas con fibras naturales y tintes ecológicos.",
+                "Es recomendable forrar las cortinas para evitar daños por la luz solar."
+            ]
+        },
+        "4": {
+            "title": "Estores",
+            "details": [
+                "Adecuado para estores.",
+                "La exposición continua a la luz solar puede dañar las telas; se recomienda proteger los estores del sol.",
+                "Se recomienda instalar los estores en el interior, siempre cubiertos por una cortina o un blackout adicional."
+            ]
+        },
+        "5": {
+            "title": "Colchas",
+            "details": [
+                "Adecuado para colchas.",
+                "Es recomendable forrar la tela principal con un forro y, si se desea, también con una entretela de espuma.",
+                "Deben respetarse las instrucciones de lavado. Contacta con nuestro departamento de investigación para recibir instrucciones precisas de cuidado y uso."
+            ]
+        },
+        "6": {
+            "title": "FR (Resistente al fuego)",
+            "details": [
+                "Resistentes al fuego.",
+                "Las telas FR están diseñadas para no incendiarse ni propagar llamas, ofreciendo protección en entornos peligrosos como industrias eléctricas o petroquímicas.",
+                "La resistencia al fuego es duradera y no se pierde con el uso o lavados."
+            ]
+        },
+        "7": {
+            "title": "IMO (Uso marítimo)",
+            "details": [
+                "Adecuado para uso marítimo.",
+                "Las telas IMO cumplen con normas de seguridad marítima, siendo resistentes al fuego y diseñadas para su uso en barcos y embarcaciones.",
+                "Estas telas ofrecen protección contra incendios y son obligatorias en entornos marítimos para garantizar la seguridad a bordo."
+            ]
+        },
+        "8": {
+            "title": "OUTDOOR-INDOOR (Uso interior y exterior)",
+            "details": [
+                "Adecuado para exterior.",
+                "Las telas outdoor están diseñadas para resistir condiciones exteriores como sol, lluvia y humedad.",
+                "Son duraderas, resistentes a rayos UV y moho, y fáciles de mantener, ideales para muebles de jardín y toldos."
+            ]
+        },
+        "9": {
+            "title": "Adhesivo sobre el papel",
+            "details": [
+                "El papel pintado debe colgarse aplicando esta pasta directamente en la parte posterior del papel y dejándolo tiempo para que penetre antes de la colocación.",
+                "Este método tradicional de colgar papel tapiz requiere más pasos que otras técnicas adhesivas."
+            ]
+        },
+        "10": {
+            "title": "Casado libre",
+            "details": [
+                "Este tipo de papel pintado no necesita alineación. Simplemente cuelga el papel a tu gusto y el patrón se alineará, lo que reduce el desperdicio."
+            ]
+        },
+        "11": {
+            "title": "Resistencia al sol moderada",
+            "details": [
+                "Evita colgar papeles pintados con solidez moderada a la luz en zonas muy expuestas al sol, ya que se desvanecerán más rápido."
+            ]
+        },
+        "12": {
+            "title": "Separable en seco",
+            "details": [
+                "El papel pintado separable en seco permite despegar solo la capa superior, dejando el respaldo en la pared.",
+                "También se puede retirar cuando está completamente seco, sin agua ni vapor."
+            ]
+        }
+    },
+    "care": {
+        "1": {
+            "title": "Lavar a 30º",
+            "details": [
+                "Apto para lavar a 30° en lavadora.",
+                "No usar detergentes con blanqueadores.",
+                "No mezclar con otros colores."
+            ]
+        },
+        "2": {
+            "title": "Lavar a 40º",
+            "details": [
+                "Apto para lavar a 40° en lavadora.",
+                "No usar detergentes con blanqueadores.",
+                "No mezclar con otros colores."
+            ]
+        },
+        "3": {
+            "title": "No lavable a máquina",
+            "details": [
+                "Si se indica, recomendamos limpieza a mano o en seco según las instrucciones.",
+                "El lavado en lavadora puede causar daños o encogimiento."
+            ]
+        },
+        "4": {
+            "title": "Planchar a 120°",
+            "details": [
+                "Se recomienda planchar la tela por el revés hasta 120°C."
+            ]
+        },
+        "5": {
+            "title": "Planchar a 160°",
+            "details": [
+                "Se recomienda planchar la tela por el revés hasta 160°C."
+            ]
+        },
+        "6": {
+            "title": "Planchar a 210°",
+            "details": [
+                "Se recomienda planchar la tela por el revés hasta 210°C."
+            ]
+        },
+        "7": {
+            "title": "No planchar",
+            "details": [
+                "Se usan fibras especiales en esta tela.",
+                "No se necesita planchar; recomendamos vaporizar para eliminar arrugas."
+            ]
+        },
+        "8": {
+            "title": "Lavar a mano",
+            "details": [
+                "Apto para lavado a mano en agua tibia.",
+                "Usar solo jabón transparente.",
+                "No usar productos no autorizados.",
+                "No mezclar con otros colores."
+            ]
+        },
+        "9": {
+            "title": "No usar blanqueador",
+            "details": [
+                "Ninguna de nuestras telas debe tratarse con blanqueador.",
+                "El blanqueador alterará el color original de la tela."
+            ]
+        },
+        "10": {
+            "title": "Limpieza en seco",
+            "details": [
+                "Apto para limpieza en seco sin perchloroetileno.",
+                "Se recomienda usar servicios profesionales de limpieza de telas de muebles."
+            ]
+        },
+        "11": {
+            "title": "No lavar en seco",
+            "details": [
+                "No apto para limpieza en seco con perchloroetileno.",
+                "Solo debe realizarlo un profesional especializado."
+            ]
+        },
+        "12": {
+            "title": "No usar secadora",
+            "details": [
+                "Después de lavar en máquina, seca colgado al aire.",
+                "El uso de secadora puede encoger y dañar la tela."
+            ]
+        },
+        "13": {
+            "title": "EASY CLEAN",
+            "details": [
+                "Las telas con tecnología EASY CLEAN permiten eliminar manchas con facilidad.",
+                "La mayoría de manchas desaparecen con agua y jabón suave."
+            ]
+        },
+        "14": {
+            "title": "Usar secadora",
+            "details": [
+                "Apto para secadora.",
+                "Se recomienda temperatura baja para evitar daños."
+            ]
+        },
+        "15": {
+            "title": "Secado vertical",
+            "details": [
+                "Conviene secar en posición vertical.",
+                "Ideal para evitar arrugas y mantener la forma original."
+            ]
+        }
+    }
+}

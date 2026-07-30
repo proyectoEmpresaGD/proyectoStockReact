@@ -11,7 +11,7 @@ import piexif from 'piexifjs';
 
 
 // Cambia esta constante a false para recuperar el nombre de archivo original.
-const USE_CARRE_GAME_FILENAME = false;
+const USE_CARRE_GAME_FILENAME = true;
 
 // Logo optimizado que se muestra únicamente en la fila pequeña de Cares.
 // El archivo debe estar en: public/LogosBase64/EASYCLEAN_SMALL.jpg

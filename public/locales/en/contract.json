@@ -1,0 +1,67 @@
+{
+    "title": "Contractalia",
+    "badge": "CONTRACT",
+    "introduccion": {
+        "p1": "Complete solution for hotels and demanding spaces",
+        "p2": "We design, manufacture and install bespoke solutions, meeting FR/OUTDOOR-INDOOR regulations and delivering just in time."
+    },
+    "destacado": {
+        "t1": "From concept to completion",
+        "t2": "Certified quality",
+        "t3": "Reliable timelines",
+        "p1": "A fully integrated service covering surveying, manufacturing and installation. Delivered by one dedicated team with full accountability.",
+        "p2": "FR/IMO-certified, outdoor-ready fabrics with high Martindale performance under the HARBOUR brand. Fully compliant with UNE, DIN, BS, and IMO standards.",
+        "p3": "Precise planning aligned with site requirements, just-in-time delivery and dedicated on-site supervision, ensuring everything runs exactly as expected."
+    },
+    "team": {
+        "heading": "TEAM",
+        "alt": "The Team",
+        "p1": "Driven by continuous improvement, precision in execution, and a commitment to flawless results, our team of professionals travels worldwide to deliver and install bespoke solutions for every project.",
+        "p2": "Each project is a new challenge, an opportunity to learn, refine our expertise and demonstrate our agility and commitment.",
+        "p3": "We operate as one unified team, where every member plays a vital role. From the earliest stages of manufacturing through to final installation, every step is guided by passion for our craft and respect for one another.",
+        "bullets": [
+            "End-to-end site coordination",
+            "Bespoke installation",
+            "Quality and just-in-time delivery",
+            "On-site supervision"
+        ]
+    },
+    "department": {
+        "heading": "DEPARTMENT",
+        "alt": "The Department",
+        "p1": "In 2008, we launched a dedicated division focused on hotel fit-out. Over time, and through a wide range of projects, we have professionalised and streamlined our made-to-measure operations by investing in advanced machinery and continuous team training.",
+        "p2": "Built on a foundation of premium tailoring and just-in-time delivery, we established our own in-house installation team. Our goal is to shape each space by interpreting and bringing to life the essence of every design concept.",
+        "bullets": [
+            "Premium tailoring",
+            "Space and project analysis",
+            "In-house production",
+            "Post-installation support"
+        ]
+    },
+    "projects": {
+        "heading": "Key Projects",
+        "alt": "Projects",
+        "p1": "The majority of our work focuses on themed restaurants and 4- and 5-star hotels, led by some of the most renowned design studios in Spain and worldwide.",
+        "p2": "Boutique hotels in cities such as Berlin, Córdoba, Lisbon, London, Madrid, Marbella, Rome and Seville, as well as large-scale hotels in Cancun, Punta Cana and Jamaica."
+    },
+    "fabrics": {
+        "heading": "Exclusive On-Demand Fabrics",
+        "alt": "Fabrics",
+        "p1": "We develop fabrics tailored to the specific regulations of each project, including UNE, DIN, BS or IMO standards. All fabrics are available under our HARBOUR brand, offering a wide range of fire-retardant and outdoor textiles.",
+        "tags": [
+            "FR M1/M2",
+            "OUTDOOR-INDOOR",
+            "Abrasion >100k",
+            "Washable",
+            "Antibacterial",
+            "Acoustic"
+        ]
+    },
+    "contact": {
+        "heading": "Contact Us",
+        "p1": "If you have any questions or would like further information about our services, please don’t hesitate to contact us. We will be happy to assist you.",
+        "p2": "Email us at: ",
+        "button": "Send Email",
+        "subject": "CJM Contract"
+    }
+}

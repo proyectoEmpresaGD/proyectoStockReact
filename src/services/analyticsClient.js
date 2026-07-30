@@ -52,5 +52,6 @@ export const analyticsClient = {
     getBusinessLines: (params, options) => apiGet('business-lines', params, options),
     getInvoices: (params, options) => apiGet('invoices', params, options),
     getDataQuality: (params, options) => apiGet('data-quality', params, options),
+    getGeography: (params, options) => apiGet('geography', params, options),
     getCompliance: (params, options) => apiGet('compliance', params, options),
 };
