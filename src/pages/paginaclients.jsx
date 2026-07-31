@@ -1,24 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
-import { FiLoader, FiList } from 'react-icons/fi';
+import { FiLoader, FiRotateCcw, FiTrendingUp, FiUsers } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
 import SearchBar from '../components/clientes/SearchBarClients';
 import ClientTable from '../components/clientes/clientstable.jsx';
 import ClientModal from '../components/clientes/modal/ClientModal';
 import PaginationControls from '../components/PaginationControls';
+import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
 
 export default function Clients() {
     const { token } = useAuthContext();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // datos + loading
     const [clients, setClients] = useState([]);
     const [clientBillings, setClientBillings] = useState({});
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
-    // filtros / paginación / búsqueda
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -29,25 +30,20 @@ export default function Clients() {
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [sortByBilling, setSortByBilling] = useState(false);
 
-    // vista
-    const [viewMode, setViewMode] = useState('table');
-
-    // modal detalle
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
 
-    // leer URL params
     useEffect(() => {
-        const cp = searchParams.get('codpais');
-        const cv = searchParams.get('codprov');
-        if (cp) setSelectedCountry(cp);
-        if (cv) {
-            const prov = provinces.find(p => p.value === cv);
-            if (prov) setSelectedProvince(prov);
+        const country = searchParams.get('codpais');
+        const provinceCode = searchParams.get('codprov');
+
+        if (country) setSelectedCountry(country);
+        if (provinceCode) {
+            const province = provinces.find((item) => item.value === provinceCode);
+            if (province) setSelectedProvince(province);
         }
     }, [searchParams]);
 
-    // cada vez que cambias búsqueda, país, provincia o página: volver a "ver por código"
     useEffect(() => {
         if (sortByBilling) {
             setSortByBilling(false);
@@ -55,10 +51,11 @@ export default function Clients() {
         }
     }, [searchTerm, selectedCountry, selectedProvince, itemsPerPage]);
 
-    // fetch clients + billings
     useEffect(() => {
         const fetchAll = async () => {
             setLoading(true);
+            setErrorMessage('');
+
             try {
                 let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
                 if (sortByBilling) url = url.replace('/api/clients', '/api/clients/billing');
@@ -66,34 +63,44 @@ export default function Clients() {
                 if (selectedCountry) url += `&codpais=${selectedCountry}`;
                 if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
 
-                const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-                const data = await res.json();
-                setClients(data.clients || []);
+                const response = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!response.ok) throw new Error('No se han podido cargar los clientes.');
+
+                const data = await response.json();
+                const currentClients = data.clients || [];
+                setClients(currentClients);
                 setTotalClients(data.total || 0);
 
-                // calcula facturación por cliente
-                const map = {};
-                await Promise.all((data.clients || []).map(async c => {
-                    const r2 = await fetch(
-                        `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${c.codclien}`,
+                const billingMap = {};
+                await Promise.all(currentClients.map(async (client) => {
+                    const billingResponse = await fetch(
+                        `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
-                    if (r2.ok) {
-                        const pd = await r2.json();
-                        map[c.codclien] = pd.reduce((s, p) => {
-                            let imp = +p.importe || 0;
-                            [p.dt1, p.dt2, p.dt3].forEach(d => { if (d > 0) imp *= 1 - d / 100; });
-                            return s + Math.max(imp, 0);
-                        }, 0);
-                    }
+
+                    if (!billingResponse.ok) return;
+                    const orders = await billingResponse.json();
+                    billingMap[client.codclien] = orders.reduce((sum, order) => {
+                        let amount = Number(order.importe) || 0;
+                        [order.dt1, order.dt2, order.dt3].forEach((discount) => {
+                            if (discount > 0) amount *= 1 - discount / 100;
+                        });
+                        return sum + Math.max(amount, 0);
+                    }, 0);
                 }));
-                setClientBillings(map);
-            } catch (e) {
-                console.error(e);
+
+                setClientBillings(billingMap);
+            } catch (error) {
+                console.error(error);
+                setErrorMessage(error.message || 'No se han podido cargar los clientes.');
             } finally {
                 setLoading(false);
             }
         };
+
         fetchAll();
     }, [
         token,
@@ -102,11 +109,23 @@ export default function Clients() {
         searchTerm,
         selectedCountry,
         selectedProvince,
-        sortByBilling
+        sortByBilling,
     ]);
+
+    const updateSearchParams = (updates) => {
+        setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            Object.entries(updates).forEach(([key, value]) => {
+                if (value) next.set(key, value);
+                else next.delete(key);
+            });
+            return next;
+        });
+    };
 
     const handleClearFilters = () => {
         setSearchTerm('');
+        setSuggestions([]);
         setSelectedCountry(null);
         setSelectedProvince(null);
         setSortByBilling(false);
@@ -114,164 +133,179 @@ export default function Clients() {
         setSearchParams({});
     };
 
-    const totalPages = Math.ceil(totalClients / itemsPerPage);
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(startItem + itemsPerPage - 1, totalClients);
+    const totalPages = Math.max(1, Math.ceil(totalClients / itemsPerPage));
+    const startItem = totalClients ? (currentPage - 1) * itemsPerPage + 1 : 0;
+    const endItem = totalClients ? Math.min(startItem + itemsPerPage - 1, totalClients) : 0;
+    const hasActiveFilters = Boolean(searchTerm || selectedCountry || selectedProvince || sortByBilling);
 
     return (
-        <div className="min-h-screen app-bg px-3 py-4 pt-20 sm:px-4 sm:py-6 md:px-8">
-            <div className="mx-auto mt-2 max-w-screen-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_-35px_rgba(15,23,42,0.45)] sm:rounded-3xl">
-                {/* Header */}
-                <div className="border-b border-slate-100 bg-white px-4 py-5 sm:px-6 md:px-8">
-                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                        Gestión de Clientes
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500 md:mt-2 md:text-base">
-                        Explora y gestiona la información de tus clientes.
-                    </p>
-                </div>
+        <PageShell maxWidth="max-w-screen-xl" className="mt-16 sm:mt-20">
+            <PageHeader
+                eyebrow="CRM · Comercial"
+                title="Gestión de clientes"
+                description="Localiza clientes, consulta su actividad y registra visitas con una vista adaptada automáticamente a móvil, tablet y ordenador."
+                icon={FiUsers}
+                actions={(
+                    <span className="cjm-brand-chip px-3 py-2 text-sm font-semibold">
+                        <span className="cjm-brand-dot" aria-hidden="true" />
+                        {totalClients} cliente{totalClients === 1 ? '' : 's'}
+                    </span>
+                )}
+            />
 
-                {/* Controls */}
-                <div className="space-y-4 px-4 py-5 sm:px-6 md:px-8">
-                    <SearchBar
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
-                        suggestions={suggestions}
-                        setSuggestions={setSuggestions}
-                        handleSuggestionClick={c => {
-                            setSearchTerm(c.razclien);
-                            setClients([c]);
-                            setTotalClients(1);
-                            setCurrentPage(1);
-                        }}
-                        handleSearchEnter={() => setCurrentPage(1)}
-                    />
+            <section className="cjm-toolbar mt-5 space-y-4 sm:mt-6" aria-label="Filtros de clientes">
+                <SearchBar
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    suggestions={suggestions}
+                    setSuggestions={setSuggestions}
+                    handleSuggestionClick={(client) => {
+                        setSearchTerm(client.razclien);
+                        setClients([client]);
+                        setTotalClients(1);
+                        setCurrentPage(1);
+                    }}
+                    handleSearchEnter={() => setCurrentPage(1)}
+                />
 
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        {/* Country & Province */}
-                        <div className="flex gap-4 flex-wrap">
-                            <Select
-                                options={countryCodes}
-                                value={countryCodes.find(o => o.value === selectedCountry) || null}
-                                onChange={opt => {
-                                    setSelectedCountry(opt?.value || null);
-                                    setCurrentPage(1);
-                                    setSearchParams(ps => {
-                                        const p = Object.fromEntries(ps);
-                                        opt ? p.codpais = opt.value : delete p.codpais;
-                                        return p;
-                                    });
-                                }}
-                                placeholder="País..."
-                                isClearable
-                                className="w-full sm:w-48"
-                            />
-                            <Select
-                                options={provinces}
-                                value={selectedProvince}
-                                onChange={opt => {
-                                    setSelectedProvince(opt || null);
-                                    setCurrentPage(1);
-                                    setSearchParams(ps => {
-                                        const p = Object.fromEntries(ps);
-                                        opt ? p.codprov = opt.value : delete p.codprov;
-                                        return p;
-                                    });
-                                }}
-                                placeholder="Provincia..."
-                                isClearable
-                                className="w-full sm:w-48"
-                            />
-                        </div>
+                <div className="cjm-toolbar-group">
+                    <label className="block">
+                        <span className="cjm-control-label">País</span>
+                        <Select
+                            options={countryCodes}
+                            value={countryCodes.find((option) => option.value === selectedCountry) || null}
+                            onChange={(option) => {
+                                setSelectedCountry(option?.value || null);
+                                setCurrentPage(1);
+                                updateSearchParams({ codpais: option?.value || null });
+                            }}
+                            placeholder="Todos los países"
+                            isClearable
+                            classNamePrefix="cjm-select"
+                        />
+                    </label>
 
-                        {/* Sort + Clear + (itemsPerPage hidden en móvil) */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <button
-                                onClick={() => { setSortByBilling(!sortByBilling); setCurrentPage(1); }}
-                                className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition 
-                  ${sortByBilling ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-                            >
-                                {sortByBilling ? 'Ver por Código' : 'Ver por Facturación'}
-                            </button>
+                    <label className="block">
+                        <span className="cjm-control-label">Provincia</span>
+                        <Select
+                            options={provinces}
+                            value={selectedProvince}
+                            onChange={(option) => {
+                                setSelectedProvince(option || null);
+                                setCurrentPage(1);
+                                updateSearchParams({ codprov: option?.value || null });
+                            }}
+                            placeholder="Todas las provincias"
+                            isClearable
+                            classNamePrefix="cjm-select"
+                        />
+                    </label>
 
-                            <button
-                                onClick={handleClearFilters}
-                                className="min-h-[44px] rounded-xl bg-red-500 px-4 py-2 text-sm text-white shadow-sm hover:bg-red-600"
-                            >
-                                Limpiar Filtros
-                            </button>
+                    <label className="block">
+                        <span className="cjm-control-label">Resultados por página</span>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(event) => {
+                                setItemsPerPage(Number(event.target.value));
+                                setCurrentPage(1);
+                            }}
+                            className="cjm-input min-h-11 rounded-xl px-3 py-2"
+                        >
+                            {[10, 25, 50].map((amount) => (
+                                <option key={amount} value={amount}>{amount} clientes</option>
+                            ))}
+                        </select>
+                    </label>
 
-                            {/* ítems/page solo en md+ */}
-                            <select
-                                value={itemsPerPage}
-                                onChange={e => { setItemsPerPage(+e.target.value); setCurrentPage(1); }}
-                                className="hidden min-h-[44px] rounded-xl border border-slate-200 px-3 py-2 md:block"
-                            >
-                                {[10, 25, 50].map(n => (
-                                    <option key={n} value={n}>{n} / página</option>
-                                ))}
-                            </select>
-                        </div>
+                    <div className="flex flex-col justify-end gap-2 sm:flex-row md:col-span-2 lg:col-span-1">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSortByBilling((value) => !value);
+                                setCurrentPage(1);
+                            }}
+                            aria-pressed={sortByBilling}
+                            className={`w-full ${sortByBilling ? 'cjm-primary-button' : 'cjm-secondary-button'}`}
+                        >
+                            <FiTrendingUp aria-hidden="true" />
+                            {sortByBilling ? 'Ordenado por facturación' : 'Ordenar por facturación'}
+                        </button>
 
-                        {/* Contador */}
-                        <p className="text-gray-600 text-sm whitespace-nowrap">
-                            Mostrando <span className="font-semibold">{startItem}</span>–
-                            <span className="font-semibold">{endItem}</span> de
-                            <span className="font-semibold"> {totalClients}</span>
-                        </p>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            disabled={!hasActiveFilters}
+                            className="cjm-ghost-button w-full"
+                        >
+                            <FiRotateCcw aria-hidden="true" />
+                            Limpiar
+                        </button>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="px-6 md:px-8 pb-8">
-                    {loading ? (
-                        <div className="flex justify-center py-12 text-gray-500">
-                            <FiLoader className="animate-spin mr-2" /> Cargando clientes…
-                        </div>
-                    ) : (
-                        <ClientTable
-                            clients={clients}
-                            clientBillings={clientBillings}
-                            getClientColor={b =>
-                                b <= 1000 ? 'bg-yellow-400' :
-                                    b <= 3000 ? 'bg-orange-400' :
-                                        b <= 5000 ? 'bg-green-400' : 'bg-blue-400'
-                            }
-                            handleClientClick={async codclien => {
-                                const r = await fetch(
-                                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}`,
-                                    { headers: { Authorization: `Bearer ${token}` } }
-                                );
-                                const d = await r.json();
-                                setSelectedClientDetails(d);
-                                setModalVisible(true);
-                            }}
-                            setClients={setClients}
-                        />
-                    )}
-
-                    {/* Paginación SIEMPRE visible */}
-                    {totalPages > 1 && (
-                        <div className="mt-6">
-                            <PaginationControls
-                                currentPage={currentPage}
-                                handlePageChange={setCurrentPage}
-                                totalPages={totalPages}
-                            />
-                        </div>
-                    )}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--cjm-border)] pt-3">
+                    <p className="cjm-muted text-sm">
+                        Mostrando <strong className="app-text">{startItem}–{endItem}</strong> de{' '}
+                        <strong className="app-text">{totalClients}</strong>
+                    </p>
+                    {hasActiveFilters && <span className="cjm-badge">Filtros activos</span>}
                 </div>
-            </div>
+            </section>
 
-            {/* Detail Modal */}
+            {errorMessage && (
+                <div className="cjm-alert cjm-alert-error mt-4" role="alert">
+                    {errorMessage}
+                </div>
+            )}
+
+            <section className="mt-5 sm:mt-6" aria-live="polite">
+                {loading ? (
+                    <div className="cjm-empty-state flex min-h-48 items-center justify-center">
+                        <span className="inline-flex items-center gap-3 text-sm font-semibold app-text">
+                            <FiLoader className="animate-spin text-xl text-[var(--cjm-primary-deep)]" />
+                            Cargando clientes…
+                        </span>
+                    </div>
+                ) : (
+                    <ClientTable
+                        clients={clients}
+                        clientBillings={clientBillings}
+                        getClientColor={(billing) => (
+                            billing <= 1000 ? 'bg-yellow-400'
+                                : billing <= 3000 ? 'bg-orange-400'
+                                    : billing <= 5000 ? 'bg-emerald-500'
+                                        : 'bg-[#6D8DB3]'
+                        )}
+                        handleClientClick={async (clientCode) => {
+                            const response = await fetch(
+                                `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            const data = await response.json();
+                            setSelectedClientDetails(data);
+                            setModalVisible(true);
+                        }}
+                        setClients={setClients}
+                    />
+                )}
+
+                {totalPages > 1 && (
+                    <PaginationControls
+                        currentPage={currentPage}
+                        handlePageChange={setCurrentPage}
+                        totalPages={totalPages}
+                    />
+                )}
+            </section>
+
             {modalVisible && (
                 <ClientModal
                     modalVisible={modalVisible}
                     selectedClientDetails={selectedClientDetails}
                     closeModal={() => setModalVisible(false)}
-                    updateClientBilling={() => { }}
+                    updateClientBilling={() => {}}
                 />
             )}
-        </div>
+        </PageShell>
     );
 }

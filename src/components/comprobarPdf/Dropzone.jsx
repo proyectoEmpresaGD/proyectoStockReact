@@ -1,5 +1,5 @@
-// src/components/comprobarPdf/Dropzone.jsx
 import React from 'react';
+import { FilePlus2, UploadCloud } from 'lucide-react';
 
 export default function Dropzone({ onFiles, accept = 'application/pdf' }) {
     const inputRef = React.useRef(null);
@@ -7,49 +7,42 @@ export default function Dropzone({ onFiles, accept = 'application/pdf' }) {
 
     const handleFiles = (list) => {
         if (!list) return;
-        const files = Array.from(list).filter(f => !accept || f.type === accept);
+        const files = Array.from(list).filter((file) => !accept || file.type === accept);
         onFiles?.(files);
     };
 
-    const onDrop = (e) => {
-        e.preventDefault();
-        setIsOver(false);
-        handleFiles(e.dataTransfer.files);
-    };
+    const openPicker = () => inputRef.current?.click();
 
     return (
         <div
-            className={[
-                'relative rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition',
-                'bg-white/50 backdrop-blur',
-                isOver ? 'border-indigo-400 bg-indigo-50/50' : 'border-gray-300 hover:bg-gray-50'
-            ].join(' ')}
-            onDragOver={(e) => { e.preventDefault(); setIsOver(true); }}
+            className={`cjm-dropzone ${isOver ? 'is-over' : ''}`}
+            onDragOver={(event) => { event.preventDefault(); setIsOver(true); }}
             onDragLeave={() => setIsOver(false)}
-            onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
+            onDrop={(event) => { event.preventDefault(); setIsOver(false); handleFiles(event.dataTransfer.files); }}
+            onClick={openPicker}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
-            aria-label="Soltar o seleccionar PDFs"
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openPicker();
+                }
+            }}
+            aria-label="Seleccionar archivos PDF"
         >
-            <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-                <div className="rounded-full border border-dashed p-3">
-                    <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 16V4m0 0l-3 3m3-3l3 3M4 12v6a2 2 0 002 2h12a2 2 0 002-2v-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                </div>
-                <p className="text-sm font-medium">Arrastra aquí los PDFs o haz clic para seleccionarlos</p>
-                <p className="text-xs text-gray-600">Sólo se aceptan archivos PDF.</p>
-            </div>
-
+            <span className="cjm-icon-tile h-14 w-14 rounded-2xl">
+                {isOver ? <FilePlus2 aria-hidden="true" /> : <UploadCloud aria-hidden="true" />}
+            </span>
+            <p className="mt-4 font-semibold app-text">Arrastra aquí los PDFs</p>
+            <p className="cjm-muted mt-1 text-sm">También puedes pulsar para seleccionarlos desde el dispositivo.</p>
+            <span className="cjm-badge mt-4">Solo PDF · selección múltiple</span>
             <input
                 ref={inputRef}
                 type="file"
                 accept={accept}
                 multiple
-                className="hidden"
-                onChange={(e) => handleFiles(e.target.files)}
+                className="sr-only"
+                onChange={(event) => handleFiles(event.target.files)}
             />
         </div>
     );

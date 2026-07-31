@@ -1,71 +1,115 @@
-// src/components/PaginationControls.jsx
 import React from 'react';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
-    // Ventana de páginas centrada ±2
+    const safeTotalPages = Math.max(1, Number(totalPages) || 1);
+    const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages);
+
     const windowSize = 5;
     const half = Math.floor(windowSize / 2);
-    let start = Math.max(1, currentPage - half);
-    let end = Math.min(totalPages, currentPage + half);
+    let start = Math.max(1, safeCurrentPage - half);
+    let end = Math.min(safeTotalPages, safeCurrentPage + half);
+
     if (end - start < windowSize - 1) {
         start = Math.max(1, end - windowSize + 1);
-        end = Math.min(totalPages, start + windowSize - 1);
+        end = Math.min(safeTotalPages, start + windowSize - 1);
     }
+
     const pageNumbers = [];
-    for (let i = start; i <= end; i++) pageNumbers.push(i);
+    for (let page = start; page <= end; page += 1) pageNumbers.push(page);
+
+    const changePage = (page) => {
+        handlePageChange(Math.min(Math.max(1, page), safeTotalPages));
+    };
+
+    const arrowClass = 'cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl disabled:cursor-not-allowed disabled:opacity-40';
+    const pageClass = 'inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition';
+
+    if (safeTotalPages <= 1) return null;
 
     return (
-        <nav className="flex items-center justify-center mt-4 space-x-1">
+        <nav className="mt-5 flex w-full items-center justify-center gap-2" aria-label="Paginación">
             <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 bg-white border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => changePage(safeCurrentPage - 1)}
+                disabled={safeCurrentPage === 1}
+                className={arrowClass}
+                aria-label="Página anterior"
             >
-                <FaChevronLeft />
+                <FaChevronLeft aria-hidden="true" />
             </button>
 
-            {start > 1 && (
-                <>
-                    <button
-                        onClick={() => handlePageChange(1)}
-                        className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
-                    >
-                        1
-                    </button>
-                    {start > 2 && <span className="px-2">…</span>}
-                </>
-            )}
-
-            {pageNumbers.map(num => (
-                <button
-                    key={num}
-                    onClick={() => handlePageChange(num)}
-                    className={`px-3 py-1 border rounded ${num === currentPage ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'
-                        }`}
+            <div className="flex min-w-0 flex-1 items-center justify-center sm:hidden">
+                <label className="sr-only" htmlFor="cjm-mobile-page-select">Página actual</label>
+                <select
+                    id="cjm-mobile-page-select"
+                    value={safeCurrentPage}
+                    onChange={(event) => changePage(Number(event.target.value))}
+                    className="cjm-input min-h-11 max-w-[190px] rounded-xl px-3 py-2 text-center text-sm font-semibold"
                 >
-                    {num}
-                </button>
-            ))}
+                    {Array.from({ length: safeTotalPages }, (_, index) => index + 1).map((page) => (
+                        <option key={page} value={page}>
+                            Página {page} de {safeTotalPages}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
-            {end < totalPages && (
-                <>
-                    {end < totalPages - 1 && <span className="px-2">…</span>}
-                    <button
-                        onClick={() => handlePageChange(totalPages)}
-                        className="px-3 py-1 bg-white border rounded hover:bg-gray-100"
-                    >
-                        {totalPages}
-                    </button>
-                </>
-            )}
+            <div className="hidden items-center justify-center gap-1.5 sm:flex">
+                {start > 1 && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => changePage(1)}
+                            className={`${pageClass} border-[var(--cjm-border)] bg-[var(--cjm-surface)] text-[var(--cjm-text)] hover:bg-[var(--cjm-surface-muted)]`}
+                        >
+                            1
+                        </button>
+                        {start > 2 && <span className="cjm-muted px-1" aria-hidden="true">…</span>}
+                    </>
+                )}
+
+                {pageNumbers.map((page) => {
+                    const active = page === safeCurrentPage;
+                    return (
+                        <button
+                            type="button"
+                            key={page}
+                            onClick={() => changePage(page)}
+                            aria-current={active ? 'page' : undefined}
+                            className={`${pageClass} ${
+                                active
+                                    ? 'border-transparent bg-[#536f93] text-white'
+                                    : 'border-[var(--cjm-border)] bg-[var(--cjm-surface)] text-[var(--cjm-text)] hover:bg-[var(--cjm-surface-muted)]'
+                            }`}
+                        >
+                            {page}
+                        </button>
+                    );
+                })}
+
+                {end < safeTotalPages && (
+                    <>
+                        {end < safeTotalPages - 1 && <span className="cjm-muted px-1" aria-hidden="true">…</span>}
+                        <button
+                            type="button"
+                            onClick={() => changePage(safeTotalPages)}
+                            className={`${pageClass} border-[var(--cjm-border)] bg-[var(--cjm-surface)] text-[var(--cjm-text)] hover:bg-[var(--cjm-surface-muted)]`}
+                        >
+                            {safeTotalPages}
+                        </button>
+                    </>
+                )}
+            </div>
 
             <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 bg-white border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => changePage(safeCurrentPage + 1)}
+                disabled={safeCurrentPage === safeTotalPages}
+                className={arrowClass}
+                aria-label="Página siguiente"
             >
-                <FaChevronRight />
+                <FaChevronRight aria-hidden="true" />
             </button>
         </nav>
     );

@@ -3,6 +3,8 @@ import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import { IoClose } from 'react-icons/io5';
 import { useAuthContext } from '../Auth/AuthContext';
 import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
+import { PackageSearch } from 'lucide-react';
 
 const DEFAULT_FILTERS = {
     proveedor: '',
@@ -332,17 +334,15 @@ function LowStockAlertsPage() {
     }, [token, filters]);
 
     return (
-        <PageShell maxWidth="max-w-8xl" className="mt-16 sm:mt-20">
-            <header className="mb-8 text-center">
-                <h1 className="mb-2 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                    Control de stock
-                </h1>
-                <p className="text-slate-500">
-                    Productos que necesitan compra según consumo medio mensual.
-                </p>
-            </header>
+        <PageShell maxWidth="max-w-[1500px]">
+            <PageHeader
+                eyebrow="Almacén · Planificación"
+                title="Control de stock"
+                description="Productos que necesitan compra según el consumo medio mensual y las cantidades pendientes de recibir."
+                icon={PackageSearch}
+            />
 
-            <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="cjm-toolbar mb-6 mt-6">
                 <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h2 className="text-base font-semibold text-slate-900">
@@ -357,7 +357,7 @@ function LowStockAlertsPage() {
                         <button
                             type="button"
                             onClick={resetFilters}
-                            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="cjm-ghost-button"
                         >
                             Limpiar
                         </button>
@@ -365,7 +365,7 @@ function LowStockAlertsPage() {
                         <button
                             type="button"
                             onClick={fetchStockControl}
-                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                            className="cjm-primary-button"
                         >
                             Actualizar
                         </button>
@@ -400,7 +400,7 @@ function LowStockAlertsPage() {
                             value={filters.nombreProducto}
                             onChange={(event) => updateFilter('nombreProducto', event.target.value)}
                             placeholder="Buscar producto..."
-                            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
                         />
                     </label>
 
@@ -409,7 +409,7 @@ function LowStockAlertsPage() {
                         <select
                             value={filters.mesesConsumo}
                             onChange={(event) => updateFilter('mesesConsumo', event.target.value)}
-                            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
                         >
                             {MESES_CONSUMO_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -435,9 +435,9 @@ function LowStockAlertsPage() {
             )}
 
             {!loading && !error && (
-                <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <section className="cjm-table-shell mb-6">
+                    <div className="cjm-table-scroller">
+                        <table className="cjm-table min-w-[1180px]">
                             <thead className="bg-slate-50">
                                 <tr>
                                     <th className="min-w-[260px] px-4 py-3 text-left font-semibold text-slate-700">
@@ -578,8 +578,8 @@ function ConsumptionModal({ isOpen, product, onClose }) {
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
-            <div className="relative max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="cjm-modal-backdrop z-[1200]">
+            <div className="cjm-modal sm:max-w-5xl">
                 <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">

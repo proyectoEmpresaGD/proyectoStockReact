@@ -1,248 +1,303 @@
-/* Calendario.css */
+/* =========================================================
+   Agenda CJM · React Big Calendar
+   Tema corporativo, modo oscuro y adaptación táctil
+   ========================================================= */
 
-/* ---------- Estilos para React Big Calendar ---------- */
+.agenda-modern .rbc-calendar {
+  min-width: 0;
+  color: var(--cjm-text);
+  font-family: inherit;
+}
 
-/* Toolbar (barra de herramientas) */
-.rbc-toolbar {
-  background-color: #f7f9fc;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  margin-bottom: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+.agenda-modern .rbc-month-view,
+.agenda-modern .rbc-time-view,
+.agenda-modern .rbc-agenda-view {
+  overflow: hidden;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--cjm-surface);
+}
+
+.agenda-modern .rbc-month-header,
+.agenda-modern .rbc-time-header {
+  background: var(--cjm-surface-muted);
+}
+
+.agenda-modern .rbc-header {
+  min-height: 44px;
+  border-color: var(--cjm-border);
+  background: var(--cjm-surface-muted);
+  padding: 0.75rem 0.4rem;
+  color: var(--cjm-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.agenda-modern .rbc-header + .rbc-header,
+.agenda-modern .rbc-day-bg + .rbc-day-bg,
+.agenda-modern .rbc-month-row + .rbc-month-row,
+.agenda-modern .rbc-time-header-content,
+.agenda-modern .rbc-time-content,
+.agenda-modern .rbc-timeslot-group,
+.agenda-modern .rbc-time-slot,
+.agenda-modern .rbc-day-slot .rbc-time-slot,
+.agenda-modern .rbc-agenda-view table,
+.agenda-modern .rbc-agenda-view table tbody > tr > td,
+.agenda-modern .rbc-agenda-view table thead > tr > th {
+  border-color: var(--cjm-border);
+}
+
+.agenda-modern .rbc-date-cell {
+  padding: 0.45rem 0.55rem 0;
+  color: var(--cjm-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.agenda-modern .rbc-date-cell > a {
+  display: inline-flex;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
   align-items: center;
-  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05);
+  justify-content: center;
+  border-radius: 9999px;
 }
 
-.rbc-toolbar button {
-  background-color: #3b82f6;
-  color: #ffffff;
-  border: none;
-  padding: 0.5rem 1rem;
-  margin: 0.25rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  font-size: 0.875rem;
+.agenda-modern .rbc-now .rbc-button-link,
+.agenda-modern .rbc-date-cell.rbc-now > a {
+  background: var(--cjm-primary-deep);
+  color: #fff;
 }
 
-.rbc-toolbar button:hover {
-  background-color: #2563eb;
-  transform: translateY(-1px);
+.agenda-modern .rbc-day-bg {
+  background: var(--cjm-surface);
+  transition: background-color 150ms ease;
 }
 
-.rbc-toolbar-label {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  text-transform: capitalize;
-  margin: 0.25rem;
+.agenda-modern .rbc-day-bg:hover {
+  background: var(--cjm-primary-soft);
 }
 
-/* Cabeceras (días de la semana) */
-.rbc-header {
-  background: #f3f4f6;
-  font-weight: 600;
-  color: #374151;
-  text-transform: capitalize;
-  padding: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+.agenda-modern .rbc-off-range-bg {
+  background: color-mix(in srgb, var(--cjm-surface-muted) 76%, transparent) !important;
 }
 
-/* Días fuera de rango (otros meses) */
-.rbc-off-range-bg {
-  background-color: #e5e7eb !important;
-  color: #9ca3af !important;
+.agenda-modern .rbc-off-range {
+  color: color-mix(in srgb, var(--cjm-muted) 58%, transparent);
 }
 
-/* Celdas de la vista Mes */
-.rbc-past-day {
-  background-color: #fee2e2 !important;
-  color: #b91c1c !important;
+.agenda-modern .rbc-past-day {
+  background: color-mix(in srgb, var(--cjm-surface) 95%, rgba(244, 63, 94, 0.09)) !important;
 }
 
-.rbc-today-custom {
-  background-color: #fef3c7 !important;
+.agenda-modern .rbc-today,
+.agenda-modern .rbc-today-custom {
+  background: color-mix(in srgb, var(--cjm-surface) 82%, var(--cjm-primary-soft)) !important;
 }
 
-.rbc-future-day {
-  background-color: #dbeafe !important;
+.agenda-modern .rbc-future-day {
+  background: var(--cjm-surface) !important;
 }
 
-/* Contenedor de las vistas */
-.rbc-month-view,
-.rbc-time-view,
-.rbc-agenda-view {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.05);
+.agenda-modern .rbc-past-slot {
+  background: color-mix(in srgb, var(--cjm-surface) 94%, rgba(244, 63, 94, 0.08)) !important;
 }
 
-/* Estilo para los slots pasados (vista Día/Semana) */
-.rbc-past-slot {
-  background-color: #fecaca !important;
+.agenda-modern .rbc-row-segment {
+  padding: 0 0.2rem 0.18rem;
 }
 
-/* Fuente pequeña para los eventos */
-.rbc-event {
-  font-size: 0.8rem;
+.agenda-modern .rbc-event {
+  min-height: 24px;
+  border: 0;
+  border-radius: 0.55rem;
+  background: var(--cjm-primary-deep);
+  padding: 0;
+  box-shadow: 0 9px 18px -13px rgba(15, 23, 42, 0.85);
+  font-size: 0.76rem;
 }
 
-/* Animaciones */
-@keyframes fadeIn {
+.agenda-modern .rbc-event:focus,
+.agenda-modern .rbc-selected {
+  outline: 3px solid var(--cjm-primary-soft);
+  outline-offset: 1px;
+}
+
+.agenda-modern .rbc-show-more {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 9999px;
+  background: var(--cjm-primary-soft);
+  padding: 0.15rem 0.5rem;
+  color: var(--cjm-primary-deep);
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.agenda-modern .rbc-time-gutter,
+.agenda-modern .rbc-label {
+  color: var(--cjm-muted);
+  font-size: 0.7rem;
+}
+
+.agenda-modern .rbc-current-time-indicator {
+  height: 2px;
+  background: var(--cjm-primary-deep);
+}
+
+.agenda-modern .rbc-agenda-view table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.agenda-modern .rbc-agenda-view table thead > tr > th {
+  background: var(--cjm-surface-muted);
+  color: var(--cjm-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.agenda-modern .rbc-agenda-view table tbody > tr > td {
+  background: var(--cjm-surface);
+  color: var(--cjm-text);
+}
+
+.agenda-modern .rbc-overlay {
+  overflow: hidden;
+  border: 1px solid var(--cjm-border);
+  border-radius: 1rem;
+  background: var(--cjm-surface);
+  color: var(--cjm-text);
+  box-shadow: var(--cjm-shadow);
+}
+
+.agenda-modern .rbc-overlay-header {
+  border-color: var(--cjm-border);
+  background: var(--cjm-surface-muted);
+}
+
+/* Animaciones discretas usadas por algunos modales. */
+@keyframes agendaFadeIn {
   from { opacity: 0; }
-  to   { opacity: 1; }
+  to { opacity: 1; }
 }
 
-@keyframes scaleIn {
-  from { transform: scale(0.7); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
+@keyframes agendaScaleIn {
+  from { transform: translateY(10px) scale(0.985); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-in-out forwards;
+  animation: agendaFadeIn 180ms ease-out forwards;
 }
 
 .animate-scaleIn {
-  animation: scaleIn 0.3s ease-in-out forwards;
+  animation: agendaScaleIn 200ms ease-out forwards;
 }
 
-/* Alert personalizado */
-.custom-alert-overlay { /* ... */ }
-.custom-alert         { /* ... */ }
-.custom-alert p       { /* ... */ }
-.custom-alert button  { /* ... */ }
-.custom-alert button:hover { /* ... */ }
+/* Modo oscuro para superficies antiguas de los modales de agenda. */
+:root[data-theme='dark'] .agenda-modern .rbc-btn-group button,
+:root[data-theme='dark'] .agenda-modern .rbc-toolbar button {
+  border-color: var(--cjm-border);
+  background: var(--cjm-surface);
+  color: var(--cjm-text);
+}
 
-/* Modal pendientes */
-.pending-modal-overlay { /* ... */ }
-.pending-modal         { /* ... */ }
-.pending-modal h2      { /* ... */ }
-.pending-modal ul      { /* ... */ }
-.pending-modal li      { /* ... */ }
-.pending-modal button  { /* ... */ }
-.pending-modal button:hover { /* ... */ }
-
-/* ==================================================== */
-/*       BLOQUE RESPONSIVE SÓLO PARA PANTALLAS MÓVIL   */
-/* ==================================================== */
-/* ==================================================== */
-/*          OVERRIDES MÓVIL PARA React Big Calendar     */
-/* ==================================================== */
-/* ==================================================== */
-/*          OVERRIDES MÓVIL PARA React Big Calendar     */
-/* ==================================================== */
-/* ==================================================== */
-/*      OVERRIDES MÓVIL PARA React Big Calendar        */
-/* ==================================================== */
-/* ==================================================== */
-/*    Estilos base de React Big Calendar (si los usas)  */
-/* ==================================================== */
-
-/* ----------------- OVERRIDES MÓVIL ------------------ */
 @media (max-width: 767px) {
-  /* 1) Ajustes generales del contenedor */
   .agenda-page-wrapper {
-    margin-top: 3.5rem !important;
-    padding: 1rem !important;
-    border-radius: 1.25rem !important;
+    margin-top: 1.25rem !important;
+    padding: 0 !important;
   }
 
   .agenda-responsive {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
+    width: 100%;
+    min-width: 0;
   }
 
-  /* 2) Toolbar apilada y centrada */
-  .agenda-responsive .rbc-toolbar {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    padding: 0.5rem 0 !important;
-    gap: 0.25rem !important;
-  }
-  /* 2a) Navegación (Hoy / Anterior / Siguiente) */
-  .agenda-responsive .rbc-toolbar .rbc-btn-group:first-child {
-    width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    gap: 0.25rem !important;
-    margin-bottom: 0.5rem !important;
-  }
-  .agenda-responsive .rbc-toolbar .rbc-btn-group:first-child button {
-    flex: 1 0 auto !important;
-    min-width: 3.5rem !important;
-  }
-  /* 2b) Vistas (Mes / Semana / Día / Agenda) */
-  .agenda-responsive .rbc-toolbar .rbc-btn-group:nth-of-type(3) {
-    width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-    gap: 0.25rem !important;
-    margin-bottom: 0.5rem !important;
-    overflow-x: auto !important;
-  }
-  .agenda-responsive .rbc-toolbar .rbc-btn-group:nth-of-type(3) button {
-    flex: 1 0 auto !important;
-    min-width: 4rem !important;
-  }
-  .agenda-responsive .rbc-toolbar-label {
-    font-size: 1rem !important;
-    margin: 0.25rem 0 !important;
+  .agenda-calendar-shell {
+    min-height: 520px;
   }
 
-  /* 3) Todas las vistas full-width */
-  .agenda-responsive .rbc-month-view,
-  .agenda-responsive .rbc-time-view,
-  .agenda-responsive .rbc-agenda-view {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0.5rem !important;
-    min-height: 600px !important;
+  .agenda-modern .rbc-calendar {
+    min-height: 500px;
   }
 
-  /* 4) Vista Mes: esconder cabeceras y agrandar celdas */
-  .agenda-responsive .rbc-month-view .rbc-header {
-    display: none !important;
-  }
-  .agenda-responsive .rbc-month-view .rbc-day-slot,
-  .agenda-responsive .rbc-month-view .rbc-row-bg .rbc-day-bg {
-    min-height: 160px !important;
-    height: 160px !important;
+  .agenda-modern .rbc-month-view,
+  .agenda-modern .rbc-time-view,
+  .agenda-modern .rbc-agenda-view {
+    border-radius: 0.85rem;
   }
 
-  /* 5) Vista Día (time-view): full-width, sin scroll horizontal, gutter sticky */
-  .agenda-responsive .rbc-time-view {
-    width: 100% !important;
-    overflow-x: hidden !important;
+  .agenda-modern .rbc-header {
+    min-height: 38px;
+    padding: 0.55rem 0.15rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.025em;
   }
-  .agenda-responsive .rbc-time-view .rbc-time-content-wrapper {
-    display: block !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 0.5rem !important;
-    max-height: 60vh !important;
+
+  .agenda-modern .rbc-date-cell {
+    padding: 0.3rem 0.25rem 0;
   }
-  .agenda-responsive .rbc-time-view .rbc-time-gutter {
-    position: sticky !important;
-    top: 2.5rem !important;
-    left: 0 !important;
-    background-color: #fff !important;
-    z-index: 3 !important;
-    flex: 0 0 auto !important;
-    min-width: 40px !important;
+
+  .agenda-modern .rbc-date-cell > a {
+    min-width: 1.55rem;
+    min-height: 1.55rem;
+    font-size: 0.7rem;
   }
-  .agenda-responsive .rbc-time-view .rbc-day-slot {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
+
+  .agenda-modern .rbc-row-segment {
+    padding-inline: 0.08rem;
   }
-  .agenda-responsive .rbc-time-view .rbc-time-slot {
-    height: 50px !important;
-    min-height: 50px !important;
+
+  .agenda-modern .rbc-event {
+    min-height: 26px;
+    font-size: 0.68rem;
+  }
+
+  .agenda-modern .rbc-time-view {
+    overflow: hidden;
+  }
+
+  .agenda-modern .rbc-time-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .agenda-modern .rbc-time-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    flex: 0 0 42px;
+    background: var(--cjm-surface);
+  }
+
+  .agenda-modern .rbc-timeslot-group {
+    min-height: 64px;
+  }
+
+  .agenda-modern .rbc-agenda-view {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .agenda-modern .rbc-agenda-view table {
+    min-width: 620px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agenda-modern *,
+  .animate-fadeIn,
+  .animate-scaleIn {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

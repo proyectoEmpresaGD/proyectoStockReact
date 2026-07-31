@@ -219,10 +219,10 @@ const ProductTable = ({ products, fetchProductLots }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [products, fetchProductLots]);
 
-    const RIGHT_W = "min-w-[92px] w-auto md:w-[160px] md:min-w-[160px]";
+    const RIGHT_W = "w-full sm:w-[160px] sm:min-w-[160px]";
 
     const SectionTitle = ({ children }) => (
-        <div className="text-sm md:text-base font-semibold text-gray-900">
+        <div className="text-sm font-semibold app-text md:text-base">
             {children}
         </div>
     );
@@ -232,16 +232,16 @@ const ProductTable = ({ products, fetchProductLots }) => {
         const stockTotal = parseFloat(product?.stocktotal || 0);
 
         return (
-            <div className={`flex flex-col items-center gap-1 shrink-0 ${RIGHT_W}`}>
-                <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
+            <div className={`flex shrink-0 flex-col items-center gap-1 ${RIGHT_W}`}>
+                <div className="text-center text-sm font-semibold app-text md:text-base">
                     Stock disponible
                 </div>
 
-                <div className="w-full rounded-xl bg-blue-50 ring-1 ring-inset ring-blue-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-black tabular-nums">
+                <div className="w-full rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-3 py-2.5 text-center text-base font-extrabold tabular-nums text-[var(--cjm-primary-deep)]">
                     {safeValue(value)}
                 </div>
 
-                <div className="text-sm md:text-base font-semibold text-gray-900 text-center">
+                <div className="text-center text-sm font-semibold app-text md:text-base">
                     {stockUnitLabel(product, value)}
                 </div>
 
@@ -278,12 +278,12 @@ const ProductTable = ({ products, fetchProductLots }) => {
         );
 
         return (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 overflow-hidden">
-                <div className="flex items-start justify-between gap-3">
+            <div className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3.5 sm:p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                         <SectionTitle>Lotes</SectionTitle>
 
-                        <div className="text-xs text-gray-500 mt-1 break-words">
+                        <div className="cjm-muted mt-1 break-words text-xs">
                             {entry.status === "loading"
                                 ? "Cargando lotes…"
                                 : entry.status === "error"
@@ -312,7 +312,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                 "shrink-0 rounded-xl px-3 py-2 text-sm font-semibold ring-1 ring-inset transition",
                                 entry.status === "error"
                                     ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
-                                    : "bg-white text-gray-800 ring-gray-200 hover:bg-gray-50",
+                                    : "bg-[var(--cjm-surface)] text-[var(--cjm-text)] ring-[var(--cjm-border)] hover:bg-[var(--cjm-surface-muted)]",
                             ].join(" ")}
                         >
                             {entry.status === "error" ? "Reintentar" : "Cargar"}
@@ -322,8 +322,8 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                 {entry.status === "loading" && (
                     <div className="mt-3 space-y-2">
-                        <div className="h-11 rounded-xl bg-white ring-1 ring-inset ring-gray-200 animate-pulse" />
-                        <div className="h-11 rounded-xl bg-white ring-1 ring-inset ring-gray-200 animate-pulse" />
+                        <div className="h-11 animate-pulse rounded-xl bg-[var(--cjm-surface)] ring-1 ring-inset ring-[var(--cjm-border)]" />
+                        <div className="h-11 animate-pulse rounded-xl bg-[var(--cjm-surface)] ring-1 ring-inset ring-[var(--cjm-border)]" />
                     </div>
                 )}
 
@@ -339,7 +339,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 {entry.status === "success" && (
                     <>
                         {lots.length === 0 ? (
-                            <div className="mt-3 text-sm text-gray-600">
+                            <div className="cjm-muted mt-3 text-sm">
                                 No hay lotes disponibles.
                             </div>
                         ) : (
@@ -353,18 +353,18 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                             <div
                                                 key={l.key}
                                                 className={[
-                                                    "flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-inset px-3 py-2.5",
+                                                    "flex flex-col gap-2 rounded-xl bg-[var(--cjm-surface)] px-3 py-3 ring-1 ring-inset sm:flex-row sm:items-center sm:justify-between",
                                                     stockReservado > 0
                                                         ? "ring-amber-200"
                                                         : "ring-gray-200",
                                                 ].join(" ")}
                                             >
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-sm md:text-base font-semibold text-gray-900 truncate">
+                                                    <div className="truncate text-sm font-semibold app-text md:text-base">
                                                         {l.code}
                                                     </div>
 
-                                                    <div className="text-xs text-gray-500">
+                                                    <div className="cjm-muted text-xs">
                                                         Disponible
                                                     </div>
 
@@ -376,7 +376,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                                     )}
 
                                                     {stockReservado > 0 && stockTotal > 0 && (
-                                                        <div className="mt-1 text-xs font-semibold text-gray-500">
+                                                        <div className="cjm-muted mt-1 text-xs font-semibold">
                                                             Total real: {stockTotal.toFixed(2)}{" "}
                                                             {qtyUnitForLotRow(p, stockTotal)}
                                                         </div>
@@ -384,7 +384,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                                 </div>
 
                                                 <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                                                    <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                                                    <div className="w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5 text-center text-sm font-extrabold tabular-nums app-text md:text-base">
                                                         {safeValue(l.qty)} {qtyUnitForLotRow(p, l.qty)}
                                                     </div>
                                                 </div>
@@ -394,7 +394,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                 </div>
 
                                 {lots.length > 8 && (
-                                    <div className="mt-2 text-xs text-gray-500">
+                                    <div className="cjm-muted mt-2 text-xs">
                                         Desplázate para ver todos los lotes.
                                     </div>
                                 )}
@@ -407,47 +407,47 @@ const ProductTable = ({ products, fetchProductLots }) => {
     };
 
     const StatusBox = ({ p }) => (
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-3.5 sm:p-4">
             <SectionTitle>Estado</SectionTitle>
 
             <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                        <div className="text-sm font-semibold app-text md:text-base">
                             Pendiente recibir
                         </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                        <div className="w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5 text-center text-sm font-extrabold tabular-nums app-text md:text-base">
                             {safeValue(p?.canpenrecib)}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                        <div className="text-sm font-semibold app-text md:text-base">
                             Fecha estimada
                         </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                        <div className="w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5 text-center text-sm font-extrabold tabular-nums app-text md:text-base">
                             {formatDate(p?.fechaestimada)}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-200 px-3 py-2.5">
+                <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                        <div className="text-sm md:text-base font-semibold text-gray-900">
+                        <div className="text-sm font-semibold app-text md:text-base">
                             Pendiente servir
                         </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
-                        <div className="w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200 px-2.5 py-2 text-center text-sm md:text-base font-extrabold text-gray-900 tabular-nums">
+                        <div className="w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5 text-center text-sm font-extrabold tabular-nums app-text md:text-base">
                             {safeValue(p?.canpenservir)}
                         </div>
                     </div>
@@ -463,10 +463,10 @@ const ProductTable = ({ products, fetchProductLots }) => {
         const fecha = formatFutureDateFromDays(p.plaentre);
 
         return (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 overflow-hidden">
+            <div className="overflow-hidden rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-3.5 sm:p-4">
                 <SectionTitle>Disponibilidad</SectionTitle>
 
-                <p className="mt-3 text-sm md:text-base text-gray-700 leading-6 break-words">
+                <p className="mt-3 break-words text-sm leading-6 app-text md:text-base">
                     <span>En caso de no haber stock disponible o suficiente</span>, podemos entregar{" "}
                     <span className="font-extrabold text-base md:text-lg">{metros}</span>{" "}
                     <span className="font-bold">metros</span>{" "}
@@ -477,16 +477,16 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 </p>
 
                 <div className="mt-4">
-                    <div className="rounded-2xl bg-white ring-1 ring-inset ring-blue-200 px-4 py-3 w-full flex flex-col items-center text-center">
-                        <div className="text-xs text-gray-600 text-center">
+                    <div className="flex w-full flex-col items-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface)] px-4 py-3 text-center">
+                        <div className="cjm-muted text-center text-xs">
                             Si confirma hoy, fecha aprox.
                         </div>
 
-                        <div className="mt-1 text-lg md:text-xl font-extrabold text-gray-900 tabular-nums break-words text-center">
+                        <div className="mt-1 break-words text-center text-lg font-extrabold tabular-nums app-text md:text-xl">
                             {fecha}
                         </div>
 
-                        <div className="mt-2 text-xs md:text-sm text-gray-700 leading-5 text-center break-words">
+                        <div className="mt-2 break-words text-center text-xs leading-5 app-text md:text-sm">
                             Para cantidades superiores a{" "}
                             <span className="font-extrabold">{metros}</span>{" "}
                             <span className="font-bold">metros</span>, consultar en{" "}
@@ -499,43 +499,45 @@ const ProductTable = ({ products, fetchProductLots }) => {
     };
 
     const ProductCard = ({ p }) => (
-        <div className="rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
-            <div className="p-5 md:p-6">
-                <div className="flex items-start justify-between gap-3">
+        <article className="cjm-card overflow-hidden rounded-3xl">
+            <div className="p-4 sm:p-5 md:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
-                        <div className="inline-flex items-center px-3 py-1 text-base font-semibold text-gray-900">
+                        <div className="cjm-brand-chip px-3 py-1 text-xs font-semibold">
                             Producto
                         </div>
 
-                        <div className="mt-3 text-lg md:text-xl font-semibold text-gray-900 leading-snug break-words">
+                        <div className="mt-3 break-words text-lg font-semibold leading-snug app-text md:text-xl">
                             {p?.desprodu ?? "—"}
                         </div>
                     </div>
 
-                    <div className="mr-7">
+                    <div className="w-full sm:w-auto">
                         <StockBox value={p?.stockactual} product={p} />
                     </div>
                 </div>
             </div>
 
-            <div className="px-5 md:px-6 pb-6 space-y-4">
+            <div className="space-y-4 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
                 <LotsBox p={p} />
                 <StatusBox p={p} />
                 <AvailabilityBox p={p} />
             </div>
-        </div>
+        </article>
     );
 
     return (
         <div className="w-full">
-            <div className="space-y-5 overflow-y-auto max-h-[75vh] p-2">
+            <div className="space-y-4 sm:space-y-5 lg:max-h-[75vh] lg:overflow-y-auto lg:pr-1">
                 {products?.length ? (
                     products.map((p) => (
                         <ProductCard key={String(p?.codprodu ?? Math.random())} p={p} />
                     ))
                 ) : (
-                    <div className="rounded-3xl border border-gray-200 bg-gray-50 p-10 text-center text-gray-700">
-                        Escribe una búsqueda y pulsa <span className="font-semibold">Enter</span>.
+                    <div className="cjm-empty-state py-10 sm:py-14">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-xl text-[var(--cjm-primary-deep)]">⌕</div>
+                        <p className="mt-4 text-base font-semibold app-text">Busca un producto para consultar su stock</p>
+                        <p className="cjm-muted mx-auto mt-2 max-w-md text-sm leading-6">Escribe una referencia o nombre y pulsa Enter o el botón Buscar.</p>
                     </div>
                 )}
             </div>

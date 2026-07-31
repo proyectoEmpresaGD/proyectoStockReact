@@ -18,7 +18,7 @@ import {
     FaUser,
     FaCalendarCheck,
     FaRegCalendarAlt,
-    FaFileInvoiceDollar
+    FaSearch
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
@@ -103,7 +103,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaUsers className="mr-3 text-lg" />,
                 dropdown: 'clientes',
                 links: [
-                    { to: '/clients', label: 'Clients', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion', 'decoandyou'] },
+                    { to: '/clients', label: 'Clientes', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion', 'decoandyou'] },
                     {
                         to: '/agenda',
                         label: 'Agenda',
@@ -129,7 +129,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 ]
             },
             {
-                label: 'Analitica',
+                label: 'Analítica',
                 icon: <FaGlobeEurope className="mr-3 text-lg" />,
                 dropdown: 'mapa',
                 links: [
@@ -145,7 +145,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion', 'decoandyou'] },
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
-                    { to: '/fichaTecnica', label: 'Ficha Tecnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
+                    { to: '/fichaTecnica', label: 'Ficha técnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
                     { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     {
                         to: '/etiquetas-lotes',
@@ -160,8 +160,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaShoppingCart className="mr-3 text-lg" />,
                 dropdown: 'ventas',
                 links: [
-                    { to: 'entradas', label: 'Entradas', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] },
-                    { to: 'comprobacionExcel', label: 'Validación de presupuestos', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] }
+                    { to: '/entradas', label: 'Entradas', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] },
+                    { to: '/comprobacionExcel', label: 'Validación de presupuestos', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'ventas'] }
                 ]
             },
             {
@@ -176,7 +176,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         subheader: true,
                         sublinks: [
                             { to: '/etiquetas', label: 'QUALITY', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                            { to: '/EtiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                            { to: '/etiquetasMarke', label: 'Etiqueta Fotos', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/estiquetaSinQR', label: 'Etiqueta sin QR', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/EtiquetaPersonalizable', label: 'Etiqueta Personalizable', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/EtiquetaCameo', label: 'Etiqueta Cameo', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
@@ -208,14 +208,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             { to: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
                         ]
                     },
-                    {
-                        label: 'Etiquetas Contraportada',
-                        subheader: true,
-                        sublinks: [
-                            { to: '/EtiquetaContraportada35', label: 'Contraportada (35cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                            { to: '/EtiquetaContraportada20', label: 'Contraportada (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
-                        ]
-                    }
                 ]
             },
             {
@@ -223,7 +215,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaCog className="mr-3 text-lg" />,
                 dropdown: 'configuraciones',
                 links: [
-                    { to: '/gestionusuarios', label: 'Settings', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
+                    { to: '/gestionusuarios', label: 'Gestión de usuarios', icon: <FaCog className="mr-3 text-lg" />, roles: ['admin'] },
                     { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'administracion', 'rrhh'] }
                 ]
             },
@@ -245,6 +237,11 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
         [user?.role]
     );
 
+    const username = String(user?.username || 'Usuario').trim();
+    const displayRole = String(user?.role || 'usuario')
+        .trim()
+        .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+
     return (
         <>
             {/* Overlay móvil */}
@@ -257,7 +254,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 className={[
                     'fixed',
                     SIDEBAR_TOP_OFFSET_CLASS,
-                    'bottom-0 left-0 z-50 w-[86vw] max-w-[320px] border-r border-slate-200 bg-white/95 shadow-xl backdrop-blur-sm md:w-64',
+                    'cjm-sidebar bottom-0 left-0 z-50 w-[88vw] max-w-[320px] border-r shadow-[18px_0_45px_-34px_rgba(15,23,42,0.55)] backdrop-blur-xl md:w-64',
                     'transform transition-transform duration-300 flex flex-col',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full',
                     'md:translate-x-0'
@@ -265,20 +262,28 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
             >
                 <button
                     onClick={closeSidebar}
-                    className="absolute right-4 top-4 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 md:hidden"
+                    className="cjm-icon-button absolute right-4 top-4 rounded-xl p-2 md:hidden"
                     aria-label="Cerrar sidebar"
                 >
                     <FaTimes />
                 </button>
 
-                <div className="p-4 shrink-0">
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="shrink-0 border-b border-slate-100 px-4 pb-4 pt-5">
+                    <div className="mb-3 pr-10 md:pr-0">
+                        <p className="cjm-kicker">Navegación</p>
+                        <p className="mt-1 text-xs text-slate-400">Acceso rápido a los módulos</p>
+                    </div>
+                    <label className="relative block">
+                        <span className="sr-only">Buscar en el menú</span>
+                        <FaSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar módulo..."
+                            className="cjm-input rounded-xl py-2.5 pl-10 pr-3 text-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </label>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto pb-10">
@@ -307,7 +312,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                 <li key={index}>
                                     <div
                                         onClick={() => toggleDropdown(section.dropdown)}
-                                        className="flex w-full cursor-pointer items-center rounded-xl px-3.5 py-3 text-sm text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 sm:px-4"
+                                        className="cjm-nav-section flex w-full cursor-pointer items-center rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 sm:px-4"
                                     >
                                         {section.icon}
                                         <span>{section.label}</span>
@@ -330,7 +335,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                         <li key={key}>
                                                             <div
                                                                 onClick={() => toggleSubDropdown(key)}
-                                                                className="flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100"
+                                                                className="cjm-nav-section flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide"
                                                             >
                                                                 <span>{group.label}</span>
                                                                 <FaChevronDown
@@ -353,8 +358,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                                     to={sublink.to}
                                                                                     className={({ isActive }) =>
                                                                                         `flex items-center rounded-xl px-3.5 py-3 text-sm sm:px-4 ${isActive
-                                                                                            ? 'bg-slate-900 text-white shadow-sm'
-                                                                                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                                                                                            ? 'cjm-nav-link-active'
+                                                                                            : 'cjm-nav-link'
                                                                                         } duration-200`
                                                                                     }
                                                                                     onClick={closeSidebar}
@@ -380,7 +385,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 href={link.to}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="flex items-center rounded-xl px-3.5 py-3 text-sm text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 sm:px-4"
+                                                                className="cjm-nav-link flex items-center rounded-xl px-3.5 py-3 text-sm transition-all duration-200 sm:px-4"
                                                                 onClick={closeSidebar}
                                                             >
                                                                 {link.icon}
@@ -391,8 +396,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 to={link.to}
                                                                 className={({ isActive }) =>
                                                                     `flex items-center rounded-xl px-3.5 py-3 text-sm sm:px-4 ${isActive
-                                                                        ? 'bg-slate-900 text-white shadow-sm'
-                                                                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                                                                        ? 'cjm-nav-link-active'
+                                                                        : 'cjm-nav-link'
                                                                     } duration-200`
                                                                 }
                                                                 onClick={closeSidebar}
@@ -410,6 +415,16 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             );
                         })}
                     </ul>
+                </div>
+
+                <div className="cjm-sidebar-footer m-3 mt-0 flex shrink-0 items-center gap-3 rounded-2xl border p-3">
+                    <span className="cjm-icon-tile flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold">
+                        {username.charAt(0).toUpperCase() || 'U'}
+                    </span>
+                    <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-800">{username}</span>
+                        <span className="block truncate text-xs text-slate-400">{displayRole}</span>
+                    </span>
                 </div>
             </nav>
         </>

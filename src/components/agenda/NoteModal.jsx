@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FiCamera, FiUpload, FiTrash2 } from 'react-icons/fi';
 import { FaTimes } from 'react-icons/fa';
 import InlineSpinner from '../common/InlineSpinner.jsx';
+import ConfirmDialog from '../common/ConfirmDialog.jsx';
+import { toast } from 'react-toastify';
 
 export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     const isEditing = Boolean(nota);
@@ -12,6 +14,7 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
     const [newFiles, setNewFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [confirmSave, setConfirmSave] = useState(false);
     const abortRef = useRef(null);
 
     const MB = 6;
@@ -23,7 +26,10 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
             .filter((f) => /^image\//.test(f.type))
             .filter((f) => f.size <= MB * 1024 * 1024);
         const total = existingImages.length + newFiles.length + arr.length;
-        if (total > 3) return alert('Máximo 3 imágenes por nota');
+        if (total > 3) {
+            toast.warning('Puedes adjuntar un máximo de 3 imágenes por nota.');
+            return;
+        }
         const dedup = arr.filter(
             (nf) => !newFiles.some((f) => f.name === nf.name && f.size === nf.size)
         );
@@ -45,32 +51,33 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
 
     useEffect(() => () => abortRef.current?.abort(), []);
 
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         if (!titulo.trim() || !contenido.trim()) {
-            return alert('Completa título y contenido');
-        }
-        if (!window.confirm('¿Seguro que quieres guardar la nota?')) {
+            toast.warning('Completa el título y el contenido de la nota.');
             return;
         }
+        if (!saving) setConfirmSave(true);
+    };
+
+    const saveNote = async () => {
         if (saving) return;
+        setConfirmSave(false);
         setSaving(true);
 
         const form = new FormData();
         form.append('titulo', titulo);
         form.append('contenido', contenido);
-        // soporta uno o varios ids
         []
             .concat(eventId)
             .filter(Boolean)
             .forEach((id) => form.append('eventos[]', String(id)));
 
-        // En PATCH, enviar keep_imagenes[] (filenames de las que se quedan)
         if (isEditing) {
             existingImages.forEach((url) =>
                 form.append('keep_imagenes[]', urlToFilename(url))
             );
         }
-        newFiles.forEach((f) => form.append('imagenes', f));
+        newFiles.forEach((file) => form.append('imagenes', file));
 
         try {
             abortRef.current = new AbortController();
@@ -78,28 +85,33 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
             const url = isEditing ? `${base}/api/notas/${nota.id}` : `${base}/api/notas`;
             const method = isEditing ? 'PATCH' : 'POST';
 
-            const res = await fetch(url, {
+            const response = await fetch(url, {
                 method,
                 headers: { Authorization: `Bearer ${token}` },
                 body: form,
-                signal: abortRef.current.signal
+                signal: abortRef.current.signal,
             });
 
-            if (!res.ok) {
-                const errBody = await res.json().catch(() => ({}));
-                throw new Error(errBody?.error || `Error ${res.status}`);
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(errorBody?.error || `Error ${response.status}`);
             }
-            const saved = await res.json();
+
+            const saved = await response.json();
+            toast.success(isEditing ? 'Nota actualizada correctamente.' : 'Nota guardada correctamente.');
             onSaved(saved);
-        } catch (err) {
-            console.error(err);
-            alert(err.message || 'Error al guardar la nota');
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error);
+                toast.error(error.message || 'Error al guardar la nota.');
+            }
         } finally {
             setSaving(false);
         }
     };
 
     return (
+        <>
         <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-slate-900/60 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-6 sm:py-8">
             <div className="w-full max-w-4xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
                 <div className="flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)]">
@@ -304,5 +316,16 @@ export default function NoteModal({ token, eventId, nota, onClose, onSaved }) {
                 </div>
             </div>
         </div>
+        {confirmSave && (
+            <ConfirmDialog
+                title={isEditing ? 'Actualizar nota' : 'Guardar nota'}
+                message="Se guardará la nota con el contenido y las imágenes seleccionadas."
+                confirmLabel={isEditing ? 'Actualizar' : 'Guardar'}
+                onConfirm={saveNote}
+                onCancel={() => setConfirmSave(false)}
+                loading={saving}
+            />
+        )}
+        </>
     );
 }

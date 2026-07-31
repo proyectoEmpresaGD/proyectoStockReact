@@ -6,7 +6,9 @@ import PaginationControls from '../components/PaginationControls';
 import { useAuthContext } from '../Auth/AuthContext';
 import { AiOutlineLoading3Quarters, AiOutlineSearch } from 'react-icons/ai';
 import { FaTimes } from 'react-icons/fa';
+import { FiHelpCircle, FiPackage } from 'react-icons/fi';
 import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
 
 function Stock() {
     const { token } = useAuthContext();
@@ -362,13 +364,13 @@ function Stock() {
         [token, SEARCH_FETCH_LIMIT]
     );
 
-    const handleSearchKeyPress = (event) => {
+    const handleSearchKeyPress = (event, explicitValue) => {
         if (event.key !== 'Enter') return;
 
         event.preventDefault();
         event.stopPropagation();
 
-        performSearch(searchTerm);
+        performSearch(explicitValue || searchTerm);
         setSuggestions([]);
         setSearchTerm('');
     };
@@ -478,149 +480,144 @@ function Stock() {
     const anyLoading = loadingStock;
 
     return (
-        <PageShell maxWidth="max-w-5xl" className="mt-16 sm:mt-20">
-            <div className="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-                <div className="text-center sm:text-left">
-                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                        Stock
-                    </h1>
+        <PageShell maxWidth="max-w-6xl" className="mt-16 sm:mt-20">
+            <PageHeader
+                eyebrow="Operaciones · Almacén"
+                title="Consulta de stock"
+                description="Busca productos, comprueba el disponible real, las reservas, los lotes y las fechas estimadas desde cualquier dispositivo."
+                icon={FiPackage}
+                actions={(
+                    <button
+                        type="button"
+                        onClick={() => setShowHelpModal(true)}
+                        className="cjm-ghost-button w-full sm:w-auto"
+                    >
+                        <FiHelpCircle className="text-lg" aria-hidden="true" />
+                        Cómo funciona
+                    </button>
+                )}
+            />
 
-                    <p className="mt-2 text-sm text-slate-500 md:text-base">
-                        Herramienta de búsqueda de productos y lotes.
-                    </p>
+            <section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Buscador de stock">
+                <div ref={wrapperRef}>
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        suggestions={suggestions}
+                        setSuggestions={setSuggestions}
+                        handleSearchInputChange={(event) => setSearchTerm(event.target.value)}
+                        handleSearchKeyPress={handleSearchKeyPress}
+                        handleSuggestionClick={handleSuggestionClickLocal}
+                    />
+
+                    <div className="mt-3 flex min-h-6 flex-wrap items-center gap-2">
+                        {loadingSearch && (
+                            <span className="cjm-brand-chip px-3 py-1.5 text-xs font-semibold">
+                                <AiOutlineLoading3Quarters className="animate-spin" aria-hidden="true" />
+                                Buscando productos…
+                            </span>
+                        )}
+
+                        {loadingFechas && (
+                            <span className="cjm-brand-chip px-3 py-1.5 text-xs font-semibold">
+                                <AiOutlineLoading3Quarters className="animate-spin" aria-hidden="true" />
+                                Actualizando fechas…
+                            </span>
+                        )}
+
+                        {!!combinedResults.length && (
+                            <span className="cjm-badge sm:ml-auto">
+                                {combinedResults.length} resultado{combinedResults.length === 1 ? '' : 's'}
+                            </span>
+                        )}
+                    </div>
                 </div>
+            </section>
 
-                <button
-                    type="button"
-                    onClick={() => setShowHelpModal(true)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-                    title="Cómo funciona"
-                >
-                    <AiOutlineSearch className="text-lg" />
-                    Cómo funciona
-                </button>
-            </div>
-
-            <div ref={wrapperRef} className="mb-6">
-                <SearchBar
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    suggestions={suggestions}
-                    setSuggestions={setSuggestions}
-                    handleSearchInputChange={(event) => setSearchTerm(event.target.value)}
-                    handleSearchKeyPress={handleSearchKeyPress}
-                    handleSuggestionClick={handleSuggestionClickLocal}
-                />
-
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {loadingSearch && (
-                        <span className="inline-flex items-center gap-2 text-sm text-slate-600">
-                            <AiOutlineLoading3Quarters className="animate-spin" />
-                            Buscando…
-                        </span>
-                    )}
-
-                    {loadingFechas && (
-                        <span className="inline-flex items-center gap-2 text-sm text-slate-600">
-                            <AiOutlineLoading3Quarters className="animate-spin" />
-                            Cargando fechas…
-                        </span>
-                    )}
-
-                    {!!combinedResults.length && (
-                        <span className="ml-auto text-sm text-slate-600">
-                            {combinedResults.length} resultado
-                            {combinedResults.length === 1 ? '' : 's'}
-                        </span>
-                    )}
+            {error && (
+                <div className="cjm-alert cjm-alert-error mt-4" role="alert">
+                    {error}
                 </div>
-            </div>
-
-            {error && <p className="mb-4 text-center text-red-500">{error}</p>}
-
-            {anyLoading ? (
-                <div className="flex justify-center py-10">
-                    <AiOutlineLoading3Quarters className="text-3xl text-slate-600 animate-spin" />
-                </div>
-            ) : (
-                <>
-                    <ProductTable products={pagedProducts} fetchProductLots={fetchProductLots} />
-
-                    {!!combinedResults.length && (
-                        <PaginationControls
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            handlePageChange={handlePageChange}
-                        />
-                    )}
-                </>
             )}
 
+            <section className="mt-5 sm:mt-6" aria-live="polite">
+                {anyLoading ? (
+                    <div className="cjm-empty-state flex min-h-44 items-center justify-center">
+                        <span className="inline-flex items-center gap-3 text-sm font-semibold app-text">
+                            <AiOutlineLoading3Quarters className="animate-spin text-2xl text-[var(--cjm-primary-deep)]" />
+                            Preparando el stock…
+                        </span>
+                    </div>
+                ) : (
+                    <>
+                        <ProductTable products={pagedProducts} fetchProductLots={fetchProductLots} />
+
+                        {!!combinedResults.length && (
+                            <PaginationControls
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                handlePageChange={handlePageChange}
+                            />
+                        )}
+                    </>
+                )}
+            </section>
+
             {showHelpModal && (
-                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/50 p-4">
-                    <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                            <div>
-                                <h2 className="text-lg font-semibold text-slate-900">
-                                    Cómo funciona el apartado de Stock
+                <div className="cjm-modal-backdrop" role="presentation" onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setShowHelpModal(false);
+                }}>
+                    <section
+                        className="cjm-modal sm:max-w-2xl"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="stock-help-title"
+                    >
+                        <div className="cjm-modal-header flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
+                            <div className="min-w-0">
+                                <p className="cjm-kicker">Guía rápida</p>
+                                <h2 id="stock-help-title" className="mt-1 text-lg font-semibold app-text sm:text-xl">
+                                    Cómo interpretar el stock
                                 </h2>
-                                <p className="text-sm text-slate-500">
-                                    Guía rápida para interpretar los resultados.
+                                <p className="cjm-muted mt-1 text-sm">
+                                    Referencia rápida para búsquedas, reservas y lotes.
                                 </p>
                             </div>
 
                             <button
                                 type="button"
                                 onClick={() => setShowHelpModal(false)}
-                                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                                className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                                aria-label="Cerrar ayuda"
                             >
-                                <FaTimes />
+                                <FaTimes aria-hidden="true" />
                             </button>
                         </div>
 
-                        <div className="space-y-4 px-5 py-5 text-sm leading-relaxed text-slate-600">
-                            <div>
-                                <h3 className="font-semibold text-slate-900">Buscador</h3>
-                                <p>
-                                    Puedes buscar por referencia, código de producto. Para visualizar el producto se puede dar a enter para ver todas las coincidencias del nombre o
-                                    hacer clic en la que se quiere en la pequeña ventana de sugerencias que se desplegara del buscador.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold text-slate-900">Stock disponible</h3>
-                                <p>
-                                    El stock disponible muestra las unidades actuales después de tener en cuenta las
-                                    reservas.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold text-slate-900">Lotes</h3>
-                                <p>
-                                    Si un producto tiene varios lotes, puedes consultar el detalle para ver la
-                                    disponibilidad real de cada lote.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold text-slate-900">Fecha estimada</h3>
-                                <p>
-                                    La fecha estimada se calcula usando días laborables.
-                                </p>
-                            </div>
+                        <div className="cjm-modal-body space-y-3 px-4 py-5 sm:px-6">
+                            {[
+                                ['Buscador', 'Busca por referencia, código o nombre. Pulsa Enter, toca Buscar o selecciona una sugerencia.'],
+                                ['Stock disponible', 'Es la cantidad que puede utilizarse después de descontar las reservas activas.'],
+                                ['Lotes', 'El detalle muestra el disponible, reservado y total real de cada lote o pieza.'],
+                                ['Fecha estimada', 'La previsión se expresa en días laborables y añade el margen operativo configurado.'],
+                            ].map(([title, text]) => (
+                                <div key={title} className="cjm-data-card">
+                                    <h3 className="text-sm font-semibold app-text">{title}</h3>
+                                    <p className="cjm-muted mt-1 text-sm leading-6">{text}</p>
+                                </div>
+                            ))}
                         </div>
 
-                        <div className="flex justify-end border-t border-slate-200 px-5 py-4">
+                        <div className="cjm-modal-footer flex justify-end border-t px-4 py-4 sm:px-6">
                             <button
                                 type="button"
                                 onClick={() => setShowHelpModal(false)}
-                                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                className="cjm-primary-button min-h-11 w-full rounded-xl px-5 py-2.5 text-sm font-semibold sm:w-auto"
                             >
                                 Entendido
                             </button>
                         </div>
-                    </div>
+                    </section>
                 </div>
             )}
         </PageShell>

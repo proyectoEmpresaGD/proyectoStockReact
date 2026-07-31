@@ -1,6 +1,6 @@
-// src/components/productos/SearchBar.jsx
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AiOutlineSearch } from 'react-icons/ai';
+import { FiBox } from 'react-icons/fi';
 import debounce from 'lodash.debounce';
 
 const SearchBar = ({
@@ -19,19 +19,12 @@ const SearchBar = ({
     const suggestionsRefs = useRef([]);
     const lastEmittedRef = useRef(searchTerm || '');
 
-    const debouncedUpdate = useMemo(() => {
-        const fn = debounce((value) => {
-            lastEmittedRef.current = value;
-            handleSearchInputChange?.({ target: { value } });
-            // setSearchTerm?.(value);
-        }, 300);
-        return fn;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [handleSearchInputChange]);
+    const debouncedUpdate = useMemo(() => debounce((value) => {
+        lastEmittedRef.current = value;
+        handleSearchInputChange?.({ target: { value } });
+    }, 300), [handleSearchInputChange]);
 
-    useEffect(() => {
-        return () => debouncedUpdate.cancel();
-    }, [debouncedUpdate]);
+    useEffect(() => () => debouncedUpdate.cancel(), [debouncedUpdate]);
 
     useEffect(() => {
         const incoming = searchTerm ?? '';
@@ -41,12 +34,6 @@ const SearchBar = ({
         }
     }, [searchTerm]);
 
-    const onInputChange = (e) => {
-        const value = (e.target.value || '').toUpperCase();
-        setLocalTerm(value);
-        debouncedUpdate(value);
-    };
-
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -54,105 +41,154 @@ const SearchBar = ({
                 setHighlightedIndex(0);
             }
         };
+
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [setSuggestions]);
 
-    const doSearchNow = (e) => {
+    useEffect(() => {
+        const element = suggestionsRefs.current[highlightedIndex];
+        if (element) element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, [highlightedIndex, suggestions]);
+
+    useEffect(() => setHighlightedIndex(0), [suggestions, localTerm]);
+
+    const onInputChange = (event) => {
+        const value = (event.target.value || '').toUpperCase();
+        setLocalTerm(value);
+        debouncedUpdate(value);
+    };
+
+    const doSearchNow = (event) => {
         const value = (localTerm || '').trim();
-        handleSearchKeyPress?.(e, value);
+        if (!value) return;
+
+        lastEmittedRef.current = value;
+        setSearchTerm?.(value);
+        handleSearchInputChange?.({ target: { value } });
+        handleSearchKeyPress?.(event, value);
         setSuggestions([]);
     };
 
-    const onKeyDown = (e) => {
+    const onKeyDown = (event) => {
         if (suggestions.length > 0) {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1));
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setHighlightedIndex((i) => Math.max(i - 1, 0));
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setHighlightedIndex((index) => Math.min(index + 1, suggestions.length - 1));
+                return;
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setHighlightedIndex((index) => Math.max(index - 1, 0));
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
                 const selected = suggestions[highlightedIndex];
                 if (selected) {
                     handleSuggestionClick(selected);
                     setSuggestions([]);
                 } else {
-                    doSearchNow(e);
+                    doSearchNow(event);
                 }
+                return;
             }
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            doSearchNow(e);
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            doSearchNow(event);
         }
     };
-
-    useEffect(() => {
-        const el = suggestionsRefs.current[highlightedIndex];
-        if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }, [highlightedIndex, suggestions]);
-
-    const onIconClick = () => {
-        doSearchNow({ key: 'Enter', preventDefault: () => { }, stopPropagation: () => { } });
-    };
-
-    useEffect(() => {
-        setHighlightedIndex(0);
-    }, [suggestions, localTerm]);
 
     return (
         <div
             ref={wrapperRef}
             role="combobox"
             aria-expanded={suggestions.length > 0}
-            aria-owns="search-listbox"
-            className="relative w-full max-w-lg mx-auto"
+            aria-owns="product-search-listbox"
+            className="relative w-full"
         >
-            <div className="relative">
-                <input
-                    type="text"
-                    value={localTerm}
-                    onChange={onInputChange}
-                    onKeyDown={onKeyDown}
-                    aria-autocomplete="list"
-                    aria-controls="search-listbox"
-                    aria-activedescendant={suggestions.length > 0 ? `search-option-${highlightedIndex}` : undefined}
-                    className="w-full p-3 pr-12 border rounded-xl uppercase focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition duration-200 text-base"
-                    placeholder="Buscar productos..."
-                />
-                <AiOutlineSearch
-                    onClick={onIconClick}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-500"
-                    size={22}
-                    aria-label="Buscar"
-                />
+            <label className="cjm-control-label" htmlFor="product-stock-search">
+                Producto o referencia
+            </label>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
+                    <FiBox
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]"
+                        aria-hidden="true"
+                    />
+                    <input
+                        id="product-stock-search"
+                        type="search"
+                        value={localTerm}
+                        onChange={onInputChange}
+                        onKeyDown={onKeyDown}
+                        autoComplete="off"
+                        enterKeyHint="search"
+                        aria-autocomplete="list"
+                        aria-controls="product-search-listbox"
+                        aria-activedescendant={suggestions.length > 0 ? `product-search-option-${highlightedIndex}` : undefined}
+                        className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-4 uppercase"
+                        placeholder="Ej. OM, DAMASCO o una referencia"
+                    />
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => doSearchNow({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {} })}
+                    disabled={!localTerm.trim()}
+                    className="cjm-primary-button inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold sm:w-auto"
+                >
+                    <AiOutlineSearch className="text-lg" aria-hidden="true" />
+                    Buscar
+                </button>
             </div>
+
+            <p className="cjm-muted mt-2 text-xs leading-5">
+                Pulsa Enter o selecciona una coincidencia. En móvil puedes usar el botón Buscar.
+            </p>
 
             {suggestions.length > 0 && (
                 <ul
-                    id="search-listbox"
+                    id="product-search-listbox"
                     role="listbox"
-                    className="absolute z-30 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-auto"
+                    className="absolute left-0 right-0 z-50 mt-2 max-h-[min(20rem,48dvh)] overflow-auto rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-1.5 shadow-[var(--cjm-shadow)]"
                 >
-                    {suggestions.map((s, i) => (
-                        <li
-                            key={s.codprodu ?? i}
-                            ref={(el) => (suggestionsRefs.current[i] = el)}
-                            id={`search-option-${i}`}
-                            role="option"
-                            aria-selected={highlightedIndex === i}
-                            className={`p-3 cursor-pointer transition-all duration-150 ease-in-out ${highlightedIndex === i ? 'bg-blue-100' : 'hover:bg-gray-100'
+                    {suggestions.map((suggestion, index) => {
+                        const highlighted = highlightedIndex === index;
+                        return (
+                            <li
+                                key={suggestion.codprodu ?? index}
+                                ref={(element) => (suggestionsRefs.current[index] = element)}
+                                id={`product-search-option-${index}`}
+                                role="option"
+                                aria-selected={highlighted}
+                                className={`cursor-pointer rounded-xl px-3 py-3 transition ${
+                                    highlighted
+                                        ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]'
+                                        : 'text-[var(--cjm-text)] hover:bg-[var(--cjm-surface-muted)]'
                                 }`}
-                            onMouseEnter={() => setHighlightedIndex(i)}
-                            onClick={() => {
-                                handleSuggestionClick(s);
-                                setSuggestions([]);
-                            }}
-                        >
-                            {s.desprodu}
-                        </li>
-                    ))}
+                                onMouseEnter={() => setHighlightedIndex(index)}
+                                onClick={() => {
+                                    handleSuggestionClick(suggestion);
+                                    setSuggestions([]);
+                                }}
+                            >
+                                <span className="block text-sm font-semibold leading-5">
+                                    {suggestion.desprodu}
+                                </span>
+                                {suggestion.codprodu && (
+                                    <span className="cjm-muted mt-0.5 block text-xs">
+                                        Ref. {suggestion.codprodu}
+                                    </span>
+                                )}
+                            </li>
+                        );
+                    })}
                 </ul>
             )}
         </div>

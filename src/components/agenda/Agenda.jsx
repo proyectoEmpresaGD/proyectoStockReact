@@ -40,32 +40,32 @@ function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
     ];
 
     return (
-        <div className="bg-white px-4 py-3 shadow flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="cjm-card agenda-toolbar flex flex-col gap-3 rounded-2xl px-3 py-3 sm:px-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => onNavigate('TODAY')}
-                        className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        className="cjm-primary-button min-h-11 rounded-xl px-4 text-sm font-semibold"
                         aria-label="Ir a hoy"
                     >
                         Hoy
                     </button>
                     <button
                         onClick={() => onNavigate('PREV')}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-lg font-semibold transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl text-lg font-semibold"
                         aria-label="Ver periodo anterior"
                     >
                         ‹
                     </button>
                     <button
                         onClick={() => onNavigate('NEXT')}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 text-lg font-semibold transition hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl text-lg font-semibold"
                         aria-label="Ver siguiente periodo"
                     >
                         ›
                     </button>
                 </div>
-                <span className="text-lg font-semibold capitalize text-slate-700">
+                <span className="app-text text-lg font-semibold capitalize">
                     {format(date, 'MMMM yyyy', { locale: es })}
                 </span>
             </div>
@@ -77,7 +77,7 @@ function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
                         <select
                             value={view}
                             onChange={event => onView(event.target.value)}
-                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            className="cjm-input min-h-11 w-full rounded-xl px-3 py-2 text-base sm:text-sm"
                         >
                             {viewOptions.map(option => (
                                 <option key={option.value} value={option.value}>
@@ -93,8 +93,8 @@ function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
                                 key={btn.value}
                                 onClick={() => onView(btn.value)}
                                 className={`h-10 w-20 rounded-lg text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-200 ${view === btn.value
-                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        ? 'cjm-primary-button text-white'
+                                        : 'cjm-icon-button app-text'
                                     }`}
                             >
                                 {btn.label}
@@ -104,7 +104,7 @@ function CustomToolbar({ date, view, onNavigate, onView, onNew, isMobile }) {
                 )}
                 <button
                     onClick={onNew}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-200"
+                    className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"
                 >
                     <span aria-hidden="true">＋</span>
                     Nueva visita
@@ -634,7 +634,7 @@ export default function AgendaPage() {
         : 'h-[55vh] sm:h-[65vh] md:h-[75vh] xl:h-[70vh]';
 
     return (
-        <div className="agenda-responsive mx-auto max-w-6xl space-y-6 px-3 py-6 sm:px-4">
+        <div className="agenda-responsive space-y-6">
             {(loadingVisits || loadingNotas) && (
                 <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
                     Actualizando información de agenda y notas...
@@ -679,7 +679,7 @@ export default function AgendaPage() {
                                 card.action();
                             }
                         }}
-                        className={`bg-white shadow rounded-xl px-5 py-4 border border-slate-100 ${card.action
+                        className={`cjm-card agenda-summary-card rounded-2xl px-5 py-4 ${card.action
                                 ? 'cursor-pointer transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-300'
                                 : ''
                             }`}
@@ -725,7 +725,7 @@ export default function AgendaPage() {
                         isMobile={isMobile}
                     />
 
-                    <div className="bg-white shadow px-4 py-3 rounded-lg border border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="cjm-card agenda-filter-bar flex flex-col gap-3 rounded-2xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="relative w-full sm:max-w-xs">
                             <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
                             <input
@@ -733,7 +733,7 @@ export default function AgendaPage() {
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 placeholder="Buscar por cliente, estado o descripción"
-                                className="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-300 focus:outline-none"
+                                className="cjm-input min-h-11 w-full rounded-xl py-2 pl-9 pr-3 text-base sm:text-sm"
                             />
                         </div>
                         <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -747,7 +747,7 @@ export default function AgendaPage() {
                     </div>
 
                     {/* Calendario */}
-                    <div className={`${calendarHeightClass} overflow-hidden rounded-lg border bg-white shadow`}>
+                    <div className={`${calendarHeightClass} agenda-calendar-shell overflow-hidden rounded-2xl border`}>
                         <Calendar
                             localizer={localizer}
                             events={filteredEvents}
@@ -777,7 +777,7 @@ export default function AgendaPage() {
                 </div>
 
                 <aside className="space-y-4">
-                    <div className="bg-white shadow rounded-xl border border-slate-100 p-5">
+                    <div className="cjm-card agenda-upcoming rounded-2xl p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <h3 className="text-lg font-semibold text-slate-900">Próximas visitas</h3>
@@ -789,7 +789,7 @@ export default function AgendaPage() {
                                 onClick={() =>
                                     setSlot({ start: addHours(new Date(), 1), end: addHours(new Date(), 2) })
                                 }
-                                className="w-full text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-center sm:w-auto"
+                                className="cjm-primary-button min-h-11 w-full rounded-xl px-3 py-2 text-center text-sm font-semibold sm:w-auto"
                             >
                                 + Programar
                             </button>
@@ -812,7 +812,7 @@ export default function AgendaPage() {
                                         <button
                                             key={evento.id}
                                             onClick={() => setSelectedVisit(evento)}
-                                            className="w-full text-left border border-slate-200 hover:border-indigo-200 hover:shadow rounded-lg px-4 py-3 transition bg-slate-50"
+                                            className="agenda-visit-card w-full rounded-xl border px-4 py-3 text-left transition"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <p className="text-sm font-semibold text-slate-900 line-clamp-2">
@@ -838,7 +838,7 @@ export default function AgendaPage() {
                         </div>
                     </div>
 
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+                    <div className="cjm-brand-chip block rounded-2xl p-4 text-sm">
                         <h4 className="font-semibold mb-1">Consejo rápido</h4>
                         <p>
                             Usa el buscador para filtrar por nombre del cliente o estado y encuentra rápidamente

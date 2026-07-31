@@ -1,42 +1,62 @@
 import React from 'react';
+import { FiAlertTriangle } from 'react-icons/fi';
 import InlineSpinner from './InlineSpinner.jsx';
 
 export default function ConfirmDialog({
+    title = 'Confirmar acción',
     message,
     onConfirm,
     onCancel,
-    confirmLabel = 'Sí',
+    confirmLabel = 'Confirmar',
     cancelLabel = 'Cancelar',
-    loading = false
+    loading = false,
+    destructive = false,
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-black/60 px-4 py-6 sm:items-center">
-            <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl sm:rounded-xl">
-                <p className="text-lg text-gray-800">{message}</p>
-                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+        <div className="cjm-modal-backdrop z-[1100]" role="presentation">
+            <section
+                className="cjm-modal sm:max-w-md"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="confirm-dialog-title"
+                aria-describedby="confirm-dialog-message"
+            >
+                <div className="cjm-modal-body px-5 py-6 text-center sm:px-7 sm:py-7">
+                    <span className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border ${
+                        destructive
+                            ? 'border-red-200 bg-red-50 text-red-600'
+                            : 'border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]'
+                    }`}>
+                        <FiAlertTriangle className="text-xl" aria-hidden="true" />
+                    </span>
+                    <h2 id="confirm-dialog-title" className="mt-4 text-lg font-semibold app-text">
+                        {title}
+                    </h2>
+                    <p id="confirm-dialog-message" className="cjm-muted mt-2 text-sm leading-6">
+                        {message}
+                    </p>
+                </div>
+
+                <div className="cjm-modal-footer grid grid-cols-1 gap-2 border-t px-4 py-4 sm:grid-cols-2 sm:px-6">
                     <button
+                        type="button"
                         onClick={onCancel}
-                        className="rounded-lg bg-gray-200 px-4 py-2 text-gray-800 transition hover:bg-gray-300 disabled:opacity-60"
+                        className="cjm-ghost-button"
                         disabled={loading}
                     >
                         {cancelLabel}
                     </button>
                     <button
+                        type="button"
                         onClick={onConfirm}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                        className={destructive ? 'cjm-danger-button' : 'cjm-primary-button min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold'}
                         disabled={loading}
                     >
-                        {loading ? (
-                            <>
-                                <InlineSpinner className="w-4 h-4 text-white" srLabel="Procesando" />
-                                Procesando…
-                            </>
-                        ) : (
-                            confirmLabel
-                        )}
+                        {loading && <InlineSpinner className="h-4 w-4" srLabel="Procesando" />}
+                        {loading ? 'Procesando…' : confirmLabel}
                     </button>
                 </div>
-            </div>
+            </section>
         </div>
     );
 }

@@ -1,254 +1,279 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, ShoppingCart, UploadCloud } from 'lucide-react';
+import { toast } from 'react-toastify';
 import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
+import EmptyState from '../common/EmptyState.jsx';
 import { uploadIntrastatExcel } from '../services/intrastatClient.js';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
-function Intrastat() {
+
+const money = (value) => Number(value || 0).toLocaleString('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+function downloadGeneratedFile(result) {
+    if (!result?.fileBase64) return false;
+
+    const byteCharacters = atob(result.fileBase64);
+    const byteNumbers = new Uint8Array(byteCharacters.length);
+
+    for (let index = 0; index < byteCharacters.length; index += 1) {
+        byteNumbers[index] = byteCharacters.charCodeAt(index);
+    }
+
+    const blob = new Blob([byteNumbers], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = result.fileName || 'intrastat.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return true;
+}
+
+function IvaResults({ rows }) {
+    return (
+        <section className="cjm-card overflow-hidden rounded-3xl" aria-labelledby="iva-results-title">
+            <header className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-4 py-4 sm:px-6">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+                <div>
+                    <h2 id="iva-results-title" className="font-semibold text-amber-900">Facturas con IVA a revisar</h2>
+                    <p className="mt-1 text-sm text-amber-800">Comprueba estos registros antes de presentar el fichero.</p>
+                </div>
+                <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">{rows.length}</span>
+            </header>
+
+            {rows.length === 0 ? (
+                <div className="p-4 sm:p-6">
+                    <div className="cjm-alert cjm-alert-success flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+                        No se han detectado facturas con IVA incorrecto.
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="hidden sm:block">
+                        <div className="cjm-table-scroller">
+                            <table className="cjm-table">
+                                <thead><tr><th>Serie</th><th>Factura</th><th>IVA detectado</th></tr></thead>
+                                <tbody>
+                                    {rows.map((row, index) => (
+                                        <tr key={`${row.codserfacventa || row.codserfaccompra || 'serie'}-${row.nfacventa || row.nfaccompra || index}`}>
+                                            <td className="font-semibold">{row.codserfacventa ?? row.codserfaccompra ?? row.serie ?? '—'}</td>
+                                            <td>{row.nfacventa ?? row.nfaccompra ?? row.factura ?? '—'}</td>
+                                            <td><span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">{row.codigos_iva || row.iva || 'Revisar'}</span></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div className="space-y-3 p-4 sm:hidden">
+                        {rows.map((row, index) => (
+                            <article className="cjm-data-card" key={`${row.codserfacventa || row.codserfaccompra || 'serie'}-mobile-${index}`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="cjm-data-label">Factura</p>
+                                        <p className="mt-1 font-semibold app-text">
+                                            {row.codserfacventa ?? row.codserfaccompra ?? row.serie ?? ''}
+                                            {row.nfacventa ?? row.nfaccompra ?? row.factura ?? '—'}
+                                        </p>
+                                    </div>
+                                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">{row.codigos_iva || row.iva || 'Revisar'}</span>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                </>
+            )}
+        </section>
+    );
+}
+
+function DifferenceResults({ rows }) {
+    if (!rows.length) return null;
+
+    return (
+        <section className="cjm-card overflow-hidden rounded-3xl" aria-labelledby="difference-results-title">
+            <header className="flex items-start gap-3 border-b border-red-200 bg-red-50 px-4 py-4 sm:px-6">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden="true" />
+                <div>
+                    <h2 id="difference-results-title" className="font-semibold text-red-900">Facturas con descuadre</h2>
+                    <p className="mt-1 text-sm text-red-800">El total del Excel no coincide con el total registrado en la base de datos.</p>
+                </div>
+                <span className="ml-auto rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">{rows.length}</span>
+            </header>
+
+            <div className="hidden sm:block">
+                <div className="cjm-table-scroller">
+                    <table className="cjm-table">
+                        <thead><tr><th>Factura</th><th className="text-right">Total Excel</th><th className="text-right">Total BD</th><th className="text-right">Diferencia</th></tr></thead>
+                        <tbody>
+                            {rows.map((row, index) => (
+                                <tr key={`${row.factura || 'factura'}-${index}`}>
+                                    <td className="font-semibold">{row.factura || '—'}</td>
+                                    <td className="text-right tabular-nums">{money(row.totalExcel)} €</td>
+                                    <td className="text-right tabular-nums">{money(row.totalBD)} €</td>
+                                    <td className="text-right font-bold tabular-nums text-red-700">{money(row.diferencia)} €</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="space-y-3 p-4 sm:hidden">
+                {rows.map((row, index) => (
+                    <article className="cjm-data-card" key={`${row.factura || 'factura'}-mobile-${index}`}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div><p className="cjm-data-label">Factura</p><p className="mt-1 font-semibold app-text">{row.factura || '—'}</p></div>
+                            <p className="font-bold tabular-nums text-red-700">{money(row.diferencia)} €</p>
+                        </div>
+                        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--cjm-border)] pt-3 text-sm">
+                            <div><dt className="cjm-data-label">Excel</dt><dd className="mt-1 tabular-nums app-text">{money(row.totalExcel)} €</dd></div>
+                            <div><dt className="cjm-data-label">Base de datos</dt><dd className="mt-1 tabular-nums app-text">{money(row.totalBD)} €</dd></div>
+                        </dl>
+                    </article>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+export default function Intrastat() {
     const { token } = useAuthContext();
+    const inputRef = useRef(null);
     const [file, setFile] = useState(null);
     const [errores, setErrores] = useState([]);
     const [facturasIva, setFacturasIva] = useState([]);
     const [loading, setLoading] = useState(false);
     const [tipo, setTipo] = useState('ventas');
     const [mesIntrastat, setMesIntrastat] = useState('');
+    const [error, setError] = useState('');
+    const [hasRun, setHasRun] = useState(false);
+
     const handleGenerar = async () => {
-        if (!file) return;
+        if (!file || loading) return;
 
         setLoading(true);
+        setError('');
         setErrores([]);
         setFacturasIva([]);
 
         try {
-            const result = await uploadIntrastatExcel(
-                file,
-                tipo,
-                mesIntrastat,
-                token
-            );
+            const result = await uploadIntrastatExcel(file, tipo, mesIntrastat, token);
+            const ivaRows = result.facturasIvaIncorrecto || [];
+            const differenceRows = result.errores || [];
+            setFacturasIva(ivaRows);
+            setErrores(differenceRows);
+            setHasRun(true);
 
-            setFacturasIva(result.facturasIvaIncorrecto || []);
-            setErrores(result.errores || []);
-
-            if (result.fileBase64) {
-                const byteCharacters = atob(result.fileBase64);
-                const byteNumbers = new Array(byteCharacters.length);
-
-                for (let i = 0; i < byteCharacters.length; i += 1) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-
-                const byteArray = new Uint8Array(byteNumbers);
-
-                const blob = new Blob([byteArray], {
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                });
-
-                const url = window.URL.createObjectURL(blob);
-
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = result.fileName || 'intrastat.xlsx';
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                window.URL.revokeObjectURL(url);
-            }
-
-        } catch (error) {
-            console.error(error);
+            const downloaded = downloadGeneratedFile(result);
+            toast.success(downloaded ? 'Intrastat generado y descargado correctamente.' : 'Validación completada correctamente.');
+        } catch (requestError) {
+            console.error(requestError);
+            const message = requestError?.message || 'No se pudo generar el fichero Intrastat.';
+            setError(message);
+            setHasRun(false);
+            toast.error(message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <PageShell className="mt-12 max-w-6xl">
-            <div className="mb-8 text-center">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-                    Generador Intrastat
-                </h1>
+        <PageShell maxWidth="max-w-6xl">
+            <PageHeader
+                eyebrow="Administración · Comercio exterior"
+                title="Generador Intrastat"
+                description="Valida las facturas y genera el fichero de ventas o compras desde un Excel."
+                icon={FileSpreadsheet}
+            />
 
-                <div className="mt-6 flex justify-center">
-                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-sm">
-                        <button
-                            type="button"
-                            onClick={() => setTipo('ventas')}
-                            className={[
-                                'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition',
-                                tipo === 'ventas'
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
-                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'
-                            ].join(' ')}
-                        >
-                            <span
-                                className={[
-                                    'h-2.5 w-2.5 rounded-full',
-                                    tipo === 'ventas' ? 'bg-emerald-500' : 'bg-slate-300'
-                                ].join(' ')}
-                            />
-                            Ventas
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setTipo('compras')}
-                            className={[
-                                'flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition',
-                                tipo === 'compras'
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
-                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'
-                            ].join(' ')}
-                        >
-                            <span
-                                className={[
-                                    'h-2.5 w-2.5 rounded-full',
-                                    tipo === 'compras' ? 'bg-blue-500' : 'bg-slate-300'
-                                ].join(' ')}
-                            />
-                            Compras
-                        </button>
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+                <section className="cjm-card rounded-3xl p-4 sm:p-6">
+                    <div className="cjm-segmented grid w-full grid-cols-2" aria-label="Tipo de declaración">
+                        <button type="button" aria-pressed={tipo === 'ventas'} onClick={() => setTipo('ventas')}>Ventas</button>
+                        <button type="button" aria-pressed={tipo === 'compras'} onClick={() => setTipo('compras')}>Compras</button>
                     </div>
-                </div>
 
-                <p className="mt-2 text-sm text-slate-500">
-                    Sube tu Excel y genera el Intrastat automáticamente con validación de facturas
-                </p>
-            </div>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <label>
+                            <span className="cjm-control-label">Mes Intrastat</span>
+                            <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
+                                <input
+                                    type="month"
+                                    value={mesIntrastat}
+                                    onChange={(event) => setMesIntrastat(event.target.value)}
+                                    className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none"
+                                    disabled={tipo !== 'ventas'}
+                                />
+                            </span>
+                            <span className="cjm-muted mt-1.5 block text-xs">En compras se utilizará el periodo incluido en el archivo.</span>
+                        </label>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-gray-700">
-                        Mes Intrastat
-                    </span>
+                        <div>
+                            <span className="cjm-control-label">Archivo de origen</span>
+                            <button
+                                type="button"
+                                onClick={() => inputRef.current?.click()}
+                                className="cjm-ghost-button w-full justify-start"
+                            >
+                                <UploadCloud className="h-4 w-4" aria-hidden="true" />
+                                <span className="min-w-0 truncate">{file?.name || 'Seleccionar Excel o CSV'}</span>
+                            </button>
+                            <input
+                                ref={inputRef}
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                onChange={(event) => setFile(event.target.files?.[0] || null)}
+                                className="sr-only"
+                            />
+                        </div>
+                    </div>
 
-                    <input
-                        type="month"
-                        value={mesIntrastat}
-                        onChange={(event) => setMesIntrastat(event.target.value)}
-                        className="rounded border px-3 py-2"
-                        disabled={tipo !== 'ventas'}
-                    />
-                </label>
-                <label className="mb-3 block text-sm font-medium text-slate-700">
-                    Archivo Excel
-                </label>
+                    {error && <div className="cjm-alert cjm-alert-error mt-5" role="alert">{error}</div>}
 
-                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-slate-400">
-                    <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={(e) => setFile(e.target.files?.[0] || null)}
-                        className="mb-3 text-sm"
-                    />
-
-                    {file && (
-                        <p className="text-xs text-slate-600">
-                            Archivo seleccionado:{' '}
-                            <span className="font-medium">{file.name}</span>
-                        </p>
-                    )}
-                </div>
-
-                <div className="mt-6 flex justify-end">
                     <button
+                        type="button"
                         onClick={handleGenerar}
                         disabled={!file || loading}
-                        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="cjm-primary-button mt-5 w-full sm:w-auto"
                     >
-                        {loading && (
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        )}
-                        {loading ? 'Generando...' : `Generar Intrastat ${tipo}`}
+                        {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" /> : <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />}
+                        {loading ? 'Generando…' : `Generar Intrastat de ${tipo}`}
                     </button>
-                </div>
+                </section>
+
+                <aside className="cjm-card cjm-dot-pattern rounded-3xl p-5">
+                    <span className="cjm-icon-tile h-11 w-11 rounded-2xl"><ShoppingCart className="h-5 w-5" aria-hidden="true" /></span>
+                    <h2 className="mt-4 font-semibold app-text">Flujo de trabajo</h2>
+                    <ol className="cjm-muted mt-3 space-y-3 text-sm leading-6">
+                        <li><strong className="app-text">1.</strong> Selecciona ventas o compras.</li>
+                        <li><strong className="app-text">2.</strong> Añade el fichero de origen.</li>
+                        <li><strong className="app-text">3.</strong> Revisa incidencias y descarga el resultado.</li>
+                    </ol>
+                    <div className="mt-5 rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-3 text-sm text-[var(--cjm-primary-deep)]">
+                        La aplicación no modifica el archivo original.
+                    </div>
+                </aside>
             </div>
 
-            {(tipo === 'ventas' || tipo === 'compras') && (
-                <div className="mt-10 rounded-2xl border border-orange-200 bg-white shadow-sm">
-                    <div className="border-b border-orange-200 bg-orange-50 px-6 py-4">
-                        <h2 className="text-lg font-semibold text-orange-700">
-                            Facturas con IVA incorrecto
-                        </h2>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-100">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Serie</th>
-                                    <th className="px-4 py-3 text-left">Factura</th>
-                                    <th className="px-4 py-3 text-left">IVA</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {facturasIva.map((f, i) => (
-                                    <tr key={i} className="border-t">
-                                        <td className="px-4 py-3">{f.codserfacventa}</td>
-                                        <td className="px-4 py-3">{f.nfacventa}</td>
-                                        <td className="px-4 py-3 font-semibold text-red-600">
-                                            {f.codigos_iva}
-                                        </td>
-                                    </tr>
-                                ))}
-
-                                {facturasIva.length === 0 && (
-                                    <tr>
-                                        <td
-                                            colSpan="3"
-                                            className="px-4 py-6 text-center text-slate-500"
-                                        >
-                                            No hay facturas con IVA incorrecto.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {errores.length > 0 && (
-                <div className="mt-10 rounded-2xl border border-red-200 bg-white shadow-sm">
-                    <div className="border-b border-red-200 bg-red-50 px-6 py-4">
-                        <h2 className="text-lg font-semibold text-red-700">
-                            Facturas con descuadre
-                        </h2>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-100 text-slate-600">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Factura</th>
-                                    <th className="px-4 py-3 text-right">Total Excel</th>
-                                    <th className="px-4 py-3 text-right">Total BD</th>
-                                    <th className="px-4 py-3 text-right">Diferencia</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {errores.map((error, i) => (
-                                    <tr key={i} className="border-t">
-                                        <td className="px-4 py-3">{error.factura}</td>
-                                        <td className="px-4 py-3 text-right">
-                                            {Number(error.totalExcel || 0).toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            {Number(error.totalBD || 0).toFixed(2)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-semibold text-red-600">
-                                            {Number(error.diferencia || 0).toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+            <div className="mt-6 space-y-5">
+                {hasRun ? (
+                    <>
+                        <IvaResults rows={facturasIva} />
+                        <DifferenceResults rows={errores} />
+                    </>
+                ) : !loading && !error ? (
+                    <EmptyState title="Sin validaciones pendientes" description="Selecciona un archivo para generar y comprobar el Intrastat." icon={FileSpreadsheet} />
+                ) : null}
+            </div>
         </PageShell>
     );
 }
-
-export default Intrastat;

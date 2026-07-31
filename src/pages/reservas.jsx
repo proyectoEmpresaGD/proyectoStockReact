@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
+import { Layers3, PlusCircle } from 'lucide-react';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { reservasClient } from '../services/reservasClient.js';
 import ClientSearchBar from '../components/clientes/SearchBarClients.jsx';
 import ProductSearchBar from '../components/productos/SearchBar.jsx';
+import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 
 const SEARCH_FETCH_LIMIT = 200;
 const RESERVAS_NEW_REFRESH_INTERVAL_MS = 1000;
@@ -232,6 +235,7 @@ function ReservasTejido() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [reservationToDelete, setReservationToDelete] = useState(null);
 
     const [clientSearchTerm, setClientSearchTerm] = useState('');
     const [clientSuggestions, setClientSuggestions] = useState([]);
@@ -907,14 +911,16 @@ function ReservasTejido() {
         }
     };
 
-    const handleDelete = async (idreserva) => {
-        const confirmDelete = window.confirm(`¿Eliminar la reserva ${idreserva}?`);
+    const handleDelete = (idreserva) => {
+        setReservationToDelete(idreserva);
+    };
 
-        if (!confirmDelete) return;
+    const confirmDeleteReservation = async () => {
+        const idreserva = reservationToDelete;
+        if (!idreserva) return;
 
         try {
             setError('');
-
             await reservasClient.deleteReserva({ token, idreserva });
             await loadReservas();
 
@@ -923,6 +929,8 @@ function ReservasTejido() {
             }
         } catch (err) {
             setError(err.message || 'No se pudo eliminar la reserva.');
+        } finally {
+            setReservationToDelete(null);
         }
     };
 
@@ -1432,8 +1440,25 @@ function ReservasTejido() {
     }, [reservas]);
 
     return (
-        <PageShell title="Reservas de tejido">
-            <div className="space-y-6 p-4 md:p-6">
+        <>
+        <PageShell maxWidth="max-w-[1400px]" className="reservas-modern">
+            <div className="space-y-6">
+                <PageHeader
+                    eyebrow="Operaciones · Stock"
+                    title="Reservas de tejido"
+                    description="Gestiona retenciones por cliente, producto y lote con una vista clara para oficina, almacén, tablet y móvil."
+                    icon={Layers3}
+                    actions={!isAlmacenUser ? (
+                        <button
+                            type="button"
+                            onClick={() => formReservaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            className="cjm-primary-button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold sm:w-auto"
+                        >
+                            <PlusCircle className="h-4 w-4" aria-hidden="true" />
+                            Nueva reserva
+                        </button>
+                    ) : null}
+                />
                 {error && (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
                         {error}
@@ -1441,22 +1466,22 @@ function ReservasTejido() {
                 )}
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="cjm-card reservas-kpi rounded-2xl p-4">
                         <p className="text-sm text-gray-500">Reservas totales</p>
                         <p className="mt-1 text-2xl font-bold text-gray-900">{resumen.total}</p>
                     </div>
 
-                    <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
+                    <div className="cjm-card reservas-kpi reservas-kpi-success rounded-2xl p-4">
                         <p className="text-sm text-green-700">Activas</p>
                         <p className="mt-1 text-2xl font-bold text-green-800">{resumen.activas}</p>
                     </div>
 
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                    <div className="cjm-card reservas-kpi reservas-kpi-warning rounded-2xl p-4">
                         <p className="text-sm text-amber-700">Vencidas</p>
                         <p className="mt-1 text-2xl font-bold text-amber-800">{resumen.vencidas}</p>
                     </div>
 
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+                    <div className="cjm-card reservas-kpi reservas-kpi-primary rounded-2xl p-4">
                         <p className="text-sm text-blue-700">Metros retenidos activos</p>
                         <p className="mt-1 text-2xl font-bold text-blue-800">
                             {resumen.metrosActivos.toFixed(2)} m
@@ -1465,7 +1490,7 @@ function ReservasTejido() {
                 </div>
 
                 {isAlmacenUser && (
-                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                    <div className="cjm-card reservas-section rounded-2xl p-4 md:p-6">
                         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h2 className="text-2xl font-black text-gray-900">
@@ -1481,7 +1506,7 @@ function ReservasTejido() {
                                     value={searchTerm}
                                     onChange={(event) => setSearchTerm(event.target.value)}
                                     placeholder="Buscar producto, descripción, lote o reserva..."
-                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5 text-base sm:text-sm"
                                 />
 
                                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -1504,8 +1529,8 @@ function ReservasTejido() {
                                 No hay tejidos reservados para mostrar.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto rounded-2xl border border-gray-200">
-                                <table className="min-w-full text-sm">
+                            <div className="reservas-table-wrap reservas-warehouse-table-wrap overflow-x-auto rounded-2xl border">
+                                <table className="reservas-data-table min-w-full text-sm">
                                     <thead className="bg-gray-100">
                                         <tr className="text-left text-xs font-black uppercase tracking-wide text-gray-600">
                                             <th className="px-4 py-3">Producto</th>
@@ -1527,39 +1552,39 @@ function ReservasTejido() {
                                                     item.activa ? '' : 'bg-red-50',
                                                 ].join(' ')}
                                             >
-                                                <td className="whitespace-nowrap px-4 py-4">
+                                                <td data-label="Producto" className="whitespace-nowrap px-4 py-4">
                                                     <span className="text-lg font-black text-gray-900">
                                                         {item.codprodu}
                                                     </span>
                                                 </td>
 
-                                                <td className="min-w-[280px] px-4 py-4">
+                                                <td data-label="Descripción" className="min-w-[280px] px-4 py-4">
                                                     <span className="font-semibold text-gray-700">
                                                         {item.desprodu}
                                                     </span>
                                                 </td>
 
-                                                <td className="whitespace-nowrap px-4 py-4">
+                                                <td data-label="Lote" className="whitespace-nowrap px-4 py-4">
                                                     <span className="rounded-xl bg-gray-100 px-3 py-2 text-base font-black text-gray-900">
                                                         {item.lotereservado}
                                                     </span>
                                                 </td>
 
-                                                <td className="whitespace-nowrap px-4 py-4 text-right">
+                                                <td data-label="Metros" className="whitespace-nowrap px-4 py-4 text-right">
                                                     <span className="text-xl font-black text-blue-700">
                                                         {item.stockreservado.toFixed(2)} m
                                                     </span>
                                                 </td>
 
-                                                <td className="whitespace-nowrap px-4 py-4 font-semibold text-gray-700">
+                                                <td data-label="Vencimiento" className="whitespace-nowrap px-4 py-4 font-semibold text-gray-700">
                                                     {formatDate(item.fechavencimientoreserva)}
                                                 </td>
 
-                                                <td className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
+                                                <td data-label="Reserva" className="whitespace-nowrap px-4 py-4 font-bold text-gray-900">
                                                     #{item.idreserva}
                                                 </td>
 
-                                                <td className="whitespace-nowrap px-4 py-4">
+                                                <td data-label="Estado" className="whitespace-nowrap px-4 py-4">
                                                     <span
                                                         className={[
                                                             'rounded-full px-3 py-1 text-xs font-bold',
@@ -1581,7 +1606,7 @@ function ReservasTejido() {
                 )}
 
                 {!isAlmacenUser && (
-                    <div className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+                    <div className="cjm-card reservas-view-switch flex flex-col gap-3 rounded-2xl p-3 md:flex-row md:items-center md:justify-between">
                         <div>
                             <p className="text-sm font-semibold text-gray-700">Vista de reservas</p>
                             <p className="text-xs text-gray-500">
@@ -1623,7 +1648,7 @@ function ReservasTejido() {
                     <form
                         ref={formReservaRef}
                         onSubmit={handleSubmit}
-                        className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6"
+                        className="cjm-card reservas-section rounded-2xl p-4 md:p-6"
                     >
                         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
@@ -1686,7 +1711,7 @@ function ReservasTejido() {
                                         name="seriepedventa"
                                         value={form.seriepedventa}
                                         onChange={handleMainChange}
-                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 uppercase"
+                                        className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base uppercase"
                                         placeholder="A"
                                         maxLength={20}
                                     />
@@ -1699,7 +1724,7 @@ function ReservasTejido() {
                                         value={form.npedventa}
                                         onChange={handleMainChange}
                                         type="number"
-                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                        className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base"
                                         placeholder="Número"
                                     />
                                 </label>
@@ -1712,7 +1737,7 @@ function ReservasTejido() {
                                     value={form.fechareserva}
                                     onChange={handleMainChange}
                                     type="date"
-                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base"
                                     required
                                 />
                             </label>
@@ -1726,7 +1751,7 @@ function ReservasTejido() {
                                     type="date"
                                     min={getTodayInputDate()}
                                     max={getMaxReservaVencimientoDate()}
-                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base"
                                     required
                                 />
                             </label>
@@ -1738,7 +1763,7 @@ function ReservasTejido() {
                                     value={form.descripcion}
                                     onChange={handleMainChange}
                                     rows={3}
-                                    className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                    className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base"
                                     placeholder="Observaciones de la reserva"
                                 />
                             </label>
@@ -1821,7 +1846,7 @@ function ReservasTejido() {
                                                         type="number"
                                                         min="0.01"
                                                         step="0.01"
-                                                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                                                        className="cjm-input mt-1 min-h-11 rounded-xl px-3 py-2.5 text-base"
                                                         required
                                                     />
                                                 </label>
@@ -1887,7 +1912,7 @@ function ReservasTejido() {
                                                     </div>
 
                                                     <div className="overflow-x-auto">
-                                                        <table className="min-w-full text-sm">
+                                                        <table className="reservas-data-table min-w-full text-sm">
                                                             <thead>
                                                                 <tr className="border-b border-gray-200 text-left text-gray-500">
                                                                     <th className="py-2 pr-4">Lote</th>
@@ -2040,11 +2065,11 @@ function ReservasTejido() {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex justify-end">
+                        <div className="reservas-form-actions mt-6 flex justify-end">
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="cjm-primary-button min-h-11 w-full rounded-xl px-5 py-2.5 text-sm font-bold sm:w-auto disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear reserva'}
                             </button>
@@ -2053,7 +2078,7 @@ function ReservasTejido() {
                 )}
 
                 {!isAlmacenUser && activeView === 'rapida' && (
-                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                    <div className="cjm-card reservas-section rounded-2xl p-4 md:p-6">
                         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900">
@@ -2069,7 +2094,7 @@ function ReservasTejido() {
                                     value={searchTerm}
                                     onChange={(event) => setSearchTerm(event.target.value)}
                                     placeholder="Buscar producto, usuario, lote o cliente..."
-                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5 text-base sm:text-sm"
                                 />
 
                                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -2092,8 +2117,62 @@ function ReservasTejido() {
                                 No hay productos reservados para mostrar.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm">
+                            <>
+                                <div className="space-y-3 md:hidden">
+                                    {reservasRapidas.map((item) => (
+                                        <article key={`mobile-${item.id}`} className="cjm-card rounded-2xl p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="cjm-muted text-xs">Reserva #{item.idreserva}</p>
+                                                    <p className="mt-1 text-lg font-bold app-text">{item.codprodu}</p>
+                                                    <p className="cjm-muted mt-0.5 line-clamp-2 text-sm">{item.desprodu || 'Sin descripción'}</p>
+                                                </div>
+                                                <span
+                                                    className={[
+                                                        'shrink-0 rounded-full px-3 py-1 text-xs font-bold',
+                                                        item.activa
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : 'bg-red-100 text-red-700',
+                                                    ].join(' ')}
+                                                >
+                                                    {item.activa ? 'Activa' : 'Vencida'}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                                <div className="rounded-xl bg-gray-50 p-3">
+                                                    <p className="cjm-muted text-xs">Lote</p>
+                                                    <p className="mt-1 font-bold app-text">{item.lotereservado}</p>
+                                                </div>
+                                                <div className="rounded-xl bg-gray-50 p-3 text-right">
+                                                    <p className="cjm-muted text-xs">Metros</p>
+                                                    <p className="mt-1 font-bold text-blue-700">{item.stockreservado.toFixed(2)} m</p>
+                                                </div>
+                                                <div className="col-span-2 rounded-xl bg-gray-50 p-3">
+                                                    <p className="cjm-muted text-xs">Cliente</p>
+                                                    <p className="mt-1 font-semibold app-text">{item.clienteLabel || '—'}</p>
+                                                    <p className="cjm-muted mt-0.5 text-xs">Usuario: {item.usuario || '—'} · Vence: {formatDate(item.fechavencimientoreserva)}</p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const reserva = reservas.find(
+                                                        (itemReserva) => Number(itemReserva.idreserva) === Number(item.idreserva)
+                                                    );
+                                                    if (reserva) handlePrintReserva(reserva);
+                                                }}
+                                                className="cjm-icon-button mt-3 min-h-11 w-full rounded-xl px-3 text-sm font-semibold"
+                                            >
+                                                Imprimir reserva
+                                            </button>
+                                        </article>
+                                    ))}
+                                </div>
+
+                                <div className="hidden overflow-x-auto md:block">
+                                    <table className="reservas-data-table min-w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-gray-200 text-left text-gray-500">
                                             <th className="py-3 pr-4">Reserva</th>
@@ -2183,14 +2262,15 @@ function ReservasTejido() {
                                             </tr>
                                         ))}
                                     </tbody>
-                                </table>
-                            </div>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 )}
 
                 {!isAlmacenUser && activeView === 'gestion' && (
-                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6">
+                    <div className="cjm-card reservas-section rounded-2xl p-4 md:p-6">
                         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900">Reservas</h2>
@@ -2204,7 +2284,7 @@ function ReservasTejido() {
                                     value={searchTerm}
                                     onChange={(event) => setSearchTerm(event.target.value)}
                                     placeholder="Buscar cliente, producto, lote o pedido..."
-                                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5 text-base sm:text-sm"
                                 />
 
                                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -2340,7 +2420,7 @@ function ReservasTejido() {
                                             </div>
 
                                             <div className="mt-4 overflow-x-auto">
-                                                <table className="min-w-full text-sm">
+                                                <table className="reservas-data-table min-w-full text-sm">
                                                     <thead>
                                                         <tr className="border-b border-gray-200 text-left text-gray-500">
                                                             <th className="py-2 pr-4">Producto</th>
@@ -2385,6 +2465,17 @@ function ReservasTejido() {
                 )}
             </div>
         </PageShell>
+        {reservationToDelete && (
+            <ConfirmDialog
+                title="Eliminar reserva"
+                message={`Se eliminará la reserva ${reservationToDelete} y sus productos asociados. Esta acción no se puede deshacer.`}
+                confirmLabel="Eliminar reserva"
+                onConfirm={confirmDeleteReservation}
+                onCancel={() => setReservationToDelete(null)}
+                destructive
+            />
+        )}
+        </>
     );
 }
 

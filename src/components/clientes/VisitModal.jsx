@@ -195,233 +195,246 @@ export default function VisitModal({
     return (
         <div
             ref={backdropRef}
-            onClick={(e) => e.target === backdropRef.current && closeModal()}
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onMouseDown={(event) => event.target === backdropRef.current && closeModal()}
+            className="cjm-modal-backdrop z-[1050]"
+            role="presentation"
         >
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden animate-scaleIn">
-                <header className="flex justify-between items-center px-6 py-4 border-b">
-                    <h2 className="text-xl font-semibold">Visitas Cliente</h2>
-                    <button onClick={closeModal} className="text-gray-600 hover:text-gray-800">
-                        <FaTimes size={20} />
+            <section className="cjm-modal sm:max-w-3xl" role="dialog" aria-modal="true" aria-labelledby="visit-modal-title">
+                <div className="cjm-modal-header flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
+                    <div>
+                        <p className="cjm-kicker">Actividad comercial</p>
+                        <h2 id="visit-modal-title" className="mt-1 text-lg font-semibold app-text sm:text-xl">
+                            Visitas del cliente
+                        </h2>
+                        <p className="cjm-muted mt-1 text-sm">Programa, completa y consulta visitas comerciales.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={closeModal}
+                        className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                        aria-label="Cerrar visitas"
+                    >
+                        <FaTimes aria-hidden="true" />
                     </button>
-                </header>
+                </div>
 
-                <div className="px-6 py-4">
+                <div className="cjm-modal-body px-4 py-5 sm:px-6">
                     {(error || successMsg) && (
-                        <div
-                            className={`mb-4 rounded-lg px-4 py-3 text-sm ${error
-                                ? 'bg-red-50 text-red-700 border border-red-100'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                }`}
-                        >
+                        <div className={`cjm-alert mb-4 ${error ? 'cjm-alert-error' : 'cjm-alert-success'}`}>
                             {error || successMsg}
                         </div>
                     )}
 
-                    {/* Toggle pendientes/completadas */}
-                    <div className="flex gap-2 mb-4">
+                    <div className="cjm-segmented grid w-full grid-cols-2" aria-label="Estado de las visitas">
                         {[
                             { label: 'Pendientes', value: false },
-                            { label: 'Completadas', value: true }
-                        ].map((opt) => (
+                            { label: 'Completadas', value: true },
+                        ].map((option) => (
                             <button
-                                key={opt.label}
-                                onClick={() => setShowCompleted(opt.value)}
-                                className={`flex-1 py-2 rounded-lg text-sm font-medium
-                  ${showCompleted === opt.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
+                                type="button"
+                                key={option.label}
+                                onClick={() => setShowCompleted(option.value)}
+                                aria-pressed={showCompleted === option.value}
                             >
-                                {opt.label}
+                                {option.label}
                             </button>
                         ))}
                     </div>
 
-                    {/* Formulario nueva visita */}
                     {!showCompleted && (
-                        <div className="bg-gray-50 rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                            <input
-                                type="date"
-                                value={newVisit.date}
-                                onChange={(e) =>
-                                    setNewVisit({ ...newVisit, date: e.target.value })
-                                }
-                                className="border rounded px-3 py-2"
-                                disabled={addingVisit}
-                            />
-                            <input
-                                type="time"
-                                value={newVisit.time}
-                                onChange={(e) =>
-                                    setNewVisit({ ...newVisit, time: e.target.value })
-                                }
-                                className="border rounded px-3 py-2"
-                                disabled={addingVisit}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Descripción"
-                                value={newVisit.description}
-                                onChange={(e) =>
-                                    setNewVisit({ ...newVisit, description: e.target.value })
-                                }
-                                className="border rounded px-3 py-2 col-span-2"
-                                disabled={addingVisit}
-                            />
-                            <select
-                                value={newVisit.assignedTo}
-                                onChange={(e) =>
-                                    setNewVisit({ ...newVisit, assignedTo: e.target.value })
-                                }
-                                className="border rounded px-3 py-2"
-                                disabled={addingVisit}
-                            >
-                                <option value="">Comercial...</option>
-                                {commercialUsers.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.username}
-                                    </option>
-                                ))}
-                            </select>
-                            <button
-                                onClick={handleAdd}
-                                className="sm:col-span-1 bg-green-500 hover:bg-green-600 text-white rounded px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-60"
-                                disabled={addingVisit}
-                            >
-                                {addingVisit ? (
-                                    <>
-                                        <InlineSpinner className="w-4 h-4 text-white" /> Añadiendo…
-                                    </>
-                                ) : (
-                                    <>
-                                        <FaPlus className="mr-2" /> Añadir
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Listado de visitas */}
-                    {loading ? (
-                        <div className="flex justify-center py-10 text-gray-500">
-                            <FaSpinner className="animate-spin mr-2" /> Cargando...
-                        </div>
-                    ) : visits.length === 0 ? (
-                        <p className="text-center text-gray-600 py-8">
-                            {showCompleted
-                                ? 'No hay visitas completadas.'
-                                : 'No hay visitas pendientes.'}
-                        </p>
-                    ) : (
-                        <ul className="space-y-3 max-h-80 overflow-y-auto">
-                            {visits.map((v) => (
-                                <li
-                                    key={v.id}
-                                    className="bg-white border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between shadow-sm hover:shadow"
+                        <section className="cjm-toolbar mt-4" aria-labelledby="new-visit-title">
+                            <h3 id="new-visit-title" className="text-sm font-semibold app-text">Nueva visita</h3>
+                            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <label className="block">
+                                    <span className="cjm-control-label">Fecha</span>
+                                    <span className="flex min-h-11 w-full min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-3 py-2">
+                                        <input
+                                            type="date"
+                                            value={newVisit.date}
+                                            onChange={(event) => setNewVisit({ ...newVisit, date: event.target.value })}
+                                            className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none"
+                                            disabled={addingVisit}
+                                        />
+                                    </span>
+                                </label>
+                                <label className="block">
+                                    <span className="cjm-control-label">Hora</span>
+                                    <span className="flex min-h-11 w-full min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-3 py-2">
+                                        <input
+                                            type="time"
+                                            value={newVisit.time}
+                                            onChange={(event) => setNewVisit({ ...newVisit, time: event.target.value })}
+                                            className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none"
+                                            disabled={addingVisit}
+                                        />
+                                    </span>
+                                </label>
+                                <label className="block sm:col-span-2">
+                                    <span className="cjm-control-label">Descripción</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Motivo o información de la visita"
+                                        value={newVisit.description}
+                                        onChange={(event) => setNewVisit({ ...newVisit, description: event.target.value })}
+                                        className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                                        disabled={addingVisit}
+                                    />
+                                </label>
+                                <label className="block sm:col-span-2 lg:col-span-3">
+                                    <span className="cjm-control-label">Comercial asignado</span>
+                                    <select
+                                        value={newVisit.assignedTo}
+                                        onChange={(event) => setNewVisit({ ...newVisit, assignedTo: event.target.value })}
+                                        className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                                        disabled={addingVisit}
+                                    >
+                                        <option value="">Seleccionar comercial</option>
+                                        {commercialUsers.map((commercial) => (
+                                            <option key={commercial.id} value={commercial.id}>{commercial.username}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleAdd}
+                                    className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold sm:col-span-2 lg:col-span-1"
+                                    disabled={addingVisit}
                                 >
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1 text-sm text-gray-600">
-                                            {v.estado === 'completada' ? (
-                                                <FaCheckCircle className="text-green-500" />
-                                            ) : (
-                                                <FaClock className="text-yellow-500" />
-                                            )}
-                                            <time>{new Date(v.fecha).toLocaleString()}</time>
-                                        </div>
-                                        <p className="font-medium text-gray-800 mb-1">
-                                            {v.descripcion}
-                                        </p>
-                                        <div className="text-xs text-gray-500 flex flex-wrap gap-4">
-                                            <span>👤 {v.creado_por}</span>
-                                            <span>
-                                                <FaUserTie className="inline-block" />{' '}
-                                                {v.asignado_a || '-'}
-                                            </span>
-                                            {v.estado === 'completada' && (
-                                                <span className="mt-1">
-                                                    Completado por: <strong>{v.completado_por}</strong>
-                                                    {v.mensaje_completado && ` — "${v.mensaje_completado}"`}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Acciones */}
-                                    <div className="mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 flex flex-col gap-2">
-                                        {/* Completar solo pendientes */}
-                                        {v.estado === 'pendiente' && !showCompleted && (
-                                            completingId === v.id ? (
-                                                <>
-                                                    <textarea
-                                                        value={completionMsg}
-                                                        onChange={(e) => setCompletionMsg(e.target.value)}
-                                                        placeholder="Mensaje de completado..."
-                                                        className="border rounded px-2 py-1 text-sm mb-1"
-                                                        disabled={completingLoadingId === v.id}
-                                                    />
-                                                    <button
-                                                        onClick={() => handleComplete(v.id)}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                                                        disabled={completingLoadingId === v.id}
-                                                    >
-                                                        {completingLoadingId === v.id ? (
-                                                            <>
-                                                                <InlineSpinner className="w-4 h-4 text-white" /> Guardando…
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <FaCheckCircle className="inline mr-1" /> Ok
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <button
-                                                    onClick={() => {
-                                                        setCompletingId(v.id);
-                                                        setCompletionMsg('');
-                                                        setError('');
-                                                    }}
-                                                    className="bg-blue-500 hover:bg-blue-600 text-white rounded px-3 py-1 text-sm flex items-center justify-center"
-                                                >
-                                                    <FaCheckCircle className="mr-1" /> Completar
-                                                </button>
-                                            )
-                                        )}
-
-                                        {/* Eliminar: pendientes siempre; completadas solo admin */}
-                                        {(v.estado === 'pendiente' || (v.estado === 'completada' && isAdmin)) && (
-                                            <button
-                                                onClick={() => handleDelete(v)}
-                                                className={`flex items-center justify-center px-3 py-1 text-sm rounded
-                          ${v.estado === 'pendiente'
-                                                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                                                        : 'bg-red-700 hover:bg-red-800 text-white'
-                                                    }
-                        `}
-                                            >
-                                                <FaTrash className="mr-1" /> Eliminar
-                                            </button>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                                    {addingVisit ? (
+                                        <>
+                                            <InlineSpinner className="h-4 w-4 text-white" srLabel="Añadiendo visita" />
+                                            Añadiendo…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FaPlus aria-hidden="true" />
+                                            Añadir visita
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </section>
                     )}
+
+                    <section className="mt-5" aria-label="Listado de visitas">
+                        {loading ? (
+                            <div className="cjm-empty-state flex min-h-36 items-center justify-center">
+                                <span className="inline-flex items-center gap-2 text-sm font-semibold app-text">
+                                    <FaSpinner className="animate-spin text-[var(--cjm-primary-deep)]" />
+                                    Cargando visitas…
+                                </span>
+                            </div>
+                        ) : visits.length === 0 ? (
+                            <div className="cjm-empty-state py-9">
+                                <p className="font-semibold app-text">
+                                    {showCompleted ? 'No hay visitas completadas' : 'No hay visitas pendientes'}
+                                </p>
+                                <p className="cjm-muted mt-2 text-sm">
+                                    {showCompleted
+                                        ? 'Las visitas finalizadas aparecerán aquí.'
+                                        : 'Añade una nueva visita mediante el formulario superior.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-3">
+                                {visits.map((visit) => (
+                                    <li key={visit.id} className="cjm-data-card">
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-2 text-sm cjm-muted">
+                                                    {visit.estado === 'completada' ? (
+                                                        <FaCheckCircle className="text-emerald-500" aria-hidden="true" />
+                                                    ) : (
+                                                        <FaClock className="text-amber-500" aria-hidden="true" />
+                                                    )}
+                                                    <time>{new Date(visit.fecha).toLocaleString('es-ES')}</time>
+                                                    <span className="cjm-badge">{visit.estado}</span>
+                                                </div>
+                                                <p className="mt-2 break-words font-semibold app-text">{visit.descripcion}</p>
+                                                <div className="cjm-muted mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:flex-wrap sm:gap-x-4">
+                                                    <span>Creada por: {visit.creado_por || '—'}</span>
+                                                    <span><FaUserTie className="inline" /> Asignada a: {visit.asignado_a || '—'}</span>
+                                                    {visit.estado === 'completada' && (
+                                                        <span className="basis-full break-words">
+                                                            Completada por <strong>{visit.completado_por || '—'}</strong>
+                                                            {visit.mensaje_completado && ` · ${visit.mensaje_completado}`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:w-48">
+                                                {visit.estado === 'pendiente' && !showCompleted && (
+                                                    completingId === visit.id ? (
+                                                        <>
+                                                            <textarea
+                                                                value={completionMsg}
+                                                                onChange={(event) => setCompletionMsg(event.target.value)}
+                                                                placeholder="Resultado de la visita"
+                                                                className="cjm-input min-h-24 resize-y rounded-xl px-3 py-2.5 text-sm"
+                                                                disabled={completingLoadingId === visit.id}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleComplete(visit.id)}
+                                                                className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
+                                                                disabled={completingLoadingId === visit.id}
+                                                            >
+                                                                {completingLoadingId === visit.id ? (
+                                                                    <InlineSpinner className="h-4 w-4 text-white" srLabel="Guardando" />
+                                                                ) : (
+                                                                    <FaCheckCircle aria-hidden="true" />
+                                                                )}
+                                                                {completingLoadingId === visit.id ? 'Guardando…' : 'Confirmar'}
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setCompletingId(visit.id);
+                                                                setCompletionMsg('');
+                                                                setError('');
+                                                            }}
+                                                            className="cjm-secondary-button"
+                                                        >
+                                                            <FaCheckCircle aria-hidden="true" />
+                                                            Completar
+                                                        </button>
+                                                    )
+                                                )}
+
+                                                {(visit.estado === 'pendiente' || (visit.estado === 'completada' && isAdmin)) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDelete(visit)}
+                                                        className="cjm-danger-button"
+                                                    >
+                                                        <FaTrash aria-hidden="true" />
+                                                        Eliminar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
                 </div>
-            </div>
+            </section>
 
             {confirmDelete && (
                 <ConfirmDialog
-                    message={`¿Eliminar la visita "${confirmDelete.descripcion}"?`}
+                    title="Eliminar visita"
+                    message={`¿Eliminar la visita “${confirmDelete.descripcion}”?`}
                     onCancel={() => {
-                        if (deleteLoading) return;
-                        setConfirmDelete(null);
+                        if (!deleteLoading) setConfirmDelete(null);
                     }}
                     onConfirm={confirmDeleteVisit}
-                    confirmLabel="Eliminar"
+                    confirmLabel="Eliminar visita"
                     loading={deleteLoading}
+                    destructive
                 />
             )}
         </div>

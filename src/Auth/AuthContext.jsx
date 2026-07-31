@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { decodeJwtPayload } from '../utils/jwt';
 import { hydrateRoleAccessFromBackend } from '../utils/roleAccessConfig';
+import { toast } from 'react-toastify';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -25,8 +26,8 @@ export const AuthProvider = ({ children }) => {
                 if (timeLeft > 0) {
                     // Configurar el temporizador para cerrar la sesión cuando el token expire
                     const timeoutId = setTimeout(() => {
+                        toast.warning('Tu sesión ha expirado. Vuelve a iniciar sesión.');
                         logout();
-                        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
                     }, timeLeft * 1000); // Convertir segundos a milisegundos
 
                     // Limpiar el temporizador si el token cambia o el usuario cierra sesión

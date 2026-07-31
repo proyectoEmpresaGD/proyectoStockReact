@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { CalendarPlus, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function GenericEventModal({ slot, onClose, onSave }) {
-    // Pre-llenado si viene slot
     const defaultDateTime = slot?.start
         ? new Date(slot.start).toISOString().slice(0, 16)
         : '';
@@ -11,70 +11,57 @@ export default function GenericEventModal({ slot, onClose, onSave }) {
     const [description, setDescription] = useState('');
     const [dateTime, setDateTime] = useState(defaultDateTime);
 
-    const handleSave = () => {
-        if (!title.trim()) return alert('El título es obligatorio');
-        if (!dateTime) return alert('La fecha y hora son obligatorias');
+    const handleSave = (event) => {
+        event.preventDefault();
+        if (!title.trim()) {
+            toast.warning('El título es obligatorio.');
+            return;
+        }
+        if (!dateTime) {
+            toast.warning('La fecha y la hora son obligatorias.');
+            return;
+        }
+
         const start = new Date(dateTime);
         onSave({
-            id: `evt-${Date.now()}`,               // id temporal
-            title,
-            descripcion: description,
+            id: `evt-${Date.now()}`,
+            title: title.trim(),
+            descripcion: description.trim(),
             start,
             end: new Date(start.getTime() + 3600000),
             type: 'event',
         });
+        toast.success('Evento añadido a la agenda.');
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative overflow-y-auto max-h-[90vh]">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-600 hover:text-gray-800"
-                    aria-label="Cerrar"
-                >
-                    <FaTimes size={20} />
-                </button>
-                <h2 className="text-2xl font-bold mb-4">➕ Nuevo evento</h2>
-                <label className="block mb-1 font-medium">Título</label>
-                <input
-                    type="text"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    className="w-full border rounded px-3 py-2 mb-4"
-                    placeholder="Nombre del evento"
-                />
-                <label className="block mb-1 font-medium">Descripción</label>
-                <textarea
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    className="w-full border rounded px-3 py-2 mb-4"
-                    rows={3}
-                    placeholder="Algo sobre este evento…"
-                />
-                <label className="block mb-1 font-medium">Fecha y hora</label>
-                <input
-                    type="datetime-local"
-                    value={dateTime}
-                    onChange={e => setDateTime(e.target.value)}
-                    className="w-full border rounded px-3 py-2 mb-6"
-                />
-                <div className="flex justify-end space-x-3">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                        Crear evento
-                    </button>
+        <div className="cjm-modal-backdrop z-[1150]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+            <form className="cjm-modal sm:max-w-lg" onSubmit={handleSave} aria-labelledby="generic-event-title">
+                <header className="cjm-modal-header flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+                    <div className="flex min-w-0 items-start gap-3">
+                        <span className="cjm-icon-tile h-11 w-11 shrink-0 rounded-2xl"><CalendarPlus className="h-5 w-5" aria-hidden="true" /></span>
+                        <div><p className="cjm-kicker">Agenda</p><h2 id="generic-event-title" className="mt-1 text-xl font-semibold app-text">Nuevo evento</h2></div>
+                    </div>
+                    <button type="button" onClick={onClose} className="cjm-icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+                </header>
+
+                <div className="cjm-modal-body space-y-4 px-5 py-5 sm:px-6">
+                    <label><span className="cjm-control-label">Título</span><input type="text" value={title} onChange={(event) => setTitle(event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" placeholder="Nombre del evento" autoFocus /></label>
+                    <label><span className="cjm-control-label">Descripción</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} className="cjm-input min-h-28 rounded-xl px-3 py-2.5" rows={4} placeholder="Información adicional…" /></label>
+                    <label>
+                        <span className="cjm-control-label">Fecha y hora</span>
+                        <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
+                            <input type="datetime-local" value={dateTime} onChange={(event) => setDateTime(event.target.value)} className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none" />
+                        </span>
+                    </label>
                 </div>
-            </div>
+
+                <footer className="cjm-modal-footer grid gap-2 border-t px-5 py-4 sm:grid-cols-2 sm:px-6">
+                    <button type="button" onClick={onClose} className="cjm-ghost-button">Cancelar</button>
+                    <button type="submit" className="cjm-primary-button">Crear evento</button>
+                </footer>
+            </form>
         </div>
     );
 }

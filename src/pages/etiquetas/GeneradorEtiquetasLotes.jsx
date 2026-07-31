@@ -10,13 +10,13 @@ import {
 } from '../../components/etiquetasLotes/productLotLabelConstants';
 
 const inputClassName =
-    'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
+    'cjm-input min-h-11 rounded-xl px-3 py-2.5 text-sm';
 
 const buttonClassName =
-    'rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400';
+    'cjm-primary-button px-4 py-2.5 text-sm';
 
 const secondaryButtonClassName =
-    'rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400';
+    'cjm-secondary-button px-4 py-2.5 text-sm';
 
 const sanitizeFileName = (value) =>
     String(value || 'etiquetas-lotes').replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -542,7 +542,7 @@ export default function GeneradorEtiquetasLotes() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 p-4 text-slate-900 md:p-8">
+        <div className="cjm-page lot-labels-modern text-[var(--cjm-text)]">
             {isPreparingDocument && (
                 <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
@@ -961,9 +961,10 @@ export default function GeneradorEtiquetasLotes() {
                 `}
             </style>
 
-            <section className="no-print mb-6 rounded-2xl bg-white p-5 shadow">
+            <section className="no-print cjm-panel mb-6 rounded-3xl p-4 sm:p-6">
                 <div className="mb-5">
-                    <h1 className="text-2xl font-bold">
+                    <p className="cjm-kicker">Almacén · Producción</p>
+                    <h1 className="mt-1 text-2xl font-semibold tracking-tight app-text sm:text-3xl">
                         Generador de etiquetas por lote
                     </h1>
 

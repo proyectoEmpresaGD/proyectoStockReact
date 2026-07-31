@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaEdit, FaPlus, FaTimes, FaTrash, FaKey } from 'react-icons/fa';
+import { FaEdit, FaKey, FaPlus, FaTimes, FaTrash } from 'react-icons/fa';
+import { FiBriefcase, FiMail, FiSearch, FiUsers } from 'react-icons/fi';
 import { generatePassword } from '../utils/generatePassword';
+import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
+import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
+import InlineSpinner from '../components/common/InlineSpinner.jsx';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
@@ -35,22 +40,40 @@ const roles = [
     'administrativo',
 ];
 
-const jornadas = [
-    'intensiva',
-    'partida',
-    'reducida',
-];
+const jornadas = ['intensiva', 'partida', 'reducida'];
 
 const normalizeCodrepresForDisplay = (codrepres) => {
-    if (Array.isArray(codrepres)) {
-        return codrepres.join(', ');
-    }
-
-    if (typeof codrepres === 'string') {
-        return codrepres.replace(/[{}"]/g, '');
-    }
-
+    if (Array.isArray(codrepres)) return codrepres.join(', ');
+    if (typeof codrepres === 'string') return codrepres.replace(/[{}"]+/g, '');
     return '';
+};
+
+const roleLabel = (role) => {
+    const labels = {
+        admin: 'Administrador',
+        comercial: 'Comercial',
+        decoandyou: 'Deco & You',
+        almacen: 'Almacén',
+        ventas: 'Ventas',
+        user: 'Usuario',
+        rrhh: 'Recursos humanos',
+        administracion: 'Administración',
+        administrativo: 'Administrativo',
+    };
+    return labels[role] || role;
+};
+
+const fullName = (user) => [user.nombre, user.apellido1, user.apellido2].filter(Boolean).join(' ') || 'Sin nombre';
+
+const initials = (user) => {
+    const source = fullName(user) === 'Sin nombre' ? user.username : fullName(user);
+    return String(source || 'U')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase();
 };
 
 const apiRequest = async (path, options = {}) => {
@@ -67,22 +90,14 @@ const apiRequest = async (path, options = {}) => {
             );
         }
 
-        throw new Error(
-            responseText || `Respuesta no válida del servidor (HTTP ${response.status})`
-        );
+        throw new Error(responseText || `Respuesta no válida del servidor (HTTP ${response.status})`);
     }
 
     const data = await response.json();
 
     if (!response.ok) {
-        if (response.status === 401) {
-            throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
-        }
-
-        if (response.status === 403) {
-            throw new Error('No tienes permisos para gestionar usuarios.');
-        }
-
+        if (response.status === 401) throw new Error('La sesión ha caducado. Vuelve a iniciar sesión.');
+        if (response.status === 403) throw new Error('No tienes permisos para gestionar usuarios.');
         throw new Error(data?.message || `Error del servidor (HTTP ${response.status})`);
     }
 
@@ -97,14 +112,15 @@ function GestionUsuarios() {
     const [editUser, setEditUser] = useState(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [pendingDeleteUser, setPendingDeleteUser] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all');
 
     const token = useMemo(() => localStorage.getItem('token'), []);
-
-    const authHeaders = useMemo(() => ({
-        Authorization: `Bearer ${token}`,
-    }), [token]);
+    const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
     const resetMessages = () => {
         setErrorMessage('');
@@ -116,10 +132,7 @@ function GestionUsuarios() {
         resetMessages();
 
         try {
-            const data = await apiRequest('/api/auth/users', {
-                headers: authHeaders,
-            });
-
+            const data = await apiRequest('/api/auth/users', { headers: authHeaders });
             setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -131,7 +144,24 @@ function GestionUsuarios() {
 
     useEffect(() => {
         fetchUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const filteredUsers = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
+        return users.filter((user) => {
+            const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+            const haystack = [
+                user.username,
+                fullName(user),
+                user.email,
+                user.departamento,
+                user.codrepre,
+                normalizeCodrepresForDisplay(user.codrepres),
+            ].join(' ').toLowerCase();
+            return matchesRole && (!query || haystack.includes(query));
+        });
+    }, [users, searchTerm, roleFilter]);
 
     const handleOpenCreateModal = () => {
         resetMessages();
@@ -146,7 +176,6 @@ function GestionUsuarios() {
 
     const handleOpenEditModal = (user) => {
         resetMessages();
-
         setEditUser({
             id: user.id,
             username: user.username || '',
@@ -162,7 +191,6 @@ function GestionUsuarios() {
             codrepre: user.codrepre || '',
             codrepres: normalizeCodrepresForDisplay(user.codrepres),
         });
-
         setIsEditModalOpen(true);
     };
 
@@ -172,31 +200,22 @@ function GestionUsuarios() {
     };
 
     const handleGeneratePassword = () => {
-        const generatedPassword = generatePassword(PASSWORD_LENGTH);
-
-        setNewUser((prev) => ({
-            ...prev,
-            password: generatedPassword,
+        setNewUser((previous) => ({
+            ...previous,
+            password: generatePassword(PASSWORD_LENGTH),
         }));
     };
 
     const handleNewUserChange = (field, value) => {
-        setNewUser((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
+        setNewUser((previous) => ({ ...previous, [field]: value }));
     };
 
     const handleEditUserChange = (field, value) => {
-        setEditUser((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
+        setEditUser((previous) => ({ ...previous, [field]: value }));
     };
 
     const buildUserFormData = (userData) => {
         const formData = new FormData();
-
         formData.append('username', userData.username.trim());
         formData.append('password', userData.password);
         formData.append('role', userData.role);
@@ -210,11 +229,7 @@ function GestionUsuarios() {
         formData.append('dias_vacaciones_anuales', userData.dias_vacaciones_anuales);
         formData.append('codrepre', userData.codrepre.trim());
         formData.append('codrepres', userData.codrepres.trim());
-
-        if (userData.imagenperfil) {
-            formData.append('imagen', userData.imagenperfil);
-        }
-
+        if (userData.imagenperfil) formData.append('imagen', userData.imagenperfil);
         return formData;
     };
 
@@ -228,19 +243,15 @@ function GestionUsuarios() {
         }
 
         setSaving(true);
-
         try {
-            const formData = buildUserFormData(newUser);
-
             await apiRequest('/api/auth/users/create-with-image', {
                 method: 'POST',
                 headers: authHeaders,
-                body: formData,
+                body: buildUserFormData(newUser),
             });
-
-            setSuccessMessage('Usuario creado correctamente');
             handleCloseCreateModal();
             await fetchUsers();
+            setSuccessMessage('Usuario creado correctamente');
         } catch (error) {
             console.error('Error creando usuario:', error);
             setErrorMessage(error.message || 'Error creando usuario');
@@ -264,7 +275,6 @@ function GestionUsuarios() {
         }
 
         setSaving(true);
-
         try {
             const payload = {
                 username: editUser.username.trim(),
@@ -283,16 +293,13 @@ function GestionUsuarios() {
 
             await apiRequest(`/api/auth/users/${editUser.id}`, {
                 method: 'PUT',
-                headers: {
-                    ...authHeaders,
-                    'Content-Type': 'application/json',
-                },
+                headers: { ...authHeaders, 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            setSuccessMessage('Usuario actualizado correctamente');
             handleCloseEditModal();
             await fetchUsers();
+            setSuccessMessage('Usuario actualizado correctamente');
         } catch (error) {
             console.error('Error actualizando usuario:', error);
             setErrorMessage(error.message || 'Error actualizando usuario');
@@ -301,146 +308,231 @@ function GestionUsuarios() {
         }
     };
 
-    const handleDeleteUser = async (userId) => {
-        const confirmed = window.confirm('¿Seguro que quieres eliminar este usuario?');
-
-        if (!confirmed) return;
-
+    const executeDeleteUser = async () => {
+        if (!pendingDeleteUser?.id) return;
         resetMessages();
+        setDeleting(true);
 
         try {
-            await apiRequest(`/api/auth/users/${userId}`, {
+            await apiRequest(`/api/auth/users/${pendingDeleteUser.id}`, {
                 method: 'DELETE',
                 headers: authHeaders,
             });
-
-            setSuccessMessage('Usuario eliminado correctamente');
+            setPendingDeleteUser(null);
             await fetchUsers();
+            setSuccessMessage('Usuario eliminado correctamente');
         } catch (error) {
             console.error('Error eliminando usuario:', error);
             setErrorMessage(error.message || 'Error eliminando usuario');
+        } finally {
+            setDeleting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-            <div className="mx-auto max-w-7xl">
-                <div className="mb-6 flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
-                            Gestión de usuarios
-                        </h1>
-                        <p className="mt-1 text-sm text-slate-500">
-                            Crear, editar y asignar roles, departamentos y códigos comerciales.
-                        </p>
-                    </div>
-
+        <PageShell maxWidth="max-w-7xl" className="mt-16 sm:mt-20">
+            <PageHeader
+                eyebrow="Administración · Seguridad"
+                title="Gestión de usuarios"
+                description="Crea cuentas, asigna permisos y mantén actualizados los datos laborales desde una interfaz optimizada para móvil, tablet y ordenador."
+                icon={FiUsers}
+                actions={(
                     <button
                         type="button"
                         onClick={handleOpenCreateModal}
-                        className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                        className="cjm-primary-button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold sm:w-auto"
                     >
-                        <FaPlus className="mr-2" />
+                        <FaPlus aria-hidden="true" />
                         Nuevo usuario
                     </button>
+                )}
+            />
+
+            {errorMessage && (
+                <div className="cjm-alert cjm-alert-error mt-4" role="alert">{errorMessage}</div>
+            )}
+            {successMessage && (
+                <div className="cjm-alert cjm-alert-success mt-4" role="status">{successMessage}</div>
+            )}
+
+            <section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Filtros de usuarios">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
+                    <label className="block">
+                        <span className="cjm-control-label">Buscar usuario</span>
+                        <span className="relative block">
+                            <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" />
+                            <input
+                                type="search"
+                                value={searchTerm}
+                                onChange={(event) => setSearchTerm(event.target.value)}
+                                placeholder="Usuario, nombre, email o departamento"
+                                className="cjm-input min-h-11 rounded-xl py-2.5 pl-10 pr-3"
+                            />
+                        </span>
+                    </label>
+
+                    <label className="block">
+                        <span className="cjm-control-label">Rol</span>
+                        <select
+                            value={roleFilter}
+                            onChange={(event) => setRoleFilter(event.target.value)}
+                            className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                        >
+                            <option value="all">Todos los roles</option>
+                            {roles.map((role) => (
+                                <option key={role} value={role}>{roleLabel(role)}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <span className="cjm-brand-chip min-h-11 justify-center px-3 py-2 text-sm font-semibold">
+                        {filteredUsers.length} de {users.length}
+                    </span>
                 </div>
+            </section>
 
-                {errorMessage && (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {errorMessage}
-                    </div>
-                )}
-
-                {successMessage && (
-                    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                        {successMessage}
-                    </div>
-                )}
-
-                <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-100">
+            <section className="mt-5 sm:mt-6" aria-live="polite">
+                <div className="hidden md:block cjm-table-shell">
+                    <div className="cjm-table-scroller">
+                        <table className="cjm-table min-w-[980px]">
+                            <thead>
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Usuario</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Nombre</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Email</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Rol</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Departamento</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Cod. repre</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">Cod. repres</th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600">Acciones</th>
+                                    <th>Usuario</th>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Rol</th>
+                                    <th>Departamento</th>
+                                    <th>Cod. repre</th>
+                                    <th>Cod. repres</th>
+                                    <th className="text-right">Acciones</th>
                                 </tr>
                             </thead>
-
-                            <tbody className="divide-y divide-slate-100 bg-white">
+                            <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="8" className="px-4 py-8 text-center text-sm text-slate-500">
-                                            Cargando usuarios...
+                                        <td colSpan="8" className="py-10 text-center">
+                                            <span className="inline-flex items-center gap-2 cjm-muted">
+                                                <InlineSpinner className="h-4 w-4" srLabel="Cargando usuarios" />
+                                                Cargando usuarios…
+                                            </span>
                                         </td>
                                     </tr>
-                                ) : users.length === 0 ? (
+                                ) : filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan="8" className="px-4 py-8 text-center text-sm text-slate-500">
-                                            No hay usuarios.
+                                        <td colSpan="8" className="py-10 text-center cjm-muted">
+                                            No hay usuarios que coincidan con los filtros.
                                         </td>
                                     </tr>
-                                ) : (
-                                    users.map((user) => (
-                                        <tr key={user.id} className="hover:bg-slate-50">
-                                            <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                                                {user.username}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                {[user.nombre, user.apellido1, user.apellido2].filter(Boolean).join(' ') || '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                {user.email || '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                                    {user.role}
+                                ) : filteredUsers.map((user) => (
+                                    <tr key={user.id}>
+                                        <td>
+                                            <span className="flex items-center gap-3">
+                                                <span className="cjm-icon-tile h-9 w-9 shrink-0 rounded-xl text-xs font-bold">
+                                                    {initials(user)}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                {user.departamento || '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                {user.codrepre || '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-700">
-                                                {normalizeCodrepresForDisplay(user.codrepres) || '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="inline-flex gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenEditModal(user)}
-                                                        className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                                                        title="Editar"
-                                                    >
-                                                        <FaEdit />
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteUser(user.id)}
-                                                        className="rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
-                                                        title="Eliminar"
-                                                    >
-                                                        <FaTrash />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+                                                <span className="font-semibold app-text">{user.username}</span>
+                                            </span>
+                                        </td>
+                                        <td>{fullName(user)}</td>
+                                        <td>{user.email || '—'}</td>
+                                        <td><span className="cjm-badge">{roleLabel(user.role)}</span></td>
+                                        <td>{user.departamento || '—'}</td>
+                                        <td>{user.codrepre || '—'}</td>
+                                        <td>{normalizeCodrepresForDisplay(user.codrepres) || '—'}</td>
+                                        <td className="text-right">
+                                            <span className="inline-flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEditModal(user)}
+                                                    className="cjm-icon-button inline-flex h-11 w-11 items-center justify-center rounded-xl"
+                                                    aria-label={`Editar ${user.username}`}
+                                                >
+                                                    <FaEdit aria-hidden="true" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPendingDeleteUser(user)}
+                                                    className="cjm-danger-button h-11 w-11 p-0"
+                                                    aria-label={`Eliminar ${user.username}`}
+                                                >
+                                                    <FaTrash aria-hidden="true" />
+                                                </button>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
+
+                <div className="space-y-3 md:hidden">
+                    {loading ? (
+                        <div className="cjm-empty-state flex min-h-40 items-center justify-center">
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold app-text">
+                                <InlineSpinner className="h-4 w-4" srLabel="Cargando usuarios" />
+                                Cargando usuarios…
+                            </span>
+                        </div>
+                    ) : filteredUsers.length === 0 ? (
+                        <div className="cjm-empty-state py-10">
+                            <p className="font-semibold app-text">No hay usuarios</p>
+                            <p className="cjm-muted mt-2 text-sm">Prueba con otra búsqueda o rol.</p>
+                        </div>
+                    ) : filteredUsers.map((user) => (
+                        <article key={user.id} className="cjm-data-card">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="cjm-icon-tile h-11 w-11 shrink-0 rounded-2xl text-sm font-bold">
+                                        {initials(user)}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-base font-semibold app-text">{fullName(user)}</h2>
+                                        <p className="cjm-muted truncate text-sm">@{user.username}</p>
+                                    </div>
+                                </div>
+                                <span className="cjm-badge shrink-0">{roleLabel(user.role)}</span>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 gap-2 text-sm">
+                                <p className="flex items-start gap-2">
+                                    <FiMail className="mt-0.5 shrink-0 text-[var(--cjm-primary-deep)]" />
+                                    <span className="min-w-0 break-all app-text">{user.email || 'Sin email'}</span>
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <FiBriefcase className="mt-0.5 shrink-0 text-[var(--cjm-primary-deep)]" />
+                                    <span className="app-text">{user.departamento || 'Sin departamento'}</span>
+                                </p>
+                            </div>
+
+                            {(user.codrepre || normalizeCodrepresForDisplay(user.codrepres)) && (
+                                <div className="mt-3 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2 text-xs cjm-muted">
+                                    Representantes: {[user.codrepre, normalizeCodrepresForDisplay(user.codrepres)].filter(Boolean).join(' · ')}
+                                </div>
+                            )}
+
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleOpenEditModal(user)}
+                                    className="cjm-secondary-button"
+                                >
+                                    <FaEdit aria-hidden="true" />
+                                    Editar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingDeleteUser(user)}
+                                    className="cjm-danger-button"
+                                >
+                                    <FaTrash aria-hidden="true" />
+                                    Eliminar
+                                </button>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            </section>
 
             {isCreateModalOpen && (
                 <UserModal
@@ -466,7 +558,19 @@ function GestionUsuarios() {
                     onChange={handleEditUserChange}
                 />
             )}
-        </div>
+
+            {pendingDeleteUser && (
+                <ConfirmDialog
+                    title="Eliminar usuario"
+                    message={`¿Seguro que quieres eliminar a ${pendingDeleteUser.username}? Esta acción no se puede deshacer.`}
+                    confirmLabel="Eliminar usuario"
+                    onConfirm={executeDeleteUser}
+                    onCancel={() => setPendingDeleteUser(null)}
+                    loading={deleting}
+                    destructive
+                />
+            )}
+        </PageShell>
     );
 }
 
@@ -483,219 +587,155 @@ function UserModal({
     const isCreateMode = mode === 'create';
 
     return (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/50 p-4">
-            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-                        <p className="text-sm text-slate-500">
+        <div
+            className="cjm-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget && !saving) onClose();
+            }}
+        >
+            <section className="cjm-modal sm:max-w-4xl" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+                <div className="cjm-modal-header flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
+                    <div className="min-w-0">
+                        <p className="cjm-kicker">Administración de acceso</p>
+                        <h2 id="user-modal-title" className="mt-1 text-lg font-semibold app-text sm:text-xl">{title}</h2>
+                        <p className="cjm-muted mt-1 text-sm">
                             {isCreateMode
-                                ? 'Genera la contraseña y completa los datos del usuario.'
-                                : 'Modifica los datos del usuario seleccionado.'}
+                                ? 'Genera la contraseña y completa los datos del nuevo usuario.'
+                                : 'Modifica los datos y permisos del usuario seleccionado.'}
                         </p>
                     </div>
-
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        disabled={saving}
+                        className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                        aria-label="Cerrar"
                     >
-                        <FaTimes />
+                        <FaTimes aria-hidden="true" />
                     </button>
                 </div>
 
-                <form onSubmit={onSubmit} className="p-5">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <FormField label="Usuario" required>
-                            <input
-                                type="text"
-                                value={userData.username}
-                                onChange={(e) => onChange('username', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                required
-                            />
-                        </FormField>
-
-                        {isCreateMode && (
-                            <FormField label="Contraseña" required>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={userData.password}
-                                        onChange={(e) => onChange('password', e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                        required
-                                    />
-
-                                    <button
-                                        type="button"
-                                        onClick={onGeneratePassword}
-                                        className="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                                        title="Generar contraseña"
-                                    >
-                                        <FaKey />
-                                    </button>
-                                </div>
-                            </FormField>
-                        )}
-
-                        <FormField label="Rol" required>
-                            <select
-                                value={userData.role}
-                                onChange={(e) => onChange('role', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                required
-                            >
-                                {roles.map((role) => (
-                                    <option key={role} value={role}>
-                                        {role}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-
-                        <FormField label="Tipo de jornada">
-                            <select
-                                value={userData.tipo_jornada}
-                                onChange={(e) => onChange('tipo_jornada', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            >
-                                {jornadas.map((jornada) => (
-                                    <option key={jornada} value={jornada}>
-                                        {jornada}
-                                    </option>
-                                ))}
-                            </select>
-                        </FormField>
-
-                        <FormField label="Nombre">
-                            <input
-                                type="text"
-                                value={userData.nombre}
-                                onChange={(e) => onChange('nombre', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Primer apellido">
-                            <input
-                                type="text"
-                                value={userData.apellido1}
-                                onChange={(e) => onChange('apellido1', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Segundo apellido">
-                            <input
-                                type="text"
-                                value={userData.apellido2}
-                                onChange={(e) => onChange('apellido2', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="DNI">
-                            <input
-                                type="text"
-                                value={userData.dni}
-                                onChange={(e) => onChange('dni', e.target.value.toUpperCase())}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Email">
-                            <input
-                                type="email"
-                                value={userData.email}
-                                onChange={(e) => onChange('email', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Departamento">
-                            <input
-                                type="text"
-                                value={userData.departamento}
-                                onChange={(e) => onChange('departamento', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Días vacaciones anuales">
-                            <input
-                                type="number"
-                                min="0"
-                                value={userData.dias_vacaciones_anuales}
-                                onChange={(e) => onChange('dias_vacaciones_anuales', e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Código representante principal">
-                            <input
-                                type="text"
-                                value={userData.codrepre}
-                                onChange={(e) => onChange('codrepre', e.target.value.toUpperCase())}
-                                placeholder="020"
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        <FormField label="Códigos representantes adicionales">
-                            <input
-                                type="text"
-                                value={userData.codrepres}
-                                onChange={(e) => onChange('codrepres', e.target.value.toUpperCase())}
-                                placeholder="021,022,030"
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                            />
-                        </FormField>
-
-                        {isCreateMode && (
-                            <FormField label="Imagen de perfil">
+                <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="cjm-modal-body px-4 py-5 sm:px-6">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <FormField label="Usuario" required>
                                 <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => onChange('imagenperfil', e.target.files?.[0] || null)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                                    type="text"
+                                    value={userData.username}
+                                    onChange={(event) => onChange('username', event.target.value)}
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                                    required
                                 />
                             </FormField>
-                        )}
+
+                            {isCreateMode && (
+                                <FormField label="Contraseña" required>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                        <input
+                                            type="text"
+                                            value={userData.password}
+                                            onChange={(event) => onChange('password', event.target.value)}
+                                            className="cjm-input min-h-11 min-w-0 flex-1 rounded-xl px-3 py-2.5"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={onGeneratePassword}
+                                            className="cjm-secondary-button shrink-0"
+                                        >
+                                            <FaKey aria-hidden="true" />
+                                            Generar
+                                        </button>
+                                    </div>
+                                </FormField>
+                            )}
+
+                            <FormField label="Rol" required>
+                                <select
+                                    value={userData.role}
+                                    onChange={(event) => onChange('role', event.target.value)}
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                                    required
+                                >
+                                    {roles.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
+                                </select>
+                            </FormField>
+
+                            <FormField label="Tipo de jornada">
+                                <select
+                                    value={userData.tipo_jornada}
+                                    onChange={(event) => onChange('tipo_jornada', event.target.value)}
+                                    className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
+                                >
+                                    {jornadas.map((jornada) => <option key={jornada} value={jornada}>{jornada}</option>)}
+                                </select>
+                            </FormField>
+
+                            <FormField label="Nombre">
+                                <input type="text" value={userData.nombre} onChange={(event) => onChange('nombre', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="Primer apellido">
+                                <input type="text" value={userData.apellido1} onChange={(event) => onChange('apellido1', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="Segundo apellido">
+                                <input type="text" value={userData.apellido2} onChange={(event) => onChange('apellido2', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="DNI">
+                                <input type="text" value={userData.dni} onChange={(event) => onChange('dni', event.target.value.toUpperCase())} className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
+                            </FormField>
+                            <FormField label="Email">
+                                <input type="email" value={userData.email} onChange={(event) => onChange('email', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="Departamento">
+                                <input type="text" value={userData.departamento} onChange={(event) => onChange('departamento', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="Días de vacaciones anuales">
+                                <input type="number" min="0" value={userData.dias_vacaciones_anuales} onChange={(event) => onChange('dias_vacaciones_anuales', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
+                            </FormField>
+                            <FormField label="Representante principal">
+                                <input type="text" value={userData.codrepre} onChange={(event) => onChange('codrepre', event.target.value.toUpperCase())} placeholder="020" className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
+                            </FormField>
+                            <FormField label="Representantes adicionales">
+                                <input type="text" value={userData.codrepres} onChange={(event) => onChange('codrepres', event.target.value.toUpperCase())} placeholder="021, 022, 030" className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
+                            </FormField>
+
+                            {isCreateMode && (
+                                <FormField label="Imagen de perfil" className="md:col-span-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => onChange('imagenperfil', event.target.files?.[0] || null)}
+                                        className="cjm-input min-h-11 rounded-xl px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#536f93] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                                    />
+                                </FormField>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-5">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                            disabled={saving}
-                        >
+                    <div className="cjm-modal-footer grid grid-cols-1 gap-2 border-t px-4 py-4 sm:flex sm:justify-end sm:px-6">
+                        <button type="button" onClick={onClose} className="cjm-ghost-button" disabled={saving}>
                             Cancelar
                         </button>
-
                         <button
                             type="submit"
-                            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
                             disabled={saving}
                         >
-                            {saving
-                                ? 'Guardando...'
-                                : isCreateMode
-                                    ? 'Crear usuario'
-                                    : 'Guardar cambios'}
+                            {saving && <InlineSpinner className="h-4 w-4 text-white" srLabel="Guardando" />}
+                            {saving ? 'Guardando…' : isCreateMode ? 'Crear usuario' : 'Guardar cambios'}
                         </button>
                     </div>
                 </form>
-            </div>
+            </section>
         </div>
     );
 }
 
-function FormField({ label, required = false, children }) {
+function FormField({ label, required = false, children, className = '' }) {
     return (
-        <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label className={`block ${className}`}>
+            <span className="cjm-control-label">
                 {label}
                 {required && <span className="text-red-500"> *</span>}
             </span>

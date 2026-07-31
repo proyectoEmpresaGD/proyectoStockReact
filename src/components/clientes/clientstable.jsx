@@ -1,243 +1,240 @@
-// src/components/clientes/ClientTable.jsx
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlane } from '@fortawesome/free-solid-svg-icons';
+import { FiGrid, FiMonitor, FiTable } from 'react-icons/fi';
 import { useAuthContext } from '../../Auth/AuthContext';
 import VisitModal from './VisitModal';
+import EmptyState from '../../common/EmptyState.jsx';
+
+const formatBilling = (value) => new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+}).format(Number(value) || 0);
+
+const formatVisitDate = (value) => {
+    if (!value) return 'Sin visitas';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Sin visitas' : date.toLocaleDateString('es-ES');
+};
 
 export default function ClientTable({
     clients,
     handleClientClick,
     clientBillings,
     getClientColor,
-    setClients
+    setClients,
 }) {
     const { user } = useAuthContext();
-    const [tooltip, setTooltip] = useState({
-        show: false,
-        content: '',
-        x: 0,
-        y: 0,
-        clientId: null
-    });
-    const [vista, setVista] = useState('tabla');
+    const [viewMode, setViewMode] = useState('auto');
     const [visitModalVisible, setVisitModalVisible] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(null);
 
-    const showTooltip = (billing, clientId, e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setTooltip({
-            show: true,
-            content: `€ ${billing.toFixed(2)}`,
-            x: rect.left + rect.width / 2,
-            y: rect.top - 8,
-            clientId
-        });
-    };
-    const hideTooltip = () =>
-        setTooltip({ show: false, content: '', x: 0, y: 0, clientId: null });
+    const canManageVisits = user && (user.role === 'comercial' || user.role === 'admin');
 
     const openVisitModal = (clientId) => {
         setSelectedClientId(clientId);
         setVisitModalVisible(true);
     };
+
     const closeVisitModal = () => {
         setVisitModalVisible(false);
         setSelectedClientId(null);
     };
 
+    const tableVisibility = viewMode === 'auto'
+        ? 'hidden md:block'
+        : viewMode === 'table'
+            ? 'block'
+            : 'hidden';
+
+    const cardsVisibility = viewMode === 'auto'
+        ? 'block md:hidden'
+        : viewMode === 'cards'
+            ? 'block'
+            : 'hidden';
+
+    if (!clients.length) {
+        return (
+            <EmptyState
+                title="No se han encontrado clientes"
+                description="Revisa la búsqueda o elimina alguno de los filtros aplicados."
+            />
+        );
+    }
+
     return (
-        <div className="relative shadow-md rounded-lg">
-            <div className="flex justify-end p-2">
-                <button
-                    onClick={() =>
-                        setVista((prev) =>
-                            prev === 'auto' ? 'tabla' : prev === 'tabla' ? 'carta' : 'tabla'
-                        )
-                    }
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm"
-                >
-                    Vista: {vista}
-                </button>
+        <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p className="text-sm font-semibold app-text">Resultados</p>
+                    <p className="cjm-muted mt-0.5 text-xs">
+                        En modo automático se muestran tarjetas en móvil y tabla en pantallas amplias.
+                    </p>
+                </div>
+
+                <div className="cjm-segmented w-full overflow-x-auto sm:w-auto" aria-label="Tipo de vista">
+                    <button
+                        type="button"
+                        aria-pressed={viewMode === 'auto'}
+                        onClick={() => setViewMode('auto')}
+                    >
+                        <FiMonitor aria-hidden="true" />
+                        Auto
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={viewMode === 'table'}
+                        onClick={() => setViewMode('table')}
+                    >
+                        <FiTable aria-hidden="true" />
+                        Tabla
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={viewMode === 'cards'}
+                        onClick={() => setViewMode('cards')}
+                    >
+                        <FiGrid aria-hidden="true" />
+                        Tarjetas
+                    </button>
+                </div>
             </div>
-            {/* tabla Table */}
-            <div className={`
-          overflow-x-auto max-h-[60vh] transition-all duration-500 ease-in-out
-          ${vista === 'tabla' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}
-        `}>
-                <table className="min-w-full bg-white text-sm">
-                    <thead className="sticky top-0 bg-gray-100 border-b z-10">
-                        <tr>
-                            <th className="px-3 py-2">Estado</th>
-                            <th className="px-3 py-2 text-left">Código</th>
-                            <th className="px-3 py-2 text-left">Nombre</th>
-                            <th className="px-3 py-2 text-left">Localidad</th>
-                            <th className="px-3 py-2 text-center">Últ. Visita</th>
-                            <th className="px-3 py-2 text-center">Visitas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {clients.map((client) => {
-                            const billing = clientBillings[client.codclien] || 0;
-                            return (
-                                <tr
-                                    key={client.codclien}
-                                    className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50"
 
-                                >
-                                    <td className="px-3 py-2 text-center relative" >
-                                        <span
-                                            className={`inline-block w-3 h-3 rounded-full ${getClientColor(
-                                                billing
-                                            )}`}
-                                            onMouseEnter={(e) => showTooltip(billing, client.codclien, e)}
-                                            onMouseLeave={hideTooltip}
-                                            aria-label={`Facturación ${billing.toFixed(2)}€`}
-                                        />
-                                        {tooltip.show && tooltip.clientId === client.codclien && (
-                                            <div
-                                                className="absolute bg-black text-white text-xs rounded py-1 px-2 pointer-events-none animate-fadeIn"
-                                                style={{
-                                                    bottom: '100%',
-                                                    zIndex: '40',
-                                                    left: '60%',
-                                                    transform: 'translateX(-50%)',
-                                                    marginBottom: '3px',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-
+            <div className={`${tableVisibility} cjm-table-shell`}>
+                <div className="cjm-table-scroller lg:max-h-[68vh] lg:overflow-y-auto">
+                    <table className="cjm-table min-w-[760px]">
+                        <thead className="sticky top-0 z-10">
+                            <tr>
+                                <th>Estado</th>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Localidad</th>
+                                <th>Última visita</th>
+                                <th className="text-right">Facturación</th>
+                                {canManageVisits && <th className="text-center">Visitas</th>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {clients.map((client) => {
+                                const billing = clientBillings[client.codclien] || 0;
+                                return (
+                                    <tr key={client.codclien}>
+                                        <td>
+                                            <span
+                                                className={`inline-block h-3 w-3 rounded-full ${getClientColor(billing)}`}
+                                                title={`Facturación ${formatBilling(billing)}`}
+                                                aria-label={`Facturación ${formatBilling(billing)}`}
+                                            />
+                                        </td>
+                                        <td>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleClientClick(client.codclien)}
+                                                className="font-semibold text-[var(--cjm-primary-deep)] hover:underline"
                                             >
-                                                {tooltip.content}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        onClick={() => handleClientClick(client.codclien)}
-                                    >
-                                        {client.codclien}
-                                    </td>
-                                    <td
-                                        className="px-3 py-2 break-words"
-                                        onClick={() => handleClientClick(client.codclien)}
-                                    >
-                                        {client.razclien}
-                                    </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        onClick={() => handleClientClick(client.codclien)}
-                                    >
-                                        {client.localidad}
-                                    </td>
-                                    <td className="px-3 py-2 text-center">
-                                        {client.ultimaVisita
-                                            ? new Date(client.ultimaVisita).toLocaleDateString()
-                                            : 'Sin visitas'}
-                                    </td>
-                                    <td className="px-3 py-2 text-center">
-                                        {user &&
-                                            (user.role === 'comercial' || user.role === 'admin') && (
+                                                {client.codclien}
+                                            </button>
+                                        </td>
+                                        <td>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleClientClick(client.codclien)}
+                                                className="max-w-[22rem] text-left font-semibold app-text hover:text-[var(--cjm-primary-deep)]"
+                                            >
+                                                {client.razclien}
+                                            </button>
+                                        </td>
+                                        <td>{client.localidad || '—'}</td>
+                                        <td>{formatVisitDate(client.ultimaVisita)}</td>
+                                        <td className="text-right font-semibold tabular-nums app-text">
+                                            {formatBilling(billing)}
+                                        </td>
+                                        {canManageVisits && (
+                                            <td className="text-center">
                                                 <button
+                                                    type="button"
                                                     onClick={() => openVisitModal(client.codclien)}
-                                                    aria-label="Ver/Agregar visita"
-                                                    className="flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors"
+                                                    aria-label={`Ver o agregar visita de ${client.razclien}`}
+                                                    className="cjm-icon-button inline-flex h-11 w-11 items-center justify-center rounded-xl"
                                                 >
-                                                    <FontAwesomeIcon icon={faPlane} size="lg" />
+                                                    <FontAwesomeIcon icon={faPlane} />
                                                 </button>
-                                            )}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <p className="cjm-mobile-scroll-hint border-t border-[var(--cjm-border)] px-4 py-2 md:hidden">
+                    Desliza horizontalmente para ver todas las columnas.
+                </p>
             </div>
 
-            {/* carta Cards */}
-            <div className={`
-          space-y-4 overflow-y-auto max-h-[60vh] p-2 transition-all duration-500 ease-in-out
-          ${vista === 'carta' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0'}
-        `}
-            >
+            <div className={`${cardsVisibility} space-y-3`}>
                 {clients.map((client) => {
                     const billing = clientBillings[client.codclien] || 0;
                     return (
-                        <div
-                            onClick={() => handleClientClick(client.codclien)}
-                            key={client.codclien}
-                            className="bg-white p-4 rounded-lg cursor-pointer cur shadow hover:shadow-md transition"
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="flex items-center gap-2">
-                                    <span
-                                        className={`relative inline-block w-3 h-3 rounded-full ${getClientColor(billing)}`}
-                                        onMouseEnter={() =>
-                                            setTooltip({
-                                                show: true,
-                                                content: `€ ${billing.toFixed(2)}`,
-                                                clientId: client.codclien
-                                            })
-                                        }
-                                        onMouseLeave={hideTooltip}
-                                        aria-label={`Facturación ${billing.toFixed(2)}€`}
-                                    >
-                                        {/* Tooltip encima del punto */}
-                                        {tooltip.show && tooltip.clientId === client.codclien && (
-                                            <div
-                                                className="absolute bg-black text-white text-xs rounded py-1 px-2 pointer-events-none animate-fadeIn"
-                                                style={{
-                                                    bottom: '100%',
-                                                    left: '100%',
-                                                    transform: 'translateX(-20%)',
-                                                    marginBottom: '6px',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                {tooltip.content}
-                                            </div>
-                                        )}
+                        <article key={client.codclien} className="cjm-data-card">
+                            <div className="flex items-start justify-between gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleClientClick(client.codclien)}
+                                    className="min-w-0 flex-1 text-left"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span
+                                            className={`inline-block h-3 w-3 shrink-0 rounded-full ${getClientColor(billing)}`}
+                                            aria-hidden="true"
+                                        />
+                                        <span className="truncate text-base font-semibold app-text">
+                                            {client.razclien}
+                                        </span>
                                     </span>
-                                    <span
-                                        className="text-lg font-semibold"
-                                        onClick={() => handleClientClick(client.codclien)}
+                                    <span className="cjm-muted mt-1 block text-xs">
+                                        Cliente {client.codclien}
+                                    </span>
+                                </button>
+
+                                {canManageVisits && (
+                                    <button
+                                        type="button"
+                                        onClick={() => openVisitModal(client.codclien)}
+                                        aria-label={`Ver o agregar visita de ${client.razclien}`}
+                                        className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                                     >
-                                        {client.razclien}
+                                        <FontAwesomeIcon icon={faPlane} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => handleClientClick(client.codclien)}
+                                className="mt-4 grid w-full grid-cols-2 gap-3 text-left"
+                            >
+                                <span>
+                                    <span className="cjm-data-label block">Localidad</span>
+                                    <span className="mt-1 block text-sm font-medium app-text">
+                                        {client.localidad || '—'}
                                     </span>
                                 </span>
-
-                                {user &&
-                                    (user.role === 'comercial' || user.role === 'admin') && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation(); // Evita que se dispare el onClick del contenedor
-                                                openVisitModal(client.codclien);
-                                            }}
-                                            aria-label="Ver/Agregar visita"
-                                            className="text-blue-500 hover:text-blue-700 transition"
-                                        >
-                                            <FontAwesomeIcon icon={faPlane} size="lg" />
-                                        </button>
-                                    )}
-                            </div>
-                            <p
-                                className="text-sm text-gray-700 mb-1 cursor-pointer break-words"
-                                onClick={() => handleClientClick(client.codclien)}
-                            >
-                                <strong>Código:</strong> {client.codclien}
-                            </p>
-                            <p className="text-sm text-gray-700 mb-1">
-                                <strong>Localidad:</strong> {client.localidad}
-                            </p>
-                            <p className="text-sm text-gray-700 mb-1">
-                                <strong>Últ. Visita:</strong>{' '}
-                                {client.ultimaVisita
-                                    ? new Date(client.ultimaVisita).toLocaleDateString()
-                                    : 'Sin visitas'}
-                            </p>
-                            <p className="text-sm text-gray-700">
-                                <strong>Facturación:</strong> €{billing.toFixed(2)}
-                            </p>
-                        </div>
+                                <span>
+                                    <span className="cjm-data-label block">Última visita</span>
+                                    <span className="mt-1 block text-sm font-medium app-text">
+                                        {formatVisitDate(client.ultimaVisita)}
+                                    </span>
+                                </span>
+                                <span className="col-span-2 rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-3 py-2.5">
+                                    <span className="cjm-data-label block text-[var(--cjm-primary-deep)]">Facturación</span>
+                                    <span className="mt-1 block text-base font-bold tabular-nums text-[var(--cjm-primary-deep)]">
+                                        {formatBilling(billing)}
+                                    </span>
+                                </span>
+                            </button>
+                        </article>
                     );
                 })}
             </div>
@@ -248,11 +245,9 @@ export default function ClientTable({
                     selectedClientId={selectedClientId}
                     closeModal={closeVisitModal}
                     updateLastVisitDate={(id, date) => {
-                        setClients((prev) =>
-                            prev.map((c) =>
-                                c.codclien === id ? { ...c, ultimaVisita: date } : c
-                            )
-                        );
+                        setClients((previous) => previous.map((client) => (
+                            client.codclien === id ? { ...client, ultimaVisita: date } : client
+                        )));
                     }}
                 />
             )}

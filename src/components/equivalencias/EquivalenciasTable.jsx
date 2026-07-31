@@ -1,304 +1,250 @@
-import { useEffect, useState, useRef } from 'react';
-import SearchBarEquivalencias from './SearchBarEquivalencias';
-import SearchBar from '../productos/SearchBar';
-import { useAuthContext } from '../../Auth/AuthContext';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, History, Search, X } from 'lucide-react';
+import { useAuthContext } from '../../Auth/AuthContext.jsx';
+import EmptyState from '../../common/EmptyState.jsx';
 
-const EquivalenciasTable = () => {
-    const { user, token } = useAuthContext();
-    const [equivalencias, setEquivalencias] = useState([]);
-    const [filteredEquivalencias, setFilteredEquivalencias] = useState([]);
-    const [searchTermProveedor, setSearchTermProveedor] = useState('');
-    const [searchTermCJMW, setSearchTermCJMW] = useState('');
-    const [suggestionsProveedor, setSuggestionsProveedor] = useState([]);
-    const [suggestionsCJMW, setSuggestionsCJMW] = useState([]);
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const ITEMS_PER_PAGE = 10;
+
+function SearchField({ label, value, onChange, onSubmit, suggestions, onSelect, placeholder }) {
+    return (
+        <div className="relative">
+            <label>
+                <span className="cjm-control-label">{label}</span>
+                <span className="relative block">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cjm-muted)]" aria-hidden="true" />
+                    <input
+                        type="search"
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                onSubmit(value);
+                            }
+                        }}
+                        className="cjm-input min-h-11 rounded-xl py-2.5 pl-10 pr-3"
+                        placeholder={placeholder}
+                        autoComplete="off"
+                    />
+                </span>
+            </label>
+            {suggestions.length > 0 && (
+                <div className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-1 shadow-xl">
+                    {suggestions.map((item, index) => (
+                        <button
+                            type="button"
+                            key={`${item.codequiv || item.codprodu || item.desequiv || item.desprodu}-${index}`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => onSelect(item)}
+                            className="w-full rounded-xl px-3 py-2.5 text-left transition hover:bg-[var(--cjm-surface-muted)]"
+                        >
+                            <span className="block text-sm font-semibold app-text">{item.desequiv || item.desprodu || 'Sin descripción'}</span>
+                            <span className="cjm-muted mt-0.5 block text-xs">{item.codequiv || item.codprodu || item.razprove || ''}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function EquivalenciasTable() {
+    const { token } = useAuthContext();
+    const [rows, setRows] = useState([]);
+    const [supplierTerm, setSupplierTerm] = useState('');
+    const [cjmTerm, setCjmTerm] = useState('');
+    const [supplierSuggestions, setSupplierSuggestions] = useState([]);
+    const [cjmSuggestions, setCjmSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(10);
-    const [isSearchActive, setIsSearchActive] = useState(false);
-    const [lastSearch, setLastSearch] = useState(''); // Almacenar la última búsqueda
-    const searchBarRef = useRef(null);
+    const [searchState, setSearchState] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const suggestionsAbortRef = useRef(null);
 
-    useEffect(() => {
-        if (user && (user.role === 'almacen' || user.role === 'admin')) {
-            fetchEquivalencias();
-        }
-    }, [currentPage, user]);
+    const request = useCallback(async (path, signal) => {
+        const response = await fetch(`${API_BASE}${path}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal,
+        });
+        if (!response.ok) throw new Error(`No se pudieron cargar las equivalencias (${response.status}).`);
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+    }, [token]);
 
-    // Obtener equivalencias de la API
-    const fetchEquivalencias = async () => {
+    const loadPage = useCallback(async (page, signal) => {
+        setLoading(true);
+        setError('');
         try {
-            const response = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/equivalencias?limit=${itemsPerPage}&offset=${(currentPage - 1) * itemsPerPage}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await request(`/api/equivalencias?limit=${ITEMS_PER_PAGE}&offset=${(page - 1) * ITEMS_PER_PAGE}`, signal);
+            setRows(data);
+        } catch (requestError) {
+            if (requestError.name !== 'AbortError') {
+                console.error(requestError);
+                setError(requestError.message || 'No se pudieron cargar las equivalencias.');
+                setRows([]);
             }
-            const data = await response.json();
-            setEquivalencias(data);
-            setFilteredEquivalencias(data);
-        } catch (error) {
-            console.error('Error fetching equivalencias:', error);
+        } finally {
+            if (!signal?.aborted) setLoading(false);
         }
-    };
+    }, [request]);
 
-    // Búsqueda de sugerencias por proveedor
     useEffect(() => {
-        if (searchTermProveedor.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${searchTermProveedor}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            })
-                .then((response) => response.json())
-                .then((data) => setSuggestionsProveedor(data))
-                .catch((error) => console.error('Error fetching suggestions:', error));
-        } else {
-            setSuggestionsProveedor([]);
-        }
-    }, [searchTermProveedor, token]);
+        if (searchState) return undefined;
+        const controller = new AbortController();
+        loadPage(currentPage, controller.signal);
+        return () => controller.abort();
+    }, [currentPage, loadPage, searchState]);
 
-    // Búsqueda de sugerencias por CJMW
-    useEffect(() => {
-        if (searchTermCJMW.length >= 3) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${searchTermCJMW}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            })
-                .then((response) => response.json())
-                .then((data) => setSuggestionsCJMW(data))
-                .catch((error) => console.error('Error fetching suggestions:', error));
-        } else {
-            setSuggestionsCJMW([]);
+    const fetchSuggestions = useCallback((type, term) => {
+        suggestionsAbortRef.current?.abort();
+        if (term.trim().length < 3) {
+            type === 'supplier' ? setSupplierSuggestions([]) : setCjmSuggestions([]);
+            return;
         }
-    }, [searchTermCJMW, token]);
+        const controller = new AbortController();
+        suggestionsAbortRef.current = controller;
+        const endpoint = type === 'supplier' ? 'search' : 'searchCJMW';
+        window.setTimeout(async () => {
+            try {
+                const data = await request(`/api/equivalencias/${endpoint}?query=${encodeURIComponent(term.trim())}`, controller.signal);
+                if (type === 'supplier') setSupplierSuggestions(data.slice(0, 12));
+                else setCjmSuggestions(data.slice(0, 12));
+            } catch (requestError) {
+                if (requestError.name !== 'AbortError') console.error(requestError);
+            }
+        }, 180);
+    }, [request]);
 
-    // Función de búsqueda por proveedor
-    const performSearchProveedor = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/search?query=${query}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                setFilteredEquivalencias(data);
-                setIsSearchActive(true);
-                setLastSearch(`Proveedor: ${query}`);
-                setSearchTermProveedor('');
-                setSuggestionsProveedor([]);
-                setCurrentPage(1);
-            })
-            .catch((error) => console.error('Error performing search:', error));
+    useEffect(() => { fetchSuggestions('supplier', supplierTerm); }, [supplierTerm, fetchSuggestions]);
+    useEffect(() => { fetchSuggestions('cjm', cjmTerm); }, [cjmTerm, fetchSuggestions]);
+    useEffect(() => () => suggestionsAbortRef.current?.abort(), []);
+
+    const performSearch = async (type, rawQuery) => {
+        const query = String(rawQuery || '').trim();
+        if (!query) return;
+        setLoading(true);
+        setError('');
+        setSupplierSuggestions([]);
+        setCjmSuggestions([]);
+        try {
+            const endpoint = type === 'supplier' ? 'search' : 'searchCJMW';
+            const data = await request(`/api/equivalencias/${endpoint}?query=${encodeURIComponent(query)}`);
+            setRows(data);
+            setSearchState({ type, query });
+            setCurrentPage(1);
+        } catch (requestError) {
+            console.error(requestError);
+            setError(requestError.message || 'No se pudo realizar la búsqueda.');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Función de búsqueda por CJMW
-    const performSearchCJMW = (query) => {
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equivalencias/searchCJMW?query=${query}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                setFilteredEquivalencias(data);
-                setIsSearchActive(true);
-                setLastSearch(`CJMW: ${query}`);
-                setSearchTermCJMW('');
-                setSuggestionsCJMW([]);
-                setCurrentPage(1);
-            })
-            .catch((error) => console.error('Error performing search:', error));
-    };
-
-    // Limpiar búsqueda y mostrar todos
-    const handleShowAll = () => {
-        setSearchTermProveedor('');
-        setSearchTermCJMW('');
-        setFilteredEquivalencias(equivalencias);
-        setIsSearchActive(false);
+    const clearSearch = () => {
+        setSearchState(null);
+        setSupplierTerm('');
+        setCjmTerm('');
         setCurrentPage(1);
     };
 
-    // Evento cuando se selecciona una sugerencia por proveedor
-    const handleSuggestionClickProveedor = (item) => {
-        performSearchProveedor(item.desequiv);
-    };
-
-    // Evento cuando se selecciona una sugerencia por CJMW
-    const handleSuggestionClickCJMW = (item) => {
-        performSearchCJMW(item.desprodu);
-    };
-
-    // Manejo de paginación
-    const handlePageChange = (newPage) => {
-        setCurrentPage(newPage);
-    };
-
-    useEffect(() => {
-        const handleClickOutsideProveedor = (event) => {
-            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
-                setSuggestionsProveedor([]);
-            }
-        };
-
-        const handleClickOutsideCJMW = (event) => {
-            if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
-                setSuggestionsCJMW([]);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutsideProveedor);
-        document.addEventListener('mousedown', handleClickOutsideCJMW);
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutsideProveedor);
-            document.removeEventListener('mousedown', handleClickOutsideCJMW);
-        };
-    }, [setSuggestionsProveedor, setSuggestionsCJMW]);
-
-    // Si el usuario no tiene acceso, mostrar un mensaje de error
-    if (user && user.role !== 'almacen' && user.role !== 'admin') {
-        return <div className="text-center text-red-500">Acceso denegado. No tienes permisos para ver las equivalencias.</div>;
-    }
-
     return (
-        <div className="mx-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
-            <div ref={searchBarRef} className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
-                    <SearchBarEquivalencias
-                        searchTerm={searchTermProveedor}
-                        setSearchTerm={setSearchTermProveedor}
-                        suggestions={suggestionsProveedor}
-                        setSuggestions={setSuggestionsProveedor}
-                        handleSearchInputChange={(e) => setSearchTermProveedor(e.target.value)}
-                        handleSearchKeyPress={(e) => {
-                            if (e.key === 'Enter') performSearchProveedor(searchTermProveedor);
-                        }}
-                        handleSuggestionClick={handleSuggestionClickProveedor}
+        <section className="space-y-5">
+            <div className="cjm-toolbar">
+                <div className="grid gap-3 md:grid-cols-2">
+                    <SearchField
+                        label="Referencia o nombre del proveedor"
+                        value={supplierTerm}
+                        onChange={setSupplierTerm}
+                        onSubmit={(query) => performSearch('supplier', query)}
+                        suggestions={supplierSuggestions}
+                        onSelect={(item) => performSearch('supplier', item.desequiv || item.codequiv)}
+                        placeholder="Escribe al menos 3 caracteres"
                     />
-                    <SearchBar
-                        searchTerm={searchTermCJMW}
-                        setSearchTerm={setSearchTermCJMW}
-                        suggestions={suggestionsCJMW}
-                        setSuggestions={setSuggestionsCJMW}
-                        handleSearchInputChange={(e) => setSearchTermCJMW(e.target.value)}
-                        handleSearchKeyPress={(e) => {
-                            if (e.key === 'Enter') performSearchCJMW(searchTermCJMW);
-                        }}
-                        handleSuggestionClick={handleSuggestionClickCJMW}
+                    <SearchField
+                        label="Referencia o nombre CJM"
+                        value={cjmTerm}
+                        onChange={setCjmTerm}
+                        onSubmit={(query) => performSearch('cjm', query)}
+                        suggestions={cjmSuggestions}
+                        onSelect={(item) => performSearch('cjm', item.desprodu || item.codprodu)}
+                        placeholder="Buscar producto CJM"
                     />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="cjm-muted text-xs">Pulsa Intro para buscar. Las sugerencias aparecen a partir de 3 caracteres.</p>
+                    {searchState && (
+                        <button type="button" onClick={clearSearch} className="cjm-ghost-button min-h-10 px-3 py-2 text-xs">
+                            <X className="h-4 w-4" aria-hidden="true" />Mostrar todas
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <div className="my-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center sm:gap-3">
-                {lastSearch && (
-                    <button
-                        onClick={() => {
-                            if (lastSearch.startsWith('Proveedor: ')) {
-                                performSearchProveedor(lastSearch.replace('Proveedor: ', ''));
-                            } else {
-                                performSearchCJMW(lastSearch.replace('CJMW: ', ''));
-                            }
-                        }}
-                        className="min-h-[44px] rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                    >
-                        Última búsqueda: {lastSearch}
-                    </button>
-                )}
-                {isSearchActive && (
-                    <button
-                        onClick={handleShowAll}
-                        className="min-h-[44px] rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                    >
-                        Mostrar todos
-                    </button>
-                )}
-            </div>
+            {searchState && (
+                <div className="cjm-alert flex items-center gap-3 border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]">
+                    <History className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>Búsqueda activa por {searchState.type === 'supplier' ? 'proveedor' : 'CJM'}: <strong>{searchState.query}</strong></span>
+                </div>
+            )}
 
-            <div className="max-h-[50vh] overflow-x-auto md:max-h-[60vh] hidden md:block">
-                <table className="min-w-full rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <thead className="bg-slate-900 text-white">
-                        <tr>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">NOMBRE CJMW</th>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">NOMBRE Proveedor</th>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">CodEquiv</th>
-                            <th className="px-4 py-2 text-left text-sm font-semibold">RazProve</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredEquivalencias.length > 0 ? (
-                            filteredEquivalencias.map((equiv, index) => (
-                                <tr key={index} className="hover:bg-slate-50">
-                                    <td className="border-b px-4 py-2 text-sm">{equiv.desprodu}</td>
-                                    <td className="border-b px-4 py-2 text-sm">{equiv.desequiv}</td>
-                                    <td className="border-b px-4 py-2 text-sm">{equiv.codequiv}</td>
-                                    <td className="border-b px-4 py-2 text-sm">{equiv.razprove}</td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="4" className="py-4 text-center text-gray-500">
-                                    No se encontraron equivalencias.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {error && <div className="cjm-alert cjm-alert-error" role="alert">{error}</div>}
 
-            <div className="space-y-2 md:hidden">
-                {filteredEquivalencias.length > 0 ? (
-                    filteredEquivalencias.map((equiv, index) => (
-                        <article key={`${equiv.codequiv || 'equiv'}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre CJMW</p>
-                            <p className="text-sm text-slate-900">{equiv.desprodu}</p>
-                            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre proveedor</p>
-                            <p className="text-sm text-slate-700">{equiv.desequiv}</p>
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CodEquiv</p>
-                                    <p className="text-sm text-slate-700">{equiv.codequiv}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">RazProve</p>
-                                    <p className="text-sm text-slate-700">{equiv.razprove}</p>
-                                </div>
+            {loading ? (
+                <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm">Cargando equivalencias…</p></div>
+            ) : rows.length === 0 ? (
+                <EmptyState icon={Search} title="No se encontraron equivalencias" description="Prueba con otra referencia o limpia los filtros para volver al listado general." />
+            ) : (
+                <>
+                    <div className="hidden md:block">
+                        <div className="cjm-table-shell">
+                            <div className="cjm-table-scroller">
+                                <table className="cjm-table">
+                                    <thead><tr><th>Nombre CJM</th><th>Nombre proveedor</th><th>Código equivalencia</th><th>Proveedor</th></tr></thead>
+                                    <tbody>
+                                        {rows.map((row, index) => (
+                                            <tr key={`${row.codequiv || row.codprodu || 'equiv'}-${index}`}>
+                                                <td className="font-semibold">{row.desprodu || '—'}</td>
+                                                <td>{row.desequiv || '—'}</td>
+                                                <td><span className="cjm-badge">{row.codequiv || '—'}</span></td>
+                                                <td>{row.razprove || '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                        </article>
-                    ))
-                ) : (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
-                        No se encontraron equivalencias.
+                        </div>
                     </div>
-                )}
-            </div>
+                    <div className="grid gap-3 md:hidden">
+                        {rows.map((row, index) => (
+                            <article className="cjm-data-card" key={`${row.codequiv || row.codprodu || 'equiv'}-mobile-${index}`}>
+                                <p className="cjm-data-label">Producto CJM</p>
+                                <h3 className="mt-1 font-semibold app-text">{row.desprodu || '—'}</h3>
+                                <div className="mt-4 border-t border-[var(--cjm-border)] pt-3">
+                                    <p className="cjm-data-label">Referencia proveedor</p>
+                                    <p className="mt-1 text-sm app-text">{row.desequiv || '—'}</p>
+                                </div>
+                                <dl className="mt-3 grid grid-cols-2 gap-3">
+                                    <div><dt className="cjm-data-label">Código</dt><dd className="mt-1 text-sm app-text">{row.codequiv || '—'}</dd></div>
+                                    <div><dt className="cjm-data-label">Proveedor</dt><dd className="mt-1 text-sm app-text">{row.razprove || '—'}</dd></div>
+                                </dl>
+                            </article>
+                        ))}
+                    </div>
+                </>
+            )}
 
-            <div className="mt-4 flex items-center justify-center gap-3">
-                <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium ${currentPage === 1
-                        ? 'cursor-not-allowed bg-slate-200 text-slate-500'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                >
-                    Anterior
-                </button>
-                <span className="text-base font-semibold text-slate-700">{currentPage}</span>
-                <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    className="min-h-[44px] rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
-                >
-                    Siguiente
-                </button>
-            </div>
-        </div>
+            {!searchState && (
+                <nav className="flex items-center justify-between gap-3" aria-label="Paginación de equivalencias">
+                    <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1 || loading} className="cjm-ghost-button">
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />Anterior
+                    </button>
+                    <span className="cjm-muted text-sm">Página <strong className="app-text">{currentPage}</strong></span>
+                    <button type="button" onClick={() => setCurrentPage((page) => page + 1)} disabled={rows.length < ITEMS_PER_PAGE || loading} className="cjm-ghost-button">
+                        Siguiente<ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                </nav>
+            )}
+        </section>
     );
-};
-
-export default EquivalenciasTable;
+}

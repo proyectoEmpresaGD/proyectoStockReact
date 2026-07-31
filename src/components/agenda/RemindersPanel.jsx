@@ -52,7 +52,7 @@ export default function RemindersPanel({
     );
 
     return (
-        <section className="bg-white shadow rounded-xl border border-slate-100 px-5 py-4 space-y-4">
+        <section className="cjm-card agenda-reminders space-y-4 rounded-2xl px-5 py-4">
             <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-lg font-semibold text-slate-900">
@@ -124,7 +124,7 @@ export default function RemindersPanel({
                                         return (
                                             <article
                                                 key={item.reminderKey}
-                                                className="rounded-lg border border-white/70 bg-white/80 px-3 py-3 text-sm text-slate-700 shadow-sm"
+                                                className="agenda-reminder-item rounded-xl border px-3 py-3 text-sm shadow-sm"
                                             >
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-start justify-between gap-3">

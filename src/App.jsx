@@ -1,53 +1,60 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './Auth/AuthContext.jsx';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
-
-import Home from './pages/Home';
-import Stock from './pages/paginaStock';
-import Clients from './pages/paginaclients';
-import Admin from './pages/Admin';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
+import AppErrorBoundary from './common/AppErrorBoundary.jsx';
+
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Stock = lazy(() => import('./pages/paginaStock.jsx'));
+const Clients = lazy(() => import('./pages/paginaclients.jsx'));
+const Admin = lazy(() => import('./pages/Admin.jsx'));
 const Intrastat = lazy(() => import('./pages/Intrastat.jsx'));
-import Etiquetas from './pages/etiquetas/Etiquetas.jsx';
-import EtiquetaLibro from './pages/etiquetas/EtiquetaLibro.jsx';
-import Equivalencias from './pages/Equivalencias.jsx';
-import EtiquetaMarke from './pages/etiquetas/EtiquetasMarke.jsx';
-import EtiquetaLibro26Tipo3ConImagen from './pages/etiquetas/EtiquetaLibro35Ancho.jsx';
-import EtiquetaNormativa from './pages/etiquetas/EtiquetasNormativa.jsx';
-import EtiquetaPerchas from './pages/etiquetas/EtiquetasPechas.jsx';
-import EtiquetasLibro35Tipo1 from './pages/etiquetas/EtiquetasLibro35Tipo1.jsx';
-import EtiquetasLibro35Tipo2 from './pages/etiquetas/EtiquetasLibro35Tipo2.jsx';
-import EtiquetaPerchasEstampados from './pages/etiquetas/EtiquetasPerchasEstampados.jsx';
-import EtiquetasPersonalizable from './pages/etiquetas/Etiquetapersonalizable.jsx';
+const Etiquetas = lazy(() => import('./pages/etiquetas/Etiquetas.jsx'));
+const EtiquetaLibro = lazy(() => import('./pages/etiquetas/EtiquetaLibro.jsx'));
+const Equivalencias = lazy(() => import('./pages/Equivalencias.jsx'));
+const EtiquetaMarke = lazy(() => import('./pages/etiquetas/EtiquetasMarke.jsx'));
+const EtiquetaLibro26Tipo3ConImagen = lazy(() => import('./pages/etiquetas/EtiquetaLibro35Ancho.jsx'));
+const EtiquetaNormativa = lazy(() => import('./pages/etiquetas/EtiquetasNormativa.jsx'));
+const EtiquetaPerchas = lazy(() => import('./pages/etiquetas/EtiquetasPechas.jsx'));
+const EtiquetasLibro35Tipo1 = lazy(() => import('./pages/etiquetas/EtiquetasLibro35Tipo1.jsx'));
+const EtiquetasLibro35Tipo2 = lazy(() => import('./pages/etiquetas/EtiquetasLibro35Tipo2.jsx'));
+const EtiquetaPerchasEstampados = lazy(() => import('./pages/etiquetas/EtiquetasPerchasEstampados.jsx'));
+const EtiquetasPersonalizable = lazy(() => import('./pages/etiquetas/Etiquetapersonalizable.jsx'));
 const GeneradorEtiquetasLotes = lazy(() => import('./pages/etiquetas/GeneradorEtiquetasLotes.jsx'));
 const EntradasPage = lazy(() => import('./pages/EntradasPages.jsx'));
 const LowStockAlertsPage = lazy(() => import('./pages/LowStockAlertsPage.jsx'));
 const MapasFacturacionPage = lazy(() => import('./pages/MapasFacturacionPage.jsx'));
 const VerifyBatch = lazy(() => import('./pages/VerifyBatch.jsx'));
-import PerfilUsuario from './pages/PerfilUsuario.jsx';
+const PerfilUsuario = lazy(() => import('./pages/PerfilUsuario.jsx'));
 const AgendaPage = lazy(() => import('./pages/paginaagenda.jsx'));
 const NotasPage = lazy(() => import('./pages/paginanotas.jsx'));
-import Perfil from './pages/gestionusuarios.jsx';
-import FicharPage from './pages/Fichar.jsx';
+const GestionUsuarios = lazy(() => import('./pages/gestionusuarios.jsx'));
+const FicharPage = lazy(() => import('./pages/Fichar.jsx'));
 const RecursosHumanos = lazy(() => import('./pages/RecursosHumanos.jsx'));
-import EtiquetaSinQR from './pages/etiquetas/etiquetaSinQR.jsx';
-import EtiquetaCameo from './pages/etiquetas/Etiqueta cameo.jsx';
-import EtiquetaLibro45Ancho from './pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx';
+const EtiquetaSinQR = lazy(() => import('./pages/etiquetas/etiquetaSinQR.jsx'));
+const EtiquetaCameo = lazy(() => import('./pages/etiquetas/Etiqueta cameo.jsx'));
+const EtiquetaLibro45Ancho = lazy(() => import('./pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx'));
 const FacturacionAnalyticsPage = lazy(() => import('./pages/FacturacionAnalyticsPage.jsx'));
-// import ComprasAnalyticsPage from './pages/ComprasAnalyticsPage.jsx';
-import FichaTecnicaPage from './pages/fichaTecnica/fichaTenica.jsx'
 const ReservasTejido = lazy(() => import('./pages/reservas.jsx'));
-
+const FichaTecnicaPage = lazy(() => import('./pages/fichaTecnica/fichaTenica.jsx'));
+const NotFoundPage = lazy(() => import('./common/NotFoundPage.jsx'));
 
 const PageLoader = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="rounded-3xl border border-slate-200 bg-white px-10 py-8 text-center shadow-xl">
-      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
-      <h2 className="mt-4 text-xl font-bold text-slate-800">CJM STOCK</h2>
-      <p className="mt-2 text-sm text-slate-500">Cargando módulo...</p>
+  <div className="flex min-h-[60vh] items-center justify-center px-4" role="status" aria-live="polite">
+    <div className="cjm-panel cjm-hero w-full max-w-sm rounded-3xl px-8 py-8 text-center">
+      <img
+        src="/logos/CJM marca negro.png"
+        alt="CJM Group"
+        className="cjm-logo-adaptive mx-auto h-10 w-auto object-contain"
+      />
+      <div className="mx-auto mt-6 h-9 w-9 animate-spin rounded-full border-[3px] border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" aria-hidden="true" />
+      <h2 className="mt-5 text-lg font-semibold tracking-tight app-text">Preparando el módulo</h2>
+      <p className="cjm-muted mt-2 text-sm">CJM Stock &amp; Operations</p>
     </div>
   </div>
 );
@@ -62,6 +69,7 @@ function App() {
   useEffect(() => {
     const theme = isDarkMode ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.style.colorScheme = theme;
     localStorage.setItem('theme', theme);
   }, [isDarkMode]);
 
@@ -72,6 +80,18 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={4500}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss
+          pauseOnHover
+          draggable
+          theme={isDarkMode ? 'dark' : 'light'}
+          toastClassName="cjm-toast"
+          limit={4}
+        />
         <Routes>
           <Route path="/login" element={<Login />} />
 
@@ -82,98 +102,26 @@ function App() {
                 <div className="flex min-h-screen app-bg app-text">
                   <Sidebar sidebarOpen={sidebarOpen} closeSidebar={closeSidebar} />
 
-                  {/* Sidebar fijo en desktop y header fijo, por eso reservamos espacio superior y lateral. */}
-                  <div className="flex-1 h-screen overflow-y-auto app-bg pt-20 md:pl-64">
+                  <div className="h-screen min-w-0 flex-1 overflow-y-auto app-bg pt-20 md:pl-64">
                     <Header
                       toggleSidebar={toggleSidebar}
                       isDarkMode={isDarkMode}
                       toggleDarkMode={toggleDarkMode}
                     />
 
-                    <main className="">
-                      <Suspense fallback={<PageLoader />}>
-                        <div className="">
+                    <main id="main-content" tabIndex="-1">
+                      <AppErrorBoundary>
+                        <Suspense fallback={<PageLoader />}>
                           <Routes>
                             <Route path="/" element={<Home />} />
-
-                            <Route
-                              path="/admin"
-                              element={
-                                <ProtectedRoute requiredRole="admin">
-                                  <Admin />
-                                </ProtectedRoute>
-                              }
-                            />
-
-                            <Route
-                              path="/intrastat"
-                              element={
-                                <ProtectedRoute requiredRole="admin">
-                                  <Intrastat />
-                                </ProtectedRoute>
-                              }
-                            />
-
-                            <Route
-                              path="/analitica-facturacion"
-                              element={
-                                <ProtectedRoute>
-                                  <FacturacionAnalyticsPage />
-                                </ProtectedRoute>
-                              }
-                            />
-
-                            {/* <Route
-                            path="/analitica-compras"
-                            element={
-                              <ProtectedRoute>
-                                <ComprasAnalyticsPage />
-                              </ProtectedRoute>
-                            }
-                          /> */}
-
-                            <Route
-                              path="/stock"
-                              element={
-                                <ProtectedRoute>
-                                  <Stock />
-                                </ProtectedRoute>
-                              }
-                            />
-
-                            <Route
-                              path='/reservasTejido'
-                              element={
-                                <ProtectedRoute>
-                                  <ReservasTejido />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/etiquetas-lotes"
-                              element={
-                                <ProtectedRoute>
-                                  <GeneradorEtiquetasLotes />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/clients"
-                              element={
-                                <ProtectedRoute requiredRole="comercial">
-                                  <Clients />
-                                </ProtectedRoute>
-                              }
-                            />
-
-                            <Route
-                              path="/equivalencias"
-                              element={
-                                <ProtectedRoute requiredRole="almacen">
-                                  <Equivalencias />
-                                </ProtectedRoute>
-                              }
-                            />
+                            <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+                            <Route path="/intrastat" element={<ProtectedRoute requiredRole="admin"><Intrastat /></ProtectedRoute>} />
+                            <Route path="/analitica-facturacion" element={<ProtectedRoute><FacturacionAnalyticsPage /></ProtectedRoute>} />
+                            <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                            <Route path="/reservasTejido" element={<ProtectedRoute><ReservasTejido /></ProtectedRoute>} />
+                            <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />
+                            <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
+                            <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
 
                             <Route path="/etiquetas" element={<Etiquetas />} />
                             <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
@@ -187,58 +135,25 @@ function App() {
                             <Route path="/EtiquetasLibro35Tipo1" element={<EtiquetasLibro35Tipo1 />} />
                             <Route path="/EtiquetasLibro35Tipo2" element={<EtiquetasLibro35Tipo2 />} />
                             <Route path="/EtiquetaPersonalizable" element={<EtiquetasPersonalizable />} />
-                            <Route
-                              path="/mapas-facturacion"
-                              element={
-                                <ProtectedRoute requiredRole="admin">
-                                  <MapasFacturacionPage />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/mapa-clientes"
-                              element={<Navigate to="/mapas-facturacion?vista=global" replace />}
-                            />
-                            <Route
-                              path="/mapa-españa"
-                              element={<Navigate to="/mapas-facturacion?vista=spain" replace />}
-                            />
+                            <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
+
+                            <Route path="/mapas-facturacion" element={<ProtectedRoute requiredRole="admin"><MapasFacturacionPage /></ProtectedRoute>} />
+                            <Route path="/mapa-clientes" element={<Navigate to="/mapas-facturacion?vista=global" replace />} />
+                            <Route path="/mapa-españa" element={<Navigate to="/mapas-facturacion?vista=spain" replace />} />
                             <Route path="/comprobacionExcel" element={<VerifyBatch />} />
                             <Route path="/perfilusuario" element={<PerfilUsuario />} />
                             <Route path="/agenda" element={<AgendaPage />} />
                             <Route path="/notas" element={<NotasPage />} />
-                            <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
-                            <Route path="/gestionusuarios" element={<Perfil />} />
+                            <Route path="/gestionusuarios" element={<GestionUsuarios />} />
                             <Route path="/fichar" element={<FicharPage />} />
                             <Route path="/fichaTecnica" element={<FichaTecnicaPage />} />
-
-                            <Route
-                              path="entradas"
-                              element={
-                                <ProtectedRoute requiredRole="ventas">
-                                  <EntradasPage />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="rrhh/vacaciones"
-                              element={
-                                <ProtectedRoute>
-                                  <RecursosHumanos />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/stock-alerts"
-                              element={
-                                <ProtectedRoute requiredRole="almacen">
-                                  <LowStockAlertsPage />
-                                </ProtectedRoute>
-                              }
-                            />
+                            <Route path="/entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
+                            <Route path="/rrhh/vacaciones" element={<ProtectedRoute><RecursosHumanos /></ProtectedRoute>} />
+                            <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
+                            <Route path="*" element={<NotFoundPage />} />
                           </Routes>
-                        </div>
-                      </Suspense>
+                        </Suspense>
+                      </AppErrorBoundary>
                     </main>
                   </div>
                 </div>

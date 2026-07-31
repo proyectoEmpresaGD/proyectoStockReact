@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import html2pdf from "html2pdf.js";
 import { v4 as uuidv4 } from "uuid";
+import ConfirmDialog from "../../components/common/ConfirmDialog.jsx";
 
 /**
  * Generador de Etiquetas — calidad + alineación + PDF perfecto
@@ -23,13 +24,13 @@ const GRID_SIZE = 20;
 const SAFETY_INSET = 10;
 
 const btn =
-    "inline-flex items-center justify-center rounded-lg px-3 py-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500";
-const btnPrimary = `${btn} bg-indigo-600 text-white hover:bg-indigo-700`;
-const btnGhost = `${btn} bg-white border border-slate-200 hover:bg-slate-50 text-slate-700`;
+    "inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 font-semibold transition-colors";
+const btnPrimary = `${btn} cjm-primary-button`;
+const btnGhost = `${btn} cjm-ghost-button`;
 const chip =
-    "inline-flex items-center justify-center rounded-md border border-slate-200 px-3 py-2 bg-white hover:bg-slate-50";
+    "inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-3 py-2 hover:bg-[var(--cjm-surface-muted)]";
 const input =
-    "w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white";
+    "cjm-input min-h-11 rounded-xl px-3 py-2.5";
 
 const LS_KEY = "etiquetaPersonalizable_v10";
 
@@ -45,6 +46,7 @@ export default function EtiquetaPersonalizable() {
     const [showSafety, setShowSafety] = useState(false);
     const [snapToGrid, setSnapToGrid] = useState(true);
     const [showHelp, setShowHelp] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     // Export
     const [exporting, setExporting] = useState(false);
@@ -580,17 +582,22 @@ export default function EtiquetaPersonalizable() {
         (setIsEditingText(true), setEl(selected.id, (p) => ({ ...p, editing: true })));
 
     const clearAll = () => {
-        if (!window.confirm("¿Seguro que quieres limpiar todo el lienzo?")) return;
+        setShowClearConfirm(true);
+    };
+
+    const confirmClearAll = () => {
         setElements([]);
         setSelectedId(null);
+        setShowClearConfirm(false);
         try {
             localStorage.removeItem(LS_KEY);
         } catch { }
     };
 
     return (
-        <div className="w-full min-h-screen pt-32 lg:pt-40 px-4 lg:px-6 bg-slate-50">
-            <div className="mx-auto max-w-[1400px]">
+        <>
+        <div className="cjm-page w-full min-h-screen">
+            <div className="cjm-panel mx-auto max-w-[1400px] rounded-3xl p-4 sm:p-6">
                 <header className="flex items-center justify-between gap-3 mb-6">
                     <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800">
                         Generador de Etiquetas de Productos
@@ -1089,5 +1096,16 @@ export default function EtiquetaPersonalizable() {
                 </div>
             )}
         </div>
+        {showClearConfirm && (
+            <ConfirmDialog
+                title="Limpiar lienzo"
+                message="Se eliminarán todos los elementos de la etiqueta y también el guardado automático de este navegador."
+                confirmLabel="Limpiar todo"
+                onConfirm={confirmClearAll}
+                onCancel={() => setShowClearConfirm(false)}
+                destructive
+            />
+        )}
+        </>
     );
 }

@@ -1,15 +1,18 @@
-import FicharComponent from '../components/fichar/FicharComponent';
+import { Clock3 } from 'lucide-react';
+import PageShell from '../common/PageShell.jsx';
+import PageHeader from '../common/PageHeader.jsx';
+import FicharComponent from '../components/fichar/FicharComponent.jsx';
 
-const FicharPage = () => {
+export default function FicharPage() {
     return (
-        <div className="flex flex-col sticky top-0 h-screen">
-            <div className="flex-1 flex flex-col">
-                <div className="flex-grow p-4 overflow-auto">
-                    <FicharComponent />
-                </div>
-            </div>
-        </div>
+        <PageShell maxWidth="max-w-6xl">
+            <PageHeader
+                eyebrow="Recursos humanos · Jornada"
+                title="Registro de horas"
+                description="Registra entradas y salidas, consulta el historial mensual y descarga el resumen en PDF."
+                icon={Clock3}
+            />
+            <div className="mt-6"><FicharComponent /></div>
+        </PageShell>
     );
 }
-
-export default FicharPage;

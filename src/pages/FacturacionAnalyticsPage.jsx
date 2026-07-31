@@ -136,7 +136,7 @@ function normalizeApiResult(result, fallback) {
 function Pill({ children, className = '' }) {
     return (
         <span
-            className={`inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm ${className}`}
+            className={`cjm-brand-chip inline-flex items-center gap-2 px-3 py-1.5 text-sm ${className}`}
         >
             {children}
         </span>
@@ -145,12 +145,12 @@ function Pill({ children, className = '' }) {
 
 function Card({ title, subtitle, right, children }) {
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="cjm-card facturacion-card rounded-2xl">
             {(title || subtitle || right) && (
                 <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
                     <div>
-                        {title && <div className="text-sm font-semibold text-slate-800">{title}</div>}
-                        {subtitle && <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>}
+                        {title && <div className="text-sm font-semibold app-text">{title}</div>}
+                        {subtitle && <div className="cjm-muted mt-0.5 text-xs">{subtitle}</div>}
                     </div>
                     {right}
                 </div>
@@ -162,9 +162,9 @@ function Card({ title, subtitle, right, children }) {
 
 function KpiTile({ label, value, hint, trend }) {
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-4">
+        <div className="cjm-card facturacion-kpi rounded-2xl px-5 py-4">
             <div className="flex items-start justify-between gap-2">
-                <div className="text-xs font-medium text-slate-500">{label}</div>
+                <div className="cjm-muted text-xs font-medium">{label}</div>
                 {hint ? (
                     <span className="text-xs text-slate-400 cursor-help" title={hint}>
                         ⓘ
@@ -172,7 +172,7 @@ function KpiTile({ label, value, hint, trend }) {
                 ) : null}
             </div>
             <div className="mt-1 flex items-end justify-between gap-3">
-                <div className="text-2xl font-semibold tracking-tight text-slate-900 tabular-nums">{value}</div>
+                <div className="text-2xl font-semibold tracking-tight app-text tabular-nums">{value}</div>
                 {trend ? (
                     <div
                         className={`text-xs font-medium tabular-nums ${trend.kind === 'up' ? 'text-emerald-600' : trend.kind === 'down' ? 'text-rose-600' : 'text-slate-500'
@@ -218,9 +218,9 @@ function QuickActionButton({ active = false, children, onClick, title }) {
             type="button"
             onClick={onClick}
             title={title}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+            className={`facturacion-quick-action rounded-full border px-3 py-2 text-xs font-semibold transition ${
                 active
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    ? 'is-active border-transparent text-white shadow-sm'
                     : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
             }`}
         >
@@ -231,7 +231,7 @@ function QuickActionButton({ active = false, children, onClick, title }) {
 
 function BusinessUnitToggle({ activeKey, onChange }) {
     return (
-        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1">
+        <div className="facturacion-unit-toggle grid grid-cols-3 gap-1 rounded-2xl border p-1">
             {BUSINESS_UNITS.map((unit) => (
                 <button
                     key={unit.key}
@@ -239,7 +239,7 @@ function BusinessUnitToggle({ activeKey, onChange }) {
                     onClick={() => onChange(unit.key)}
                     title={unit.description}
                     className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                        activeKey === unit.key ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                        activeKey === unit.key ? 'is-active bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                     }`}
                 >
                     {unit.shortLabel}
@@ -472,7 +472,7 @@ function BusinessLinesOverview({ data, compareYear }) {
 
             <Card title="Operaciones especiales" subtitle="Anticipos, devoluciones, transportes, alquileres, vehículos y operaciones especiales no se mezclan con producto.">
                 <ModernTableShell>
-                    <table className="min-w-full text-sm">
+                    <table className="facturacion-data-table min-w-full text-sm">
                         <thead className="bg-slate-50 text-slate-600">
                             <tr>
                                 <th className="px-4 py-3 text-left">Operación</th>
@@ -506,7 +506,7 @@ function BusinessLinesOverview({ data, compareYear }) {
 
             <Card title="Detalle por serie" subtitle="Cada serie queda vinculada a su línea de negocio y tipo de movimiento.">
                 <ModernTableShell>
-                    <table className="min-w-full text-sm">
+                    <table className="facturacion-data-table min-w-full text-sm">
                         <thead className="bg-slate-50 text-slate-600">
                             <tr>
                                 <th className="px-4 py-3 text-left">Serie</th>
@@ -898,7 +898,7 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
                                 Festivos {year} · Montilla
                             </div>
                             <div className="max-h-80 overflow-auto">
-                                <table className="w-full text-sm">
+                                <table className="facturacion-data-table w-full text-sm">
                                     <thead className="sticky top-0 bg-white">
                                         <tr className="text-left border-b border-slate-200">
                                             <th className="px-4 py-2 font-semibold text-slate-700">Fecha</th>
@@ -2363,11 +2363,11 @@ function FacturacionAnalyticsPageInner() {
 
 
     return (
-        <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
-            <div className="max-w-[1200px] mx-auto space-y-4">
+        <div className="facturacion-modern cjm-page">
+            <div className="cjm-panel mx-auto max-w-[1400px] space-y-4 rounded-3xl p-3 sm:p-5 lg:p-7">
                 {/* Header */}
-                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-400 via-slate-900 to-indigo-500" />
+                <div className="cjm-module-hero relative overflow-hidden rounded-3xl">
+                    <div className="cjm-module-hero-line absolute inset-x-0 top-0 h-1" />
                     <div className="p-5 md:p-7">
                         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
                             <div className="max-w-3xl">
@@ -2378,11 +2378,11 @@ function FacturacionAnalyticsPageInner() {
                                     </MetricBadge>
                                     {activeBusinessUnit === 'custom' ? <MetricBadge tone="amber">Series personalizadas</MetricBadge> : null}
                                 </div>
-                                <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-tight text-slate-950">Facturación</h1>
-                                <p className="mt-2 text-sm md:text-base text-slate-600">
+                                <h1 className="mt-4 text-3xl font-semibold tracking-tight app-text md:text-4xl">Facturación</h1>
+                                <p className="cjm-muted mt-2 text-sm md:text-base">
                                     Resumen comercial y fiscal con foco en ventas netas, comparativa por periodos y separación visual entre <b>Tejido</b> y <b>Proyectos</b>.
                                 </p>
-                                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                <div className="cjm-muted mt-4 flex flex-wrap items-center gap-2 text-xs">
                                     <span className="rounded-full bg-slate-100 px-3 py-1">
                                         {safeFormatFull(filters.from)} - {safeFormatFull(filters.to)}
                                     </span>
@@ -2519,7 +2519,7 @@ function FacturacionAnalyticsPageInner() {
                 ) : null}
 
                 {/* Filter bar */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 md:p-5">
+                <div className="cjm-card facturacion-filter-panel rounded-3xl p-4 md:p-5">
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-end">
                         <div className="xl:col-span-2">
                             <div className="text-xs font-medium text-slate-500 mb-1.5">Desde</div>
@@ -2594,6 +2594,7 @@ function FacturacionAnalyticsPageInner() {
                                     </div>
                                 </div>
                                 <Select
+                                    classNamePrefix="cjm-select"
                                     isMulti
                                     options={seriesOptions}
                                     value={seriesOptions.filter((o) => selectedSeriesSet.has(o.value))}
@@ -2656,6 +2657,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Canal</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={canalOptions}
                                         value={canalOptions.filter((option) => filters.canal?.includes(option.value))}
@@ -2666,6 +2668,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Cliente</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={clienteOptions}
                                         value={clienteOptions.filter((option) => filters.cliente?.includes(option.value))}
@@ -2676,6 +2679,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Vendedor</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={vendedorOptions}
                                         value={vendedorOptions.filter((option) => filters.vendedor?.includes(option.value))}
@@ -2686,6 +2690,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Forma de pago</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={formaPagoOptions}
                                         value={formaPagoOptions.filter((option) => filters.formaPago?.includes(option.value))}
@@ -2696,6 +2701,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Zona</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={zonaOptions}
                                         value={zonaOptions.filter((option) => filters.zona?.includes(option.value))}
@@ -2706,6 +2712,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Ruta</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={rutaOptions}
                                         value={rutaOptions.filter((option) => filters.ruta?.includes(option.value))}
@@ -2716,6 +2723,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Departamento</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={departamentoOptions}
                                         value={departamentoOptions.filter((option) => filters.departamento?.includes(option.value))}
@@ -2726,6 +2734,7 @@ function FacturacionAnalyticsPageInner() {
                                 <div>
                                     <div className="text-xs font-medium text-slate-600 mb-1.5">Tipo factura</div>
                                     <Select
+                                        classNamePrefix="cjm-select"
                                         isMulti
                                         options={tipoFacturaOptions}
                                         value={tipoFacturaOptions.filter((option) => filters.tipoFactura?.includes(option.value))}
@@ -2782,7 +2791,7 @@ function FacturacionAnalyticsPageInner() {
                 />
 
                 {/* Tabs */}
-                <div className="flex gap-2 flex-wrap">
+                <div className="facturacion-tabs flex gap-2 overflow-x-auto pb-1">
                     {TABS.map((t) => (
                         <button
                             key={t.key}
@@ -3072,7 +3081,7 @@ function FacturacionAnalyticsPageInner() {
                                             </div>
                                         </div>
                                         <div className="overflow-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="facturacion-data-table w-full text-sm">
                                                 <thead>
                                                     <tr className="text-left border-b">
                                                         <th className="py-3">#</th>
@@ -3180,7 +3189,7 @@ function FacturacionAnalyticsPageInner() {
 
                                         <div className="mt-4">
                                             <ModernTableShell>
-                                                <table className="w-full text-sm">
+                                                <table className="facturacion-data-table w-full text-sm">
                                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                                         <tr className="text-left border-b border-slate-200">
                                                             <th className="py-3 px-3">Serie</th>
@@ -3223,7 +3232,7 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'series' && (
                     <Card title="Series" subtitle="Ventas calculadas sobre impbruto. Proyectos son las series que empiezan por H. 1 carácter = factura; 2 caracteres = abono.">
                         <ModernTableShell>
-                            <table className="w-full text-sm">
+                            <table className="facturacion-data-table w-full text-sm">
                                 <thead className="bg-slate-50 sticky top-0 z-10">
                                     <tr className="text-left border-b border-slate-200">
                                         <th className="py-3 px-3">Serie</th>
@@ -3470,8 +3479,62 @@ function FacturacionAnalyticsPageInner() {
                             title="Facturas"
                             subtitle="Detalle filtrado con clasificación por unidad de negocio, clase de factura y tipo rectificativa. Pulsa “Analizar” para abrir el detalle."
                         >
-                            <ModernTableShell>
-                                <table className="w-full text-sm">
+                            <div className="facturacion-mobile-list space-y-3 md:hidden">
+                                {(data.invoices.rows || []).map((r, i) => (
+                                    <article
+                                        key={`mobile-${r.serie}-${r.nfacventa}-${i}`}
+                                        className={`cjm-card rounded-2xl p-4 ${selectedInvoice && selectedInvoice.serie === r.serie && selectedInvoice.nfacventa === r.nfacventa ? 'ring-2 ring-[#6D8DB3]/40' : ''}`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="cjm-muted text-xs">{r.fecha_dia || r.fecha || 'Sin fecha'}</div>
+                                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                    <span className="text-lg font-semibold app-text">{r.serie ?? '—'}-{r.nfacventa ?? '—'}</span>
+                                                    {r.es_rectificativa ? (
+                                                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                                            Rectificativa
+                                                        </span>
+                                                    ) : (
+                                                        <SeriesTypeBadge serie={r.serie} />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="cjm-icon-button min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold"
+                                                onClick={() => setSelectedInvoice(r)}
+                                            >
+                                                Analizar
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                            <div className="col-span-2 rounded-xl bg-slate-50 p-3">
+                                                <div className="cjm-muted text-xs">Cliente</div>
+                                                <div className="mt-1 font-semibold app-text">{r.razentre || r.nomcomer || r.cliente || '—'}</div>
+                                                <div className="cjm-muted mt-0.5 text-xs">{r.nifentre || 'Sin NIF'} · Vendedor {r.codvend || '—'}</div>
+                                            </div>
+                                            <div className="rounded-xl bg-slate-50 p-3">
+                                                <div className="cjm-muted text-xs">Bruto</div>
+                                                <div className="mt-1 font-semibold app-text tabular-nums">{kpiFormat(r.impbruto ?? 0, 'money')}</div>
+                                            </div>
+                                            <div className="rounded-xl bg-slate-50 p-3 text-right">
+                                                <div className="cjm-muted text-xs">Total</div>
+                                                <div className="mt-1 font-semibold app-text tabular-nums">{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</div>
+                                            </div>
+                                        </div>
+                                    </article>
+                                ))}
+                                {!data.invoices.rows?.length && (
+                                    <div className="cjm-empty-state py-8 text-sm cjm-muted">
+                                        Sin facturas para los filtros actuales.
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="hidden md:block">
+                                <ModernTableShell>
+                                <table className="facturacion-data-table w-full text-sm">
                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                         <tr className="text-left border-b border-slate-200">
                                             <th className="py-3 px-3">Fecha</th>
@@ -3536,7 +3599,8 @@ function FacturacionAnalyticsPageInner() {
                                         )}
                                     </tbody>
                                 </table>
-                            </ModernTableShell>
+                                </ModernTableShell>
+                            </div>
 
                             <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
                                 <div className="text-slate-500">
@@ -3674,7 +3738,7 @@ function FacturacionAnalyticsPageInner() {
                             <div className="lg:col-span-4">
                                 <Card title="Calidad por serie" subtitle="Ventas, rectificativas, cobertura de coste y descuadres por serie.">
                                     <ModernTableShell>
-                                        <table className="w-full text-sm">
+                                        <table className="facturacion-data-table w-full text-sm">
                                             <thead className="bg-slate-50 sticky top-0 z-10">
                                                 <tr className="text-left border-b border-slate-200">
                                                     <th className="py-3 px-3">Serie</th>
@@ -3739,7 +3803,7 @@ function FacturacionAnalyticsPageInner() {
                         )}
 
                         <div className="overflow-auto">
-                            <table className="w-full text-sm">
+                            <table className="facturacion-data-table w-full text-sm">
                                 <thead>
                                     <tr className="text-left border-b">
                                         <th className="py-3">Serie</th>

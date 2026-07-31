@@ -1,52 +1,50 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import SignaturePad from 'react-signature-canvas';
-import { useAuthContext } from '../../Auth/AuthContext'; // Importar el contexto de autenticación
+import { Eraser, PenLine, X } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { useAuthContext } from '../../Auth/AuthContext.jsx';
 
-const FirmaModal = ({ isOpen, onClose, onSave }) => {
-    const { user } = useAuthContext(); // Obtener el usuario autenticado
-    const sigCanvas = useRef({});
+export default function FirmaModal({ isOpen, onClose, onSave, saving = false }) {
+    const { user } = useAuthContext();
+    const signatureRef = useRef(null);
+    const [submitting, setSubmitting] = useState(false);
 
-    const clear = () => sigCanvas.current.clear();
-
-    const save = () => {
-        const dataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
-        onSave(dataUrl);
-        onClose();
-    };
-
-    // Si el modal no está abierto, no se muestra nada
     if (!isOpen) return null;
 
-    // Si el usuario no está autenticado, mostrar un mensaje o prevenir la acción
-    if (!user) {
-        return (
-            <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
-                <div className="bg-white p-4 rounded shadow-lg w-full max-w-md mx-2">
-                    <h2 className="text-xl mb-2 text-center">Acceso no autorizado</h2>
-                    <p className="text-center">Debes iniciar sesión para firmar.</p>
-                    <div className="mt-4 flex justify-center">
-                        <button onClick={onClose} className="bg-blue-500 text-white px-4 py-2 rounded">Cerrar</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const clear = () => signatureRef.current?.clear();
+
+    const save = async () => {
+        if (!signatureRef.current || signatureRef.current.isEmpty()) {
+            toast.warning('Debes firmar antes de guardar la salida.');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const dataUrl = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
+            await onSave(dataUrl);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
-            <div className="bg-white p-4 rounded shadow-lg w-full max-w-md mx-2">
-                <h2 className="text-xl mb-2 text-center">Firma</h2>
-                <SignaturePad
-                    ref={sigCanvas}
-                    canvasProps={{ className: 'signatureCanvas w-full h-48' }}
-                />
-                <div className="mt-4 flex justify-end">
-                    <button onClick={clear} className="bg-red-500 text-white px-4 py-2 rounded mr-2">Limpiar</button>
-                    <button onClick={save} className="bg-green-500 text-white px-4 py-2 rounded">Guardar</button>
+        <div className="cjm-modal-backdrop z-[1200]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving && !submitting) onClose(); }}>
+            <section className="cjm-modal sm:max-w-xl" role="dialog" aria-modal="true" aria-labelledby="signature-title">
+                <header className="cjm-modal-header flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+                    <div className="flex items-start gap-3"><span className="cjm-icon-tile h-11 w-11 rounded-2xl"><PenLine className="h-5 w-5" aria-hidden="true" /></span><div><p className="cjm-kicker">Confirmación</p><h2 id="signature-title" className="mt-1 text-xl font-semibold app-text">Firma de salida</h2><p className="cjm-muted mt-1 text-sm">{user?.nombre || user?.username || 'Usuario'}</p></div></div>
+                    <button type="button" onClick={onClose} disabled={saving || submitting} className="cjm-icon-button flex h-10 w-10 items-center justify-center rounded-xl" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+                </header>
+                <div className="cjm-modal-body px-4 py-5 sm:px-6">
+                    <div className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-white p-2">
+                        <SignaturePad ref={signatureRef} canvasProps={{ className: 'signatureCanvas h-52 w-full rounded-xl bg-white' }} />
+                    </div>
+                    <p className="cjm-muted mt-2 text-xs">Firma dentro del recuadro con el dedo, lápiz táctil o ratón.</p>
                 </div>
-            </div>
+                <footer className="cjm-modal-footer grid gap-2 border-t px-4 py-4 sm:grid-cols-2 sm:px-6">
+                    <button type="button" onClick={clear} disabled={saving || submitting} className="cjm-ghost-button"><Eraser className="h-4 w-4" aria-hidden="true" />Limpiar</button>
+                    <button type="button" onClick={save} disabled={saving || submitting} className="cjm-primary-button">{saving || submitting ? 'Guardando…' : 'Firmar y registrar salida'}</button>
+                </footer>
+            </section>
         </div>
     );
-};
-
-export default FirmaModal;
+}
