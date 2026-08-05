@@ -1,128 +1,50 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
+import { AgendaModel } from './agenda.js';
 
-dotenv.config();
-
-const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
-
+// Capa de compatibilidad para los componentes antiguos de clientes.
 export class VisitaModel {
-    static async getAllByClientId(cliente_id, showCompleted = false) {
-        try {
-            const query = `
-                SELECT visitas.*, 
-                       clientes.razclien AS cliente_nombre,
-                       u1.username AS creado_por, 
-                       u2.username AS completado_por,
-                       u3.username AS assigned_to_username -- Trae el nombre del usuario asignado
-                FROM visitas
-                LEFT JOIN usuarios u1 ON visitas.created_by = u1.id
-                LEFT JOIN usuarios u2 ON visitas.completed_by = u2.id
-                LEFT JOIN usuarios u3 ON visitas.assigned_to = u3.id -- JOIN para el usuario asignado
-                LEFT JOIN clientes ON visitas.cliente_id = clientes.codclien
-                WHERE visitas.cliente_id = $1
-                  ${!showCompleted ? "AND visitas.estado = 'pendiente'" : ""}
-                ORDER BY visitas.fecha DESC
-            `;
-            const { rows } = await pool.query(query, [cliente_id]);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching visits:', error);
-            throw new Error('Error fetching visits');
-        }
+    static async getAllByClientId(clienteId, showCompleted = false, user) {
+        return AgendaModel.listVisits({
+            user,
+            clientId: clienteId,
+            statuses: showCompleted ? ['completada'] : ['pendiente', 'en_curso'],
+            limit: 500,
+        });
     }
 
-    static async create({ cliente_id, date, description, created_by, assigned_to }) {
-        try {
-            // Asegúrate de que assigned_to esté incluido en la consulta y los valores
-            const { rows } = await pool.query(`
-                INSERT INTO visitas (cliente_id, fecha, descripcion, estado, created_by, assigned_to)
-                VALUES ($1, $2, $3, 'pendiente', $4, $5)
-                RETURNING *;
-            `, [cliente_id, date, description, created_by, assigned_to]); // Incluye assigned_to aquí
-            return rows[0];
-        } catch (error) {
-            console.error('Error creating visit:', error); // Muestra el error exacto en consola
-            throw error; // ← Propaga el error real al controlador
-        }
-
+    static async create({ cliente_id, date, description, created_by, assigned_to, user }) {
+        const actor = user || { id: created_by, role: 'comercial' };
+        return AgendaModel.createVisit({
+            user: actor,
+            input: {
+                cliente_id,
+                fecha: date,
+                titulo: description || 'Visita comercial',
+                descripcion: description || '',
+                assigned_to: assigned_to || actor.id,
+                duracion_minutos: 60,
+                tipo: 'visita',
+                prioridad: 'media',
+            },
+        });
     }
 
-
-    static async markAsCompleted(id, mensaje_completado, completed_by) {
-        try {
-            const { rows } = await pool.query(`
-                UPDATE visitas
-                SET estado = 'completada', mensaje_completado = $1, completed_by = $2
-                WHERE id = $3
-                RETURNING *;
-            `, [mensaje_completado, completed_by, id]);
-            return rows[0];
-        } catch (error) {
-            console.error('Error marking visit as completed:', error);
-            throw new Error('Error marking visit as completed');
-        }
+    static async markAsCompleted(id, mensajeCompletado, completedBy, user) {
+        return AgendaModel.completeVisit({
+            id,
+            user: user || { id: completedBy, role: 'comercial' },
+            input: { resultado: mensajeCompletado || 'Visita completada' },
+        });
     }
 
-    static async delete(visitId) {
-        try {
-            const { rowCount } = await pool.query(`
-                DELETE FROM visitas
-                WHERE id = $1;
-            `, [visitId]);
-            return rowCount > 0;
-        } catch (error) {
-            console.error('Error deleting visit:', error);
-            throw new Error('Error deleting visit');
-        }
+    static async delete(visitId, user) {
+        return AgendaModel.deleteVisit({ id: visitId, user });
     }
 
-    // En el modelo VisitaModel
-    static async getVisitsByDateRange(startDate, endDate) {
-        try {
-            const query = `
-            SELECT visitas.*, 
-                   u1.username AS creado_por, 
-                   u2.username AS completado_por 
-            FROM visitas
-            LEFT JOIN usuarios u1 ON visitas.created_by = u1.id
-            LEFT JOIN usuarios u2 ON visitas.completed_by = u2.id
-            WHERE visitas.fecha BETWEEN $1 AND $2
-            ORDER BY visitas.fecha ASC
-        `;
-            const { rows } = await pool.query(query, [startDate, endDate]);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching visits by date range:', error);
-            throw new Error('Error fetching visits by date range');
-        }
-    }
-    static async getCalendarVisitsByUser(userId) {
-        try {
-            const query = `
-            SELECT 
-                v.id,
-                v.descripcion,
-                v.fecha,
-                v.estado, 
-                v.cliente_id,
-                c.razclien AS cliente_nombre
-            FROM visitas v
-            LEFT JOIN clientes c ON v.cliente_id = c.codclien
-            WHERE v.fecha IS NOT NULL
-              AND (v.assigned_to = $1 OR v.created_by = $1)
-            ORDER BY v.fecha ASC
-        `;
-            const { rows } = await pool.query(query, [userId]);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching calendar visits:', error);
-            throw new Error('Error fetching calendar visits');
-        }
+    static async getVisitsByDateRange(startDate, endDate, user) {
+        return AgendaModel.listVisits({ user, from: startDate, to: endDate, limit: 1000 });
     }
 
-
-
+    static async getCalendarVisitsByUser(user) {
+        return AgendaModel.listVisits({ user, limit: 1000 });
+    }
 }

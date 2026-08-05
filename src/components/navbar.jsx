@@ -106,14 +106,14 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/clients', label: 'Clientes', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion', 'decoandyou'] },
                     {
                         to: '/agenda',
-                        label: 'Agenda',
+                        label: 'Agenda comercial',
                         icon: <FaRegCalendarAlt className="mr-3 text-lg" />,
                         roles: ['admin', 'comercial', 'administracion'],
                         hiddenForUsers: ['DECOANDYOU'],
                     },
                     {
                         to: '/notas',
-                        label: 'Notas',
+                        label: 'Notas y seguimientos',
                         icon: <FaRegStickyNote className="mr-3 text-lg" />,
                         roles: ['admin', 'comercial', 'administracion'],
                         hiddenForUsers: ['DECOANDYOU'],

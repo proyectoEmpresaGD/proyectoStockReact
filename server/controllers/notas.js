@@ -1,89 +1,104 @@
-// server/controllers/notas.js
-import { Client } from "basic-ftp";
-import path from "path";
-import { Readable } from "stream";
-import slugifyLib from "slugify";
-import { NotasModel } from "../models/Postgres/notas.js";
-import { validateNota, validatePartialNota } from "../schemas/notas.js";
+import { Client } from 'basic-ftp';
+import path from 'path';
+import { Readable } from 'stream';
+import slugifyLib from 'slugify';
+import { NotasModel } from '../models/Postgres/notas.js';
+import { validateNota, validatePartialNota } from '../schemas/notas.js';
 
-const FTP_BASE = process.env.FTP_BASE_PATH;     // ej: /CALENDARIO
-const IMG_BASE_URL = process.env.IMG_BASE_URL;  // ej: https://bassari.eu/CALENDARIO
+const FTP_BASE = process.env.FTP_BASE_PATH;
+const IMG_BASE_URL = process.env.IMG_BASE_URL;
 
-function slugify(text) {
-    return slugifyLib(text, { lower: true, strict: true });
+const slugify = (text) => slugifyLib(String(text || ''), { lower: true, strict: true });
+
+function parseArray(raw) {
+    if (raw == null || raw === '') return [];
+    const values = Array.isArray(raw) ? raw : [raw];
+    return [...new Set(values.flatMap((value) => {
+        if (typeof value === 'string' && value.trim().startsWith('[')) {
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [parsed];
+            } catch {
+                return value.split(',');
+            }
+        }
+        return typeof value === 'string' ? value.split(',') : [value];
+    }).map((value) => String(value).trim()).filter(Boolean))];
 }
 
-function normalizeEventos(raw) {
-    if (Array.isArray(raw)) return raw;
-    if (raw == null) return [];
-    return [raw];
+function parseIds(raw) {
+    return parseArray(raw)
+        .map(Number)
+        .filter((value) => Number.isInteger(value) && value > 0);
 }
 
-function buildRemoteBase(nota) {
-    const fecha = new Date(nota.fechacreado);
-    const yyyy = fecha.getFullYear().toString();
-    const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-    const dd = String(fecha.getDate()).padStart(2, "0");
+function parseBoolean(value, fallback = false) {
+    if (value == null || value === '') return fallback;
+    if (typeof value === 'boolean') return value;
+    return ['true', '1', 'yes', 'si', 'sí'].includes(String(value).trim().toLowerCase());
+}
 
+function fileNameFromValue(value) {
+    const stringValue = String(value || '').trim();
+    if (!stringValue) return '';
+    try {
+        const decoded = decodeURIComponent(stringValue);
+        return path.posix.basename(new URL(decoded, 'https://local.invalid').pathname);
+    } catch {
+        return path.posix.basename(stringValue);
+    }
+}
+
+function buildRemoteBase(note) {
+    const date = new Date(note.fechacreado || Date.now());
     return path.posix.join(
-        FTP_BASE || "/",
-        String(nota.idusuario),
-        "NOTAS",
-        yyyy,
-        mm,
-        dd
+        FTP_BASE || '/',
+        String(note.idusuario),
+        'NOTAS',
+        String(date.getFullYear()),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
     );
 }
 
-function buildExpectedFolderName(nota) {
-    return `${slugify(nota.titulo).slice(0, 50) || "nota"}-${nota.id}`;
+function legacyFolderName(note) {
+    return `${slugify(note.titulo).slice(0, 50) || 'nota'}-${note.id}`;
 }
 
-async function resolveNoteFolder(client, nota) {
-    const baseDir = buildRemoteBase(nota);
-    const expected = buildExpectedFolderName(nota);
-
-    try {
-        const list = await client.list(baseDir);
-
-        const exact = list.find((item) => item.isDirectory && item.name === expected);
-        if (exact) return path.posix.join(baseDir, exact.name);
-
-        const byId = list.find((item) => item.isDirectory && item.name.endsWith(`-${nota.id}`));
-        if (byId) return path.posix.join(baseDir, byId.name);
-    } catch (err) {
-        console.warn("⚠️  No se pudo listar carpeta base de la nota:", err?.message || err);
-    }
-
-    return path.posix.join(baseDir, expected);
+function preferredFolderName(note) {
+    return note.carpeta_imagenes || `nota-${note.id}`;
 }
 
-async function filterOwnedEvents(eventos, userId) {
-    const numericIds = [...new Set(
-        eventos.map((ev) => Number(ev)).filter((n) => Number.isInteger(n) && n > 0)
-    )];
+function buildImageUrls(note) {
+    const base = String(IMG_BASE_URL || '').replace(/\/$/, '');
+    if (!base) return [];
+    const folder = note.carpeta_imagenes || legacyFolderName(note);
+    const relative = path.posix.join(buildRemoteBase(note).replace(/^\/+/, ''), folder);
+    return (Array.isArray(note.imagenes) ? note.imagenes : [])
+        .map(fileNameFromValue)
+        .filter(Boolean)
+        .map((name) => `${base}/${relative}/${encodeURIComponent(name)}`);
+}
 
-    if (numericIds.length === 0) return { filtered: [], rejected: [] };
-
-    const owned = await NotasModel.getOwnedCitasByIds(userId, numericIds);
-    const allowed = new Set(owned);
-    const filtered = numericIds.filter((id) => allowed.has(id));
-    const rejected = numericIds.filter((id) => !allowed.has(id));
-    return { filtered, rejected };
+function serializeNote(note) {
+    return {
+        ...note,
+        eventos: (note.eventos || []).map(Number).filter(Number.isFinite),
+        visitas_relacionadas: Array.isArray(note.visitas_relacionadas) ? note.visitas_relacionadas : [],
+        imagenes: buildImageUrls(note),
+    };
 }
 
 async function withFtp(fn) {
     const client = new Client();
     client.ftp.timeout = Number(process.env.FTP_TIMEOUT_MS) || 8000;
-
     await client.access({
         host: process.env.FTP_HOST,
         port: Number(process.env.FTP_PORT) || 21,
         user: process.env.FTP_USER,
         password: process.env.FTP_PASS,
-        secure: process.env.FTP_SECURE === "true",
+        secure: process.env.FTP_SECURE === 'true',
     });
-
     try {
         return await fn(client);
     } finally {
@@ -91,280 +106,272 @@ async function withFtp(fn) {
     }
 }
 
+async function resolveExistingFolder(client, note) {
+    const baseDir = buildRemoteBase(note);
+    const candidates = [note.carpeta_imagenes, `nota-${note.id}`, legacyFolderName(note)].filter(Boolean);
+    try {
+        const items = await client.list(baseDir);
+        for (const candidate of candidates) {
+            const exact = items.find((item) => item.isDirectory && item.name === candidate);
+            if (exact) return path.posix.join(baseDir, exact.name);
+        }
+        const byId = items.find((item) => item.isDirectory && item.name.endsWith(`-${note.id}`));
+        if (byId) return path.posix.join(baseDir, byId.name);
+    } catch (error) {
+        console.warn('No se pudo inspeccionar la carpeta FTP de la nota:', error?.message || error);
+    }
+    return path.posix.join(baseDir, preferredFolderName(note));
+}
+
+function notePayloadFromBody(body, { partial = false } = {}) {
+    const payload = {};
+    const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+
+    if (!partial || has('titulo')) payload.titulo = body.titulo;
+    if (!partial || has('contenido')) payload.contenido = body.contenido;
+    if (!partial || has('cliente_id')) payload.cliente_id = body.cliente_id || null;
+    if (!partial || has('tipo')) payload.tipo = body.tipo || 'general';
+    if (!partial || has('prioridad')) payload.prioridad = body.prioridad || 'media';
+    if (!partial || has('estado')) payload.estado = body.estado || 'activa';
+    if (!partial || has('destacada')) payload.destacada = parseBoolean(body.destacada, false);
+    if (!partial || has('fecha_seguimiento')) payload.fecha_seguimiento = body.fecha_seguimiento || null;
+    if (!partial || has('assigned_to')) payload.assigned_to = body.assigned_to ? Number(body.assigned_to) : null;
+    if (!partial || has('recordatorio_fecha')) payload.recordatorio_fecha = body.recordatorio_fecha || null;
+
+    const hasEvents = has('eventos') || has('eventos[]');
+    if (hasEvents) payload.eventos = parseIds(body['eventos[]'] ?? body.eventos);
+
+    Object.keys(payload).forEach((key) => payload[key] === undefined && delete payload[key]);
+    return payload;
+}
+
+function sendModelError(res, error, fallback) {
+    console.error(fallback, error);
+    if (error?.code === 'NOTE_VISIT_ACCESS') return res.status(400).json({ error: error.message });
+    if (['AGENDA_ASSIGNEE_INVALID', 'AGENDA_CLIENT_INVALID', 'AGENDA_DATE_RANGE_INVALID'].includes(error?.code)) {
+        return res.status(400).json({ error: error.message });
+    }
+    if (error?.code === '23503') return res.status(400).json({ error: 'El cliente, responsable o visita relacionada no existe' });
+    return res.status(500).json({ error: fallback });
+}
+
 export class NotasController {
     async getAll(req, res) {
-        const idusuario = req.user.id;
         try {
-            const q = typeof req.query.q === "string" ? req.query.q : null;
-            const limit = Number.isFinite(Number(req.query.limit)) ? Number(req.query.limit) : 100;
-            const offset = Number.isFinite(Number(req.query.offset)) ? Number(req.query.offset) : 0;
-
-            const notas = await NotasModel.getAll({ offset, limit, query: q, idusuario });
-
-            const withUrls = notas.map((n) => {
-                const fecha = new Date(n.fechacreado);
-                const slug = slugify(n.titulo).slice(0, 50) + "-" + n.id;
-                const yyyy = fecha.getFullYear().toString();
-                const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-                const dd = String(fecha.getDate()).padStart(2, "0");
-
-                const relPath = `${n.idusuario}/NOTAS/${yyyy}/${mm}/${dd}/${slug}`;
-                const baseUrl = (IMG_BASE_URL || "").replace(/\/$/, "");
-                const imagenes = (n.imagenes || []).map(
-                    (name) => `${baseUrl}/${relPath}/${encodeURIComponent(name)}`
-                );
-
-                return { ...n, imagenes };
+            const options = {
+                user: req.user,
+                query: typeof req.query.q === 'string' ? req.query.q : null,
+                limit: req.query.limit,
+                offset: req.query.offset,
+                type: req.query.type || null,
+                priority: req.query.priority || null,
+                state: req.query.state || null,
+                clientId: req.query.client_id || null,
+                featured: req.query.featured === 'true' ? true : null,
+                followUp: req.query.follow_up === 'true' ? true : null,
+                visitId: req.query.visit_id || null,
+            };
+            const [items, total] = await Promise.all([
+                NotasModel.getAll(options),
+                NotasModel.getCount(options),
+            ]);
+            res.json({
+                items: items.map(serializeNote),
+                total,
+                limit: Number(options.limit) || 40,
+                offset: Number(options.offset) || 0,
             });
+        } catch (error) {
+            sendModelError(res, error, 'No se pudieron obtener las notas');
+        }
+    }
 
-            res.json(withUrls);
-        } catch (err) {
-            console.error("Error en getAll notas:", err);
-            res.status(500).json({ error: "Error obteniendo notas" });
+    async getById(req, res) {
+        try {
+            const note = await NotasModel.getById({ id: req.params.id, user: req.user });
+            if (!note) return res.status(404).json({ error: 'Nota no encontrada o sin acceso' });
+            res.json(serializeNote(note));
+        } catch (error) {
+            sendModelError(res, error, 'No se pudo obtener la nota');
         }
     }
 
     async create(req, res) {
-        const idusuario = req.user.id;
-        const { titulo, contenido } = req.body;
-
-        const eventosBody = normalizeEventos(req.body["eventos[]"] ?? req.body.eventos);
-
-        const { success, error: validationError, value: safeBody } = validateNota({ titulo, contenido });
-        if (!success) return res.status(400).json({ error: validationError.message });
-
-        let eventos;
-        try {
-            const { filtered, rejected } = await filterOwnedEvents(eventosBody, idusuario);
-            if (rejected.length > 0) {
-                return res.status(400).json({ error: "Algunas citas no pertenecen al usuario autenticado" });
-            }
-            eventos = filtered;
-        } catch (err) {
-            console.error("❌ Error validando eventos vinculados:", err);
-            return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
+        const payload = notePayloadFromBody(req.body);
+        const checked = validateNota(payload);
+        if (!checked.success) {
+            return res.status(400).json({ error: checked.error.details.map((item) => item.message).join('. ') });
         }
 
-        const slugBase = slugify(safeBody.titulo).slice(0, 50) || `nota-${Date.now()}`;
-
-        let notaDB;
+        let note;
         try {
-            notaDB = await NotasModel.create({ input: { ...safeBody, idusuario, eventos } });
-        } catch (err) {
-            console.error("❌ DB create nota error:", err);
-            return res.status(500).json({ error: "Error creando nota en DB" });
+            note = await NotasModel.create({ input: checked.value, user: req.user });
+        } catch (error) {
+            return sendModelError(res, error, 'No se pudo crear la nota');
         }
 
-        const slug = `${slugBase}-${notaDB.id}`;
-        const remoteDir = path.posix.join(buildRemoteBase({ ...notaDB, idusuario }), slug);
-
-        const imagenes = [];
         const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
-
-        if (!ftpReady) {
-            console.warn("⚠️  ENV FTP/IMG incompletas; salto subida FTP y devuelvo nota sin imágenes.");
+        const imageNames = [];
+        const folder = `nota-${note.id}`;
+        if (ftpReady && req.files?.length) {
             try {
-                const updated = await NotasModel.update({
-                    id: notaDB.id,
-                    input: { imagenes: [], fechaactualizado: new Date() },
+                await withFtp(async (client) => {
+                    const remoteDir = path.posix.join(buildRemoteBase(note), folder);
+                    await client.ensureDir(remoteDir);
+                    for (const file of req.files) {
+                        const safeName = path.posix.basename(file.originalname);
+                        await client.uploadFrom(Readable.from(file.buffer), path.posix.join(remoteDir, safeName));
+                        imageNames.push(safeName);
+                    }
                 });
-                return res.status(201).json({ ...updated, imagenes: [] });
-            } catch (err) {
-                console.error("❌ DB update tras fallback FTP:", err);
-                return res.status(201).json({ ...notaDB, imagenes: [] });
-            }
-        }
-
-        try {
-            await withFtp(async (client) => {
-                if (!req.files?.length) return; // ✅ NO FTP si no hay imágenes
-
-                await client.ensureDir(remoteDir);
-                for (const file of req.files) {
-                    const dest = path.posix.join(remoteDir, file.originalname);
-                    await client.uploadFrom(Readable.from(file.buffer), dest);
-                    imagenes.push(file.originalname);
-                }
-            });
-        } catch (err) {
-            console.error("❌ FTP upload error:", err);
-            try {
-                const updated = await NotasModel.update({
-                    id: notaDB.id,
-                    input: { imagenes: [], fechaactualizado: new Date() },
-                });
-                return res.status(201).json({ ...updated, imagenes: [] });
-            } catch (err2) {
-                console.error("❌ DB update tras error FTP:", err2);
-                return res.status(201).json({ ...notaDB, imagenes: [] });
+            } catch (error) {
+                console.error('Error subiendo imágenes de nota:', error);
             }
         }
 
         try {
             const updated = await NotasModel.update({
-                id: notaDB.id,
-                input: { imagenes, fechaactualizado: new Date() },
+                id: note.id,
+                user: req.user,
+                input: { imagenes: imageNames, carpeta_imagenes: folder },
             });
-
-            const baseDir = buildRemoteBase({ ...notaDB, idusuario });
-            const relPath = `${baseDir.replace(/^\/+/, "")}/${slug}`;
-            const base = IMG_BASE_URL.replace(/\/$/, "");
-            const fullUrls = imagenes.map((name) => `${base}/${relPath}/${encodeURIComponent(name)}`);
-
-            return res.status(201).json({ ...updated, imagenes: fullUrls });
-        } catch (err) {
-            console.error("❌ DB update con imágenes error:", err);
-            return res.status(201).json({ ...notaDB, imagenes: [] });
+            res.status(201).json(serializeNote(updated || note));
+        } catch (error) {
+            sendModelError(res, error, 'La nota se creó, pero no se pudo finalizar la información de imágenes');
         }
     }
 
     async update(req, res) {
-        const requesterId = req.user.id;
         const id = Number(req.params.id);
-        const { titulo, contenido } = req.body;
-
-        const eventosBody = normalizeEventos(req.body["eventos[]"] ?? req.body.eventos);
-
-        const keepList = req.body.keep_imagenes || req.body["keep_imagenes[]"] || [];
-        const removedList = req.body.removed_images || req.body["removed_images[]"] || [];
-        const keepArrayRaw = Array.isArray(keepList) ? keepList : [keepList].filter(Boolean);
-        const removedArray = Array.isArray(removedList) ? removedList : [removedList].filter(Boolean);
-
+        let existing;
         try {
-            const nota = await NotasModel.getById({ id });
-            if (!nota) return res.status(404).json({ error: "Nota no encontrada" });
-            if (nota.idusuario !== requesterId) return res.status(403).json({ error: "Prohibido" });
+            existing = await NotasModel.getById({ id, user: req.user, requireOwner: true });
+        } catch (error) {
+            return sendModelError(res, error, 'No se pudo cargar la nota');
+        }
+        if (!existing) return res.status(404).json({ error: 'Nota no encontrada o sin permiso de edición' });
 
-            const { success, error: validationError, value: safeBody } = validatePartialNota({ titulo, contenido });
-            if (!success) return res.status(400).json({ error: validationError.message });
+        const payload = notePayloadFromBody(req.body, { partial: true });
+        const checked = validatePartialNota(payload);
+        if (!checked.success) {
+            return res.status(400).json({ error: checked.error.details.map((item) => item.message).join('. ') });
+        }
 
-            let eventos;
+        const keepProvided = Object.prototype.hasOwnProperty.call(req.body, 'keep_imagenes')
+            || Object.prototype.hasOwnProperty.call(req.body, 'keep_imagenes[]');
+        const removedProvided = Object.prototype.hasOwnProperty.call(req.body, 'removed_images')
+            || Object.prototype.hasOwnProperty.call(req.body, 'removed_images[]');
+        const currentNames = (existing.imagenes || []).map(fileNameFromValue).filter(Boolean);
+        const keepRequested = parseArray(req.body['keep_imagenes[]'] ?? req.body.keep_imagenes)
+            .map(fileNameFromValue)
+            .filter(Boolean);
+        const removed = new Set(parseArray(req.body['removed_images[]'] ?? req.body.removed_images).map(fileNameFromValue));
+        let keep = currentNames;
+        if (keepProvided) {
+            const currentSet = new Set(currentNames);
+            keep = keepRequested.filter((name) => currentSet.has(name));
+        } else if (removedProvided) {
+            keep = currentNames.filter((name) => !removed.has(name));
+        }
+
+        const incomingFiles = Array.isArray(req.files) ? req.files : [];
+        if (keep.length + incomingFiles.length > 3) {
+            return res.status(400).json({ error: 'Máximo 3 imágenes por nota' });
+        }
+
+        const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
+        const newNames = [];
+        let folderName = existing.carpeta_imagenes || null;
+
+        // Primero se suben los nuevos archivos, pero no se elimina ningún adjunto
+        // existente hasta que PostgreSQL confirme la actualización. Si la consulta SQL
+        // falla, como máximo quedan archivos huérfanos; nunca una nota válida sin imágenes.
+        if (ftpReady && (incomingFiles.length || (!folderName && currentNames.length))) {
             try {
-                const { filtered, rejected } = await filterOwnedEvents(eventosBody, requesterId);
-                if (rejected.length > 0) {
-                    return res.status(400).json({ error: "Alguna de las citas vinculadas no pertenece a tu usuario" });
-                }
-                eventos = filtered;
-            } catch (err) {
-                console.error("❌ Error validando eventos vinculados (update):", err);
-                return res.status(500).json({ error: "No se pudieron validar las citas vinculadas" });
+                await withFtp(async (client) => {
+                    const remoteDir = await resolveExistingFolder(client, existing);
+                    folderName = path.posix.basename(remoteDir);
+                    await client.ensureDir(remoteDir);
+                    for (const file of incomingFiles) {
+                        const safeName = path.posix.basename(file.originalname);
+                        await client.uploadFrom(Readable.from(file.buffer), path.posix.join(remoteDir, safeName));
+                        newNames.push(safeName);
+                    }
+                });
+            } catch (error) {
+                console.error('Error subiendo imágenes de nota:', error);
+                return res.status(502).json({ error: 'No se pudieron subir las imágenes. La nota no se ha modificado.' });
             }
+        }
 
-            const currentNames = Array.isArray(nota.imagenes) ? nota.imagenes : [];
-            let keepArray;
+        const finalImageNames = [...keep, ...newNames];
+        const input = {
+            ...checked.value,
+            imagenes: finalImageNames,
+        };
+        if (folderName) input.carpeta_imagenes = folderName;
+        try {
+            const updated = await NotasModel.update({ id, input, user: req.user });
+            if (!updated) return res.status(404).json({ error: 'Nota no encontrada o sin permiso de edición' });
 
-            if (keepArrayRaw.length > 0) {
-                const currentSet = new Set(currentNames);
-                keepArray = keepArrayRaw.filter((name) => currentSet.has(name));
-            } else if (removedArray.length > 0) {
-                const removedSet = new Set(removedArray);
-                keepArray = currentNames.filter((name) => !removedSet.has(name));
-            } else {
-                keepArray = currentNames;
-            }
-
-            const nuevas = [];
-            const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
-
-            const remoteDir = ftpReady
-                ? await withFtp((client) => resolveNoteFolder(client, { ...nota, id }))
-                : path.posix.join(buildRemoteBase({ ...nota, id }), buildExpectedFolderName({ ...nota, id }));
-
-            const incomingFiles = Array.isArray(req.files) ? req.files.length : 0;
-            if (keepArray.length + incomingFiles > 3) {
-                return res.status(400).json({ error: "Máximo 3 imágenes por nota" });
-            }
-
-            if (ftpReady) {
-                try {
-                    await withFtp(async (client) => {
-                        const shouldTouchFtp =
-                            (req.files?.length || 0) > 0 || removedArray.length > 0 || keepArrayRaw.length > 0;
-
-                        if (!shouldTouchFtp) return;
-
-                        await client.ensureDir(remoteDir);
-
-                        const archivos = await client.list(remoteDir).catch(() => []);
-                        const eliminar = archivos.filter((f) => !f.isDirectory && !keepArray.includes(f.name));
-                        for (const f of eliminar) {
-                            await client.remove(path.posix.join(remoteDir, f.name));
+            // La limpieza se realiza después del guardado y es deliberadamente
+            // tolerante a fallos. Un error FTP deja, como mucho, archivos sobrantes.
+            if (ftpReady && (keepProvided || removedProvided) && folderName) {
+                withFtp(async (client) => {
+                    const remoteDir = await resolveExistingFolder(client, { ...existing, carpeta_imagenes: folderName });
+                    const files = await client.list(remoteDir).catch(() => []);
+                    const finalSet = new Set(finalImageNames);
+                    for (const file of files) {
+                        if (!file.isDirectory && !finalSet.has(file.name)) {
+                            await client.remove(path.posix.join(remoteDir, file.name));
                         }
-
-                        if (req.files?.length) {
-                            for (const file of req.files) {
-                                const dest = path.posix.join(remoteDir, file.originalname);
-                                await client.uploadFrom(Readable.from(file.buffer), dest);
-                                nuevas.push(file.originalname);
-                            }
-                        }
-                    });
-                } catch (ftpErr) {
-                    console.error("❌ FTP update error:", ftpErr);
-                }
-            } else {
-                console.warn("⚠️  ENV FTP/IMG incompletas; salto operaciones FTP (update).");
+                    }
+                }).catch((cleanupError) => {
+                    console.error('La nota se actualizó, pero quedó pendiente limpiar archivos FTP:', cleanupError);
+                });
             }
 
-            const imagenes = [...keepArray, ...nuevas].filter(Boolean);
-
-            const inputUpdate = { fechaactualizado: new Date(), imagenes, eventos };
-            if (typeof safeBody.titulo === "string") inputUpdate.titulo = safeBody.titulo;
-            if (typeof safeBody.contenido === "string") inputUpdate.contenido = safeBody.contenido;
-
-            const actualizado = await NotasModel.update({ id, input: inputUpdate });
-
-            const base = IMG_BASE_URL.replace(/\/$/, "");
-            const baseDir = buildRemoteBase({ ...nota, id }).replace(/^\/+/, "");
-            const folderName = path.posix.basename(remoteDir);
-            const relPath = `${baseDir}/${folderName}`;
-            const fullUrls = imagenes.map((name) => `${base}/${relPath}/${encodeURIComponent(name)}`);
-
-            return res.json({ ...actualizado, imagenes: fullUrls });
-        } catch (err) {
-            console.error("Error actualizando nota:", err);
-            res.status(500).json({ error: "Error actualizando nota" });
+            res.json(serializeNote(updated));
+        } catch (error) {
+            sendModelError(res, error, 'No se pudo actualizar la nota');
         }
     }
 
     async delete(req, res) {
-        const requesterId = req.user.id;
         const id = Number(req.params.id);
+        let note;
+        try {
+            note = await NotasModel.getById({ id, user: req.user, requireOwner: true });
+        } catch (error) {
+            return sendModelError(res, error, 'No se pudo cargar la nota');
+        }
+        if (!note) return res.status(404).json({ error: 'Nota no encontrada o sin permiso para eliminarla' });
 
         try {
-            const nota = await NotasModel.getById({ id });
-            if (!nota) return res.status(404).json({ error: "Nota no encontrada" });
-            if (nota.idusuario !== requesterId) return res.status(403).json({ error: "Prohibido" });
-
-            const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
-
-            if (ftpReady) {
-                try {
-                    await withFtp(async (client) => {
-                        const resolved = await resolveNoteFolder(client, { ...nota, id });
-
-                        const parent = path.posix.dirname(resolved);
-                        const folder = path.posix.basename(resolved);
-
-                        const dirs = await client.list(parent).catch(() => []);
-                        const target = dirs.find((item) => item.isDirectory && item.name === folder);
-
-                        if (target) {
-                            await client.removeDir(resolved);
-                        } else {
-                            // silencio (no es error)
-                        }
-                    });
-                } catch (ftpErr) {
-                    console.error("❌ FTP delete error:", ftpErr);
-                }
-            }
-
-            await NotasModel.delete({ id });
-            res.status(204).end();
-        } catch (err) {
-            console.error("Error eliminando nota:", err);
-            res.status(500).json({ error: "Error eliminando nota" });
+            const deleted = await NotasModel.delete({ id, user: req.user });
+            if (!deleted) return res.status(404).json({ error: 'Nota no encontrada o sin permiso para eliminarla' });
+        } catch (error) {
+            return sendModelError(res, error, 'No se pudo eliminar la nota');
         }
+
+        // La base de datos es la fuente principal. La limpieza FTP se realiza después
+        // para evitar dejar una nota existente sin imágenes si la eliminación SQL falla.
+        const ftpReady = Boolean(process.env.FTP_HOST && FTP_BASE && IMG_BASE_URL);
+        if (ftpReady) {
+            try {
+                await withFtp(async (client) => {
+                    const folder = await resolveExistingFolder(client, note);
+                    const parent = path.posix.dirname(folder);
+                    const name = path.posix.basename(folder);
+                    const items = await client.list(parent).catch(() => []);
+                    if (items.some((item) => item.isDirectory && item.name === name)) {
+                        await client.removeDir(folder);
+                    }
+                });
+            } catch (error) {
+                console.error('La nota se eliminó, pero quedó pendiente la limpieza de su carpeta FTP:', error);
+            }
+        }
+        res.status(204).end();
     }
 }

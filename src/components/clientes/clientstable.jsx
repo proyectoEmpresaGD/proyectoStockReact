@@ -28,18 +28,18 @@ export default function ClientTable({
     const { user } = useAuthContext();
     const [viewMode, setViewMode] = useState('auto');
     const [visitModalVisible, setVisitModalVisible] = useState(false);
-    const [selectedClientId, setSelectedClientId] = useState(null);
+    const [selectedClient, setSelectedClient] = useState(null);
 
-    const canManageVisits = user && (user.role === 'comercial' || user.role === 'admin');
+    const canManageVisits = user && ['comercial', 'admin', 'administracion'].includes(String(user.role || '').toLowerCase());
 
-    const openVisitModal = (clientId) => {
-        setSelectedClientId(clientId);
+    const openVisitModal = (client) => {
+        setSelectedClient(client);
         setVisitModalVisible(true);
     };
 
     const closeVisitModal = () => {
         setVisitModalVisible(false);
-        setSelectedClientId(null);
+        setSelectedClient(null);
     };
 
     const tableVisibility = viewMode === 'auto'
@@ -154,7 +154,7 @@ export default function ClientTable({
                                             <td className="text-center">
                                                 <button
                                                     type="button"
-                                                    onClick={() => openVisitModal(client.codclien)}
+                                                    onClick={() => openVisitModal(client)}
                                                     aria-label={`Ver o agregar visita de ${client.razclien}`}
                                                     className="cjm-icon-button inline-flex h-11 w-11 items-center justify-center rounded-xl"
                                                 >
@@ -201,7 +201,7 @@ export default function ClientTable({
                                 {canManageVisits && (
                                     <button
                                         type="button"
-                                        onClick={() => openVisitModal(client.codclien)}
+                                        onClick={() => openVisitModal(client)}
                                         aria-label={`Ver o agregar visita de ${client.razclien}`}
                                         className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                                     >
@@ -242,7 +242,8 @@ export default function ClientTable({
             {visitModalVisible && (
                 <VisitModal
                     modalVisible={visitModalVisible}
-                    selectedClientId={selectedClientId}
+                    selectedClient={selectedClient}
+                    selectedClientId={selectedClient?.codclien}
                     closeModal={closeVisitModal}
                     updateLastVisitDate={(id, date) => {
                         setClients((previous) => previous.map((client) => (
