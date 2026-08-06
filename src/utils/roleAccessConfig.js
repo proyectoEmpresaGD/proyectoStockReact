@@ -24,6 +24,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/reservasTejido', label: 'Reservas' },
     { path: '/entradas', label: 'Entradas' },
     { path: '/comprobacionExcel', label: 'Validación presupuestos' },
+    { path: '/mapas-facturacion', label: 'Mapas de facturación' },
     { path: '/mapa-clientes', label: 'Mapa clientes' },
     { path: '/mapa-españa', label: 'Mapa España' },
     { path: '/analitica-facturacion', label: 'Facturación' },
@@ -171,6 +172,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/fichaTecnica',
             ...DOCUMENT_LABEL_ROUTES,
             '/analitica-facturacion',
+            '/mapas-facturacion',
             '/perfilusuario',
             '/rrhh/vacaciones'
         ]

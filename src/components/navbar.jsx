@@ -145,7 +145,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaGlobeEurope className="mr-3 text-lg" />,
                 dropdown: 'mapa',
                 links: [
-                    { to: '/mapas-facturacion', label: 'Mapas de facturación', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin'] },
+                    { to: '/mapas-facturacion', label: 'Mapas de facturación', icon: <FaMapMarkedAlt className="mr-3 text-lg" />, roles: ['admin', 'administracion'] },
                     { to: '/analitica-facturacion', label: 'Facturación', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] }
                 ]
             },

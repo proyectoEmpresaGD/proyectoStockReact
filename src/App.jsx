@@ -137,7 +137,7 @@ function App() {
                             <Route path="/EtiquetaPersonalizable" element={<EtiquetasPersonalizable />} />
                             <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
 
-                            <Route path="/mapas-facturacion" element={<ProtectedRoute requiredRole="admin"><MapasFacturacionPage /></ProtectedRoute>} />
+                            <Route path="/mapas-facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><MapasFacturacionPage /></ProtectedRoute>} />
                             <Route path="/mapa-clientes" element={<Navigate to="/mapas-facturacion?vista=global" replace />} />
                             <Route path="/mapa-españa" element={<Navigate to="/mapas-facturacion?vista=spain" replace />} />
                             <Route path="/comprobacionExcel" element={<VerifyBatch />} />

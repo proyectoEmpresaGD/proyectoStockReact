@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { AnalyticsController } from '../controllers/analyticsController.js';
+import { requireRoles } from '../middlewares/requireRoles.js';
 
 export const createAnalyticsRouter = () => {
     const router = Router();
     const controller = new AnalyticsController();
+    const requireMapAccess = requireRoles('administracion');
 
     router.get('/dashboard', controller.getDashboard.bind(controller));
     router.get('/filters', controller.getFilters.bind(controller));
@@ -15,7 +17,7 @@ export const createAnalyticsRouter = () => {
     router.get('/business-lines', controller.getBusinessLines.bind(controller));
     router.get('/invoices', controller.getInvoices.bind(controller));
     router.get('/data-quality', controller.getDataQuality.bind(controller));
-    router.get('/geography', controller.getGeography.bind(controller));
+    router.get('/geography', requireMapAccess, controller.getGeography.bind(controller));
     router.get('/compliance', controller.getCompliance.bind(controller));
 
     return router;

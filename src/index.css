@@ -1625,3 +1625,109 @@ textarea {
     width: 100%;
   }
 }
+
+
+/* Ayudas contextuales de Analítica de facturación */
+.facturacion-help-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--cjm-border);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--cjm-primary-soft) 58%, var(--cjm-surface));
+  padding: 0.55rem 0.75rem;
+  color: var(--cjm-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.facturacion-help-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.facturacion-help-anchor {
+  display: inline-flex;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.facturacion-help-button {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  min-height: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--cjm-muted) 38%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cjm-surface) 88%, transparent);
+  color: var(--cjm-muted);
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.facturacion-help-button:hover,
+.facturacion-help-button:focus-visible,
+.facturacion-help-button[aria-expanded='true'] {
+  border-color: var(--cjm-primary);
+  background: var(--cjm-primary-soft);
+  color: var(--cjm-primary-deep);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.facturacion-help-button:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cjm-primary-soft) 86%, transparent);
+}
+
+.facturacion-help-tooltip {
+  position: fixed;
+  z-index: 100000;
+  width: min(320px, calc(100vw - 24px));
+  border: 1px solid color-mix(in srgb, var(--cjm-border) 82%, transparent);
+  border-radius: 0.9rem;
+  background: var(--cjm-surface);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.24);
+  color: var(--cjm-text);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .facturacion-help-tooltip {
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.48);
+}
+
+@media (max-width: 639px) {
+  .facturacion-help-guide {
+    width: 100%;
+  }
+
+  .facturacion-help-button {
+    width: 1.35rem;
+    height: 1.35rem;
+    min-width: 1.35rem;
+    min-height: 1.35rem;
+    cursor: pointer;
+  }
+
+  .facturacion-help-tooltip {
+    width: min(340px, calc(100vw - 20px));
+    font-size: 0.82rem;
+  }
+}
