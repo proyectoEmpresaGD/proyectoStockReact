@@ -29,6 +29,7 @@ const SYSTEM_ROLES = [
     'comercial',
     'decoandyou',
     'almacen',
+    'compras',
     'ventas',
     'user',
     'rrhh',
@@ -37,6 +38,48 @@ const SYSTEM_ROLES = [
 ];
 
 const MAX_ROLE_LENGTH = Number(process.env.MAX_ROLE_LENGTH || 30);
+
+
+const WAREHOUSE_ROLE_ROUTES = [
+    '/etiquetas-lotes',
+    '/',
+    '/stock',
+    '/equivalencias',
+    '/fichaTecnica',
+    '/etiquetas',
+    '/reservasTejido',
+    '/etiquetasMarke',
+    '/estiquetaSinQR',
+    '/EtiquetaPersonalizable',
+    '/EtiquetaCameo',
+    '/libro',
+    '/libro19x4',
+    '/libroNormativa',
+    '/EtiquetasLibro35Tipo1',
+    '/EtiquetasLibro35Tipo2',
+    '/Libro35AnchoConImagen',
+    '/Libro45AnchoConImagen',
+    '/perchas',
+    '/perchasEstampados',
+    '/EtiquetaContraportada35',
+    '/EtiquetaContraportada20',
+    '/perfilusuario',
+    '/fichar',
+    '/rrhh/vacaciones',
+];
+
+const SYSTEM_ROLE_DEFINITIONS = {
+    almacen: {
+        name: 'almacen',
+        permissions: ['stock.read', 'stock.write', 'labels.read'],
+        routes: [...WAREHOUSE_ROLE_ROUTES],
+    },
+    compras: {
+        name: 'compras',
+        permissions: ['stock.read', 'stock.write', 'labels.read', 'purchasing.read'],
+        routes: [...WAREHOUSE_ROLE_ROUTES, '/stock-alerts'],
+    },
+};
 
 const normalizeCodrepres = (codrepres) => {
     if (Array.isArray(codrepres)) {
@@ -291,6 +334,7 @@ export class AuthController {
             const roleSet = new Set([
                 ...SYSTEM_ROLES,
                 ...dbRoles,
+                ...Object.keys(SYSTEM_ROLE_DEFINITIONS),
                 ...Object.keys(envDefinitions),
             ]);
 
@@ -302,7 +346,10 @@ export class AuthController {
 
             return res.json({
                 roles,
-                definitions: envDefinitions,
+                definitions: {
+                    ...SYSTEM_ROLE_DEFINITIONS,
+                    ...envDefinitions,
+                },
             });
         } catch (error) {
             console.error('Error obteniendo catálogo de roles:', error);

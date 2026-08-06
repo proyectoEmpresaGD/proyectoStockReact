@@ -1,64 +1,62 @@
-const formatNumber = (value) => {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) return '0';
-    return numberValue.toLocaleString('es-ES', { maximumFractionDigits: 2 });
+import React from 'react';
+import { formatQuantity, toNumber } from './stockControlUtils';
+
+const formatMonth = (label) => {
+    const [year, month] = String(label || '').split('-');
+    if (!year || !month) return label;
+
+    const date = new Date(Number(year), Number(month) - 1, 1);
+    return new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' }).format(date);
 };
 
 function StockConsumptionChart({ product }) {
     const history = Array.isArray(product?.monthly_history) ? product.monthly_history : [];
-    const maxValue = Math.max(...history.map((item) => Number(item.consumption) || 0), 0);
+    const maxValue = Math.max(...history.map((item) => toNumber(item.consumption)), 0);
 
-    if (!product) {
+    if (!history.length) {
         return (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-                Selecciona un producto para ver la gráfica de consumo.
-            </section>
+            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                No hay consumo registrado para este producto en el periodo seleccionado.
+            </div>
         );
     }
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex flex-col gap-1">
-                <h2 className="text-lg font-semibold text-slate-900">
-                    Consumo mensual: {product.codprodu}
-                </h2>
-                <p className="text-sm text-slate-500">{product.desprodu}</p>
+        <div>
+            <div className="space-y-2 sm:hidden">
+                {history.map((item) => {
+                    const consumption = toNumber(item.consumption);
+                    const width = maxValue > 0 ? Math.max((consumption / maxValue) * 100, consumption > 0 ? 4 : 0) : 0;
+
+                    return (
+                        <div key={item.label} className="grid grid-cols-[74px_minmax(0,1fr)_64px] items-center gap-2 text-xs">
+                            <span className="text-slate-500">{formatMonth(item.label)}</span>
+                            <span className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <span className="block h-full rounded-full bg-[#6D8DB3]" style={{ width: `${width}%` }} />
+                            </span>
+                            <strong className="text-right tabular-nums text-slate-700">{formatQuantity(consumption)}</strong>
+                        </div>
+                    );
+                })}
             </div>
 
-            {history.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                    No hay consumo registrado para este producto en el periodo seleccionado.
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <div className="flex min-w-[720px] items-end gap-2 rounded-xl bg-slate-50 p-4">
-                        {history.map((item) => {
-                            const consumption = Number(item.consumption) || 0;
-                            const height = maxValue > 0 ? Math.max((consumption / maxValue) * 180, 6) : 6;
+            <div className="hidden overflow-x-auto sm:block">
+                <div className="flex min-w-[720px] items-end gap-2 rounded-2xl bg-slate-50 p-4">
+                    {history.map((item) => {
+                        const consumption = toNumber(item.consumption);
+                        const height = maxValue > 0 ? Math.max((consumption / maxValue) * 220, consumption > 0 ? 8 : 3) : 3;
 
-                            return (
-                                <div
-                                    key={item.label}
-                                    className="flex flex-1 flex-col items-center justify-end gap-2"
-                                    title={`${item.label}: ${formatNumber(consumption)}`}
-                                >
-                                    <div className="text-xs font-semibold text-slate-600">
-                                        {formatNumber(consumption)}
-                                    </div>
-                                    <div
-                                        className="w-full max-w-10 rounded-t-lg bg-blue-500"
-                                        style={{ height: `${height}px` }}
-                                    />
-                                    <div className="-rotate-45 whitespace-nowrap text-xs text-slate-500">
-                                        {item.label}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                        return (
+                            <div key={item.label} className="flex min-w-12 flex-1 flex-col items-center justify-end gap-2" title={`${item.label}: ${formatQuantity(consumption)}`}>
+                                <strong className="text-xs tabular-nums text-slate-600">{formatQuantity(consumption)}</strong>
+                                <div className="w-full max-w-10 rounded-t-lg bg-[#6D8DB3]" style={{ height: `${height}px` }} />
+                                <span className="-rotate-45 whitespace-nowrap text-xs text-slate-500">{formatMonth(item.label)}</span>
+                            </div>
+                        );
+                    })}
                 </div>
-            )}
-        </section>
+            </div>
+        </div>
     );
 }
 

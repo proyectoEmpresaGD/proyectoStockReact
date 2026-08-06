@@ -3,7 +3,7 @@ import { useAuthContext } from './AuthContext';
 import { decodeJwtPayload } from '../utils/jwt';
 import { getFirstAccessibleRoute, userCanAccessRoute } from '../utils/roleAccessConfig';
 
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
     const { token } = useAuthContext();
     const location = useLocation();
 
@@ -14,10 +14,27 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     try {
         const decoded = decodeJwtPayload(token);
         const currentRole = decoded.role;
-        const canAccessCurrentRoute = userCanAccessRoute(currentRole, location.pathname);
-        const fallbackRoute = getFirstAccessibleRoute(currentRole);
+        const normalizedRole = String(currentRole || '').trim().toLowerCase();
+        const canAccessCurrentRoute = userCanAccessRoute(normalizedRole, location.pathname);
+        const fallbackRoute = getFirstAccessibleRoute(normalizedRole);
+        const normalizedAllowedRoles = Array.isArray(allowedRoles)
+            ? allowedRoles.map((role) => String(role || '').trim().toLowerCase()).filter(Boolean)
+            : [];
+
+        if (
+            normalizedAllowedRoles.length > 0
+            && normalizedRole !== 'admin'
+            && !normalizedAllowedRoles.includes(normalizedRole)
+        ) {
+            if (fallbackRoute && fallbackRoute !== location.pathname) {
+                return <Navigate to={fallbackRoute} replace />;
+            }
+
+            return <Navigate to="/login" replace />;
+        }
+
         // Verifica si el rol es el adecuado o si es admin
-        if (requiredRole && currentRole !== requiredRole && currentRole !== 'admin' && !canAccessCurrentRoute) {
+        if (requiredRole && normalizedRole !== requiredRole && normalizedRole !== 'admin' && !canAccessCurrentRoute) {
             if (fallbackRoute && fallbackRoute !== location.pathname) {
                 return <Navigate to={fallbackRoute} replace />;
             }

@@ -149,7 +149,7 @@ function App() {
                             <Route path="/fichaTecnica" element={<FichaTecnicaPage />} />
                             <Route path="/entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
                             <Route path="/rrhh/vacaciones" element={<ProtectedRoute><RecursosHumanos /></ProtectedRoute>} />
-                            <Route path="/stock-alerts" element={<ProtectedRoute requiredRole="almacen"><LowStockAlertsPage /></ProtectedRoute>} />
+                            <Route path="/stock-alerts" element={<ProtectedRoute allowedRoles={['compras']}><LowStockAlertsPage /></ProtectedRoute>} />
                             <Route path="*" element={<NotFoundPage />} />
                           </Routes>
                         </Suspense>

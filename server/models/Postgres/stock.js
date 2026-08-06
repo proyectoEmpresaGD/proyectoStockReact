@@ -149,7 +149,7 @@ export class StockModel {
      * - Match por código canónico (ej: ARE000123 == ARE123)
      * - Devuelve un Map con claves = códigos solicitados (tal cual entraron) y valores fecha/null
      */
-    static async getFechaEstimadaMapByCodesFast(codes = []) {
+    static async getFechaEstimadaMapByCodesFast(codes = [], maxCodes = StockModel.FECHA_FALLBACK_MAX_CODES) {
         const normalizedCodes = [...new Set(codes.map(StockModel.normalizeCode).filter(Boolean))];
         if (!normalizedCodes.length) return new Map();
 
@@ -185,7 +185,8 @@ export class StockModel {
 
             const map = new Map();
             const canonicalCodes = [...canonicalToRequested.keys()];
-            const limited = canonicalCodes.slice(0, StockModel.FECHA_FALLBACK_MAX_CODES);
+            const safeMaxCodes = Math.min(Math.max(Number(maxCodes) || StockModel.FECHA_FALLBACK_MAX_CODES, 1), 4000);
+            const limited = canonicalCodes.slice(0, safeMaxCodes);
             const chunks = StockModel.chunkArray(limited, 1000);
 
             for (const chunk of chunks) {
@@ -389,6 +390,17 @@ export class StockModel {
         return Number.isFinite(numberValue) ? numberValue : fallback;
     }
 
+    static parseFlexibleNumber(value, fallback = 0) {
+        if (value === null || value === undefined || value === '') return fallback;
+        const normalized = String(value)
+            .trim()
+            .replace(/\s/g, '')
+            .replace(',', '.')
+            .replace(/[^0-9.-]/g, '');
+        const numberValue = Number(normalized);
+        return Number.isFinite(numberValue) ? numberValue : fallback;
+    }
+
     static getControlStockMonthsBack(value) {
         const months = Number.parseInt(value, 10);
         if (!Number.isFinite(months)) return 12;
@@ -471,8 +483,12 @@ export class StockModel {
                 .filter(Boolean);
 
             for (const token of tokens) {
-                filters.push(`productos_base.desprodu ILIKE $${paramIndex++}`);
+                filters.push(`(
+                    productos_base.desprodu ILIKE $${paramIndex}
+                    OR productos_base.codprodu::text ILIKE $${paramIndex}
+                )`);
                 params.push(`%${token}%`);
+                paramIndex += 1;
             }
         }
 
@@ -616,6 +632,45 @@ export class StockModel {
                 COALESCE(resumen_consumo.consumo_total_periodo, 0)::numeric AS total_period_consumption,
                 COALESCE(resumen_consumo.consumo_medio_mensual, 0)::numeric AS avg_monthly_consumption,
 
+                (
+                    CASE
+                        WHEN productos_base.tipo = '101'
+                            THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                        ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                    END
+                    + COALESCE(stock_almacen.canpenrecib, 0)
+                    - COALESCE(stock_almacen.canpenservir, 0)
+                )::numeric AS stock_projected,
+
+                CASE
+                    WHEN COALESCE(resumen_consumo.consumo_medio_mensual, 0) > 0
+                        THEN (
+                            CASE
+                                WHEN productos_base.tipo = '101'
+                                    THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                            END
+                        ) / resumen_consumo.consumo_medio_mensual
+                    ELSE 99
+                END::numeric AS current_coverage_months,
+
+                CASE
+                    WHEN COALESCE(resumen_consumo.consumo_medio_mensual, 0) > 0
+                        THEN GREATEST(
+                            (
+                                CASE
+                                    WHEN productos_base.tipo = '101'
+                                        THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                    ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                                END
+                                + COALESCE(stock_almacen.canpenrecib, 0)
+                                - COALESCE(stock_almacen.canpenservir, 0)
+                            ) / resumen_consumo.consumo_medio_mensual,
+                            0
+                        )
+                    ELSE 99
+                END::numeric AS projected_coverage_months,
+
                 GREATEST(
                     CEIL(
                         COALESCE(resumen_consumo.consumo_medio_mensual, 0)
@@ -641,6 +696,34 @@ export class StockModel {
                     ),
                     0
                 )::numeric AS recommended_next_three_months,
+
+                GREATEST(
+                    CEIL(
+                        COALESCE(resumen_consumo.consumo_medio_mensual, 0)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                        + COALESCE(stock_almacen.canpenservir, 0)
+                    ),
+                    0
+                )::numeric AS recommended_net_next_month,
+
+                GREATEST(
+                    CEIL(
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                        + COALESCE(stock_almacen.canpenservir, 0)
+                    ),
+                    0
+                )::numeric AS recommended_net_next_three_months,
 
                 COALESCE(resumen_consumo.monthly_history, '[]'::json) AS monthly_history
             FROM productos_base
@@ -668,10 +751,22 @@ export class StockModel {
                         productos_base.tipo IN ('105', '106', '109')
                         AND COALESCE(stock_almacen.stock_stockactual, 0) < 10
                     )
+                    OR (
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        > (
+                            CASE
+                                WHEN productos_base.tipo = '101'
+                                    THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                            END
+                            + COALESCE(stock_almacen.canpenrecib, 0)
+                            - COALESCE(stock_almacen.canpenservir, 0)
+                        )
+                    )
               )
             ORDER BY
-                recommended_next_month DESC,
-                recommended_next_three_months DESC,
+                recommended_net_next_month DESC,
+                recommended_net_next_three_months DESC,
                 avg_monthly_consumption DESC,
                 productos_base.desprodu ASC
             LIMIT $2
@@ -679,23 +774,51 @@ export class StockModel {
                 params
             );
 
-            return rows.map((row) => ({
-                ...row,
-                nombre_familia: StockModel.getFamilyName(row.codfamilia),
-                stockactual: StockModel.toSafeNumber(row.stockactual),
-                canpenrecib: StockModel.toSafeNumber(row.canpenrecib),
-                canpenservir: StockModel.toSafeNumber(row.canpenservir),
-                total_period_consumption: StockModel.toSafeNumber(row.total_period_consumption),
-                avg_monthly_consumption: StockModel.toSafeNumber(row.avg_monthly_consumption),
-                recommended_next_month: StockModel.toSafeNumber(row.recommended_next_month),
-                recommended_next_three_months: StockModel.toSafeNumber(row.recommended_next_three_months),
-                monthly_history: Array.isArray(row.monthly_history)
-                    ? row.monthly_history.map((item) => ({
-                        ...item,
-                        consumption: StockModel.toSafeNumber(item.consumption),
-                    }))
-                    : [],
-            }));
+            const productCodes = rows.map((row) => row.codprodu).filter(Boolean);
+            const [datCompraMap, estimatedDateMap] = await Promise.all([
+                StockModel.getDatCompraMapByCodes(productCodes),
+                StockModel.getFechaEstimadaMapByCodesFast(productCodes, safeLimit),
+            ]);
+
+            return rows.map((row) => {
+                const purchaseData = datCompraMap.get(StockModel.normalizeCode(row.codprodu));
+                const minimumOrderQuantity = StockModel.parseFlexibleNumber(purchaseData?.cantminima, 0);
+                const leadTimeDays = StockModel.parseFlexibleNumber(purchaseData?.plaentre, 0);
+                const recommendedMonth = StockModel.toSafeNumber(row.recommended_net_next_month);
+                const recommendedQuarter = StockModel.toSafeNumber(row.recommended_net_next_three_months);
+
+                return {
+                    ...row,
+                    nombre_familia: StockModel.getFamilyName(row.codfamilia),
+                    stockactual: StockModel.toSafeNumber(row.stockactual),
+                    canpenrecib: StockModel.toSafeNumber(row.canpenrecib),
+                    canpenservir: StockModel.toSafeNumber(row.canpenservir),
+                    stock_projected: StockModel.toSafeNumber(row.stock_projected),
+                    current_coverage_months: StockModel.toSafeNumber(row.current_coverage_months, 99),
+                    projected_coverage_months: StockModel.toSafeNumber(row.projected_coverage_months, 99),
+                    total_period_consumption: StockModel.toSafeNumber(row.total_period_consumption),
+                    avg_monthly_consumption: StockModel.toSafeNumber(row.avg_monthly_consumption),
+                    recommended_next_month: StockModel.toSafeNumber(row.recommended_next_month),
+                    recommended_next_three_months: StockModel.toSafeNumber(row.recommended_next_three_months),
+                    recommended_net_next_month: recommendedMonth,
+                    recommended_net_next_three_months: recommendedQuarter,
+                    minimum_order_quantity: minimumOrderQuantity,
+                    lead_time_days: leadTimeDays,
+                    estimated_receipt_date: estimatedDateMap.get(StockModel.normalizeCode(row.codprodu)) || null,
+                    suggested_order_next_month: recommendedMonth > 0
+                        ? Math.max(recommendedMonth, minimumOrderQuantity)
+                        : 0,
+                    suggested_order_next_three_months: recommendedQuarter > 0
+                        ? Math.max(recommendedQuarter, minimumOrderQuantity)
+                        : 0,
+                    monthly_history: Array.isArray(row.monthly_history)
+                        ? row.monthly_history.map((item) => ({
+                            ...item,
+                            consumption: StockModel.toSafeNumber(item.consumption),
+                        }))
+                        : [],
+                };
+            });
         } catch (error) {
             console.error('Error fetching control stock filters:', {
                 message: error.message,

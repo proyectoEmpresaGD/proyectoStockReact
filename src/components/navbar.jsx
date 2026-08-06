@@ -46,6 +46,16 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     const matchesSearch = (text) =>
         (text || '').toLowerCase().includes(searchTerm.toLowerCase());
 
+    const roleMatchesStaticRoles = (role, allowedRoles) => {
+        if (!Array.isArray(allowedRoles)) return true;
+
+        const normalizedRoles = allowedRoles.map((item) => String(item || '').trim().toLowerCase());
+        if (normalizedRoles.includes(role)) return true;
+
+        // Compras hereda todas las opciones visibles para Almacén.
+        return role === 'compras' && normalizedRoles.includes('almacen');
+    };
+
     const filterLinksByRole = (links) => {
         const role = String(user?.role || '').trim().toLowerCase();
         const username = String(user?.username || '').trim().toUpperCase();
@@ -66,9 +76,11 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 ? link.roles.map((linkRole) => String(linkRole).trim().toLowerCase())
                 : null;
 
-            const hasStaticRole = !linkRoles || linkRoles.includes(role);
+            const hasStaticRole = roleMatchesStaticRoles(role, linkRoles);
             const hasDynamicRouteAccess =
                 typeof link.to === 'string' && userCanAccessRoute(role, link.to);
+
+            if (link.strictRoles) return hasStaticRole;
 
             return hasStaticRole || hasDynamicRouteAccess;
         });
@@ -146,7 +158,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
                     { to: '/fichaTecnica', label: 'Ficha técnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
-                    { to: '/stock-alerts', label: 'Control Stock', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                    { to: '/stock-alerts', label: 'Compras y control de stock', icon: <FaShoppingCart className="mr-3 text-lg" />, roles: ['admin', 'compras'], strictRoles: true },
                     {
                         to: '/etiquetas-lotes',
                         label: 'Etiquetas por lote',
@@ -294,7 +306,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                             if (!role) return null;
 
                             const canAccessSection =
-                                !section.roles || section.roles.includes(role);
+                                roleMatchesStaticRoles(role, section.roles);
 
                             if (!canAccessSection) return null;
 

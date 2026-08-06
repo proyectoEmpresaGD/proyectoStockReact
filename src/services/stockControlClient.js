@@ -27,13 +27,14 @@ export async function fetchStockControlFilters({ token }) {
     return response.json();
 }
 
-export async function fetchStockControlRows({ token, filters }) {
+export async function fetchStockControlRows({ token, filters, signal }) {
     const query = buildQueryString(filters);
     const url = `${getApiBaseUrl()}/api/stock/control-stock${query ? `?${query}` : ''}`;
 
     const response = await fetch(url, {
         headers: buildHeaders(token),
         cache: 'no-store',
+        signal,
     });
 
     if (!response.ok) {

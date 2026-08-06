@@ -19,7 +19,6 @@ import { createVisitaRouter } from "./routes/visitaRoutes.js";
 import { createAgendaRouter } from "./routes/agenda.js";
 import cron from "node-cron";
 import nodemailer from "nodemailer";
-import { StockModel } from "./models/Postgres/stock.js";
 import { createCalendarioRouter } from "./routes/calendario.js";
 import { createNotasRouter } from "./routes/notas.js";
 import { createVerifyRouter } from "./routes/verify.js";
@@ -175,43 +174,9 @@ async function sendWeeklyVisitsEmail() {
   }
 }
 
-async function sendWeeklyStockAlerts(force = false) {
-  const today = new Date();
-  if (!force && today.getDay() !== 5) return;
-
-  try {
-    const { telas: lowTelas, libros: lowLibros, perchas: lowPerchas } =
-      await StockModel.getLowStockAlertsFiltered();
-
-    if (![lowTelas, lowLibros, lowPerchas].some((arr) => arr.length)) {
-      console.log("No hay alertas de stock bajo.");
-      return;
-    }
-
-    const html = `
-      <div style="font-family:Arial,sans-serif;padding:20px;">
-        <h1 style="text-align:center;color:#2D9CDB;">Alerta Semanal de Stock Bajo</h1>
-        <p>Hay productos con stock bajo.</p>
-      </div>
-    `;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.STOCK_ALERT_EMAIL || process.env.EMAIL_USER,
-      subject: "Alerta de Stock Bajo",
-      html,
-    });
-
-    console.log("Email de stock enviado.");
-  } catch (err) {
-    console.error("Error enviando email de stock bajo:", err);
-  }
-}
-
 // ✅ CRON guard: en Vercel usa CRONs de Vercel, no dependas de node-cron
 if (process.env.ENABLE_CRON === "true") {
   cron.schedule("0 15 * * 0", sendWeeklyVisitsEmail, { timezone: "Europe/Madrid" });
-  cron.schedule("0 9 * * 5", sendWeeklyStockAlerts, { timezone: "Europe/Madrid" });
 }
 
 // Test endpoints
@@ -236,31 +201,6 @@ app.get(
       return res.status(500).json({
         ok: false,
         error: "No se pudo ejecutar el envío semanal de visitas.",
-      });
-    }
-  }
-);
-
-app.get(
-  "/api/test-send-stock-alerts",
-  cronAuthMiddleware,
-  async (req, res) => {
-    try {
-      await sendWeeklyStockAlerts(true);
-
-      return res.status(200).json({
-        ok: true,
-        message: "Alertas de stock enviadas correctamente.",
-      });
-    } catch (error) {
-      console.error(
-        "Error ejecutando las alertas de stock:",
-        error
-      );
-
-      return res.status(500).json({
-        ok: false,
-        error: "No se pudieron ejecutar las alertas de stock.",
       });
     }
   }

@@ -1,654 +1,372 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AiOutlineLoading3Quarters } from 'react-icons/ai';
-import { IoClose } from 'react-icons/io5';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    ArrowDownUp,
+    ListPlus,
+    CircleHelp,
+    ClipboardList,
+    PackageSearch,
+    RefreshCw,
+    ShoppingCart,
+} from 'lucide-react';
+import { toast } from 'react-toastify';
 import { useAuthContext } from '../Auth/AuthContext';
 import PageShell from '../common/PageShell.jsx';
 import PageHeader from '../common/PageHeader.jsx';
-import { PackageSearch } from 'lucide-react';
+import StockControlFilters from '../components/stock/StockControlFilters.jsx';
+import StockControlSummary from '../components/stock/StockControlSummary.jsx';
+import StockControlTable from '../components/stock/StockControlTable.jsx';
+import StockProductDetailsModal from '../components/stock/StockProductDetailsModal.jsx';
+import StockPurchasePlan from '../components/stock/StockPurchasePlan.jsx';
+import { useStockControl } from '../hooks/useStockControl.js';
+import {
+    buildPurchasePlanItem,
+    compareStockRows,
+    getStockStatus,
+    getSuggestedOrder,
+    HORIZONS,
+    STOCK_STATUS,
+    toNumber,
+} from '../components/stock/stockControlUtils.js';
 
-const DEFAULT_FILTERS = {
-    proveedor: '',
-    coleccion: '',
-    nombreProducto: '',
-    mesesConsumo: '12',
-};
+const PLAN_STORAGE_PREFIX = 'cjm-stock-purchase-plan-v2';
 
-const MESES_CONSUMO_OPTIONS = [
-    { value: '6', label: 'Últimos 6 meses' },
-    { value: '12', label: 'Últimos 12 meses' },
-    { value: '24', label: 'Últimos 24 meses' },
-    { value: '36', label: 'Últimos 36 meses' },
+const STATUS_OPTIONS = [
+    { value: STOCK_STATUS.all, label: 'Todos' },
+    { value: STOCK_STATUS.immediate, label: 'Comprar ahora' },
+    { value: STOCK_STATUS.upcoming, label: 'Planificar' },
+    { value: STOCK_STATUS.covered, label: 'Cubiertos' },
+    { value: STOCK_STATUS.missingSupplier, label: 'Sin proveedor' },
 ];
 
-const formatNumber = (value, decimals = 2) => {
-    const numberValue = Number(value);
+const SORT_OPTIONS = [
+    { value: 'priority', label: 'Prioridad de compra' },
+    { value: 'quantity', label: 'Mayor cantidad sugerida' },
+    { value: 'coverage', label: 'Menor cobertura' },
+    { value: 'supplier', label: 'Proveedor' },
+    { value: 'product', label: 'Producto' },
+];
 
-    if (!Number.isFinite(numberValue)) {
-        return '0,00';
-    }
-
-    return numberValue.toLocaleString('es-ES', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-    });
+const getPlanStorageKey = (user) => {
+    const userId = user?.id ?? user?.username ?? user?.sub ?? 'default';
+    return `${PLAN_STORAGE_PREFIX}:${userId}`;
 };
 
-const getApiBaseUrl = () => import.meta.env.VITE_API_BASE_URL;
+function LowStockAlertsPage() {
+    const { token, user } = useAuthContext();
+    const {
+        filters,
+        filterOptions,
+        rows,
+        loading,
+        loadingFilters,
+        error,
+        hasPendingChanges,
+        updateFilter,
+        applyFilters,
+        resetFilters,
+        reload,
+    } = useStockControl({ token });
 
-const normalizeOption = (option) => ({
-    value: typeof option === 'string' ? option : option.value,
-    label: typeof option === 'string' ? option : option.label,
-});
+    const [status, setStatus] = useState(STOCK_STATUS.all);
+    const [horizon, setHorizon] = useState(HORIZONS.month);
+    const [sortBy, setSortBy] = useState('priority');
+    const [detailsProduct, setDetailsProduct] = useState(null);
+    const [planOpen, setPlanOpen] = useState(false);
+    const [purchasePlan, setPurchasePlan] = useState({});
+    const [planHydrated, setPlanHydrated] = useState(false);
 
-function SearchableCombobox({
-    label,
-    value,
-    options,
-    placeholder,
-    emptyLabel,
-    loading,
-    onChange,
-}) {
-    const containerRef = useRef(null);
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchText, setSearchText] = useState('');
-
-    const normalizedOptions = useMemo(() => {
-        return options.map((option) => normalizeOption(option));
-    }, [options]);
-
-    const selectedOption = normalizedOptions.find((option) => option.value === value);
-
-    const filteredOptions = useMemo(() => {
-        const search = searchText.trim().toLowerCase();
-
-        if (!search) {
-            return normalizedOptions;
-        }
-
-        return normalizedOptions.filter((option) => {
-            const optionLabel = String(option.label || '').toLowerCase();
-            const optionValue = String(option.value || '').toLowerCase();
-
-            return optionLabel.includes(search) || optionValue.includes(search);
-        });
-    }, [normalizedOptions, searchText]);
+    const storageKey = useMemo(() => getPlanStorageKey(user), [user]);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!containerRef.current) return;
+        setPlanHydrated(false);
+        try {
+            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            setPurchasePlan(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {});
+        } catch {
+            setPurchasePlan({});
+        } finally {
+            setPlanHydrated(true);
+        }
+    }, [storageKey]);
 
-            if (!containerRef.current.contains(event.target)) {
-                setIsOpen(false);
-                setSearchText('');
-            }
+    useEffect(() => {
+        if (!planHydrated) return;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(purchasePlan));
+        } catch {
+            // El borrador sigue disponible durante la sesión aunque el navegador bloquee el almacenamiento.
+        }
+    }, [purchasePlan, planHydrated, storageKey]);
+
+    const summary = useMemo(() => {
+        const result = {
+            [STOCK_STATUS.immediate]: 0,
+            [STOCK_STATUS.upcoming]: 0,
+            [STOCK_STATUS.covered]: 0,
+            suggestedUnits: 0,
+            withoutSupplier: 0,
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
+        rows.forEach((product) => {
+            result[getStockStatus(product)] += 1;
+            result.suggestedUnits += getSuggestedOrder(product, horizon);
+            if (!product.codprove) result.withoutSupplier += 1;
+        });
 
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
+        return result;
+    }, [rows, horizon]);
 
-    const openCombobox = () => {
-        setSearchText(selectedOption?.label || '');
-        setIsOpen(true);
-    };
+    const visibleRows = useMemo(() => {
+        return rows
+            .filter((product) => {
+                if (status === STOCK_STATUS.all) return true;
+                if (status === STOCK_STATUS.missingSupplier) return !product.codprove;
+                return getStockStatus(product) === status;
+            })
+            .sort(compareStockRows(sortBy, horizon));
+    }, [rows, status, sortBy, horizon]);
 
-    const selectOption = (option) => {
-        onChange(option.value);
-        setSearchText(option.label);
-        setIsOpen(false);
-    };
-
-    const clearSelection = () => {
-        onChange('');
-        setSearchText('');
-        setIsOpen(false);
-    };
-
-    return (
-        <div
-            ref={containerRef}
-            className="relative flex flex-col gap-1 text-sm font-medium text-slate-700"
-        >
-            <span>{label}</span>
-
-            <input
-                type="search"
-                value={isOpen ? searchText : selectedOption?.label || ''}
-                onFocus={openCombobox}
-                onClick={openCombobox}
-                onChange={(event) => {
-                    setSearchText(event.target.value);
-                    setIsOpen(true);
-                }}
-                placeholder={loading ? 'Cargando...' : placeholder}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 pr-9 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
-
-            {(value || searchText) && (
-                <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={clearSelection}
-                    className="absolute right-3 top-[31px] text-lg leading-none text-slate-400 hover:text-slate-700"
-                    aria-label={`Limpiar ${label}`}
-                >
-                    ×
-                </button>
-            )}
-
-            {isOpen && (
-                <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-                    <div className="max-h-64 overflow-y-auto p-1">
-                        <button
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={clearSelection}
-                            className="w-full rounded-lg px-3 py-2 text-left text-sm font-normal text-slate-500 hover:bg-slate-100"
-                        >
-                            {emptyLabel}
-                        </button>
-
-                        {filteredOptions.length === 0 && (
-                            <div className="px-3 py-2 text-sm font-normal text-slate-400">
-                                No hay resultados
-                            </div>
-                        )}
-
-                        {filteredOptions.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => selectOption(option)}
-                                className={`w-full rounded-lg px-3 py-2 text-left text-sm font-normal hover:bg-blue-50 ${option.value === value
-                                    ? 'bg-blue-50 font-semibold text-blue-700'
-                                    : 'text-slate-700'
-                                    }`}
-                                title={`${option.label} (${option.value})`}
-                            >
-                                <span className="block truncate">
-                                    {option.label}
-                                </span>
-                                <span className="block text-xs text-slate-400">
-                                    {option.value}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
+    const planItems = useMemo(() => Object.values(purchasePlan), [purchasePlan]);
+    const planQuantity = useMemo(
+        () => planItems.reduce((total, item) => total + Math.max(toNumber(item.quantity), 0), 0),
+        [planItems]
     );
-}
 
-function LowStockAlertsPage() {
-    const { token } = useAuthContext();
+    const togglePlanProduct = (product) => {
+        setPurchasePlan((current) => {
+            if (current[product.codprodu]) {
+                const next = { ...current };
+                delete next[product.codprodu];
+                return next;
+            }
 
-    const [filters, setFilters] = useState(DEFAULT_FILTERS);
-    const [filterOptions, setFilterOptions] = useState({
-        proveedores: [],
-        colecciones: [],
-    });
+            const item = buildPurchasePlanItem(product, horizon);
+            if (item.quantity <= 0) {
+                toast.info('Este producto aparece como cubierto. Se añadirá con cantidad 0 para que la indiques manualmente.');
+            }
 
-    const [products, setProducts] = useState([]);
-    const [selectedProductCode, setSelectedProductCode] = useState('');
-    const [isConsumptionModalOpen, setIsConsumptionModalOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [loadingFilters, setLoadingFilters] = useState(false);
-    const [error, setError] = useState('');
+            return { ...current, [product.codprodu]: item };
+        });
+    };
 
-    const selectedProduct = useMemo(() => {
-        return products.find((product) => product.codprodu === selectedProductCode) || null;
-    }, [products, selectedProductCode]);
+    const addVisibleProducts = () => {
+        const productsToAdd = visibleRows.filter((product) => getSuggestedOrder(product, horizon) > 0);
 
-    const updateFilter = (key, value) => {
-        setFilters((currentFilters) => ({
-            ...currentFilters,
-            [key]: value,
+        if (!productsToAdd.length) {
+            toast.info('No hay productos con cantidad sugerida en la vista actual.');
+            return;
+        }
+
+        setPurchasePlan((current) => {
+            const next = { ...current };
+            productsToAdd.forEach((product) => {
+                if (!next[product.codprodu]) {
+                    next[product.codprodu] = buildPurchasePlanItem(product, horizon);
+                }
+            });
+            return next;
+        });
+
+        toast.success(`${productsToAdd.length} productos añadidos a la propuesta.`);
+    };
+
+    const changePlanQuantity = (code, value) => {
+        setPurchasePlan((current) => ({
+            ...current,
+            [code]: {
+                ...current[code],
+                quantity: Math.max(toNumber(value), 0),
+            },
         }));
     };
 
-    const resetFilters = () => {
-        setFilters(DEFAULT_FILTERS);
+    const changePlanNotes = (code, notes) => {
+        setPurchasePlan((current) => ({
+            ...current,
+            [code]: { ...current[code], notes },
+        }));
     };
 
-    const buildQueryString = () => {
-        const queryParams = new URLSearchParams();
-
-        if (filters.proveedor) {
-            queryParams.set('provider', filters.proveedor);
-        }
-
-        if (filters.coleccion) {
-            queryParams.set('collection', filters.coleccion);
-        }
-
-        if (filters.nombreProducto) {
-            queryParams.set('productName', filters.nombreProducto);
-        }
-
-        if (filters.mesesConsumo) {
-            queryParams.set('monthsBack', filters.mesesConsumo);
-        }
-
-        queryParams.set('limit', '500');
-
-        return queryParams.toString();
+    const removePlanItem = (code) => {
+        setPurchasePlan((current) => {
+            const next = { ...current };
+            delete next[code];
+            return next;
+        });
     };
 
-    const fetchFilters = async () => {
-        if (!token) return;
-
-        setLoadingFilters(true);
-
-        try {
-            const response = await fetch(`${getApiBaseUrl()}/api/stock/control-stock/filters`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            setFilterOptions({
-                proveedores: Array.isArray(data?.providers) ? data.providers : [],
-                colecciones: Array.isArray(data?.collections) ? data.collections : [],
-            });
-        } catch {
-            setFilterOptions({
-                proveedores: [],
-                colecciones: [],
-            });
-        } finally {
-            setLoadingFilters(false);
-        }
-    };
-
-    const fetchStockControl = async () => {
-        if (!token) return;
-
-        setLoading(true);
-        setError('');
-
-        try {
-            const queryString = buildQueryString();
-
-            const response = await fetch(
-                `${getApiBaseUrl()}/api/stock/control-stock?${queryString}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const safeProducts = Array.isArray(data) ? data : [];
-
-            setProducts(safeProducts);
-            setSelectedProductCode((currentCode) => {
-                const currentProductExists = safeProducts.some((product) => product.codprodu === currentCode);
-
-                if (currentProductExists) {
-                    return currentCode;
-                }
-
-                return '';
-            });
-        } catch (e) {
-            setProducts([]);
-            setSelectedProductCode('');
-            setError(e.message || 'Error cargando el control de stock.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const openConsumptionModal = (productCode) => {
-        setSelectedProductCode(productCode);
-        setIsConsumptionModalOpen(true);
-    };
-
-    const closeConsumptionModal = () => {
-        setIsConsumptionModalOpen(false);
-    };
-
-    useEffect(() => {
-        fetchFilters();
-    }, [token]);
-
-    useEffect(() => {
-        fetchStockControl();
-    }, [token, filters]);
+    const horizonLabel = horizon === HORIZONS.quarter ? '3 meses' : '1 mes';
 
     return (
-        <PageShell maxWidth="max-w-[1500px]">
+        <PageShell maxWidth="max-w-[1700px]" className="stock-control-modern">
             <PageHeader
-                eyebrow="Almacén · Planificación"
-                title="Control de stock"
-                description="Productos que necesitan compra según el consumo medio mensual y las cantidades pendientes de recibir."
+                eyebrow="Compras · Planificación"
+                title="Control y planificación de stock"
+                description="Prioriza qué comprar, revisa la cobertura real y crea una propuesta para Excel sin depender de correos automáticos."
                 icon={PackageSearch}
+                actions={(
+                    <button type="button" onClick={() => setPlanOpen(true)} className="cjm-primary-button min-h-11">
+                        <ClipboardList size={18} aria-hidden="true" />
+                        Propuesta ({planItems.length})
+                    </button>
+                )}
             />
 
-            <section className="cjm-toolbar mb-6 mt-6">
-                <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <h2 className="text-base font-semibold text-slate-900">
-                            Filtros
-                        </h2>
-                        <p className="text-sm text-slate-500">
-                            Filtra por proveedor, familia y nombre de producto.
-                        </p>
+            <div className="mt-6 space-y-5">
+                <StockControlFilters
+                    filters={filters}
+                    filterOptions={filterOptions}
+                    loadingFilters={loadingFilters}
+                    loading={loading}
+                    onFilterChange={updateFilter}
+                    onReset={resetFilters}
+                    onApply={applyFilters}
+                />
+
+                {hasPendingChanges && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        Has cambiado los filtros. Pulsa <strong>Ver resultados</strong> para aplicarlos.
                     </div>
+                )}
 
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={resetFilters}
-                            className="cjm-ghost-button"
-                        >
-                            Limpiar
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={fetchStockControl}
-                            className="cjm-primary-button"
-                        >
-                            Actualizar
+                {error && (
+                    <div className="cjm-alert-error" role="alert">
+                        <strong>No se ha podido cargar el control de stock.</strong>
+                        <span>{error}</span>
+                        <button type="button" onClick={() => reload()} className="cjm-ghost-button min-h-10">
+                            <RefreshCw size={16} aria-hidden="true" /> Reintentar
                         </button>
                     </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <SearchableCombobox
-                        label="Proveedor"
-                        value={filters.proveedor}
-                        options={filterOptions.proveedores}
-                        placeholder={loadingFilters ? 'Cargando proveedores...' : 'Todos'}
-                        emptyLabel="Todos los proveedores"
-                        loading={loadingFilters}
-                        onChange={(value) => updateFilter('proveedor', value)}
+                {!error && (
+                    <StockControlSummary
+                        summary={summary}
+                        activeStatus={status}
+                        onStatusChange={setStatus}
+                        horizonLabel={horizonLabel}
                     />
+                )}
 
-                    <SearchableCombobox
-                        label="Familia"
-                        value={filters.coleccion}
-                        options={filterOptions.colecciones}
-                        placeholder={loadingFilters ? 'Cargando familias...' : 'Todas'}
-                        emptyLabel="Todas las familias"
-                        loading={loadingFilters}
-                        onChange={(value) => updateFilter('coleccion', value)}
-                    />
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">Necesidades de compra</h2>
+                            <p className="mt-1 text-sm text-slate-500">
+                                {loading ? 'Actualizando información...' : `${visibleRows.length} productos visibles de ${rows.length} analizados.`}
+                            </p>
+                        </div>
 
-                    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-                        Nombre producto
-                        <input
-                            type="search"
-                            value={filters.nombreProducto}
-                            onChange={(event) => updateFilter('nombreProducto', event.target.value)}
-                            placeholder="Buscar producto..."
-                            className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
-                        />
-                    </label>
-
-                    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-                        Periodo consumo
-                        <select
-                            value={filters.mesesConsumo}
-                            onChange={(event) => updateFilter('mesesConsumo', event.target.value)}
-                            className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
-                        >
-                            {MESES_CONSUMO_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                </div>
-            </section>
-
-            {loading && (
-                <p className="mb-4 flex items-center justify-center gap-2 text-gray-600">
-                    <AiOutlineLoading3Quarters className="animate-spin" />
-                    Cargando productos con necesidad de compra...
-                </p>
-            )}
-
-            {error && (
-                <p className="mb-4 text-center text-red-500">
-                    Error: {error}
-                </p>
-            )}
-
-            {!loading && !error && (
-                <section className="cjm-table-shell mb-6">
-                    <div className="cjm-table-scroller">
-                        <table className="cjm-table min-w-[1180px]">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    <th className="min-w-[260px] px-4 py-3 text-left font-semibold text-slate-700">
-                                        Producto
-                                    </th>
-                                    <th className="w-[180px] max-w-[180px] px-4 py-3 text-left font-semibold text-slate-700">
-                                        Proveedor
-                                    </th>
-                                    <th className="w-[180px] max-w-[180px] px-4 py-3 text-left font-semibold text-slate-700">
-                                        Familia
-                                    </th>
-                                    <th className="px-4 py-3 text-right font-semibold text-slate-700">
-                                        Stock
-                                    </th>
-                                    <th className="px-4 py-3 text-right font-semibold text-slate-700">
-                                        Pend. recibir
-                                    </th>
-                                    <th className="px-4 py-3 text-right font-semibold text-slate-700">
-                                        Media mensual
-                                    </th>
-                                    <th className="px-4 py-3 text-center font-semibold text-slate-700">
-                                        Comprar 1 mes
-                                    </th>
-                                    <th className="px-4 py-3 text-center font-semibold text-slate-700">
-                                        Comprar 3 meses
-                                    </th>
-                                    <th className="px-4 py-3 text-center font-semibold text-slate-700">
-                                        Consumo
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-slate-100">
-                                {products.length === 0 && (
-                                    <tr>
-                                        <td
-                                            colSpan="9"
-                                            className="px-4 py-8 text-center text-slate-500"
-                                        >
-                                            No hay productos que necesiten compra con los filtros seleccionados.
-                                        </td>
-                                    </tr>
-                                )}
-
-                                {products.map((product) => (
-                                    <tr
-                                        key={product.codprodu}
-                                        className="transition hover:bg-blue-50"
+                        <div className="grid gap-3 sm:grid-cols-2 xl:flex xl:items-end">
+                            <fieldset>
+                                <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Horizonte de compra</legend>
+                                <div className="grid grid-cols-2 rounded-xl border border-slate-300 bg-slate-50 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHorizon(HORIZONS.month)}
+                                        className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition ${horizon === HORIZONS.month ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
                                     >
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-slate-900">
-                                                {product.desprodu || 'Sin descripción'}
-                                            </div>
-                                            {product.codmarca && (
-                                                <div className="text-xs text-slate-500">
-                                                    Marca: {product.codmarca}
-                                                </div>
-                                            )}
-                                        </td>
+                                        1 mes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setHorizon(HORIZONS.quarter)}
+                                        className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition ${horizon === HORIZONS.quarter ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
+                                    >
+                                        3 meses
+                                    </button>
+                                </div>
+                            </fieldset>
 
-                                        <td className="max-w-[180px] px-4 py-3 text-slate-600">
-                                            <div
-                                                className="truncate"
-                                                title={product.nombre_proveedor || product.codprove || '—'}
-                                            >
-                                                {product.nombre_proveedor || product.codprove || '—'}
-                                            </div>
-                                        </td>
+                            <label className="flex min-w-[220px] flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <span className="flex items-center gap-1.5"><ArrowDownUp size={14} aria-hidden="true" /> Ordenar por</span>
+                                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 text-sm font-medium normal-case tracking-normal text-slate-700">
+                                    {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                </select>
+                            </label>
+                        </div>
+                    </div>
 
-                                        <td className="max-w-[180px] px-4 py-3 text-slate-600">
-                                            <div
-                                                className="truncate"
-                                                title={product.nombre_familia || product.codfamilia || '—'}
-                                            >
-                                                {product.nombre_familia || product.codfamilia || '—'}
-                                            </div>
-                                        </td>
+                    <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                            {STATUS_OPTIONS.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setStatus(option.value)}
+                                    className={`min-h-10 shrink-0 rounded-xl px-3 text-sm font-semibold transition ${status === option.value ? 'bg-[#6D8DB3] text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
 
-                                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-700">
-                                            {formatNumber(product.stockactual)}
-                                        </td>
-
-                                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-700">
-                                            {formatNumber(product.canpenrecib)}
-                                        </td>
-
-                                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums font-semibold text-slate-900">
-                                            {formatNumber(product.avg_monthly_consumption)}
-                                        </td>
-
-                                        <td className="whitespace-nowrap px-4 py-3 text-center">
-                                            <span className="inline-flex min-w-20 justify-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
-                                                {formatNumber(product.recommended_next_month)}
-                                            </span>
-                                        </td>
-
-                                        <td className="whitespace-nowrap px-4 py-3 text-center">
-                                            <span className="inline-flex min-w-20 justify-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
-                                                {formatNumber(product.recommended_next_three_months)}
-                                            </span>
-                                        </td>
-
-                                        <td className="whitespace-nowrap px-4 py-3 text-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => openConsumptionModal(product.codprodu)}
-                                                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                            >
-                                                Ver gráfica
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <button type="button" onClick={addVisibleProducts} className="cjm-ghost-button min-h-11 shrink-0">
+                            <ListPlus size={17} aria-hidden="true" /> Añadir necesidades visibles
+                        </button>
                     </div>
                 </section>
+
+                {loading ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
+                        <RefreshCw className="mx-auto animate-spin" size={28} aria-hidden="true" />
+                        <p className="mt-3 font-medium">Calculando stock, consumo y compras pendientes…</p>
+                    </div>
+                ) : !error && (
+                    <StockControlTable
+                        rows={visibleRows}
+                        horizon={horizon}
+                        purchasePlan={purchasePlan}
+                        onTogglePlan={togglePlanProduct}
+                        onQuantityChange={changePlanQuantity}
+                        onOpenDetails={setDetailsProduct}
+                    />
+                )}
+
+                <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                        <CircleHelp className="mt-0.5 shrink-0 text-blue-700" size={20} aria-hidden="true" />
+                        <div className="text-sm text-blue-900/80">
+                            <h2 className="font-semibold text-blue-900">Lectura rápida</h2>
+                            <p className="mt-1 leading-6">
+                                <strong>Posición prevista</strong> = stock actual + pendiente de recibir − pendiente de servir. La sugerencia compara esa posición con el consumo medio del periodo y respeta la cantidad mínima del proveedor cuando está informada.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            {planItems.length > 0 && (
+                <button
+                    type="button"
+                    onClick={() => setPlanOpen(true)}
+                    className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[900] flex min-h-12 items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-left text-white shadow-2xl transition hover:bg-slate-800 sm:right-6"
+                >
+                    <ShoppingCart size={20} aria-hidden="true" />
+                    <span>
+                        <strong className="block text-sm">{planItems.length} productos</strong>
+                        <span className="block text-xs text-white/70">{planQuantity.toLocaleString('es-ES', { maximumFractionDigits: 0 })} unidades</span>
+                    </span>
+                </button>
             )}
 
-            <ConsumptionModal
-                isOpen={isConsumptionModalOpen}
-                product={selectedProduct}
-                onClose={closeConsumptionModal}
+            <StockProductDetailsModal
+                product={detailsProduct}
+                open={Boolean(detailsProduct)}
+                horizon={horizon}
+                onClose={() => setDetailsProduct(null)}
+            />
+
+            <StockPurchasePlan
+                open={planOpen}
+                plan={purchasePlan}
+                onClose={() => setPlanOpen(false)}
+                onChangeQuantity={changePlanQuantity}
+                onChangeNotes={changePlanNotes}
+                onRemove={removePlanItem}
+                onClear={() => setPurchasePlan({})}
             />
         </PageShell>
-    );
-}
-
-function ConsumptionModal({ isOpen, product, onClose }) {
-    if (!isOpen) {
-        return null;
-    }
-
-    const history = Array.isArray(product?.monthly_history) ? product.monthly_history : [];
-    const maxConsumption = Math.max(
-        ...history.map((item) => Number(item.consumption) || 0),
-        0
-    );
-
-    return (
-        <div className="cjm-modal-backdrop z-[1200]">
-            <div className="cjm-modal sm:max-w-5xl">
-                <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
-                    <div>
-                        <h2 className="text-lg font-semibold text-slate-900">
-                            Consumo mensual
-                        </h2>
-                        <p className="text-sm text-slate-500">
-                            {product?.codprodu} - {product?.desprodu}
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                        aria-label="Cerrar modal"
-                    >
-                        <IoClose size={22} />
-                    </button>
-                </div>
-
-                <div className="max-h-[75vh] overflow-y-auto p-5">
-                    {!product && (
-                        <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                            No se ha podido cargar el producto seleccionado.
-                        </div>
-                    )}
-
-                    {product && history.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                            No hay consumo registrado para este producto.
-                        </div>
-                    )}
-
-                    {product && history.length > 0 && (
-                        <div className="overflow-x-auto">
-                            <div className="flex min-w-[720px] items-end gap-2 rounded-xl bg-slate-50 p-4">
-                                {history.map((item) => {
-                                    const consumption = Number(item.consumption) || 0;
-                                    const height = maxConsumption > 0
-                                        ? Math.max((consumption / maxConsumption) * 220, 8)
-                                        : 8;
-
-                                    return (
-                                        <div
-                                            key={item.label}
-                                            className="flex flex-1 flex-col items-center justify-end gap-2"
-                                            title={`${item.label}: ${formatNumber(consumption)}`}
-                                        >
-                                            <div className="text-xs font-semibold text-slate-600">
-                                                {formatNumber(consumption)}
-                                            </div>
-
-                                            <div
-                                                className="w-full max-w-10 rounded-t-lg bg-blue-500"
-                                                style={{ height: `${height}px` }}
-                                            />
-
-                                            <div className="-rotate-45 whitespace-nowrap text-xs text-slate-500">
-                                                {item.label}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
     );
 }
 

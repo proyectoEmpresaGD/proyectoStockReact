@@ -1562,3 +1562,66 @@ textarea {
     padding-left: 2.5rem;
   }
 }
+
+/* Control de stock / planificación de compras */
+.stock-control-modern button,
+.stock-control-modern input,
+.stock-control-modern select {
+  touch-action: manipulation;
+}
+
+.stock-control-modern .stock-control-filters {
+  overflow: visible;
+}
+
+.stock-control-modern .cjm-table-scroller {
+  max-height: min(68vh, 760px);
+}
+
+.stock-control-modern .cjm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+:root[data-theme='dark'] .stock-control-modern .bg-rose-50\/50,
+:root[data-theme='dark'] .stock-control-modern .bg-rose-50\/40 {
+  background-color: rgba(127, 29, 29, 0.22) !important;
+}
+
+:root[data-theme='dark'] .stock-control-modern .bg-amber-50\/50,
+:root[data-theme='dark'] .stock-control-modern .bg-amber-50\/40 {
+  background-color: rgba(120, 53, 15, 0.22) !important;
+}
+
+:root[data-theme='dark'] .stock-control-modern .bg-emerald-50\/50,
+:root[data-theme='dark'] .stock-control-modern .bg-emerald-50\/40 {
+  background-color: rgba(6, 78, 59, 0.23) !important;
+}
+
+:root[data-theme='dark'] .stock-control-modern .bg-blue-50\/50,
+:root[data-theme='dark'] .stock-control-modern .bg-blue-50\/60 {
+  background-color: rgba(30, 64, 175, 0.2) !important;
+}
+
+:root[data-theme='dark'] .stock-control-modern .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.78) !important;
+}
+
+:root[data-theme='dark'] .stock-control-modern .sticky.bg-white {
+  background-color: var(--cjm-surface) !important;
+}
+
+@media (max-width: 639px) {
+  .stock-control-modern .stock-control-filters .grid-cols-2 > button {
+    width: 100%;
+  }
+
+  .stock-control-modern .cjm-page-header > div:last-child {
+    width: 100%;
+  }
+
+  .stock-control-modern .cjm-page-header > div:last-child > button {
+    width: 100%;
+  }
+}

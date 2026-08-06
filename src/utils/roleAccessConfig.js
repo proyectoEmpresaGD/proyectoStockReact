@@ -8,7 +8,8 @@ export const AVAILABLE_PERMISSIONS = [
     { value: 'sales.read', label: 'Ver ventas' },
     { value: 'sales.write', label: 'Gestionar ventas' },
     { value: 'analytics.read', label: 'Ver analíticas' },
-    { value: 'labels.read', label: 'Usar etiquetas' }
+    { value: 'labels.read', label: 'Usar etiquetas' },
+    { value: 'purchasing.read', label: 'Gestionar compras y aprovisionamiento' }
 ];
 
 export const AVAILABLE_ROUTES = [
@@ -65,6 +66,24 @@ const DOCUMENT_LABEL_ROUTES = [
     '/EtiquetaContraportada20'
 ];
 
+const WAREHOUSE_ROUTES = [
+    '/etiquetas-lotes',
+    '/',
+    '/stock',
+    '/equivalencias',
+    '/fichaTecnica',
+    '/etiquetas',
+    '/reservasTejido',
+    '/etiquetasMarke',
+    '/estiquetaSinQR',
+    '/EtiquetaPersonalizable',
+    '/EtiquetaCameo',
+    ...DOCUMENT_LABEL_ROUTES,
+    '/perfilusuario',
+    '/fichar',
+    '/rrhh/vacaciones'
+];
+
 const DEFAULT_ROLE_DEFINITIONS = {
     admin: {
         name: 'admin',
@@ -101,24 +120,12 @@ const DEFAULT_ROLE_DEFINITIONS = {
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],
-        routes: [
-            '/etiquetas-lotes',
-            '/',
-            '/stock',
-            '/equivalencias',
-            '/stock-alerts',
-            '/fichaTecnica',
-            '/etiquetas',
-            '/reservasTejido',
-            '/EtiquetasMarke',
-            '/estiquetaSinQR',
-            '/EtiquetaPersonalizable',
-            '/EtiquetaCameo',
-            ...DOCUMENT_LABEL_ROUTES,
-            '/perfilusuario',
-            '/fichar',
-            '/rrhh/vacaciones'
-        ]
+        routes: [...WAREHOUSE_ROUTES]
+    },
+    compras: {
+        name: 'compras',
+        permissions: ['stock.read', 'stock.write', 'labels.read', 'purchasing.read'],
+        routes: [...WAREHOUSE_ROUTES, '/stock-alerts']
     },
     ventas: {
         name: 'ventas',
@@ -181,7 +188,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
     }
 };
 
-export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'];
+export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'compras', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'];
 
 let dynamicRoleDefinitions = { ...DEFAULT_ROLE_DEFINITIONS };
 let dynamicRoleOptions = [...SERVER_MANAGED_ROLES];
@@ -189,10 +196,11 @@ let dynamicRoleOptions = [...SERVER_MANAGED_ROLES];
 const normalizePath = (path) => {
     if (!path) return '/';
     const pathWithoutQuery = path.split('?')[0].split('#')[0];
-    if (pathWithoutQuery.length > 1 && pathWithoutQuery.endsWith('/')) {
-        return pathWithoutQuery.slice(0, -1);
-    }
-    return pathWithoutQuery;
+    const normalizedPath = pathWithoutQuery.length > 1 && pathWithoutQuery.endsWith('/')
+        ? pathWithoutQuery.slice(0, -1)
+        : pathWithoutQuery;
+
+    return normalizedPath.toLowerCase();
 };
 
 const normalizeRoleName = (roleName) => String(roleName || '').trim().toLowerCase();

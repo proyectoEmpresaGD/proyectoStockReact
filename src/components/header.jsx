@@ -9,6 +9,7 @@ const formatRole = (role) => {
         administracion: 'Administración',
         administrativo: 'Administración',
         almacen: 'Almacén',
+        compras: 'Compras',
         comercial: 'Comercial',
         ventas: 'Ventas',
         rrhh: 'Recursos Humanos',

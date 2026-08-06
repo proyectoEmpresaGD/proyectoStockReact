@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchStockControlFilters, fetchStockControlRows } from '../services/stockControlClient';
 
 const DEFAULT_FILTERS = {
@@ -6,63 +6,69 @@ const DEFAULT_FILTERS = {
     collection: '',
     productName: '',
     monthsBack: '12',
-    limit: '500',
+    limit: '2000',
 };
 
 export function useStockControl({ token }) {
     const [filters, setFilters] = useState(DEFAULT_FILTERS);
+    const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
     const [filterOptions, setFilterOptions] = useState({ providers: [], collections: [] });
     const [rows, setRows] = useState([]);
-    const [selectedProductCode, setSelectedProductCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingFilters, setLoadingFilters] = useState(false);
     const [error, setError] = useState('');
+    const requestControllerRef = useRef(null);
 
-    const selectedProduct = useMemo(
-        () => rows.find((row) => row.codprodu === selectedProductCode) || rows[0] || null,
-        [rows, selectedProductCode]
+    const hasPendingChanges = useMemo(
+        () => JSON.stringify(filters) !== JSON.stringify(appliedFilters),
+        [filters, appliedFilters]
     );
 
     const updateFilter = useCallback((key, value) => {
-        setFilters((current) => ({
-            ...current,
-            [key]: value,
-        }));
+        setFilters((current) => ({ ...current, [key]: value }));
     }, []);
+
+    const applyFilters = useCallback(() => {
+        setAppliedFilters({ ...filters });
+    }, [filters]);
 
     const resetFilters = useCallback(() => {
         setFilters(DEFAULT_FILTERS);
+        setAppliedFilters(DEFAULT_FILTERS);
     }, []);
 
-    const loadRows = useCallback(async () => {
+    const loadRows = useCallback(async (overrideFilters = null) => {
         if (!token) return;
+
+        requestControllerRef.current?.abort();
+        const controller = new AbortController();
+        requestControllerRef.current = controller;
 
         setLoading(true);
         setError('');
 
         try {
-            const data = await fetchStockControlRows({ token, filters });
-            const safeRows = Array.isArray(data) ? data : [];
-
-            setRows(safeRows);
-            setSelectedProductCode((current) => {
-                if (safeRows.some((row) => row.codprodu === current)) return current;
-                return safeRows[0]?.codprodu || '';
+            const data = await fetchStockControlRows({
+                token,
+                filters: overrideFilters || appliedFilters,
+                signal: controller.signal,
             });
+
+            if (controller.signal.aborted) return;
+            setRows(Array.isArray(data) ? data : []);
         } catch (err) {
+            if (err?.name === 'AbortError') return;
             setRows([]);
-            setSelectedProductCode('');
-            setError(err?.message || 'Error cargando control de stock.');
+            setError(err?.message || 'Error cargando el control de stock.');
         } finally {
-            setLoading(false);
+            if (!controller.signal.aborted) setLoading(false);
         }
-    }, [token, filters]);
+    }, [token, appliedFilters]);
 
     useEffect(() => {
-        if (!token) return;
+        if (!token) return undefined;
 
         setLoadingFilters(true);
-
         fetchStockControlFilters({ token })
             .then((data) => {
                 setFilterOptions({
@@ -70,28 +76,29 @@ export function useStockControl({ token }) {
                     collections: Array.isArray(data?.collections) ? data.collections : [],
                 });
             })
-            .catch(() => {
-                setFilterOptions({ providers: [], collections: [] });
-            })
+            .catch(() => setFilterOptions({ providers: [], collections: [] }))
             .finally(() => setLoadingFilters(false));
+
+        return undefined;
     }, [token]);
 
     useEffect(() => {
         loadRows();
+        return () => requestControllerRef.current?.abort();
     }, [loadRows]);
 
     return {
         filters,
+        appliedFilters,
         filterOptions,
         rows,
-        selectedProduct,
-        selectedProductCode,
         loading,
         loadingFilters,
         error,
+        hasPendingChanges,
         updateFilter,
+        applyFilters,
         resetFilters,
         reload: loadRows,
-        selectProduct: setSelectedProductCode,
     };
 }

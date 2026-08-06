@@ -14,10 +14,6 @@
     ],
     "crons": [
         {
-            "path": "/api/test-send-stock-alerts",
-            "schedule": "0 7 * * *"
-        },
-        {
             "path": "/api/test-send-visits-email",
             "schedule": "0 15 * * 0"
         }

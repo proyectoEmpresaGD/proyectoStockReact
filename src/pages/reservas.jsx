@@ -223,7 +223,7 @@ function ReservasTejido() {
 
     const currentUserLabel = getUserLabel(user);
     const currentUserRole = getUserRole(user);
-    const isAlmacenUser = currentUserRole === 'almacen';
+    const isAlmacenUser = ['almacen', 'compras'].includes(currentUserRole);
 
     const [reservas, setReservas] = useState([]);
     const [form, setForm] = useState({ ...emptyReserva });
