@@ -7,6 +7,7 @@ import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
+
 import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
@@ -18,6 +19,7 @@ const Etiquetas = lazy(() => import('./pages/etiquetas/Etiquetas.jsx'));
 const EtiquetaLibro = lazy(() => import('./pages/etiquetas/EtiquetaLibro.jsx'));
 const Equivalencias = lazy(() => import('./pages/Equivalencias.jsx'));
 const EtiquetaMarke = lazy(() => import('./pages/etiquetas/EtiquetasMarke.jsx'));
+const GeneradorEtiquetaProducto = lazy(() => import('./pages/etiquetas/GeneradorEtiquetaProducto.jsx'));
 const EtiquetaLibro26Tipo3ConImagen = lazy(() => import('./pages/etiquetas/EtiquetaLibro35Ancho.jsx'));
 const EtiquetaNormativa = lazy(() => import('./pages/etiquetas/EtiquetasNormativa.jsx'));
 const EtiquetaPerchas = lazy(() => import('./pages/etiquetas/EtiquetasPechas.jsx'));
@@ -136,7 +138,14 @@ function App() {
                             <Route path="/EtiquetasLibro35Tipo2" element={<EtiquetasLibro35Tipo2 />} />
                             <Route path="/EtiquetaPersonalizable" element={<EtiquetasPersonalizable />} />
                             <Route path="/EtiquetaCameo" element={<EtiquetaCameo />} />
-
+                            <Route
+                              path="/etiquetas-producto"
+                              element={
+                                <ProtectedRoute>
+                                  <GeneradorEtiquetaProducto />
+                                </ProtectedRoute>
+                              }
+                            />
                             <Route path="/mapas-facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><MapasFacturacionPage /></ProtectedRoute>} />
                             <Route path="/mapa-clientes" element={<Navigate to="/mapas-facturacion?vista=global" replace />} />
                             <Route path="/mapa-españa" element={<Navigate to="/mapas-facturacion?vista=spain" replace />} />

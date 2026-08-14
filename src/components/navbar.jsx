@@ -165,6 +165,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         icon: <FaTag className="mr-3 text-lg" />,
                         roles: ['admin', 'almacen']
                     },
+                    {
+                        to: '/etiquetas-producto',
+                        label: 'Etiquetas producto',
+                        icon: <FaTag className="mr-3 text-lg" />,
+                        roles: ['admin', 'almacen']
+                    },
                 ]
             },
             {

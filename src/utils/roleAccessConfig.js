@@ -10,6 +10,7 @@ export const AVAILABLE_PERMISSIONS = [
     { value: 'analytics.read', label: 'Ver analíticas' },
     { value: 'labels.read', label: 'Usar etiquetas' },
     { value: 'purchasing.read', label: 'Gestionar compras y aprovisionamiento' }
+
 ];
 
 export const AVAILABLE_ROUTES = [
@@ -46,7 +47,10 @@ export const AVAILABLE_ROUTES = [
     { path: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS' },
     { path: '/EtiquetaContraportada35', label: 'Contraportada (35cm)' },
     { path: '/EtiquetaContraportada20', label: 'Contraportada (20cm)' },
-
+    {
+        path: '/etiquetas-producto',
+        label: 'Carteles producto almacen'
+    },
     { path: '/gestionusuarios', label: 'Gestión de usuarios' },
     { path: '/perfilusuario', label: 'Perfil usuario' },
     { path: '/fichar', label: 'Fichar' },
@@ -61,6 +65,8 @@ const DOCUMENT_LABEL_ROUTES = [
     '/EtiquetasLibro35Tipo2',
     '/Libro35AnchoConImagen',
     '/Libro45AnchoConImagen',
+    '/etiquetas-lotes',
+    '/etiquetas-producto',
     '/perchas',
     '/perchasEstampados',
     '/EtiquetaContraportada35',
@@ -68,14 +74,15 @@ const DOCUMENT_LABEL_ROUTES = [
 ];
 
 const WAREHOUSE_ROUTES = [
-    '/etiquetas-lotes',
+
     '/',
     '/stock',
     '/equivalencias',
+    '/stock-alerts',
     '/fichaTecnica',
     '/etiquetas',
     '/reservasTejido',
-    '/etiquetasMarke',
+    '/EtiquetasMarke',
     '/estiquetaSinQR',
     '/EtiquetaPersonalizable',
     '/EtiquetaCameo',
@@ -226,36 +233,101 @@ export const hydrateRoleAccessFromBackend = async ({ apiBaseUrl, token }) => {
     if (!apiBaseUrl || !token) return;
 
     try {
-        const response = await fetch(`${apiBaseUrl}/api/auth/roles-catalog`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await fetch(
+            `${apiBaseUrl}/api/auth/roles-catalog`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
 
-        if (!response.ok) return;
+        if (!response.ok) {
+            return;
+        }
 
         const payload = await response.json();
-        const backendDefinitions = payload?.definitions && typeof payload.definitions === 'object'
-            ? payload.definitions
-            : {};
 
-        const normalizedDefinitions = Object.entries(backendDefinitions).reduce((acc, [role, config]) => {
-            const sanitized = sanitizeRoleDefinition(role, config);
-            if (!sanitized) return acc;
+        const backendDefinitions =
+            payload?.definitions &&
+                typeof payload.definitions === 'object'
+                ? payload.definitions
+                : {};
+
+        const normalizedDefinitions = Object.entries(
+            backendDefinitions
+        ).reduce((acc, [role, config]) => {
+            const sanitized =
+                sanitizeRoleDefinition(role, config);
+
+            if (!sanitized) {
+                return acc;
+            }
+
             acc[sanitized.name] = sanitized;
+
             return acc;
         }, {});
 
-        dynamicRoleDefinitions = {
-            ...DEFAULT_ROLE_DEFINITIONS,
-            ...normalizedDefinitions
+        const mergedDefinitions = {
+            ...DEFAULT_ROLE_DEFINITIONS
         };
 
-        const backendRoles = Array.isArray(payload?.roles)
-            ? payload.roles.map((role) => normalizeRoleName(role)).filter(Boolean)
-            : [];
+        Object.entries(normalizedDefinitions).forEach(
+            ([roleName, backendRole]) => {
+                const defaultRole =
+                    DEFAULT_ROLE_DEFINITIONS[roleName];
 
-        dynamicRoleOptions = [...new Set([...SERVER_MANAGED_ROLES, ...backendRoles])].sort();
+                if (!defaultRole) {
+                    mergedDefinitions[roleName] =
+                        backendRole;
+
+                    return;
+                }
+
+                mergedDefinitions[roleName] = {
+                    name: roleName,
+
+                    permissions: [
+                        ...new Set([
+                            ...(defaultRole.permissions || []),
+                            ...(backendRole.permissions || [])
+                        ])
+                    ],
+
+                    routes: [
+                        ...new Set([
+                            ...(defaultRole.routes || []),
+                            ...(backendRole.routes || [])
+                        ])
+                    ]
+                };
+            }
+        );
+
+        dynamicRoleDefinitions =
+            mergedDefinitions;
+
+        const backendRoles =
+            Array.isArray(payload?.roles)
+                ? payload.roles
+                    .map((role) =>
+                        normalizeRoleName(role)
+                    )
+                    .filter(Boolean)
+                : [];
+
+        dynamicRoleOptions = [
+            ...new Set([
+                ...SERVER_MANAGED_ROLES,
+                ...backendRoles
+            ])
+        ].sort();
     } catch (error) {
-        console.error('No se pudo sincronizar los roles desde backend:', error);
+        console.error(
+            'No se pudo sincronizar los roles desde backend:',
+            error
+        );
     }
 };
 
