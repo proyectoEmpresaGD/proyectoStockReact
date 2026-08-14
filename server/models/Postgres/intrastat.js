@@ -719,7 +719,180 @@ export class IntrastatModel {
         return result;
     }
 
+    static getRangoMesIntrastat(mesIntrastat) {
+        const match = String(mesIntrastat || '')
+            .trim()
+            .match(/^(\d{4})-(\d{2})$/);
 
+        if (!match) {
+            return null;
+        }
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+
+        if (
+            !Number.isInteger(year) ||
+            !Number.isInteger(month) ||
+            month < 1 ||
+            month > 12
+        ) {
+            return null;
+        }
+
+        const fechaInicio =
+            `${year}-${String(month).padStart(2, '0')}-01`;
+
+        const siguienteYear =
+            month === 12
+                ? year + 1
+                : year;
+
+        const siguienteMonth =
+            month === 12
+                ? 1
+                : month + 1;
+
+        const fechaFin =
+            `${siguienteYear}-${String(siguienteMonth).padStart(2, '0')}-01`;
+
+        return {
+            fechaInicio,
+            fechaFin,
+        };
+    }
+
+    static async getFacturasVentaFueraDeMes({
+        facturasList = [],
+        mesIntrastat,
+    }) {
+        if (!Array.isArray(facturasList) || facturasList.length === 0) {
+            return [];
+        }
+
+        const rangoMes = this.getRangoMesIntrastat(mesIntrastat);
+
+        if (!rangoMes) {
+            return [];
+        }
+
+        const facturasNormalizadas = facturasList
+            .filter(factura =>
+                factura?.codserfacventa !== undefined &&
+                factura?.codserfacventa !== null &&
+                factura?.nfacventa !== undefined &&
+                factura?.nfacventa !== null
+            )
+            .map(factura =>
+                `${factura.codserfacventa}-${factura.nfacventa}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase()
+            );
+
+        if (facturasNormalizadas.length === 0) {
+            return [];
+        }
+
+        const query = `
+        SELECT DISTINCT
+            TRIM(CAST(codserfacventa AS text)) AS codserfacventa,
+            TRIM(CAST(nfacventa AS text)) AS nfacventa,
+            fecconta AS fecha_factura
+        FROM facventa
+        WHERE
+            UPPER(
+                REPLACE(
+                    TRIM(CAST(codserfacventa AS text))
+                    || '-' ||
+                    TRIM(CAST(nfacventa AS text)),
+                    ' ',
+                    ''
+                )
+            ) = ANY($1::text[])
+            AND (
+                fecconta IS NULL
+                OR fecconta < $2::date
+                OR fecconta >= $3::date
+            )
+        ORDER BY
+            codserfacventa,
+            nfacventa
+    `;
+
+        const { rows } = await pool.query(query, [
+            facturasNormalizadas,
+            rangoMes.fechaInicio,
+            rangoMes.fechaFin,
+        ]);
+
+        return rows;
+    }
+
+    static async getFacturasCompraFueraDeMes({
+        facturasList = [],
+        mesIntrastat,
+    }) {
+        if (!Array.isArray(facturasList) || facturasList.length === 0) {
+            return [];
+        }
+
+        const rangoMes = this.getRangoMesIntrastat(mesIntrastat);
+
+        if (!rangoMes) {
+            return [];
+        }
+
+        const facturasNormalizadas = facturasList
+            .filter(factura =>
+                factura?.codserfaccompra !== undefined &&
+                factura?.codserfaccompra !== null &&
+                factura?.nfaccompra !== undefined &&
+                factura?.nfaccompra !== null
+            )
+            .map(factura =>
+                `${factura.codserfaccompra}-${factura.nfaccompra}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase()
+            );
+
+        if (facturasNormalizadas.length === 0) {
+            return [];
+        }
+
+        const query = `
+        SELECT DISTINCT
+            TRIM(CAST(codserfaccompra AS text)) AS codserfaccompra,
+            TRIM(CAST(nfaccompra AS text)) AS nfaccompra,
+            fecconta AS fecha_factura
+        FROM faccompra
+        WHERE
+            UPPER(
+                REPLACE(
+                    TRIM(CAST(codserfaccompra AS text))
+                    || '-' ||
+                    TRIM(CAST(nfaccompra AS text)),
+                    ' ',
+                    ''
+                )
+            ) = ANY($1::text[])
+            AND (
+                fecconta IS NULL
+                OR fecconta < $2::date
+                OR fecconta >= $3::date
+            )
+        ORDER BY
+            codserfaccompra,
+            nfaccompra
+    `;
+
+        const { rows } = await pool.query(query, [
+            facturasNormalizadas,
+            rangoMes.fechaInicio,
+            rangoMes.fechaFin,
+        ]);
+
+        return rows;
+    }
 
     static async getFacturasCompraByList(facturas) {
         if (!facturas.length) return {};
@@ -854,49 +1027,179 @@ export class IntrastatModel {
         return Number(rows[0]?.impbruto || 0);
     }
 
-    static async getLineasAlbaranCompraPorFactura(facturas) {
-        if (!facturas.length) return {};
+    static async getLineasAlbaranCompraPorFactura(
+        facturas
+    ) {
+        if (
+            !Array.isArray(facturas) ||
+            facturas.length === 0
+        ) {
+            return {};
+        }
 
-        const condiciones = facturas.map((_, i) =>
-            `(UPPER(TRIM(l.codserfaccompra)) = $${i * 2 + 1}
-            AND TRIM(l.nfaccompra) = $${i * 2 + 2})`
-        ).join(' OR ');
+        const condiciones =
+            facturas.map((_, index) => {
+                const serieIndex =
+                    index * 2 + 1;
 
-        const valores = facturas.flatMap(f => [
-            String(f.codserfaccompra).trim().toUpperCase(),
-            String(f.nfaccompra).trim()
-        ]);
+                const numeroIndex =
+                    index * 2 + 2;
+
+                return `
+                (
+                    UPPER(
+                        TRIM(
+                            CAST(
+                                l.codserfaccompra
+                                AS text
+                            )
+                        )
+                    ) = $${serieIndex}
+
+                    AND TRIM(
+                        CAST(
+                            l.nfaccompra
+                            AS text
+                        )
+                    ) = $${numeroIndex}
+                )
+            `;
+            }).join(' OR ');
+
+        const valores =
+            facturas.flatMap(factura => [
+                String(
+                    factura.codserfaccompra
+                )
+                    .trim()
+                    .toUpperCase(),
+
+                String(
+                    factura.nfaccompra
+                ).trim(),
+            ]);
 
         const query = `
-            SELECT 
-                l.codserfaccompra,
-                l.nfaccompra,
-                l.codseralbcompra,
-                l.nalbcompra,
-                l.linea,
-                l.codprodu
-            FROM albcompra_linea l
-            WHERE (${condiciones})
-            AND TRIM(COALESCE(l.codprodu, '')) <> ''
-            AND UPPER(TRIM(l.codprodu)) <> 'PORTES75'
-            AND COALESCE(l.impbruto, 0) > 0
-            ORDER BY l.nalbcompra, l.linea
-        `;
+        SELECT
+            l.codserfaccompra,
+            l.nfaccompra,
+            l.codseralbcompra,
+            l.nalbcompra,
+            l.linea,
+            l.codprodu
+        FROM albcompra_linea l
+        WHERE (${condiciones})
 
-        const { rows } = await pool.query(query, valores);
+          AND TRIM(
+                COALESCE(
+                    CAST(l.codprodu AS text),
+                    ''
+                )
+              ) <> ''
+
+          AND UPPER(
+                TRIM(
+                    CAST(l.codprodu AS text)
+                )
+              ) NOT IN (
+                    'PORTES75',
+                    'COMPRAS'
+              )
+
+          AND COALESCE(l.impbruto, 0) > 0
+
+        ORDER BY
+            l.nalbcompra,
+            l.linea
+    `;
+
+        const { rows } =
+            await pool.query(
+                query,
+                valores
+            );
 
         const result = {};
 
         for (const row of rows) {
-            const key = `${row.codserfaccompra}-${row.nfaccompra}`
-                .replace(/\s+/g, '')
-                .toUpperCase();
+            const key =
+                `${row.codserfaccompra}-${row.nfaccompra}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase();
 
-            if (!result[key]) result[key] = [];
-            result[key].push(row.codprodu);
+            if (!result[key]) {
+                result[key] = [];
+            }
+
+            result[key].push(
+                row.codprodu
+            );
         }
 
         return result;
+    }
+
+    static async getComprasByFacturaCompra({
+        codserfaccompra,
+        nfaccompra,
+    }) {
+        const query = `
+        SELECT
+            COALESCE(
+                SUM(
+                    COALESCE(
+                        impbruto,
+                        0
+                    )
+                ),
+                0
+            ) AS total_compras
+        FROM albcompra_linea
+        WHERE
+            UPPER(
+                TRIM(
+                    CAST(
+                        codserfaccompra
+                        AS text
+                    )
+                )
+            ) = $1
+
+            AND TRIM(
+                CAST(
+                    nfaccompra
+                    AS text
+                )
+            ) = $2
+
+            AND UPPER(
+                TRIM(
+                    CAST(
+                        codprodu
+                        AS text
+                    )
+                )
+            ) = 'COMPRAS'
+    `;
+
+        const params = [
+            String(codserfaccompra)
+                .trim()
+                .toUpperCase(),
+
+            String(nfaccompra)
+                .trim(),
+        ];
+
+        const { rows } =
+            await pool.query(
+                query,
+                params
+            );
+
+        return Number(
+            rows[0]?.total_compras || 0
+        );
     }
 
     static async getPortes75ByFacturaCompra({ codserfaccompra, nfaccompra }) {
