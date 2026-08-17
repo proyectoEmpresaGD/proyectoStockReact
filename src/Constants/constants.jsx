@@ -299,7 +299,12 @@ export const usoImages = {
     "SEPARABLE EN SECO": "https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/SEPARABLE%20EN%20SECO.jpg",
     "ADHESIVO SOBRE EL PAPEL": "https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/ADHESIVO%20SOBRE%20EL%20PAPEL.jpg",
     "100% OPACIDAD": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/Opaco.jpg',
-    "90% OPACIDAD": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/Semi-opaco.jpg'
+    "90% OPACIDAD": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/Semi-opaco.jpg',
+    "OFFICE": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/OFFICE.png',
+    "PFC FREE": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/PFC%20FREE.png',
+    "PUBLIC SPACES": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/PUBLIC%20SPACES.png',
+    "UV RESISTANT": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/UV%20RESISTANT.png',
+    "WATER REPELLENT": 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/00_ICONOS_USADOS_EN_WEB/01_ICONOS_USOS/WATER%20REPELLENT.png'
 };
 
 export const direccionLogos = {
