@@ -275,7 +275,7 @@ function EtiquetaPerchas() {
                             />
                             {/* Contenedor del texto */}
                             <div>
-                                <p className="font-extrabold flex items-center">
+                                <p className="font-extrabold flex items-center w-[210px]">
                                     Pattern: <span className="font-light ml-1 mb-[3px]">{selectedProduct.nombre} {selectedProduct.tonalidad}</span>
                                 </p>
                                 <p className="font-extrabold flex items-center">
@@ -311,7 +311,7 @@ function EtiquetaPerchas() {
                         <span className="font-light items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
-                <div className="w-[40px] relative right-[55px] top-[4px] flex flex-col items-center">
+                <div className="w-[40px] relative right-[90px] top-[4px] flex flex-col items-center">
                     <img
                         className="w-[40px]"
                         src={getLogoUrl(selectedProduct.direcciontela)}
@@ -338,6 +338,7 @@ function EtiquetaPerchas() {
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
+                            CTL: "w-[140px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
                     />
                 </div>

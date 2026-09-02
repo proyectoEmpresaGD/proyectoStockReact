@@ -404,12 +404,12 @@ function EtiquetasLibro35Tipo2() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[80px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[10.5px]'><strong>Usages:</strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[10.5px] mt-[10.5px]"><strong>Cares:</strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
-                <div className="flex justify-end mt-[5px]">
+                <div className="flex justify-end">
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={102} />
                 </div>
             </div>

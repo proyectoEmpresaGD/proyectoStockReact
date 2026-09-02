@@ -7,7 +7,6 @@ import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
 import Login from './components/Login.jsx';
-
 import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
@@ -21,11 +20,13 @@ const Equivalencias = lazy(() => import('./pages/Equivalencias.jsx'));
 const EtiquetaMarke = lazy(() => import('./pages/etiquetas/EtiquetasMarke.jsx'));
 const GeneradorEtiquetaProducto = lazy(() => import('./pages/etiquetas/GeneradorEtiquetaProducto.jsx'));
 const EtiquetaLibro26Tipo3ConImagen = lazy(() => import('./pages/etiquetas/EtiquetaLibro35Ancho.jsx'));
+const EtiquetasContractalia = lazy(() => import('./pages/etiquetas/EtiquetasContractalia.jsx'));
 const EtiquetaNormativa = lazy(() => import('./pages/etiquetas/EtiquetasNormativa.jsx'));
 const EtiquetaPerchas = lazy(() => import('./pages/etiquetas/EtiquetasPechas.jsx'));
 const EtiquetasLibro35Tipo1 = lazy(() => import('./pages/etiquetas/EtiquetasLibro35Tipo1.jsx'));
 const EtiquetasLibro35Tipo2 = lazy(() => import('./pages/etiquetas/EtiquetasLibro35Tipo2.jsx'));
 const EtiquetaPerchasEstampados = lazy(() => import('./pages/etiquetas/EtiquetasPerchasEstampados.jsx'));
+const EtiquetaLibroIconosCompleta = lazy(() => import('./pages/etiquetas/EtiquetaContractaliaTodosUsosYMantenimientos.jsx'));
 const EtiquetasPersonalizable = lazy(() => import('./pages/etiquetas/Etiquetapersonalizable.jsx'));
 const GeneradorEtiquetasLotes = lazy(() => import('./pages/etiquetas/GeneradorEtiquetasLotes.jsx'));
 const EntradasPage = lazy(() => import('./pages/EntradasPages.jsx'));
@@ -45,7 +46,9 @@ const FacturacionAnalyticsPage = lazy(() => import('./pages/FacturacionAnalytics
 const ReservasTejido = lazy(() => import('./pages/reservas.jsx'));
 const FichaTecnicaPage = lazy(() => import('./pages/fichaTecnica/fichaTenica.jsx'));
 const NotFoundPage = lazy(() => import('./common/NotFoundPage.jsx'));
-
+const EtiquetaLibroIconos = lazy(() =>
+  import('./pages/etiquetas/ProductLabelIconosDistribuidos.jsx')
+);
 const PageLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center px-4" role="status" aria-live="polite">
     <div className="cjm-panel cjm-hero w-full max-w-sm rounded-3xl px-8 py-8 text-center">
@@ -124,9 +127,18 @@ function App() {
                             <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />
                             <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
                             <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
-
+                            <Route
+                              path="/EtiquetaLibroIconos"
+                              element={
+                                <ProtectedRoute>
+                                  <EtiquetaLibroIconos />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route path="/etiquetas-contractalia" element={<EtiquetasContractalia />} />
                             <Route path="/etiquetas" element={<Etiquetas />} />
                             <Route path="/etiquetasMarke" element={<EtiquetaMarke />} />
+                            <Route path="/EtiquetaLibroIconosCompleta" element={<EtiquetaLibroIconosCompleta />} />
                             <Route path="/estiquetaSinQR" element={<EtiquetaSinQR />} />
                             <Route path="/libro" element={<EtiquetaLibro />} />
                             <Route path="/libroNormativa" element={<EtiquetaNormativa />} />

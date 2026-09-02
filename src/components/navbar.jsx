@@ -205,7 +205,19 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         subheader: true,
                         sublinks: [
                             { to: '/libro', label: 'LIBRO', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
-                            { to: '/libroNormativa', label: 'Libro Normativa', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }
+                            { to: '/libroNormativa', label: 'Libro Normativa', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                            {
+                                to: '/EtiquetaLibroIconos',
+                                label: 'Libro Iconos',
+                                icon: <FaTag className="mr-3 text-lg" />,
+                                roles: ['admin', 'almacen']
+                            },
+                            {
+                                to: '/EtiquetaLibroIconosCompleta',
+                                label: 'Etiqueta contractalia completa',
+                                icon: <FaTag className="mr-3 text-lg" />,
+                                roles: ['admin', 'almacen']
+                            },
                         ]
                     },
                     {
@@ -213,6 +225,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         subheader: true,
                         sublinks: [
                             { to: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
+                            { to: '/etiquetas-contractalia', label: 'QUALITY Contractalia', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/Libro35AnchoConImagen', label: 'LIBRO 35cm + IMAGEN', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                             { to: '/Libro45AnchoConImagen', label: 'LIBRO 45cm + IMAGEN', icon: <FaTag className="mr-3 text-lg" />, roles: ['admin', 'almacen'] }

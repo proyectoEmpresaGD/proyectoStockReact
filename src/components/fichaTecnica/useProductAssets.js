@@ -71,7 +71,7 @@ const brandLogosPDF = {
     FLA: 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoFlamenco.png',
     ARE: 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/logoArena.png',
     BAS: 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/LOGO%20BASSARI%20negro.png',
-    CTL: 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/LOGOS%20MARCAS/LogoContractalia.png'
+    CTL: 'https://bassari.eu/ImagenesTelasCjmw/ICONOS/01_LOGOTIPOS/logos%20marcas%20grises/LOGO_CONTRACTALIA_1_RENGLON_SINCLAIM_GRIS.png'
 };
 
 async function getLogoBase64(codmarca) {

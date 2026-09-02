@@ -317,21 +317,46 @@ function EtiquetasLibro35Tipo1() {
             .filter((uso) => allowedUsos.includes(uso))
             .filter((uso) => loadBrandLogosUsos[uso]);
 
-        return usoList.map((uso, index) => (
-            <div
-                key={`${uso}-${index}`}
-                style={{ display: 'flex', alignItems: 'center', marginRight: '3px' }}
-            >
-                <img
-                    src={loadBrandLogosUsos[uso]}
-                    alt={uso}
-                    className="cursor-pointer"
-                    style={{ width: '16px', height: '16px', objectFit: 'contain', marginRight: '2px' }}
-                    title={uso}
-                />
-                <span style={{ fontSize: '10px', marginBottom: '12px', marginTop: '6px' }}>{uso}</span>
-            </div>
-        ));
+        return usoList.map((uso, index) => {
+            const displayName =
+                uso === 'OUTDOOR'
+                    ? 'OUTDOOR-INDOOR'
+                    : uso;
+
+            return (
+                <div
+                    key={`${uso}-${index}`}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginRight: '3px'
+                    }}
+                >
+                    <img
+                        src={loadBrandLogosUsos[uso]}
+                        alt={displayName}
+                        className="cursor-pointer"
+                        style={{
+                            width: '16px',
+                            height: '16px',
+                            objectFit: 'contain',
+                            marginRight: '2px'
+                        }}
+                        title={displayName}
+                    />
+
+                    <span
+                        style={{
+                            fontSize: '10px',
+                            marginBottom: '12px',
+                            marginTop: '6px'
+                        }}
+                    >
+                        {displayName}
+                    </span>
+                </div>
+            );
+        });
     };
 
     const getDireccionImagesImportantes = (direcciones) => {
@@ -386,8 +411,8 @@ function EtiquetasLibro35Tipo1() {
                     textAlign: 'start',
                 }}
             >
-                <div className="grid grid-cols-2 items-center mr-[25px]">
-                    <div className="text-left">
+                <div className="flex w-full items-start justify-between">
+                    <div className="shrink-0 text-left">
                         <img
                             src={brandLogos[selectedProduct.codmarca]}
                             alt="Logo de Marca"
@@ -397,20 +422,29 @@ function EtiquetasLibro35Tipo1() {
                                 CJM: 'w-[50px] relative left-[-1px]',
                                 ARE: 'w-[140px] relative left-[-10px]',
                                 FLA: 'w-[130px] relative left-[-5px]',
-                            }[selectedProduct.codmarca] || 'w-[90px]'
+                            }[selectedProduct.codmarca] ||
+                                'w-[90px]'
                                 }`}
                         />
                     </div>
 
-                    <div className="flex justify-end items-start w-[250px] gap-2">
-                        <div className="flex flex-wrap justify-end">
-                            {getUsoImagesImportantes(selectedProduct.mantenimiento)}
+                    <div className="ml-2 flex min-w-0 flex-1 flex-nowrap items-start justify-end gap-[4px]">
+                        <div className="flex shrink-0 flex-nowrap justify-end">
+                            {getUsoImagesImportantes(
+                                selectedProduct.mantenimiento
+                            )}
                         </div>
-                        <div className="flex flex-wrap justify-end">
-                            {getUsoImagesImportantes(selectedProduct.uso)}
+
+                        <div className="flex shrink-0 flex-nowrap justify-end">
+                            {getUsoImagesImportantes(
+                                selectedProduct.uso
+                            )}
                         </div>
-                        <div className="flex flex-wrap justify-end">
-                            {getDireccionImagesImportantes(selectedProduct.direcciontela)}
+
+                        <div className="flex shrink-0 flex-nowrap justify-end">
+                            {getDireccionImagesImportantes(
+                                selectedProduct.direcciontela
+                            )}
                         </div>
                     </div>
                 </div>
