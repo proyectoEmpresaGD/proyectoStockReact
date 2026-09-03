@@ -22,11 +22,10 @@ export class PedVentaController {
             const { codclien } = req.params;
             const { ejercicio } = req.query;           // <-- nuevo
             const ventas = await PedVentaModel.getByClient({ codclien, ejercicio });
-            if (ventas.length) {
-                res.json(ventas);
-            } else {
-                res.status(404).json({ message: 'No sales found for this client' });
-            }
+
+            // Un cliente existente puede no tener pedidos/ventas en pedventa.
+            // Eso no es un recurso inexistente: devolvemos una colección vacía con 200.
+            res.json(ventas);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

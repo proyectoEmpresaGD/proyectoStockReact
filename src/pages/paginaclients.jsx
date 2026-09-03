@@ -21,6 +21,7 @@ export default function Clients() {
     const [errorMessage, setErrorMessage] = useState('');
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -45,6 +46,14 @@ export default function Clients() {
     }, [searchParams]);
 
     useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm.trim());
+        }, 300);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [searchTerm]);
+
+    useEffect(() => {
         if (sortByBilling) {
             setSortByBilling(false);
             setCurrentPage(1);
@@ -52,6 +61,8 @@ export default function Clients() {
     }, [searchTerm, selectedCountry, selectedProvince, itemsPerPage]);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchAll = async () => {
             setLoading(true);
             setErrorMessage('');
@@ -59,12 +70,13 @@ export default function Clients() {
             try {
                 let url = `${import.meta.env.VITE_API_BASE_URL}/api/clients?page=${currentPage}&limit=${itemsPerPage}`;
                 if (sortByBilling) url = url.replace('/api/clients', '/api/clients/billing');
-                if (searchTerm) url += `&query=${encodeURIComponent(searchTerm)}`;
+                if (debouncedSearchTerm) url += `&query=${encodeURIComponent(debouncedSearchTerm)}`;
                 if (selectedCountry) url += `&codpais=${selectedCountry}`;
                 if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
 
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
+                    signal: controller.signal,
                 });
 
                 if (!response.ok) throw new Error('No se han podido cargar los clientes.');
@@ -74,39 +86,59 @@ export default function Clients() {
                 setClients(currentClients);
                 setTotalClients(data.total || 0);
 
-                const billingMap = {};
-                await Promise.all(currentClients.map(async (client) => {
-                    const billingResponse = await fetch(
-                        `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
+                const billingEntries = await Promise.all(currentClients.map(async (client) => {
+                    try {
+                        const billingResponse = await fetch(
+                            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
+                            {
+                                headers: { Authorization: `Bearer ${token}` },
+                                signal: controller.signal,
+                            }
+                        );
 
-                    if (!billingResponse.ok) return;
-                    const orders = await billingResponse.json();
-                    billingMap[client.codclien] = orders.reduce((sum, order) => {
-                        let amount = Number(order.importe) || 0;
-                        [order.dt1, order.dt2, order.dt3].forEach((discount) => {
-                            if (discount > 0) amount *= 1 - discount / 100;
-                        });
-                        return sum + Math.max(amount, 0);
-                    }, 0);
+                        if (!billingResponse.ok) {
+                            return [client.codclien, 0];
+                        }
+
+                        const orders = await billingResponse.json();
+                        const total = (Array.isArray(orders) ? orders : []).reduce((sum, order) => {
+                            let amount = Number(order.importe) || 0;
+                            [order.dt1, order.dt2, order.dt3].forEach((discount) => {
+                                if (Number(discount) > 0) amount *= 1 - Number(discount) / 100;
+                            });
+                            return sum + Math.max(amount, 0);
+                        }, 0);
+
+                        return [client.codclien, total];
+                    } catch (error) {
+                        if (error?.name === 'AbortError') throw error;
+                        return [client.codclien, 0];
+                    }
                 }));
 
-                setClientBillings(billingMap);
+                if (!controller.signal.aborted) {
+                    setClientBillings(Object.fromEntries(billingEntries));
+                }
             } catch (error) {
-                console.error(error);
-                setErrorMessage(error.message || 'No se han podido cargar los clientes.');
+                if (error?.name !== 'AbortError') {
+                    console.error(error);
+                    setErrorMessage(error.message || 'No se han podido cargar los clientes.');
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchAll();
+
+        return () => controller.abort();
     }, [
         token,
         currentPage,
         itemsPerPage,
-        searchTerm,
+        debouncedSearchTerm,
         selectedCountry,
         selectedProvince,
         sortByBilling,
@@ -277,13 +309,23 @@ export default function Clients() {
                                         : 'bg-[#6D8DB3]'
                         )}
                         handleClientClick={async (clientCode) => {
-                            const response = await fetch(
-                                `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
-                                { headers: { Authorization: `Bearer ${token}` } }
-                            );
-                            const data = await response.json();
-                            setSelectedClientDetails(data);
-                            setModalVisible(true);
+                            try {
+                                const response = await fetch(
+                                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
+                                    { headers: { Authorization: `Bearer ${token}` } }
+                                );
+
+                                if (!response.ok) {
+                                    throw new Error('No se ha podido cargar la ficha del cliente.');
+                                }
+
+                                const data = await response.json();
+                                setSelectedClientDetails(data);
+                                setModalVisible(true);
+                            } catch (error) {
+                                console.error(error);
+                                setErrorMessage(error.message || 'No se ha podido cargar la ficha del cliente.');
+                            }
                         }}
                         setClients={setClients}
                     />
