@@ -1,0 +1,9 @@
+import React, { useState } from 'react';
+import { Download, FileSpreadsheet } from 'lucide-react';
+
+export default function VacationExports({ apiBase, token, year }) {
+    const [loading, setLoading] = useState(''); const [error, setError] = useState('');
+    const download = async (type) => { setLoading(type); setError(''); try { const response=await fetch(`${apiBase}/api/vacaciones/export.csv?year=${year}&type=${type}`,{headers:{Authorization:`Bearer ${token}`}}); if(!response.ok){const body=await response.json().catch(()=>null);throw new Error(body?.error||'No se pudo generar la exportación.');} const blob=await response.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download=`vacaciones_${type}_${year}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(err){setError(err.message);}finally{setLoading('');} };
+    const options=[['summary','Saldos por empleado'],['requests','Solicitudes'],['changes','Cambios y cancelaciones'],['audit','Auditoría']];
+    return <section className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><FileSpreadsheet size={18}/></span><div><h2 className="text-lg font-semibold text-slate-900">Exportaciones · {year}</h2><p className="mt-1 text-sm text-slate-500">CSV compatible con Excel para archivo, revisión o envío interno.</p></div></div><div className="mt-4 flex flex-wrap gap-2">{options.map(([type,label])=><button key={type} disabled={Boolean(loading)} onClick={()=>download(type)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Download size={14}/>{loading===type?'Generando…':label}</button>)}</div>{error&&<p className="mt-3 text-sm text-rose-700">{error}</p>}</section>;
+}

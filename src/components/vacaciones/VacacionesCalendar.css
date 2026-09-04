@@ -1,0 +1,114 @@
+.vacaciones-calendar .rbc-calendar {
+    font-family: inherit;
+    color: #334155;
+}
+
+.vacaciones-calendar .rbc-month-view {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #ffffff;
+}
+
+.vacaciones-calendar .rbc-header {
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 11px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.vacaciones-calendar .rbc-header + .rbc-header,
+.vacaciones-calendar .rbc-day-bg + .rbc-day-bg {
+    border-left-color: #eef2f7;
+}
+
+.vacaciones-calendar .rbc-month-row + .rbc-month-row {
+    border-top-color: #eef2f7;
+}
+
+.vacaciones-calendar .rbc-date-cell {
+    padding: 7px 8px 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.vacaciones-calendar .rbc-date-cell.rbc-now button {
+    display: inline-grid;
+    min-width: 26px;
+    height: 26px;
+    place-items: center;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.vacaciones-calendar .rbc-off-range-bg {
+    background: #fbfdff;
+}
+
+.vacaciones-calendar .rbc-off-range {
+    color: #cbd5e1;
+}
+
+.vacaciones-calendar .rbc-event {
+    border: 0;
+    border-radius: 8px;
+    padding: 3px 6px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.vacaciones-calendar .rbc-event:focus {
+    outline: 2px solid rgba(15, 23, 42, 0.25);
+    outline-offset: 1px;
+}
+
+.vacaciones-calendar .rbc-row-segment {
+    padding: 0 4px 2px;
+}
+
+.vacaciones-calendar .rbc-show-more {
+    margin-left: 4px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.vacaciones-calendar .rbc-selected-cell {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 640px) {
+    .vacaciones-calendar {
+        min-width: 720px;
+    }
+}
+
+
+.vacaciones-calendar .rbc-day-bg.vacaciones-non-working-day {
+    background: #f8fafc;
+    cursor: not-allowed;
+}
+
+.vacaciones-calendar .vacaciones-non-working-day + .rbc-date-cell,
+.vacaciones-calendar .vacaciones-non-working-day .rbc-button-link {
+    color: #94a3b8;
+}
+
+/* La semana del calendario empieza en lunes: columnas 6 y 7 = sábado y domingo. */
+.vacaciones-calendar .rbc-row-bg .rbc-day-bg:nth-child(6),
+.vacaciones-calendar .rbc-row-bg .rbc-day-bg:nth-child(7) {
+    background: #f8fafc;
+    cursor: not-allowed;
+}
+
+.vacaciones-calendar .rbc-row-content .rbc-date-cell:nth-child(6),
+.vacaciones-calendar .rbc-row-content .rbc-date-cell:nth-child(7) {
+    color: #94a3b8;
+}

@@ -360,6 +360,13 @@ export const userCanAccessRoute = (roleName, path) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+
+    // Vacaciones usa permisos individuales por usuario y validación propia en backend.
+    // El control por rol no debe impedir que RRHH habilite a una persona concreta.
+    if (normalizedPath === '/rrhh/vacaciones' || normalizedPath.startsWith('/rrhh/vacaciones/')) {
+        return true;
+    }
+
     const roleDefinition = getRoleDefinition(normalizedRoleName);
 
     if (!roleDefinition) {

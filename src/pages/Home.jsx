@@ -7,12 +7,16 @@ import {
     AiOutlineStock,
     AiOutlineTeam,
     AiOutlineUser,
+    AiOutlineCalendar,
 } from 'react-icons/ai';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
+import { userCanAccessRoute } from '../utils/roleAccessConfig.js';
+import useVacationModuleAccess from '../hooks/useVacationModuleAccess.js';
 
 function Home() {
     const navigate = useNavigate();
     const { token, logout, user } = useAuthContext();
+    const { canAccess: canAccessVacations } = useVacationModuleAccess();
     const rolesWithoutKpis = ['comercial', 'decoandyou'];
     const [totalClients, setTotalClients] = useState(0);
     const [totalProducts, setTotalProducts] = useState(0);
@@ -132,6 +136,17 @@ function Home() {
             description: 'Accede desde el menú a pedidos, documentos, etiquetas y utilidades.',
             icon: <AiOutlineFile size={27} />,
         },
+        ...(userCanAccessRoute(user?.role, '/rrhh/vacaciones') && canAccessVacations
+            ? [{
+                title: 'Vacaciones',
+                eyebrow: ['admin', 'rrhh'].includes(String(user?.role || '').toLowerCase()) ? 'Recursos Humanos' : 'Mi calendario',
+                description: ['admin', 'rrhh'].includes(String(user?.role || '').toLowerCase())
+                    ? 'Gestiona solicitudes, calendario, bloqueos y límites de ocupación.'
+                    : 'Consulta tu saldo y solicita vacaciones directamente desde el calendario.',
+                to: '/rrhh/vacaciones',
+                icon: <AiOutlineCalendar size={27} />,
+            }]
+            : []),
     ];
 
     const kpis = [
@@ -201,7 +216,7 @@ function Home() {
                         <p className="text-sm text-slate-400">Los módulos disponibles dependen de tu perfil.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {shortcutCards.map((card) => {
                             const cardContent = (
                                 <>

@@ -18,10 +18,12 @@ import {
     FaUser,
     FaCalendarCheck,
     FaRegCalendarAlt,
+    FaUmbrellaBeach,
     FaSearch
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
+import useVacationModuleAccess from '../hooks/useVacationModuleAccess';
 
 // Evita "magic numbers": sidebar fijo 16rem = w-64 / pl-64
 export const SIDEBAR_WIDTH_CLASS = 'md:pl-64';
@@ -32,6 +34,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     const [subDropdownOpen, setSubDropdownOpen] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuthContext();
+    const { canAccess: canAccessVacations } = useVacationModuleAccess();
     const isDecoAndYouUser =
         String(user?.username || '').trim().toUpperCase() === 'DECOANDYOU';
     const toggleDropdown = (section) => {
@@ -63,6 +66,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
         return links.filter((link) => {
             if (link.external) return true;
             if (!role) return false;
+            if (link.requiresVacationAccess && !canAccessVacations) return false;
 
             const hiddenForUsers = Array.isArray(link.hiddenForUsers)
                 ? link.hiddenForUsers.map((item) => String(item).trim().toUpperCase())
@@ -250,14 +254,20 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/perfilusuario', label: 'Perfil de Usuario', icon: <FaUser className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'administracion', 'rrhh'] }
                 ]
             },
-            // {
-            //     label: 'Recursos Humanos',
-            //     icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
-            //     dropdown: 'rrhh',
-            //     links: [
-            //         { to: '/rrhh/vacaciones', label: 'Vacaciones', icon: <FaUmbrellaBeach className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'almacen', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'] }
-            //     ]
-            // },
+            {
+                label: 'Recursos Humanos',
+                icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
+                dropdown: 'rrhh',
+                links: [
+                    {
+                        to: '/rrhh/vacaciones',
+                        label: 'Vacaciones',
+                        icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
+                        roles: ['admin', 'comercial', 'almacen', 'compras', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'],
+                        requiresVacationAccess: true
+                    }
+                ]
+            },
             {
                 label: 'Aplicaciones',
                 icon: <FaRocket className="mr-3 text-lg" />,
@@ -265,7 +275,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 links: [{ to: 'https://www.cjmw.eu/#/', label: 'Página Web', external: true }]
             }
         ],
-        [user?.role]
+        [user?.role, canAccessVacations]
     );
 
     const username = String(user?.username || 'Usuario').trim();
