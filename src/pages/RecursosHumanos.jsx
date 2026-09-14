@@ -551,8 +551,10 @@ function RecursosHumanosContent() {
 
     return (
         <PageShell maxWidth="max-w-7xl">
-            <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 sm:p-7">
-                <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-slate-100/80 blur-2xl" />
+            <section className="relative rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 sm:p-7">
+                <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+                    <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-slate-100/80 blur-2xl" />
+                </div>
                 <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-3xl">
                         <div className="flex flex-wrap items-center gap-2">
