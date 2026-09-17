@@ -55,6 +55,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/gestionusuarios', label: 'Gestión de usuarios' },
     { path: '/perfilusuario', label: 'Perfil usuario' },
     { path: '/fichar', label: 'Fichar' },
+    { path: '/rrhh/jornada', label: 'RRHH registro de jornada' },
     { path: '/rrhh/vacaciones', label: 'RRHH vacaciones' }
 ];
 
@@ -91,6 +92,7 @@ const WAREHOUSE_ROUTES = [
     ...DOCUMENT_LABEL_ROUTES,
     '/perfilusuario',
     '/fichar',
+    '/rrhh/jornada',
     '/rrhh/vacaciones'
 ];
 
@@ -111,6 +113,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/stock',
             '/perfilusuario',
             '/fichar',
+            '/rrhh/jornada',
             '/rrhh/vacaciones'
         ]
     },
@@ -148,6 +151,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/comprobacionExcel',
             '/perfilusuario',
             '/fichar',
+            '/rrhh/jornada',
             '/rrhh/vacaciones'
         ]
     },
@@ -161,13 +165,14 @@ const DEFAULT_ROLE_DEFINITIONS = {
             ...DOCUMENT_LABEL_ROUTES,
             '/perfilusuario',
             '/fichar',
+            '/rrhh/jornada',
             '/rrhh/vacaciones'
         ]
     },
     rrhh: {
         name: 'rrhh',
         permissions: ['users.read'],
-        routes: ['/', '/perfilusuario', '/fichar', '/rrhh/vacaciones']
+        routes: ['/', '/perfilusuario', '/fichar', '/rrhh/jornada', '/rrhh/vacaciones']
     },
     administracion: {
         name: 'administracion',
@@ -183,6 +188,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/analitica-facturacion',
             '/mapas-facturacion',
             '/perfilusuario',
+            '/rrhh/jornada',
             '/rrhh/vacaciones'
         ]
     },
@@ -193,6 +199,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/analitica-facturacion',
             '/perfilusuario',
             '/fichar',
+            '/rrhh/jornada',
             '/rrhh/vacaciones',
             '/reservasTejido',
             '/intrastat',]

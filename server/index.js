@@ -4,7 +4,6 @@ import { createImagenRouter } from "./routes/imagenes.js";
 import { createStockRouter } from "./routes/stock.js";
 import { createStockLotesRouter } from "./routes/stockLotes.js";
 import { createClienteRouter } from "./routes/clients.js";
-import { createFichajeRouter } from "./routes/fichajes.js";
 import { createPedVentaRouter } from "./routes/pedventa.js";
 import { createEquivalenciasRouter } from "./routes/equivproveRoutes.js";
 import authRouter from "./routes/auth.js";
@@ -28,6 +27,8 @@ import pool from "./db/pool.js";
 import { createIntrastatRouter } from './routes/intrastat.js';
 import { createReservasRouter } from "./routes/reservas.js";
 import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
+import { createJornadaRouter } from "./routes/jornada.js";
+import { ensureJornadaSchema } from "./services/jornadaMigrations.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -83,13 +84,26 @@ app.get("/api/health", (req, res) => {
 // Public routes
 app.use("/api/auth", authRouter);
 
+// Jornada necesita su esquema antes de atender peticiones.
+// Se intenta preparar en el arranque y el propio router vuelve a comprobarlo
+// como segunda barrera. El advisory lock de PostgreSQL evita carreras entre
+// varias instancias del servidor.
+try {
+  await ensureJornadaSchema(pool);
+  console.log("✅ Jornada V4: esquema de base de datos preparado. API /api/jornada/meta disponible.");
+} catch (error) {
+  console.error("❌ Jornada: no se pudo preparar el esquema al arrancar:", error);
+  // No derribamos toda la API porque otros módulos pueden seguir funcionando.
+  // Las rutas /api/jornada devolverán 503 hasta que se solucione la migración.
+}
+
 // Protected routes
 app.use("/api/products", authMiddleware, createProductRouter({ pool }));
 app.use("/api/images", authMiddleware, createImagenRouter({ pool }));
 app.use("/api/stock", authMiddleware, createStockRouter({ pool }));
 app.use("/api/stocklotes", authMiddleware, createStockLotesRouter({ pool }));
 app.use("/api/clients", authMiddleware, createClienteRouter({ pool }));
-app.use("/api/fichajes", authMiddleware, createFichajeRouter({ pool }));
+app.use("/api/jornada", authMiddleware, createJornadaRouter({ pool }));
 app.use("/api/pedventa", authMiddleware, createPedVentaRouter());
 app.use("/api/equivalencias", authMiddleware, createEquivalenciasRouter());
 app.use("/api/libros", authMiddleware, createLibroRouter());

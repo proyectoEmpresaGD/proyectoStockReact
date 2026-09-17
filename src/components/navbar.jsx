@@ -19,6 +19,7 @@ import {
     FaCalendarCheck,
     FaRegCalendarAlt,
     FaUmbrellaBeach,
+    FaClock,
     FaSearch
 } from 'react-icons/fa';
 import { useAuthContext } from '../Auth/AuthContext';
@@ -259,6 +260,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaUmbrellaBeach className="mr-3 text-lg" />,
                 dropdown: 'rrhh',
                 links: [
+                    {
+                        to: '/rrhh/jornada',
+                        label: 'Registro de jornada',
+                        icon: <FaClock className="mr-3 text-lg" />,
+                        roles: ['admin', 'comercial', 'almacen', 'compras', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo']
+                    },
                     {
                         to: '/rrhh/vacaciones',
                         label: 'Vacaciones',

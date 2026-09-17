@@ -37,7 +37,7 @@ const PerfilUsuario = lazy(() => import('./pages/PerfilUsuario.jsx'));
 const AgendaPage = lazy(() => import('./pages/paginaagenda.jsx'));
 const NotasPage = lazy(() => import('./pages/paginanotas.jsx'));
 const GestionUsuarios = lazy(() => import('./pages/gestionusuarios.jsx'));
-const FicharPage = lazy(() => import('./pages/Fichar.jsx'));
+const JornadaPage = lazy(() => import('./pages/Jornada.jsx'));
 const RecursosHumanos = lazy(() => import('./pages/RecursosHumanos.jsx'));
 const EtiquetaSinQR = lazy(() => import('./pages/etiquetas/etiquetaSinQR.jsx'));
 const EtiquetaCameo = lazy(() => import('./pages/etiquetas/Etiqueta cameo.jsx'));
@@ -166,7 +166,8 @@ function App() {
                             <Route path="/agenda" element={<AgendaPage />} />
                             <Route path="/notas" element={<NotasPage />} />
                             <Route path="/gestionusuarios" element={<GestionUsuarios />} />
-                            <Route path="/fichar" element={<FicharPage />} />
+                            <Route path="/fichar" element={<Navigate to="/rrhh/jornada" replace />} />
+                            <Route path="/rrhh/jornada" element={<ProtectedRoute><JornadaPage /></ProtectedRoute>} />
                             <Route path="/fichaTecnica" element={<FichaTecnicaPage />} />
                             <Route path="/entradas" element={<ProtectedRoute requiredRole="ventas"><EntradasPage /></ProtectedRoute>} />
                             <Route path="/rrhh/vacaciones" element={<ProtectedRoute><RecursosHumanos /></ProtectedRoute>} />
