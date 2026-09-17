@@ -21,6 +21,7 @@ const REQUIRED_MIGRATIONS = [
     '002_jornada_v2.sql',
     '003_jornada_v3_inspeccion.sql',
     '004_jornada_v4_asignaciones.sql',
+    '005_jornada_v4_2_1_repair_asignaciones.sql',
 ];
 const REQUIRED_TRIGGERS = [
     'jornada_eventos_no_update',
@@ -39,8 +40,8 @@ const warn = (message) => { readinessIssues.push(message); console.warn(`⚠️ 
 
 try {
     const nodeMajor = Number(process.versions.node.split('.')[0]);
-    if (nodeMajor === 22) pass(`Node ${process.versions.node} compatible (22.x).`);
-    else fail(`Node ${process.versions.node} no coincide con el requisito 22.x.`);
+    if (nodeMajor === 24) pass(`Node ${process.versions.node} compatible (24.x).`);
+    else fail(`Node ${process.versions.node} no coincide con el requisito 24.x.`);
 
     const dbInfo = await pool.query(`SELECT current_database() AS database, current_setting('TimeZone') AS timezone`);
     console.log(`ℹ️  Base de datos: ${dbInfo.rows[0]?.database || 'desconocida'} · timezone PostgreSQL: ${dbInfo.rows[0]?.timezone || 'desconocida'}`);
@@ -62,7 +63,26 @@ try {
         const applied = new Set(migrationResult.rows.map((row) => row.filename));
         const missing = REQUIRED_MIGRATIONS.filter((name) => !applied.has(name));
         if (missing.length) fail(`Migraciones no registradas: ${missing.join(', ')}`);
-        else pass('Migraciones 001–004 registradas.');
+        else pass('Migraciones 001–005 registradas.');
+    }
+
+    const assignmentColumnsResult = await pool.query(
+        `SELECT column_name
+           FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'jornada_asignaciones'`
+    );
+    const assignmentColumns = new Set(assignmentColumnsResult.rows.map((row) => row.column_name));
+    const requiredAssignmentColumns = [
+        'id', 'user_id', 'es_trabajador', 'requiere_registro', 'effective_from',
+        'motivo', 'created_by', 'previous_assignment_id', 'previous_hash',
+        'assignment_hash', 'created_at',
+    ];
+    const missingAssignmentColumns = requiredAssignmentColumns.filter((name) => !assignmentColumns.has(name));
+    if (missingAssignmentColumns.length) {
+        fail(`jornada_asignaciones tiene un esquema incompleto. Faltan columnas: ${missingAssignmentColumns.join(', ')}`);
+    } else {
+        pass('Esquema de jornada_asignaciones completo.');
     }
 
     const triggerResult = await pool.query(
