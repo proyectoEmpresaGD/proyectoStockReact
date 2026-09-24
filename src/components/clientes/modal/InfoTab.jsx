@@ -4,10 +4,70 @@ import {
     AiOutlineUser,
     AiOutlineMail,
     AiOutlinePhone,
-    AiOutlineHome
+    AiOutlineHome,
+    AiOutlineTags,
+    AiOutlineTeam
 } from 'react-icons/ai';
 import { FiMapPin } from 'react-icons/fi';
 import { provinces } from '../../../Constants/constants';
+
+
+const MANAGEMENT_NAMES = {
+    'AM': 'CLIENTE AMERICA/INGLATERRA/NORUEGA',
+    'AR': 'CLIENTE ARABIA SAUDI',
+    'CI': 'CLIENTES ITALIA',
+    'DE': 'CLIENTE DECORACION',
+    'EN': 'CLIENTE ENVIO',
+    'ES': 'CLIENTE ESTUDIO',
+    'HO': 'CLIENTE HOTELES',
+    'OF': 'CLIENTE OFICIAL',
+    'PA': 'CLIENTE PARIS',
+    'PR': 'PROVEEDOR',
+    'PV': 'CLIENTE PROFESIONAL',
+    'RE': 'REPRESENTANTE',
+};
+
+const getManagementLabel = (value) => {
+    if (value === null || value === undefined || String(value).trim() === '') {
+        return '–';
+    }
+
+    const code = String(value).trim().toUpperCase();
+    const managementName = MANAGEMENT_NAMES[code];
+
+    return managementName
+        ? `${code} · ${managementName}`
+        : code;
+};
+
+const TARIFF_NAMES = {
+    '01': 'TARIFA OFICIAL',
+    '02': 'TARIFA STUDIO',
+    '03': 'TARIFA PVP',
+    '04': 'TARIFA PARIS +15%',
+    '05': 'TARIFA CLIENTES DECORACIÓN',
+    '06': 'TARIFA CLIENTES INGLATERRA Y AMERICA',
+    '07': 'TARIFA EMIRATOS ÁRABES',
+    '08': 'TARIFA +10% PENDIENTE DE PONER PARA QUE PAIS',
+    '09': 'TARIFA OFICIAL INTERNACIONAL EUROPA +6%',
+    '10': 'TARIFA PARIS +30%',
+};
+
+const getTariffLabel = (value) => {
+    if (value === null || value === undefined || String(value).trim() === '') {
+        return '–';
+    }
+
+    const rawCode = String(value).trim();
+    const normalizedCode = /^\d+$/.test(rawCode)
+        ? rawCode.padStart(2, '0')
+        : rawCode;
+    const tariffName = TARIFF_NAMES[normalizedCode];
+
+    return tariffName
+        ? `${normalizedCode} · ${tariffName}`
+        : normalizedCode;
+};
 
 export default function InfoTab({ client }) {
     // Divide múltiples emails y filtra los válidos
@@ -27,9 +87,21 @@ export default function InfoTab({ client }) {
         return p?.label || client?.codprovi || '–';
     }, [client]);
 
+    const managementLabel = useMemo(
+        () => getManagementLabel(client?.codgesti),
+        [client?.codgesti]
+    );
+
+    const tariffLabel = useMemo(
+        () => getTariffLabel(client?.codtarifa),
+        [client?.codtarifa]
+    );
+
     // Las filas de información
     const rows = [
         ['Código', client?.codclien || '–', AiOutlineUser],
+        ['Código de gestión', managementLabel, AiOutlineTeam],
+        ['Tarifa', tariffLabel, AiOutlineTags],
         ['Email', emails, AiOutlineMail],
         ['Teléfono', client?.tlfno || '–', AiOutlinePhone],
         ['Dirección', client?.direccion || '–', AiOutlineHome],
@@ -45,7 +117,7 @@ export default function InfoTab({ client }) {
                     className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg shadow-sm"
                 >
                     <Icon className="text-gray-600 mt-1" size={20} />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500">{label}</p>
 
                         {/* Renderizado especial según tipo */}
@@ -89,7 +161,7 @@ export default function InfoTab({ client }) {
                                 {value}
                             </a>
                         ) : (
-                            <p className="text-sm">{value}</p>
+                            <p className="text-sm break-words">{value}</p>
                         )}
                     </div>
                 </div>
