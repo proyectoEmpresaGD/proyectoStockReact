@@ -1,27 +1,39 @@
 import pool from '../../db/pool.js';
+import { userHasAppRouteAccess } from '../../utils/routeAccess.js';
 
 const ADMIN_ROLES = new Set(['admin']);
 
 const normalizeRole = (role) => String(role || '').trim().toLowerCase();
 const isAdmin = (user) => ADMIN_ROLES.has(normalizeRole(user?.role));
 
-const AGENDA_ROLES = ['admin', 'comercial', 'administracion'];
+const AGENDA_BASE_ROLES = ['comercial', 'administracion'];
+
+const agendaUserAccessSql = (alias = 'u') => `(
+    LOWER(TRIM(COALESCE(${alias}.role, ''))) = 'admin'
+    OR COALESCE(${alias}.route_access ->> '/agenda', '') = 'allow'
+    OR (
+        LOWER(TRIM(COALESCE(${alias}.role, ''))) IN ('comercial', 'administracion')
+        AND COALESCE(${alias}.route_access ->> '/agenda', '') <> 'deny'
+    )
+)`;
 
 async function assertAgendaAssignee(client, userId) {
     if (userId == null || userId === '') return null;
     const { rows } = await client.query(
-        `SELECT id FROM usuarios
+        `SELECT id, role, route_access
+           FROM usuarios
           WHERE id = $1
-            AND LOWER(TRIM(COALESCE(role, ''))) = ANY($2::text[])
           LIMIT 1`,
-        [Number(userId), AGENDA_ROLES]
+        [Number(userId)]
     );
-    if (!rows.length) {
+
+    const candidate = rows[0];
+    if (!candidate || !userHasAppRouteAccess(candidate, '/agenda', AGENDA_BASE_ROLES)) {
         const error = new Error('El responsable seleccionado no existe o no tiene acceso a la agenda');
         error.code = 'AGENDA_ASSIGNEE_INVALID';
         throw error;
     }
-    return Number(rows[0].id);
+    return Number(candidate.id);
 }
 
 async function assertClientExists(client, clientId) {
@@ -1139,13 +1151,13 @@ export class AgendaModel {
                   WHERE v.assigned_to IS NULL OR NOT EXISTS (
                       SELECT 1 FROM usuarios u
                        WHERE u.id = v.assigned_to
-                         AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                         AND ${agendaUserAccessSql('u')}
                   )) AS visitas_sin_responsable,
                 (SELECT COUNT(*)::int FROM notas n
                   WHERE n.assigned_to IS NULL OR NOT EXISTS (
                       SELECT 1 FROM usuarios u
                        WHERE u.id = n.assigned_to
-                         AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                         AND ${agendaUserAccessSql('u')}
                   )) AS notas_sin_responsable,
                 (SELECT COUNT(*)::int FROM visitas v
                   WHERE v.created_by IS NULL OR NOT EXISTS (SELECT 1 FROM usuarios u WHERE u.id = v.created_by)) AS visitas_sin_creador_valido,
@@ -1173,7 +1185,7 @@ export class AgendaModel {
                     AND NOT EXISTS (
                       SELECT 1 FROM usuarios u
                        WHERE u.id = ar.usuario_id
-                         AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                         AND ${agendaUserAccessSql('u')}
                   )) AS avisos_sin_responsable_valido,
                 (SELECT COUNT(*)::int FROM notas
                   WHERE COALESCE(cardinality(imagenes), 0) > 0
@@ -1227,7 +1239,7 @@ export class AgendaModel {
                  WHERE v.assigned_to IS NULL OR NOT EXISTS (
                        SELECT 1 FROM usuarios u
                         WHERE u.id = v.assigned_to
-                          AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                          AND ${agendaUserAccessSql('u')}
                  )
                 UNION ALL
                 SELECT 'sin_responsable', 'nota', n.id::text,
@@ -1237,7 +1249,7 @@ export class AgendaModel {
                  WHERE n.assigned_to IS NULL OR NOT EXISTS (
                        SELECT 1 FROM usuarios u
                         WHERE u.id = n.assigned_to
-                          AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                          AND ${agendaUserAccessSql('u')}
                  )
                 UNION ALL
                 SELECT 'recordatorio_sin_responsable', 'recordatorio', ar.id::text,
@@ -1248,7 +1260,7 @@ export class AgendaModel {
                    AND NOT EXISTS (
                        SELECT 1 FROM usuarios u
                         WHERE u.id = ar.usuario_id
-                          AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                          AND ${agendaUserAccessSql('u')}
                  )
                 UNION ALL
                 SELECT 'autor_inexistente', 'visita', v.id::text,
@@ -1382,7 +1394,7 @@ export class AgendaModel {
                        SET assigned_to = COALESCE(
                             (SELECT u.id FROM usuarios u
                               WHERE u.id = v.created_by
-                                AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')),
+                                AND ${agendaUserAccessSql('u')}),
                             $1
                        ),
                            updated_at = NOW()
@@ -1390,7 +1402,7 @@ export class AgendaModel {
                         OR NOT EXISTS (
                             SELECT 1 FROM usuarios u
                              WHERE u.id = v.assigned_to
-                               AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                               AND ${agendaUserAccessSql('u')}
                         )
                 `, [Number(user.id)]);
                 const notes = await client.query(`
@@ -1398,7 +1410,7 @@ export class AgendaModel {
                        SET assigned_to = COALESCE(
                             (SELECT u.id FROM usuarios u
                               WHERE u.id = n.idusuario
-                                AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')),
+                                AND ${agendaUserAccessSql('u')}),
                             $1
                        ),
                            fechaactualizado = NOW()
@@ -1406,7 +1418,7 @@ export class AgendaModel {
                         OR NOT EXISTS (
                             SELECT 1 FROM usuarios u
                              WHERE u.id = n.assigned_to
-                               AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                               AND ${agendaUserAccessSql('u')}
                         )
                 `, [Number(user.id)]);
                 const reminders = await client.query(`
@@ -1415,22 +1427,22 @@ export class AgendaModel {
                             (SELECT v.assigned_to FROM visitas v
                               JOIN usuarios uv ON uv.id = v.assigned_to
                              WHERE v.id = ar.visita_id
-                               AND LOWER(TRIM(COALESCE(uv.role, ''))) IN ('admin', 'comercial', 'administracion')),
+                               AND ${agendaUserAccessSql('uv')}),
                             (SELECT n.assigned_to FROM notas n
                               JOIN usuarios un ON un.id = n.assigned_to
                              WHERE n.id = ar.nota_id
-                               AND LOWER(TRIM(COALESCE(un.role, ''))) IN ('admin', 'comercial', 'administracion')),
+                               AND ${agendaUserAccessSql('un')}),
                             (SELECT n.idusuario FROM notas n
                               JOIN usuarios uo ON uo.id = n.idusuario
                              WHERE n.id = ar.nota_id
-                               AND LOWER(TRIM(COALESCE(uo.role, ''))) IN ('admin', 'comercial', 'administracion')),
+                               AND ${agendaUserAccessSql('uo')}),
                             $1
                        ),
                            updated_at = NOW()
                      WHERE NOT EXISTS (
                            SELECT 1 FROM usuarios u
                             WHERE u.id = ar.usuario_id
-                              AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'comercial', 'administracion')
+                              AND ${agendaUserAccessSql('u')}
                      )
                 `, [Number(user.id)]);
                 affected = visits.rowCount + notes.rowCount + reminders.rowCount;

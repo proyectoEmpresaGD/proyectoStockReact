@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import multer from 'multer';
 import { NotasController } from '../controllers/notas.js';
+import { userHasAppRouteAccess } from '../utils/routeAccess.js';
 
-const NOTE_ROLES = new Set(['admin', 'comercial', 'administracion']);
+const NOTE_ROLES = ['comercial', 'administracion'];
 
 function requireNotesRole(req, res, next) {
-    const role = String(req.user?.role || '').trim().toLowerCase();
-    if (NOTE_ROLES.has(role)) return next();
+    if (userHasAppRouteAccess(req.user, '/notas', NOTE_ROLES)) return next();
     return res.status(403).json({ error: 'No tienes permisos para utilizar las notas comerciales' });
 }
 

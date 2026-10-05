@@ -22,6 +22,39 @@ const normalizeIntegerOrNull = (value) => {
     return Number.isNaN(parsedValue) ? null : parsedValue;
 };
 
+
+const normalizeRouteAccess = (value) => {
+    let source = value;
+
+    if (typeof source === 'string') {
+        try {
+            source = JSON.parse(source);
+        } catch {
+            return {};
+        }
+    }
+
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        return {};
+    }
+
+    return Object.entries(source).reduce((acc, [path, effect]) => {
+        const rawPath = String(path || '').trim();
+        const normalizedEffect = String(effect || '').trim().toLowerCase();
+
+        if (!rawPath.startsWith('/')) return acc;
+        if (!['allow', 'deny'].includes(normalizedEffect)) return acc;
+
+        const withoutQuery = rawPath.split('?')[0].split('#')[0];
+        const normalizedPath = (withoutQuery.length > 1 && withoutQuery.endsWith('/'))
+            ? withoutQuery.slice(0, -1).toLowerCase()
+            : withoutQuery.toLowerCase();
+
+        acc[normalizedPath || '/'] = normalizedEffect;
+        return acc;
+    }, {});
+};
+
 const normalizeCodrepres = (codrepres) => {
     if (Array.isArray(codrepres)) {
         return [...new Set(
@@ -89,6 +122,10 @@ const normalizeUserData = (data) => {
 
     if (Object.prototype.hasOwnProperty.call(normalizedData, 'codrepres')) {
         normalizedData.codrepres = normalizeCodrepres(normalizedData.codrepres);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(normalizedData, 'route_access')) {
+        normalizedData.route_access = normalizeRouteAccess(normalizedData.route_access);
     }
 
     if (Object.prototype.hasOwnProperty.call(normalizedData, 'dias_vacaciones_anuales')) {
@@ -341,7 +378,8 @@ export class UserModel {
                 dias_vacaciones_anuales,
                 departamento,
                 codrepre,
-                codrepres
+                codrepres,
+                route_access
             FROM usuarios
             ORDER BY username
         `);
@@ -370,7 +408,8 @@ export class UserModel {
                     dias_vacaciones_anuales,
                     departamento,
                     codrepre,
-                    codrepres
+                    codrepres,
+                    route_access
             `,
             [newRole, userId]
         );
@@ -451,7 +490,8 @@ export class UserModel {
                         dias_vacaciones_anuales,
                         departamento,
                         codrepre,
-                        codrepres
+                        codrepres,
+                        route_access
                 `,
                 [
                     normalizedData.username,
@@ -519,6 +559,7 @@ export class UserModel {
             'departamento',
             'codrepre',
             'codrepres',
+            'route_access',
         ];
 
         const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -563,7 +604,8 @@ export class UserModel {
                 dias_vacaciones_anuales,
                 departamento,
                 codrepre,
-                codrepres
+                codrepres,
+                route_access
         `;
 
         try {

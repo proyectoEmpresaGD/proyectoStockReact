@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { AnalyticsController } from '../controllers/analyticsController.js';
-import { requireRoles } from '../middlewares/requireRoles.js';
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createAnalyticsRouter = () => {
     const router = Router();
     const controller = new AnalyticsController();
-    const requireMapAccess = requireRoles('administracion');
+    const requireMapAccess = requireRouteAccess('/mapas-facturacion', 'administracion');
 
     router.get('/dashboard', controller.getDashboard.bind(controller));
     router.get('/filters', controller.getFilters.bind(controller));

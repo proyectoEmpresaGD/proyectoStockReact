@@ -19,6 +19,24 @@ export const AuthProvider = ({ children }) => {
                     token
                 });
 
+                // Sincroniza el perfil para recoger cambios de permisos individuales
+                // aunque el JWT se hubiera emitido antes de que el administrador los cambiara.
+                fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                    .then((response) => (response.ok ? response.json() : null))
+                    .then((profile) => {
+                        if (!profile) return;
+                        setUser((current) => ({
+                            ...(current || decoded),
+                            ...profile,
+                            route_access: profile.route_access || current?.route_access || decoded.route_access || {},
+                        }));
+                    })
+                    .catch((error) => {
+                        console.warn('No se pudo sincronizar el perfil actual:', error);
+                    });
+
                 // Calcular el tiempo restante antes de que el token expire
                 const currentTime = Date.now() / 1000; // Tiempo actual en segundos
                 const timeLeft = decoded.exp - currentTime;
@@ -46,8 +64,9 @@ export const AuthProvider = ({ children }) => {
         }
     }, [token]);
 
-    const login = (newToken) => {
+    const login = (newToken, refreshToken) => {
         localStorage.setItem('token', newToken);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
         setToken(newToken);
         try {
 
@@ -68,6 +87,7 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         setToken(null);
         setUser(null);
     };

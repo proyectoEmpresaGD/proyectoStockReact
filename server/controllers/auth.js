@@ -162,6 +162,7 @@ export class AuthController {
                     role: user.role,
                     codrepre: user.codrepre,
                     codrepres: user.codrepres || [],
+                    route_access: user.route_access || {},
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
@@ -192,6 +193,7 @@ export class AuthController {
                     departamento: user.departamento,
                     codrepre: user.codrepre,
                     codrepres: user.codrepres || [],
+                    route_access: user.route_access || {},
                     imagenperfil: user.imagenperfil,
                     imagenperfil_url: buildImageProfileUrl(user),
                 },
@@ -283,6 +285,7 @@ export class AuthController {
                     role: user.role,
                     codrepre: user.codrepre,
                     codrepres: user.codrepres || [],
+                    route_access: user.route_access || {},
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
@@ -572,6 +575,7 @@ export class AuthController {
             dias_vacaciones_anuales,
             codrepre,
             codrepres,
+            route_access,
         } = req.body;
 
         if (!isAdmin) {
@@ -583,6 +587,7 @@ export class AuthController {
                 'dias_vacaciones_anuales',
                 'codrepre',
                 'codrepres',
+                'route_access',
             ];
 
             const triesToChangeRestrictedField = restrictedFields.some(
@@ -612,6 +617,7 @@ export class AuthController {
         }
         if (codrepre !== undefined) dataToUpdate.codrepre = codrepre;
         if (codrepres !== undefined) dataToUpdate.codrepres = normalizeCodrepres(codrepres);
+        if (route_access !== undefined && isAdmin) dataToUpdate.route_access = route_access;
 
         if (Object.keys(dataToUpdate).length === 0) {
             return res.status(400).json({

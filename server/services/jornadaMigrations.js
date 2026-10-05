@@ -45,7 +45,7 @@ const assertRequiredTables = async (client) => {
 
 export const applyJornadaMigrations = async (pool) => {
     if (!pool?.connect) {
-        throw new Error('El pool PostgreSQL no permite conexiones. Comprueba DATABASE_URL.');
+        throw new Error('El pool PostgreSQL no permite conexiones.s Comprueba DATABASE_URL.');
     }
 
     const client = await pool.connect();
@@ -113,7 +113,7 @@ export const applyJornadaMigrations = async (pool) => {
             } catch (error) {
                 // Las migraciones contienen BEGIN/COMMIT. Si PostgreSQL falla en medio,
                 // limpiamos cualquier transacción abortada antes de devolver el cliente al pool.
-                await client.query('ROLLBACK').catch(() => {});
+                await client.query('ROLLBACK').catch(() => { });
                 error.message = `Error aplicando ${filename}: ${error.message}`;
                 throw error;
             }
@@ -123,7 +123,7 @@ export const applyJornadaMigrations = async (pool) => {
         return true;
     } finally {
         if (lockAcquired) {
-            await client.query('SELECT pg_advisory_unlock(hashtext($1))', [MIGRATION_LOCK_KEY]).catch(() => {});
+            await client.query('SELECT pg_advisory_unlock(hashtext($1))', [MIGRATION_LOCK_KEY]).catch(() => { });
         }
         client.release();
     }

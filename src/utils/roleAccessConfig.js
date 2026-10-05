@@ -26,8 +26,8 @@ export const AVAILABLE_ROUTES = [
     { path: '/entradas', label: 'Entradas' },
     { path: '/comprobacionExcel', label: 'Validación presupuestos' },
     { path: '/mapas-facturacion', label: 'Mapas de facturación' },
-    { path: '/mapa-clientes', label: 'Mapa clientes' },
-    { path: '/mapa-españa', label: 'Mapa España' },
+    { path: '/mapa-clientes', label: 'Mapa clientes', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Mapas de facturación' },
+    { path: '/mapa-españa', label: 'Mapa España', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Mapas de facturación' },
     { path: '/analitica-facturacion', label: 'Facturación' },
     { path: '/intrastat', label: 'Intrastat' },
     { path: '/etiquetas', label: 'Etiquetas QUALITY' },
@@ -36,9 +36,10 @@ export const AVAILABLE_ROUTES = [
     { path: '/estiquetaSinQR', label: 'Etiqueta sin QR' },
     { path: '/EtiquetaPersonalizable', label: 'Etiqueta personalizable' },
     { path: '/EtiquetaCameo', label: 'Etiqueta Cameo' },
+    { path: '/EtiquetaLibroIconos', label: 'Libro Iconos' },
+    { path: '/EtiquetaLibroIconosCompleta', label: 'Etiqueta contractalia completa' },
     { path: '/etiquetas-lotes', label: 'Etiquetas por lote' },
     { path: '/libro', label: 'LIBRO' },
-    { path: '/libro19x4', label: 'LIBRO 19 x 4 cm' },
     { path: '/libroNormativa', label: 'Libro Normativa' },
     { path: '/EtiquetasLibro35Tipo1', label: 'Tipo 1 (13cm)' },
     { path: '/EtiquetasLibro35Tipo2', label: 'Tipo 2 (20cm)' },
@@ -46,17 +47,15 @@ export const AVAILABLE_ROUTES = [
     { path: '/Libro45AnchoConImagen', label: 'LIBRO 45cm + IMAGEN' },
     { path: '/perchas', label: 'PERCHAS LISOS' },
     { path: '/perchasEstampados', label: 'PERCHAS ESTAMPADOS' },
-    { path: '/EtiquetaContraportada35', label: 'Contraportada (35cm)' },
-    { path: '/EtiquetaContraportada20', label: 'Contraportada (20cm)' },
     {
         path: '/etiquetas-producto',
         label: 'Carteles producto almacen'
     },
-    { path: '/gestionusuarios', label: 'Gestión de usuarios' },
+    { path: '/gestionusuarios', label: 'Gestión de usuarios', individualAccess: false, accessNote: 'Solo administradores' },
     { path: '/perfilusuario', label: 'Perfil usuario' },
-    { path: '/fichar', label: 'Fichar' },
+    { path: '/fichar', label: 'Fichar', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Registro de jornada' },
     { path: '/rrhh/jornada', label: 'RRHH registro de jornada' },
-    { path: '/rrhh/vacaciones', label: 'RRHH vacaciones' }
+    { path: '/rrhh/vacaciones', label: 'RRHH vacaciones', individualAccess: false, fallback: false, accessNote: 'Se gestiona desde el módulo de Vacaciones' }
 ];
 
 const DOCUMENT_LABEL_ROUTES = [
@@ -72,7 +71,9 @@ const DOCUMENT_LABEL_ROUTES = [
     '/perchas',
     '/perchasEstampados',
     '/EtiquetaContraportada35',
-    '/EtiquetaContraportada20'
+    '/EtiquetaContraportada20',
+    '/EtiquetaLibroIconos',
+    '/EtiquetaLibroIconosCompleta'
 ];
 
 const WAREHOUSE_ROUTES = [
@@ -80,7 +81,6 @@ const WAREHOUSE_ROUTES = [
     '/',
     '/stock',
     '/equivalencias',
-    '/stock-alerts',
     '/fichaTecnica',
     '/etiquetas',
     '/etiquetas-contractalia',
@@ -349,33 +349,75 @@ export const getRoleDefinition = (roleName) => {
     return dynamicRoleDefinitions[normalizedRoleName] || null;
 };
 
-export const getFirstAccessibleRoute = (roleName) => {
-    const normalizedRoleName = normalizeRoleName(roleName);
-    if (!normalizedRoleName) return null;
-    if (normalizedRoleName === 'admin') return '/';
+export const normalizeRouteAccessMap = (routeAccess) => {
+    let source = routeAccess;
 
-    const roleDefinition = getRoleDefinition(normalizedRoleName);
-    if (!roleDefinition) return '/';
+    if (typeof source === 'string') {
+        try {
+            source = JSON.parse(source);
+        } catch {
+            return {};
+        }
+    }
 
-    const [firstRoute] = roleDefinition.routes || [];
-    return firstRoute || '/';
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        return {};
+    }
+
+    return Object.entries(source).reduce((acc, [path, effect]) => {
+        const normalizedEffect = String(effect || '').trim().toLowerCase();
+        if (!['allow', 'deny'].includes(normalizedEffect)) return acc;
+
+        acc[normalizePath(path)] = normalizedEffect;
+        return acc;
+    }, {});
 };
 
-export const userCanAccessRoute = (roleName, path) => {
+export const getUserRouteOverride = (routeAccess, path) => {
+    const normalizedPath = normalizePath(path);
+    const normalizedAccess = normalizeRouteAccessMap(routeAccess);
+
+    const matches = Object.entries(normalizedAccess)
+        .filter(([configuredPath]) => (
+            normalizedPath === configuredPath
+            || normalizedPath.startsWith(`${configuredPath}/`)
+        ))
+        .sort(([pathA], [pathB]) => pathB.length - pathA.length);
+
+    if (matches.length === 0) return null;
+
+    const [configuredPath, effect] = matches[0];
+    return { path: configuredPath, effect };
+};
+
+export const canManageRouteIndividually = (path) => {
+    const normalizedPath = normalizePath(path);
+    const route = AVAILABLE_ROUTES
+        .filter((item) => {
+            const configuredPath = normalizePath(item.path);
+            return normalizedPath === configuredPath || normalizedPath.startsWith(`${configuredPath}/`);
+        })
+        .sort((a, b) => normalizePath(b.path).length - normalizePath(a.path).length)[0];
+
+    return route?.individualAccess !== false;
+};
+
+const roleCanAccessRoute = (roleName, path) => {
     const normalizedRoleName = normalizeRoleName(roleName);
     if (!normalizedRoleName) return false;
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
 
-    // Vacaciones usa permisos individuales por usuario y validación propia en backend.
-    // El control por rol no debe impedir que RRHH habilite a una persona concreta.
+    // Vacaciones mantiene su control individual específico en backend.
+    // Esta capa de rutas no debe impedir que RRHH habilite el módulo.
     if (normalizedPath === '/rrhh/vacaciones' || normalizedPath.startsWith('/rrhh/vacaciones/')) {
         return true;
     }
 
     const roleDefinition = getRoleDefinition(normalizedRoleName);
 
+    // Se conserva el comportamiento histórico para roles dinámicos todavía no hidratados.
     if (!roleDefinition) {
         return true;
     }
@@ -386,3 +428,38 @@ export const userCanAccessRoute = (roleName, path) => {
         return normalizedPath === normalizedAllowed || normalizedPath.startsWith(`${normalizedAllowed}/`);
     });
 };
+
+export const userCanAccessRoute = (roleName, path, routeAccess = {}) => {
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (!normalizedRoleName) return false;
+    if (normalizedRoleName === 'admin') return true;
+
+    const normalizedPath = normalizePath(path);
+
+    // Vacaciones y Gestión de usuarios tienen reglas propias y no admiten
+    // excepciones genéricas desde el editor de permisos por usuario.
+    if (!canManageRouteIndividually(normalizedPath)) {
+        return roleCanAccessRoute(normalizedRoleName, normalizedPath);
+    }
+
+    const override = getUserRouteOverride(routeAccess, normalizedPath);
+
+    if (override?.effect === 'deny') return false;
+    if (override?.effect === 'allow') return true;
+
+    return roleCanAccessRoute(normalizedRoleName, normalizedPath);
+};
+
+export const getFirstAccessibleRoute = (roleName, routeAccess = {}) => {
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (!normalizedRoleName) return null;
+    if (normalizedRoleName === 'admin') return '/';
+
+    const firstAvailable = AVAILABLE_ROUTES.find((route) => (
+        route.fallback !== false
+        && userCanAccessRoute(normalizedRoleName, route.path, routeAccess)
+    ));
+
+    return firstAvailable?.path || '/';
+};
+

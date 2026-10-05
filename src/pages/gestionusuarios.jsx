@@ -6,6 +6,7 @@ import PageShell from '../common/PageShell.jsx';
 import PageHeader from '../common/PageHeader.jsx';
 import ConfirmDialog from '../components/common/ConfirmDialog.jsx';
 import InlineSpinner from '../components/common/InlineSpinner.jsx';
+import { AVAILABLE_ROUTES, normalizeRouteAccessMap, userCanAccessRoute } from '../utils/roleAccessConfig.js';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
@@ -42,6 +43,45 @@ const roles = [
 ];
 
 const jornadas = ['intensiva', 'partida', 'reducida'];
+
+
+const normalizeRouteKey = (path) => {
+    const raw = String(path || '').split('?')[0].split('#')[0].trim();
+    const normalized = raw.length > 1 && raw.endsWith('/') ? raw.slice(0, -1) : raw;
+    return (normalized || '/').toLowerCase();
+};
+
+const routeGroupLabel = (path) => {
+    const normalized = normalizeRouteKey(path);
+
+    if (['/clients', '/agenda', '/notas'].includes(normalized)) return 'Clientes y comercial';
+    if (['/stock', '/equivalencias', '/stock-alerts', '/fichatecnica', '/reservastejido'].includes(normalized)) return 'Productos y almacén';
+    if (['/entradas', '/comprobacionexcel', '/mapas-facturacion', '/mapa-clientes', '/mapa-españa', '/analitica-facturacion', '/intrastat'].includes(normalized)) {
+        return 'Ventas, contabilidad y analítica';
+    }
+    if (normalized.startsWith('/rrhh/') || normalized === '/fichar') return 'Recursos humanos';
+    if (normalized === '/' || normalized === '/gestionusuarios' || normalized === '/perfilusuario') return 'General y administración';
+    return 'Documentos y etiquetas';
+};
+
+const getExactRouteAccessMode = (routeAccess, path) => {
+    const normalizedAccess = normalizeRouteAccessMap(routeAccess);
+    return normalizedAccess[normalizeRouteKey(path)] || 'inherit';
+};
+
+const customRouteAccessCount = (routeAccess) => Object.keys(normalizeRouteAccessMap(routeAccess)).length;
+
+const updateRouteAccessMode = (routeAccess, path, mode) => {
+    const normalizedPath = normalizeRouteKey(path);
+    const next = { ...normalizeRouteAccessMap(routeAccess) };
+    delete next[normalizedPath];
+
+    if (mode === 'allow' || mode === 'deny') {
+        next[normalizedPath] = mode;
+    }
+
+    return next;
+};
 
 const normalizeCodrepresForDisplay = (codrepres) => {
     if (Array.isArray(codrepres)) return codrepres.join(', ');
@@ -192,6 +232,7 @@ function GestionUsuarios() {
             dias_vacaciones_anuales: user.dias_vacaciones_anuales ?? '',
             codrepre: user.codrepre || '',
             codrepres: normalizeCodrepresForDisplay(user.codrepres),
+            route_access: normalizeRouteAccessMap(user.route_access),
         });
         setIsEditModalOpen(true);
     };
@@ -214,6 +255,20 @@ function GestionUsuarios() {
 
     const handleEditUserChange = (field, value) => {
         setEditUser((previous) => ({ ...previous, [field]: value }));
+    };
+
+    const handleEditUserRouteAccessChange = (path, mode) => {
+        setEditUser((previous) => ({
+            ...previous,
+            route_access: updateRouteAccessMode(previous?.route_access, path, mode),
+        }));
+    };
+
+    const handleResetEditUserRouteAccess = () => {
+        setEditUser((previous) => ({
+            ...previous,
+            route_access: {},
+        }));
     };
 
     const buildUserFormData = (userData) => {
@@ -291,6 +346,7 @@ function GestionUsuarios() {
                 dias_vacaciones_anuales: editUser.dias_vacaciones_anuales,
                 codrepre: editUser.codrepre.trim(),
                 codrepres: editUser.codrepres.trim(),
+                route_access: normalizeRouteAccessMap(editUser.route_access),
             };
 
             await apiRequest(`/api/auth/users/${editUser.id}`, {
@@ -437,7 +493,16 @@ function GestionUsuarios() {
                                         </td>
                                         <td>{fullName(user)}</td>
                                         <td>{user.email || '—'}</td>
-                                        <td><span className="cjm-badge">{roleLabel(user.role)}</span></td>
+                                        <td>
+                                            <div className="flex flex-col items-start gap-1.5">
+                                                <span className="cjm-badge">{roleLabel(user.role)}</span>
+                                                {customRouteAccessCount(user.route_access) > 0 && (
+                                                    <span className="cjm-muted text-[11px] font-medium">
+                                                        {customRouteAccessCount(user.route_access)} personalizado{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td>{user.departamento || '—'}</td>
                                         <td>{user.codrepre || '—'}</td>
                                         <td>{normalizeCodrepresForDisplay(user.codrepres) || '—'}</td>
@@ -493,7 +558,14 @@ function GestionUsuarios() {
                                         <p className="cjm-muted truncate text-sm">@{user.username}</p>
                                     </div>
                                 </div>
-                                <span className="cjm-badge shrink-0">{roleLabel(user.role)}</span>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                    <span className="cjm-badge">{roleLabel(user.role)}</span>
+                                    {customRouteAccessCount(user.route_access) > 0 && (
+                                        <span className="cjm-muted text-[10px] font-medium">
+                                            {customRouteAccessCount(user.route_access)} personalizado{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-4 grid grid-cols-1 gap-2 text-sm">
@@ -558,6 +630,8 @@ function GestionUsuarios() {
                     onClose={handleCloseEditModal}
                     onSubmit={handleUpdateUser}
                     onChange={handleEditUserChange}
+                    onRouteAccessChange={handleEditUserRouteAccessChange}
+                    onRouteAccessReset={handleResetEditUserRouteAccess}
                 />
             )}
 
@@ -585,6 +659,8 @@ function UserModal({
     onSubmit,
     onChange,
     onGeneratePassword,
+    onRouteAccessChange,
+    onRouteAccessReset,
 }) {
     const isCreateMode = mode === 'create';
 
@@ -713,6 +789,22 @@ function UserModal({
                                 </FormField>
                             )}
                         </div>
+
+                        {isCreateMode ? (
+                            <div className="mt-6 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-4">
+                                <p className="text-sm font-semibold app-text">Permisos individuales</p>
+                                <p className="cjm-muted mt-1 text-sm leading-6">
+                                    Primero crea el usuario. Después podrás editarlo y añadir o bloquear rutas concretas sin crear un rol nuevo.
+                                </p>
+                            </div>
+                        ) : (
+                            <RoutePermissionsEditor
+                                role={userData.role}
+                                routeAccess={userData.route_access}
+                                onChange={onRouteAccessChange}
+                                onReset={onRouteAccessReset}
+                            />
+                        )}
                     </div>
 
                     <div className="cjm-modal-footer grid grid-cols-1 gap-2 border-t px-4 py-4 sm:flex sm:justify-end sm:px-6">
@@ -731,6 +823,135 @@ function UserModal({
                 </form>
             </section>
         </div>
+    );
+}
+
+
+function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
+    const [permissionSearch, setPermissionSearch] = useState('');
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    const isAdmin = normalizedRole === 'admin';
+    const customCount = customRouteAccessCount(routeAccess);
+
+    const groupedRoutes = useMemo(() => {
+        const query = permissionSearch.trim().toLowerCase();
+        const filtered = AVAILABLE_ROUTES.filter((route) => {
+            if (route.showInPermissionEditor === false) return false;
+            if (!query) return true;
+            return `${route.label} ${route.path}`.toLowerCase().includes(query);
+        });
+
+        return filtered.reduce((groups, route) => {
+            const group = routeGroupLabel(route.path);
+            if (!groups[group]) groups[group] = [];
+            groups[group].push(route);
+            return groups;
+        }, {});
+    }, [permissionSearch]);
+
+    return (
+        <section className="mt-6 border-t border-[var(--cjm-border)] pt-6" aria-labelledby="route-permissions-title">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p className="cjm-kicker">Permisos individuales</p>
+                    <h3 id="route-permissions-title" className="mt-1 text-base font-semibold app-text sm:text-lg">
+                        Acceso a módulos y rutas
+                    </h3>
+                    <p className="cjm-muted mt-1 max-w-2xl text-sm leading-6">
+                        El rol <strong>{roleLabel(normalizedRole)}</strong> define la base. Aquí solo guardas excepciones para este usuario.
+                    </p>
+                </div>
+
+                <div className="flex w-full flex-col gap-2 sm:max-w-sm">
+                    <label className="block w-full">
+                        <span className="sr-only">Buscar permiso</span>
+                        <span className="relative block">
+                            <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" />
+                            <input
+                                type="search"
+                                value={permissionSearch}
+                                onChange={(event) => setPermissionSearch(event.target.value)}
+                                placeholder="Buscar módulo o ruta"
+                                className="cjm-input min-h-11 rounded-xl py-2.5 pl-10 pr-3"
+                            />
+                        </span>
+                    </label>
+                    {customCount > 0 && !isAdmin && (
+                        <button
+                            type="button"
+                            onClick={onReset}
+                            className="cjm-secondary-button min-h-10 justify-center text-xs"
+                        >
+                            Restaurar permisos del rol ({customCount})
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {isAdmin && (
+                <div className="cjm-alert cjm-alert-success mt-4" role="status">
+                    Los administradores conservan acceso completo. No es necesario crear excepciones individuales.
+                </div>
+            )}
+
+            <div className="mt-5 space-y-5">
+                {Object.entries(groupedRoutes).map(([group, routesInGroup]) => (
+                    <div key={group}>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--cjm-muted)]">{group}</p>
+                        <div className="space-y-2">
+                            {routesInGroup.map((route) => {
+                                const mode = getExactRouteAccessMode(routeAccess, route.path);
+                                const baseAllowed = userCanAccessRoute(normalizedRole, route.path, {});
+                                const effectiveAllowed = userCanAccessRoute(normalizedRole, route.path, routeAccess);
+                                const individuallyManaged = route.individualAccess !== false;
+                                const disabled = isAdmin || !individuallyManaged;
+
+                                let statusLabel = baseAllowed ? 'Heredado · permitido' : 'Heredado · sin acceso';
+                                if (mode === 'allow') statusLabel = 'Permitido manualmente';
+                                if (mode === 'deny') statusLabel = 'Bloqueado manualmente';
+                                if (!individuallyManaged) statusLabel = route.accessNote || 'Gestión específica';
+
+                                return (
+                                    <div
+                                        key={route.path}
+                                        className="grid gap-3 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-3 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-center sm:p-4"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="font-semibold app-text">{route.label}</p>
+                                                <span className={`cjm-badge ${effectiveAllowed ? '' : 'opacity-70'}`}>
+                                                    {statusLabel}
+                                                </span>
+                                            </div>
+                                            <p className="cjm-muted mt-1 break-all font-mono text-[11px] sm:text-xs">{route.path}</p>
+                                        </div>
+
+                                        <select
+                                            value={individuallyManaged ? mode : 'inherit'}
+                                            onChange={(event) => onChange?.(route.path, event.target.value)}
+                                            disabled={disabled}
+                                            className="cjm-input min-h-11 w-full rounded-xl px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            aria-label={`Permiso para ${route.label}`}
+                                        >
+                                            <option value="inherit">Heredar del rol</option>
+                                            <option value="allow">Dar acceso</option>
+                                            <option value="deny">Bloquear acceso</option>
+                                        </select>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+
+                {Object.keys(groupedRoutes).length === 0 && (
+                    <div className="cjm-empty-state py-8">
+                        <p className="font-semibold app-text">No hay rutas que coincidan</p>
+                        <p className="cjm-muted mt-1 text-sm">Prueba con otro término de búsqueda.</p>
+                    </div>
+                )}
+            </div>
+        </section>
     );
 }
 

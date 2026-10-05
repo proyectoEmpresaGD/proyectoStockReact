@@ -4,7 +4,7 @@ import { decodeJwtPayload } from '../utils/jwt';
 import { getFirstAccessibleRoute, userCanAccessRoute } from '../utils/roleAccessConfig';
 
 const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const location = useLocation();
 
     if (!token) {
@@ -12,19 +12,27 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
     }
 
     try {
-        const decoded = decodeJwtPayload(token);
+        const decoded = user || decodeJwtPayload(token);
         const currentRole = decoded.role;
+        const routeAccess = decoded.route_access || {};
         const normalizedRole = String(currentRole || '').trim().toLowerCase();
-        const canAccessCurrentRoute = userCanAccessRoute(normalizedRole, location.pathname);
-        const fallbackRoute = getFirstAccessibleRoute(normalizedRole);
+        const canAccessCurrentRoute = userCanAccessRoute(
+            normalizedRole,
+            location.pathname,
+            routeAccess
+        );
+        const fallbackRoute = getFirstAccessibleRoute(normalizedRole, routeAccess);
         const normalizedAllowedRoles = Array.isArray(allowedRoles)
             ? allowedRoles.map((role) => String(role || '').trim().toLowerCase()).filter(Boolean)
             : [];
 
+        // allowedRoles y requiredRole siguen funcionando como reglas base, pero una
+        // excepción individual explícita puede habilitar la ruta para ese usuario.
         if (
             normalizedAllowedRoles.length > 0
             && normalizedRole !== 'admin'
             && !normalizedAllowedRoles.includes(normalizedRole)
+            && !canAccessCurrentRoute
         ) {
             if (fallbackRoute && fallbackRoute !== location.pathname) {
                 return <Navigate to={fallbackRoute} replace />;
@@ -33,8 +41,12 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
             return <Navigate to="/login" replace />;
         }
 
-        // Verifica si el rol es el adecuado o si es admin
-        if (requiredRole && normalizedRole !== requiredRole && normalizedRole !== 'admin' && !canAccessCurrentRoute) {
+        if (
+            requiredRole
+            && normalizedRole !== String(requiredRole).trim().toLowerCase()
+            && normalizedRole !== 'admin'
+            && !canAccessCurrentRoute
+        ) {
             if (fallbackRoute && fallbackRoute !== location.pathname) {
                 return <Navigate to={fallbackRoute} replace />;
             }

@@ -116,27 +116,31 @@ function Home() {
     };
 
     const shortcutCards = [
-        {
-            title: 'Clientes',
-            eyebrow: 'Área comercial',
-            description: 'Consulta clientes, historial, contactos y seguimiento desde un único lugar.',
-            to: '/clients',
-            icon: <AiOutlineUser size={27} />,
-        },
-        {
-            title: 'Stock',
-            eyebrow: 'Área de almacén',
-            description: 'Revisa disponibilidad, lotes, reservas y movimientos de inventario.',
-            to: '/stock',
-            icon: <AiOutlineStock size={27} />,
-        },
+        ...(userCanAccessRoute(user?.role, '/clients', user?.route_access)
+            ? [{
+                title: 'Clientes',
+                eyebrow: 'Área comercial',
+                description: 'Consulta clientes, historial, contactos y seguimiento desde un único lugar.',
+                to: '/clients',
+                icon: <AiOutlineUser size={27} />,
+            }]
+            : []),
+        ...(userCanAccessRoute(user?.role, '/stock', user?.route_access)
+            ? [{
+                title: 'Stock',
+                eyebrow: 'Área de almacén',
+                description: 'Revisa disponibilidad, lotes, reservas y movimientos de inventario.',
+                to: '/stock',
+                icon: <AiOutlineStock size={27} />,
+            }]
+            : []),
         {
             title: 'Operaciones',
             eyebrow: 'Gestión interna',
             description: 'Accede desde el menú a pedidos, documentos, etiquetas y utilidades.',
             icon: <AiOutlineFile size={27} />,
         },
-        ...(userCanAccessRoute(user?.role, '/rrhh/vacaciones') && canAccessVacations
+        ...(userCanAccessRoute(user?.role, '/rrhh/vacaciones', user?.route_access) && canAccessVacations
             ? [{
                 title: 'Vacaciones',
                 eyebrow: ['admin', 'rrhh'].includes(String(user?.role || '').toLowerCase()) ? 'Recursos Humanos' : 'Mi calendario',

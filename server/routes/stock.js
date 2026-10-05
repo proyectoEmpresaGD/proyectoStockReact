@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { StockController } from '../controllers/stock.js';
-import { requireRoles } from '../middlewares/requireRoles.js';
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createStockRouter = () => {
     const stockRouter = Router();
     const stockController = new StockController();
 
-    const requirePurchasingRole = requireRoles('compras');
+    const requirePurchasingRole = requireRouteAccess('/stock-alerts', 'compras');
 
     stockRouter.get('/control-stock/filters', requirePurchasingRole, stockController.getControlStockFilters.bind(stockController));
     stockRouter.get('/control-stock', requirePurchasingRole, stockController.getControlStock.bind(stockController));

@@ -1,6 +1,7 @@
 import { AgendaModel } from '../models/Postgres/agenda.js';
 import { ClienteModel } from '../models/Postgres/clients.js';
 import { UserModel } from '../models/Postgres/usuarios.js';
+import { userHasAppRouteAccess } from '../utils/routeAccess.js';
 import {
     createVisitSchema,
     createCompletedVisitSchema,
@@ -12,7 +13,7 @@ import {
     validate,
 } from '../schemas/agenda.js';
 
-const ALLOWED_ROLES = new Set(['admin', 'comercial', 'administracion']);
+const AGENDA_BASE_ROLES = ['comercial', 'administracion'];
 
 const splitList = (value) => {
     if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -32,8 +33,7 @@ const normalizeLegacyBody = (body = {}, params = {}, partial = false) => {
 };
 
 function ensureAgendaRole(req, res) {
-    const role = String(req.user?.role || '').trim().toLowerCase();
-    if (ALLOWED_ROLES.has(role)) return true;
+    if (userHasAppRouteAccess(req.user, '/agenda', AGENDA_BASE_ROLES)) return true;
     res.status(403).json({ error: 'No tienes permisos para utilizar la agenda comercial' });
     return false;
 }
@@ -89,7 +89,9 @@ export class AgendaController {
         try {
             const role = String(req.user?.role || '').trim().toLowerCase();
             const users = role === 'admin'
-                ? (await UserModel.getAllUsers()).filter((item) => ALLOWED_ROLES.has(String(item.role || '').trim().toLowerCase()))
+                ? (await UserModel.getAllUsers()).filter((item) => (
+                    userHasAppRouteAccess(item, '/agenda', AGENDA_BASE_ROLES)
+                ))
                 : await UserModel.getCommercialUsers();
             const current = {
                 id: req.user.id,

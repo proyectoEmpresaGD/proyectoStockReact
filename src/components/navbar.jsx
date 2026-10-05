@@ -36,8 +36,6 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuthContext();
     const { canAccess: canAccessVacations } = useVacationModuleAccess();
-    const isDecoAndYouUser =
-        String(user?.username || '').trim().toUpperCase() === 'DECOANDYOU';
     const toggleDropdown = (section) => {
         setDropdownOpen((prev) => (prev === section ? '' : section));
         setSubDropdownOpen('');
@@ -62,32 +60,19 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
 
     const filterLinksByRole = (links) => {
         const role = String(user?.role || '').trim().toLowerCase();
-        const username = String(user?.username || '').trim().toUpperCase();
-
         return links.filter((link) => {
             if (link.external) return true;
             if (!role) return false;
             if (link.requiresVacationAccess && !canAccessVacations) return false;
 
-            const hiddenForUsers = Array.isArray(link.hiddenForUsers)
-                ? link.hiddenForUsers.map((item) => String(item).trim().toUpperCase())
-                : [];
-
-            if (hiddenForUsers.includes(username)) {
-                return false;
+            // Los elementos agrupadores (sin ruta propia) conservan la lógica visual
+            // histórica. Para enlaces reales, la fuente de verdad es el acceso efectivo
+            // calculado a partir del rol + excepciones individuales.
+            if (typeof link.to !== 'string') {
+                return roleMatchesStaticRoles(role, link.roles);
             }
 
-            const linkRoles = Array.isArray(link.roles)
-                ? link.roles.map((linkRole) => String(linkRole).trim().toLowerCase())
-                : null;
-
-            const hasStaticRole = roleMatchesStaticRoles(role, linkRoles);
-            const hasDynamicRouteAccess =
-                typeof link.to === 'string' && userCanAccessRoute(role, link.to);
-
-            if (link.strictRoles) return hasStaticRole;
-
-            return hasStaticRole || hasDynamicRouteAccess;
+            return userCanAccessRoute(role, link.to, user?.route_access);
         });
     };
 
@@ -126,14 +111,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                         label: 'Agenda comercial',
                         icon: <FaRegCalendarAlt className="mr-3 text-lg" />,
                         roles: ['admin', 'comercial', 'administracion'],
-                        hiddenForUsers: ['DECOANDYOU'],
                     },
                     {
                         to: '/notas',
                         label: 'Notas y seguimientos',
                         icon: <FaRegStickyNote className="mr-3 text-lg" />,
                         roles: ['admin', 'comercial', 'administracion'],
-                        hiddenForUsers: ['DECOANDYOU'],
                     }
                 ]
             },
@@ -163,7 +146,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
                     { to: '/fichaTecnica', label: 'Ficha técnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
-                    { to: '/stock-alerts', label: 'Compras y control de stock', icon: <FaShoppingCart className="mr-3 text-lg" />, roles: ['admin', 'compras'], strictRoles: true },
+                    { to: '/stock-alerts', label: 'Compras y control de stock', icon: <FaShoppingCart className="mr-3 text-lg" />, roles: ['admin', 'compras'] },
                     {
                         to: '/etiquetas-lotes',
                         label: 'Etiquetas por lote',
@@ -341,18 +324,23 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
 
                             if (!role) return null;
 
-                            const canAccessSection =
-                                roleMatchesStaticRoles(role, section.roles);
-
-                            if (!canAccessSection) return null;
-
                             const links = Array.isArray(section.links) ? section.links : [];
                             const roleFiltered = filterLinksByRole(links);
 
+                            const accessibleDocumentGroups = section.dropdown === 'documentos'
+                                ? roleFiltered
+                                    .map((group) => {
+                                        if (!group.subheader) return group;
+                                        const sublinks = filterLinksByRole(Array.isArray(group.sublinks) ? group.sublinks : []);
+                                        return sublinks.length > 0 ? { ...group, sublinks } : null;
+                                    })
+                                    .filter(Boolean)
+                                : roleFiltered;
+
                             const visibleLinks =
                                 section.dropdown === 'documentos'
-                                    ? filterDocumentosBySearch(roleFiltered)
-                                    : roleFiltered.filter((l) => matchesSearch(l.label));
+                                    ? filterDocumentosBySearch(accessibleDocumentGroups)
+                                    : accessibleDocumentGroups.filter((l) => matchesSearch(l.label));
 
                             if (visibleLinks.length === 0) return null;
 

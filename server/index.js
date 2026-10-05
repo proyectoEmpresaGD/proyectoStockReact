@@ -29,6 +29,7 @@ import { createReservasRouter } from "./routes/reservas.js";
 import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
 import { createJornadaRouter } from "./routes/jornada.js";
 import { ensureJornadaSchema } from "./services/jornadaMigrations.js";
+import { ensureUserAccessSchema } from "./services/userAccessMigrations.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -83,6 +84,15 @@ app.get("/api/health", (req, res) => {
 
 // Public routes
 app.use("/api/auth", authRouter);
+
+// Los permisos individuales por ruta se guardan en usuarios.route_access.
+// La migración es aditiva y no cambia el comportamiento de ningún usuario existente.
+try {
+  await ensureUserAccessSchema(pool);
+  console.log("✅ Permisos por usuario: esquema preparado.");
+} catch (error) {
+  console.error("❌ Permisos por usuario: no se pudo preparar el esquema:", error);
+}
 
 // Jornada necesita su esquema antes de atender peticiones.
 // Se intenta preparar en el arranque y el propio router vuelve a comprobarlo
