@@ -1483,6 +1483,7 @@ export class IntrastatModel {
         return map;
     }
 
+
     static async getFacturasCompraConIvaNoPermitidoByList({
         facturasList,
         codigosPermitidos,
