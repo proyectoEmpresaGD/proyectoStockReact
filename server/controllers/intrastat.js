@@ -1682,6 +1682,29 @@ export class IntrastatController {
                 }
             }
 
+            const resultadoFiltroMesVentas =
+                await this.filtrarFacturasFueraDeMes({
+                    rows,
+                    facturasMap,
+                    facturasList,
+                    mesIntrastat,
+                    tipo: 'ventas',
+
+                    getRowFacturaKey:
+                        row =>
+                            normalizeFacturaKey(
+                                row[
+                                FACTURA_KEY
+                                ]
+                            ),
+                });
+
+            rows =
+                resultadoFiltroMesVentas.rows;
+
+            facturasList =
+                resultadoFiltroMesVentas.facturasList;
+
             /*
              * Eliminación de facturas
              * con IVA no permitido.
