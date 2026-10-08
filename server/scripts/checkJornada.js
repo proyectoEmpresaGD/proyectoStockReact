@@ -21,7 +21,6 @@ const REQUIRED_MIGRATIONS = [
     '002_jornada_v2.sql',
     '003_jornada_v3_inspeccion.sql',
     '004_jornada_v4_asignaciones.sql',
-    '005_jornada_v4_2_1_repair_asignaciones.sql',
 ];
 const REQUIRED_TRIGGERS = [
     'jornada_eventos_no_update',
@@ -63,7 +62,7 @@ try {
         const applied = new Set(migrationResult.rows.map((row) => row.filename));
         const missing = REQUIRED_MIGRATIONS.filter((name) => !applied.has(name));
         if (missing.length) fail(`Migraciones no registradas: ${missing.join(', ')}`);
-        else pass('Migraciones 001–005 registradas.');
+        else pass('Migraciones 001–004 registradas.');
     }
 
     const assignmentColumnsResult = await pool.query(

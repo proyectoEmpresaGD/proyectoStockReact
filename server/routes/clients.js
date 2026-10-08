@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { ClienteController } from '../controllers/clients.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js'; // Middleware de autenticación
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createClienteRouter = () => {
     const clienteRouter = Router();
     const clienteController = new ClienteController();
+    const requireClientRouteAccess = requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou');
 
     clienteRouter.get('/mapa/resumen-paises', authMiddleware, (req, res, next) => {
         req.requiredRole = 'comercial';
@@ -41,6 +43,9 @@ export const createClienteRouter = () => {
         req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
         next();
     }, clienteController.getBillingHistory.bind(clienteController));
+
+    // Comprobación global y limitada para evitar visitas a clientes asignados a otra cartera.
+    clienteRouter.get('/check-existing', authMiddleware, requireClientRouteAccess, clienteController.checkExisting.bind(clienteController));
 
     // Rutas para operaciones específicas de clientes
     clienteRouter.get('/search', authMiddleware, (req, res, next) => {

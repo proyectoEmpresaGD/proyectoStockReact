@@ -6,6 +6,9 @@ dotenv.config();
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+    connectionTimeoutMillis: 10000,
 });
 
 const buildNormalizedClientSearch = (fieldName) => `
@@ -262,6 +265,142 @@ export class ClienteModel {
         }
     }
 
+    static async checkExisting({ query, localidad = '', limit = 8 }) {
+        const normalizeWords = (value = '') =>
+            value
+                .toString()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim()
+                .replace(/\s+/g, ' ');
+
+        const normalizedWords = normalizeWords(query);
+        const normalizedCompact = normalizeClientSearchTerm(query).toUpperCase();
+        const normalizedLocalidad = normalizeWords(localidad);
+        const safeLimit = Math.min(Math.max(Number(limit) || 8, 1), 12);
+
+        if (normalizedCompact.length < 3) {
+            return [];
+        }
+
+        // Para la búsqueda global evitamos regexp_replace + translate sobre cuatro
+        // columnas a la vez. Esa consulta era innecesariamente costosa y, con una
+        // conexión remota, podía acabar con la sesión cerrada por el servidor.
+        const nameExpression = `
+            translate(
+                lower(COALESCE(razclien::text, '')),
+                'áàäâãåéèëêíìïîóòöôõúùüûñç',
+                'aaaaaaeeeeiiiiooooouuuunc'
+            )
+        `;
+        const localityExpression = `
+            translate(
+                lower(COALESCE(localidad::text, '')),
+                'áàäâãåéèëêíìïîóòöôõúùüûñç',
+                'aaaaaaeeeeiiiiooooouuuunc'
+            )
+        `;
+        const nifExpression = `
+            upper(
+                replace(
+                    replace(
+                        replace(COALESCE(nif::text, ''), ' ', ''),
+                        '-', ''
+                    ),
+                    '.', ''
+                )
+            )
+        `;
+        const codeExpression = `upper(trim(COALESCE(codclien::text, '')))`;
+
+        const params = [normalizedWords, normalizedCompact];
+        let queryText = `
+            SELECT
+                codclien,
+                razclien,
+                localidad,
+                codpais,
+                codrepre,
+                CASE
+                    WHEN ${nifExpression} = $2 OR ${codeExpression} = $2 THEN 0
+                    ELSE 1
+                END AS match_priority
+            FROM clientes
+            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+              AND (
+                    ${nameExpression} LIKE '%' || $1 || '%'
+                 OR ${nifExpression} LIKE '%' || $2 || '%'
+                 OR ${codeExpression} LIKE '%' || $2 || '%'
+              )
+        `;
+
+        if (normalizedLocalidad) {
+            params.push(normalizedLocalidad);
+            queryText += ` AND ${localityExpression} LIKE '%' || $${params.length} || '%'`;
+        }
+
+        params.push(safeLimit);
+        queryText += `
+            ORDER BY match_priority ASC, razclien ASC, localidad ASC NULLS LAST
+            LIMIT $${params.length}
+        `;
+
+        const runQuery = () => pool.query(queryText, params);
+        const isTransientConnectionError = (error) => {
+            const code = String(error?.code || '').toUpperCase();
+            const message = String(error?.message || '');
+
+            return ['ECONNRESET', 'EPIPE', '57P01', '57P02', '57P03'].includes(code)
+                || /connection terminated|connection closed|socket hang up/i.test(message);
+        };
+
+        try {
+            const { rows } = await runQuery();
+            return rows;
+        } catch (error) {
+            if (isTransientConnectionError(error)) {
+                console.warn('PostgreSQL cerró la conexión durante checkExisting; reintentando una vez...');
+
+                try {
+                    const { rows } = await runQuery();
+                    return rows;
+                } catch (retryError) {
+                    console.error('Error checking existing clients after retry:', retryError);
+                    throw new Error('Error checking existing clients');
+                }
+            }
+
+            console.error('Error checking existing clients:', error);
+            throw new Error('Error checking existing clients');
+        }
+    }
+
+    static async userCanAccessClient({ targetCodclien, codrepres, codclien }) {
+        if (codrepres === undefined && codclien === undefined) {
+            return true;
+        }
+
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
+            return false;
+        }
+
+        let queryText = `
+            SELECT 1
+            FROM clientes
+            WHERE codclien = $1
+        `;
+        const params = [String(targetCodclien || '').trim()];
+
+        queryText = addCodclienFilter({ queryText, params, codclien });
+        queryText = addCodrepresFilter({ queryText, params, codrepres });
+        queryText += ' LIMIT 1';
+
+        const { rows } = await pool.query(queryText, params);
+        return rows.length > 0;
+    }
+
     static async getBillingHistory(codclien) {
         const queryText = `
             SELECT fecha, importe, dt1, dt2, dt3
@@ -486,18 +625,25 @@ export class ClienteModel {
         return rows[0] || null;
     }
 
-    static async getByProvince({ codprovi }) {
-        try {
-            const { rows } = await pool.query(
-                `
-                    SELECT *
-                    FROM clientes
-                    WHERE codprovi = $1
-                    ORDER BY localidad
-                `,
-                [codprovi]
-            );
+    static async getByProvince({ codprovi, codrepres, codclien }) {
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
+            return [];
+        }
 
+        try {
+            let queryText = `
+                SELECT *
+                FROM clientes
+                WHERE codprovi = $1
+                  AND COALESCE(UPPER(dadobaja), '') <> 'S'
+            `;
+            const params = [codprovi];
+
+            queryText = addCodclienFilter({ queryText, params, codclien });
+            queryText = addCodrepresFilter({ queryText, params, codrepres });
+            queryText += ' ORDER BY localidad';
+
+            const { rows } = await pool.query(queryText, params);
             return rows;
         } catch (error) {
             console.error('Error fetching clients by province:', error);

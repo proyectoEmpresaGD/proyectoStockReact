@@ -1,4 +1,5 @@
 import { ClienteModel } from '../models/Postgres/clients.js';
+import { UserModel } from '../models/Postgres/usuarios.js';
 import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
 
 const COMMERCIAL_ROLE = 'comercial';
@@ -56,6 +57,67 @@ const normalizeUserClientAccess = (user) => {
     };
 };
 
+const normalizeRepresentativeCodes = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => String(item).trim()).filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        return value
+            .replace(/[{}\"]/g, '')
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+
+    return [];
+};
+
+const getCommercialDisplayName = (user) => {
+    const fullName = [user?.nombre, user?.apellido1, user?.apellido2]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' ');
+
+    return fullName || String(user?.username || '').trim() || 'Comercial asignado';
+};
+
+const buildCommercialByRepresentative = (users = []) => {
+    const map = new Map();
+
+    users.forEach((user) => {
+        const codes = [
+            String(user?.codrepre || '').trim(),
+            ...normalizeRepresentativeCodes(user?.codrepres),
+        ].filter(Boolean);
+
+        codes.forEach((code) => {
+            if (!map.has(code)) map.set(code, getCommercialDisplayName(user));
+        });
+    });
+
+    return map;
+};
+
+const ensureClientAccess = async (req, res, codclien) => {
+    const { codclien: allowedClients, codrepres } = normalizeUserClientAccess(req.user);
+    const allowed = await ClienteModel.userCanAccessClient({
+        targetCodclien: codclien,
+        codclien: allowedClients,
+        codrepres,
+    });
+
+    if (!allowed) {
+        res.status(403).json({
+            error: 'CLIENT_NOT_IN_PORTFOLIO',
+            message: 'Este cliente no pertenece a tu cartera comercial.',
+        });
+        return false;
+    }
+
+    return true;
+};
+
 export class ClienteController {
     async getAll(req, res) {
         try {
@@ -89,9 +151,71 @@ export class ClienteController {
         }
     }
 
+    async checkExisting(req, res) {
+        try {
+            const query = String(req.query.query || '').trim();
+            const localidad = String(req.query.localidad || '').trim();
+            const limit = Math.min(Math.max(Number(req.query.limit) || 8, 1), 12);
+
+            const normalizedQuery = query
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9]/g, '');
+
+            if (normalizedQuery.length < 3) {
+                return res.status(400).json({
+                    error: 'SEARCH_TOO_SHORT',
+                    message: 'Escribe al menos 3 caracteres para comprobar el cliente.',
+                });
+            }
+
+            const rows = await ClienteModel.checkExisting({ query, localidad, limit });
+            const access = normalizeUserClientAccess(req.user);
+            const ownClientCodes = new Set(normalizeRepresentativeCodes(access.codclien));
+            const ownRepresentativeCodes = new Set(normalizeRepresentativeCodes(access.codrepres));
+            const isCommercial = String(req.user?.role || '').trim().toLowerCase() === COMMERCIAL_ROLE;
+
+            const commercialUsers = await UserModel.getCommercialUsers();
+            const commercialByRepresentative = buildCommercialByRepresentative(commercialUsers);
+
+            const matches = rows.map((client) => {
+                const representativeCode = String(client.codrepre || '').trim();
+                const isOwnClient = ownClientCodes.has(String(client.codclien || '').trim())
+                    || (representativeCode && ownRepresentativeCodes.has(representativeCode));
+
+                let ownership = 'UNASSIGNED';
+                if (representativeCode) {
+                    ownership = isCommercial && isOwnClient ? 'OWN' : (isCommercial ? 'OTHER' : 'ASSIGNED');
+                } else if (isOwnClient) {
+                    ownership = 'OWN';
+                }
+
+                return {
+                    razclien: client.razclien || 'Cliente sin razón social',
+                    localidad: client.localidad || '',
+                    codpais: client.codpais || '',
+                    ownership,
+                    commercialName: representativeCode
+                        ? (commercialByRepresentative.get(representativeCode) || 'Otro comercial')
+                        : null,
+                    openClientCode: ownership === 'OWN' ? client.codclien : null,
+                };
+            });
+
+            return res.status(200).json({ matches });
+        } catch (error) {
+            console.error('Error checking client ownership:', error);
+            return res.status(500).json({
+                error: 'CLIENT_OWNERSHIP_CHECK_FAILED',
+                message: 'No se ha podido comprobar el cliente.',
+            });
+        }
+    }
+
     async getBillingHistory(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const history = await ClienteModel.getBillingHistory(codclien);
             res.json(history);
         } catch (error) {
@@ -102,6 +226,7 @@ export class ClienteController {
     async getById(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const cliente = await ClienteModel.getById({ codclien });
 
             if (cliente) {
@@ -136,6 +261,7 @@ export class ClienteController {
     async getByCodclien(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const cliente = await ClienteModel.getByCodclien({ codclien });
 
             if (cliente) {
@@ -167,6 +293,7 @@ export class ClienteController {
     async update(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const validationResult = validatePartialCliente(req.body);
 
             if (!validationResult.success) {
@@ -188,6 +315,7 @@ export class ClienteController {
     async delete(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const result = await ClienteModel.delete({ codclien });
 
             if (result) {
@@ -203,7 +331,8 @@ export class ClienteController {
     async getByProvince(req, res) {
         try {
             const { codprovi } = req.params;
-            const clients = await ClienteModel.getByProvince({ codprovi });
+            const { codclien, codrepres } = normalizeUserClientAccess(req.user);
+            const clients = await ClienteModel.getByProvince({ codprovi, codclien, codrepres });
             res.json(clients);
         } catch (error) {
             res.status(500).json({ error: error.message });

@@ -17,7 +17,24 @@ const REQUIRED_TABLES = [
     'jornada_asignaciones',
 ];
 
-const checksum = (text) => crypto.createHash('sha256').update(text).digest('hex');
+const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');
+
+// Las migraciones son históricas e inmutables, pero Git/Windows puede cambiar
+// únicamente los finales de línea (LF <-> CRLF). Ese cambio no altera el SQL y
+// no debe invalidar una migración ya aplicada.
+const normalizeMigrationText = (text = '') => String(text)
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n?/g, '\n');
+
+const migrationChecksums = (text) => {
+    const raw = String(text ?? '');
+    const lf = normalizeMigrationText(raw);
+    const crlf = lf.replace(/\n/g, '\r\n');
+    return new Set([sha256(raw), sha256(lf), sha256(crlf)]);
+};
+
+// Las nuevas migraciones se registran siempre con checksum canónico LF.
+const canonicalChecksum = (text) => sha256(normalizeMigrationText(text));
 
 let readyPromise = null;
 
@@ -45,7 +62,7 @@ const assertRequiredTables = async (client) => {
 
 export const applyJornadaMigrations = async (pool) => {
     if (!pool?.connect) {
-        throw new Error('El pool PostgreSQL no permite conexiones.s Comprueba DATABASE_URL.');
+        throw new Error('El pool PostgreSQL no permite conexiones. Comprueba DATABASE_URL.');
     }
 
     const client = await pool.connect();
@@ -85,14 +102,17 @@ export const applyJornadaMigrations = async (pool) => {
         for (const filename of files) {
             const migrationPath = path.join(migrationsDir, filename);
             const sql = await fs.readFile(migrationPath, 'utf8');
-            const currentChecksum = checksum(sql);
+            const currentChecksum = canonicalChecksum(sql);
             const existing = await client.query(
                 'SELECT checksum FROM jornada_schema_migrations WHERE filename = $1',
                 [filename]
             );
 
             if (existing.rows[0]) {
-                if (existing.rows[0].checksum !== currentChecksum) {
+                const storedChecksum = String(existing.rows[0].checksum || '').trim();
+                const acceptedChecksums = migrationChecksums(sql);
+
+                if (!acceptedChecksums.has(storedChecksum)) {
                     const error = new Error(
                         `La migración ${filename} ya fue aplicada con un contenido diferente. ` +
                         'No se modifica una migración histórica; crea una migración nueva.'

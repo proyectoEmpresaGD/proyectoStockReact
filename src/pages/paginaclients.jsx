@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
-import { FiLoader, FiRotateCcw, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { FiLoader, FiRotateCcw, FiShield, FiTrendingUp, FiUsers } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
 import SearchBar from '../components/clientes/SearchBarClients';
 import ClientTable from '../components/clientes/clientstable.jsx';
 import ClientModal from '../components/clientes/modal/ClientModal';
+import ClientOwnershipCheck from '../components/clientes/ClientOwnershipCheck.jsx';
 import PaginationControls from '../components/PaginationControls';
 import PageShell from '../common/PageShell.jsx';
 import PageHeader from '../common/PageHeader.jsx';
@@ -33,6 +34,7 @@ export default function Clients() {
 
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
+    const [ownershipCheckOpen, setOwnershipCheckOpen] = useState(false);
 
     useEffect(() => {
         const country = searchParams.get('codpais');
@@ -165,6 +167,27 @@ export default function Clients() {
         setSearchParams({});
     };
 
+    const openClientDetails = async (clientCode) => {
+        try {
+            const response = await fetch(
+                `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || 'No se ha podido cargar la ficha del cliente.');
+            }
+
+            setSelectedClientDetails(data);
+            setModalVisible(true);
+            setOwnershipCheckOpen(false);
+        } catch (error) {
+            console.error(error);
+            setErrorMessage(error.message || 'No se ha podido cargar la ficha del cliente.');
+        }
+    };
+
     const totalPages = Math.max(1, Math.ceil(totalClients / itemsPerPage));
     const startItem = totalClients ? (currentPage - 1) * itemsPerPage + 1 : 0;
     const endItem = totalClients ? Math.min(startItem + itemsPerPage - 1, totalClients) : 0;
@@ -178,10 +201,20 @@ export default function Clients() {
                 description="Localiza clientes, consulta su actividad y registra visitas con una vista adaptada automáticamente a móvil, tablet y ordenador."
                 icon={FiUsers}
                 actions={(
-                    <span className="cjm-brand-chip px-3 py-2 text-sm font-semibold">
-                        <span className="cjm-brand-dot" aria-hidden="true" />
-                        {totalClients} cliente{totalClients === 1 ? '' : 's'}
-                    </span>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <button
+                            type="button"
+                            onClick={() => setOwnershipCheckOpen(true)}
+                            className="cjm-primary-button min-h-11 rounded-xl px-4 text-sm font-semibold"
+                        >
+                            <FiShield aria-hidden="true" />
+                            Comprobar cliente
+                        </button>
+                        <span className="cjm-brand-chip px-3 py-2 text-sm font-semibold">
+                            <span className="cjm-brand-dot" aria-hidden="true" />
+                            {totalClients} cliente{totalClients === 1 ? '' : 's'}
+                        </span>
+                    </div>
                 )}
             />
 
@@ -308,25 +341,7 @@ export default function Clients() {
                                     : billing <= 5000 ? 'bg-emerald-500'
                                         : 'bg-[#6D8DB3]'
                         )}
-                        handleClientClick={async (clientCode) => {
-                            try {
-                                const response = await fetch(
-                                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
-                                    { headers: { Authorization: `Bearer ${token}` } }
-                                );
-
-                                if (!response.ok) {
-                                    throw new Error('No se ha podido cargar la ficha del cliente.');
-                                }
-
-                                const data = await response.json();
-                                setSelectedClientDetails(data);
-                                setModalVisible(true);
-                            } catch (error) {
-                                console.error(error);
-                                setErrorMessage(error.message || 'No se ha podido cargar la ficha del cliente.');
-                            }
-                        }}
+                        handleClientClick={openClientDetails}
                         setClients={setClients}
                     />
                 )}
@@ -339,6 +354,12 @@ export default function Clients() {
                     />
                 )}
             </section>
+
+            <ClientOwnershipCheck
+                open={ownershipCheckOpen}
+                onClose={() => setOwnershipCheckOpen(false)}
+                onOpenOwnClient={openClientDetails}
+            />
 
             {modalVisible && (
                 <ClientModal
