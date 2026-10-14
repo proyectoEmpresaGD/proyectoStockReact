@@ -34,8 +34,21 @@ const getFromCache = (key) => {
     return row.value;
 };
 
+const MAX_CACHE_ENTRIES = 180;
 const setInCache = (key, value) => {
+    // Las combinaciones de filtros (incluido amountMode) generan entradas distintas.
+    // Mantener la caché acotada evita crecimiento de memoria en procesos Node persistentes.
+    responseCache.delete(key);
     responseCache.set(key, { createdAt: Date.now(), value });
+    if (responseCache.size > MAX_CACHE_ENTRIES) {
+        const now = Date.now();
+        for (const [entryKey, entry] of responseCache) {
+            if (now - entry.createdAt > CACHE_TTL_MS) responseCache.delete(entryKey);
+        }
+        while (responseCache.size > MAX_CACHE_ENTRIES) {
+            responseCache.delete(responseCache.keys().next().value);
+        }
+    }
 };
 
 const normalizeArrayInput = (value) => {
@@ -120,6 +133,7 @@ function sanitizeAnalyticsFilters(rawFilters = {}) {
         tipoFactura: normalizeSafeArray(getFilterParam(rawFilters, 'tipoFactura')),
         amountMin: sanitizeNumericFilter(rawFilters.amountMin),
         amountMax: sanitizeNumericFilter(rawFilters.amountMax),
+        amountMode: rawFilters.amountMode === 'total' ? 'total' : 'bruto',
         rectificativas: ALLOWED_RECTIFICATIVAS.has(String(rawFilters.rectificativas || '')) ? String(rawFilters.rectificativas || '') : '',
         compareMode: ALLOWED_COMPARE_MODES.has(String(rawFilters.compareMode || '')) ? String(rawFilters.compareMode) : 'business_day',
         granularity: ALLOWED_GRANULARITIES.has(String(rawFilters.granularity || '')) ? String(rawFilters.granularity) : 'day',
@@ -513,6 +527,12 @@ async function buildContextFilters(rawFilters = {}) {
     const baseExpr = metricExpr(baseCol);
     const ivaExpr = metricExpr(ivaCol);
     const totalExpr = metricExpr(totalCol);
+    // La opción 'total' usa el importe FINAL contabilizado por el ERP.
+    // No se debe volver a sumar IVA/portes: ya están incluidos en imptotal.
+    if (rawFilters.amountMode === 'total' && totalCol === '0') {
+        throw new Error('No existe una columna de importe total (imptotal) en facventa.');
+    }
+    const facturacionExpr = rawFilters.amountMode === 'total' ? totalExpr : brutoExpr;
     const recargoExpr = metricExpr(recargoCol);
     const irpfExpr = metricExpr(irpfCol);
     const portesExpr = metricExpr(portesCol);
@@ -596,12 +616,12 @@ async function buildContextFilters(rawFilters = {}) {
 
     if (Number.isFinite(amountMin)) {
         values.push(amountMin);
-        where.push(`${brutoExpr} >= $${values.length}::numeric`);
+        where.push(`${facturacionExpr} >= $${values.length}::numeric`);
     }
 
     if (Number.isFinite(amountMax)) {
         values.push(amountMax);
-        where.push(`${brutoExpr} <= $${values.length}::numeric`);
+        where.push(`${facturacionExpr} <= $${values.length}::numeric`);
     }
 
     if (rawFilters.rectificativas === 'yes') {
@@ -635,6 +655,7 @@ async function buildContextFilters(rawFilters = {}) {
             tipoFactura: tiposFactura,
             amountMin: Number.isFinite(amountMin) ? amountMin : null,
             amountMax: Number.isFinite(amountMax) ? amountMax : null,
+            amountMode: rawFilters.amountMode,
             rectificativas: rawFilters.rectificativas || null,
             compareYear: rawFilters.compareYear || null,
         },
@@ -687,6 +708,7 @@ async function buildContextFilters(rawFilters = {}) {
             tipoFacturaKeyExpr,
 
             brutoExpr,
+            facturacionExpr,
             baseExpr,
             ivaExpr,
             totalExpr,
@@ -760,13 +782,13 @@ function buildWhereWithoutDate(ctx) {
 
     if (Number.isFinite(ctx.filters.amountMin)) {
         values.push(ctx.filters.amountMin);
-        noDate.push(`${ctx.expressions.brutoExpr} >= $${next}::numeric`);
+        noDate.push(`${ctx.expressions.facturacionExpr} >= $${next}::numeric`);
         next += 1;
     }
 
     if (Number.isFinite(ctx.filters.amountMax)) {
         values.push(ctx.filters.amountMax);
-        noDate.push(`${ctx.expressions.brutoExpr} <= $${next}::numeric`);
+        noDate.push(`${ctx.expressions.facturacionExpr} <= $${next}::numeric`);
         next += 1;
     }
 
@@ -1186,7 +1208,8 @@ export class AnalyticsModel {
             clienteCol,
             razentreCol,
             rectCond,
-            brutoExpr,
+            facturacionExpr,
+            brutoExpr, // base original para el margen, no el total con IVA
             ivaExpr,
             totalExpr,
             recargoExpr,
@@ -1205,9 +1228,9 @@ export class AnalyticsModel {
 
         const summaryQ = `
             SELECT
-                SUM(${brutoExpr}) AS ventas_totales,
+                SUM(${facturacionExpr}) AS ventas_totales,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio,
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio,
 
                 -- secundarios
                 SUM(${ivaExpr}) AS iva_total,
@@ -1218,9 +1241,9 @@ export class AnalyticsModel {
                 SUM(${metricExpr(comisionCol)}) AS comisiones_totales,
 
                 COUNT(*) FILTER (WHERE ${rectCond})::int AS rectificativas_conteo,
-                COALESCE(SUM(${brutoExpr}) FILTER (WHERE ${rectCond}), 0) AS rectificativas_impacto,
-                COALESCE(SUM(${brutoExpr}) FILTER (WHERE NOT ${rectCond}), 0) AS ventas_no_rectificativas,
-                COALESCE(SUM(${brutoExpr}) FILTER (WHERE NOT ${rectCond}), 0) - COALESCE(SUM(${brutoExpr}) FILTER (WHERE ${rectCond}), 0) AS ventas_ajustadas_rectificativas,
+                COALESCE(SUM(${facturacionExpr}) FILTER (WHERE ${rectCond}), 0) AS rectificativas_impacto,
+                COALESCE(SUM(${facturacionExpr}) FILTER (WHERE NOT ${rectCond}), 0) AS ventas_no_rectificativas,
+                COALESCE(SUM(${facturacionExpr}) FILTER (WHERE NOT ${rectCond}), 0) - COALESCE(SUM(${facturacionExpr}) FILTER (WHERE ${rectCond}), 0) AS ventas_ajustadas_rectificativas,
 
                 COUNT(*) FILTER (WHERE ${costeExpr} > 0)::int AS facturas_con_coste,
                 COALESCE(SUM(${costeExpr}) FILTER (WHERE ${costeExpr} > 0), 0) AS coste_total_informado,
@@ -1236,13 +1259,19 @@ export class AnalyticsModel {
             ${ctx.whereSql};
         `;
 
+        // En modo total, "hoy" se calcula en la zona horaria de la empresa (España).
+        // Para el modo anterior se conserva CURRENT_DATE exactamente como estaba.
+        const dayCondition = ctx.filters.amountMode === 'total'
+            ? "(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Madrid')::date"
+            : 'CURRENT_DATE';
+
         const dailyQ = `
             SELECT
-                COALESCE(SUM(${brutoExpr}), 0) AS facturacion_dia_total,
+                COALESCE(SUM(${facturacionExpr}), 0) AS facturacion_dia_total,
                 COALESCE(SUM(${ivaExpr}), 0) AS iva_dia_total,
                 COALESCE(SUM(${totalExpr}), 0) AS imptotal_dia_total
             FROM public.facventa
-            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${fechaCol}::date = CURRENT_DATE;
+            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${fechaCol}::date = ${dayCondition};
         `;
 
         // ✅ previous period en UTC (same length)
@@ -1269,7 +1298,7 @@ export class AnalyticsModel {
             pool.query(dailyQ, noDate.values),
 
             pool.query(
-                `SELECT ${serieKeyExpr} AS serie, SUM(${brutoExpr}) AS total
+                `SELECT ${serieKeyExpr} AS serie, SUM(${facturacionExpr}) AS total
                  FROM public.facventa
                  ${ctx.whereSql}
                  GROUP BY 1
@@ -1293,7 +1322,7 @@ export class AnalyticsModel {
                     `SELECT
                         ${textTrimExpr(clienteCol)} AS cliente,
                         ${razentreCol !== 'NULL' ? `MAX(${razentreKeyExpr})` : 'NULL'} AS razentre,
-                        SUM(${brutoExpr}) AS total
+                        SUM(${facturacionExpr}) AS total
                      FROM public.facventa
                      ${ctx.whereSql}
                      GROUP BY 1
@@ -1304,7 +1333,7 @@ export class AnalyticsModel {
                 : Promise.resolve({ rows: [] }),
 
             pool.query(
-                `SELECT COALESCE(SUM(${previousCtx.expressions.brutoExpr}),0) AS previous_sales
+                `SELECT COALESCE(SUM(${previousCtx.expressions.facturacionExpr}),0) AS previous_sales
                  FROM public.facventa
                  ${previousCtx.whereSql}`,
                 previousCtx.values
@@ -1312,7 +1341,7 @@ export class AnalyticsModel {
 
             compareCtx
                 ? pool.query(
-                    `SELECT COALESCE(SUM(${compareCtx.expressions.brutoExpr}),0) AS compare_sales
+                    `SELECT COALESCE(SUM(${compareCtx.expressions.facturacionExpr}),0) AS compare_sales
                      FROM public.facventa
                      ${compareCtx.whereSql}`,
                     compareCtx.values
@@ -1374,14 +1403,14 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { serieKeyExpr, brutoExpr } = ctx.expressions;
+        const { serieKeyExpr, facturacionExpr } = ctx.expressions;
 
         const q = `
             SELECT
                 ${serieKeyExpr} AS serie,
-                SUM(${brutoExpr}) AS ventas,
+                SUM(${facturacionExpr}) AS ventas,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
             ${ctx.whereSql}
             GROUP BY 1
@@ -1429,19 +1458,19 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { fechaCol, serieKeyExpr, brutoExpr, rectGraphCond } = ctx.expressions;
+        const { fechaCol, serieKeyExpr, facturacionExpr, rectGraphCond } = ctx.expressions;
         const rangeDays = diffDaysInclusive(ctx.filters.from, ctx.filters.to);
         const graphCreditCond = `(${rectGraphCond})`;
 
         // Para gráficas se separa la facturación positiva de los abonos/rectificativas.
-        // total mantiene el SUM(impbruto) original para no alterar la métrica base.
+        // total utiliza la métrica elegida (impbruto o imptotal).
         // ventas_positivas pinta la línea positiva; abonos_negativos pinta la línea bajo cero.
         const movementSelect = `
-              SUM(${brutoExpr}) AS total,
-              SUM(CASE WHEN ${graphCreditCond} THEN 0 ELSE GREATEST(${brutoExpr}, 0) END) AS ventas_positivas,
-              SUM(CASE WHEN ${graphCreditCond} THEN ${brutoExpr} ELSE 0 END) AS abonos,
-              -SUM(CASE WHEN ${graphCreditCond} THEN ABS(${brutoExpr}) ELSE 0 END) AS abonos_negativos,
-              SUM(CASE WHEN ${graphCreditCond} THEN -ABS(${brutoExpr}) ELSE GREATEST(${brutoExpr}, 0) END) AS neto
+              SUM(${facturacionExpr}) AS total,
+              SUM(CASE WHEN ${graphCreditCond} THEN 0 ELSE GREATEST(${facturacionExpr}, 0) END) AS ventas_positivas,
+              SUM(CASE WHEN ${graphCreditCond} THEN ${facturacionExpr} ELSE 0 END) AS abonos,
+              -SUM(CASE WHEN ${graphCreditCond} THEN ABS(${facturacionExpr}) ELSE 0 END) AS abonos_negativos,
+              SUM(CASE WHEN ${graphCreditCond} THEN -ABS(${facturacionExpr}) ELSE GREATEST(${facturacionExpr}, 0) END) AS neto
         `;
 
         const movementCoalesceSelect = `
@@ -1483,7 +1512,7 @@ export class AnalyticsModel {
           SELECT
             TO_CHAR(date_trunc('${granularity}', ${fechaCol})::date, 'YYYY-MM-DD') AS period,
             ${serieKeyExpr} AS serie,
-            SUM(${brutoExpr}) AS total
+            SUM(${facturacionExpr}) AS total
           FROM public.facventa
           ${ctx.whereSql}
           GROUP BY 1, 2
@@ -1492,7 +1521,7 @@ export class AnalyticsModel {
 
         const yoyQ = `
           WITH grouped AS (
-            SELECT date_trunc('month', ${fechaCol})::date AS month_key, SUM(${brutoExpr}) AS total
+            SELECT date_trunc('month', ${fechaCol})::date AS month_key, SUM(${facturacionExpr}) AS total
             FROM public.facventa
             ${ctx.whereSql}
             GROUP BY 1
@@ -1510,7 +1539,7 @@ export class AnalyticsModel {
           SELECT
             EXTRACT(ISODOW FROM ${fechaCol})::int AS day_of_week,
             TO_CHAR(date_trunc('month', ${fechaCol})::date, 'YYYY-MM-DD') AS month,
-            SUM(${brutoExpr}) AS total
+            SUM(${facturacionExpr}) AS total
           FROM public.facventa
           ${ctx.whereSql}
           GROUP BY 1, 2
@@ -1527,11 +1556,11 @@ export class AnalyticsModel {
 
         const compareMovementSelect = compareCtx
             ? `
-              SUM(${compareCtx.expressions.brutoExpr}) AS total,
-              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN 0 ELSE GREATEST(${compareCtx.expressions.brutoExpr}, 0) END) AS ventas_positivas,
-              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN ${compareCtx.expressions.brutoExpr} ELSE 0 END) AS abonos,
-              -SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN ABS(${compareCtx.expressions.brutoExpr}) ELSE 0 END) AS abonos_negativos,
-              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN -ABS(${compareCtx.expressions.brutoExpr}) ELSE GREATEST(${compareCtx.expressions.brutoExpr}, 0) END) AS neto
+              SUM(${compareCtx.expressions.facturacionExpr}) AS total,
+              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN 0 ELSE GREATEST(${compareCtx.expressions.facturacionExpr}, 0) END) AS ventas_positivas,
+              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN ${compareCtx.expressions.facturacionExpr} ELSE 0 END) AS abonos,
+              -SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN ABS(${compareCtx.expressions.facturacionExpr}) ELSE 0 END) AS abonos_negativos,
+              SUM(CASE WHEN (${compareCtx.expressions.rectGraphCond}) THEN -ABS(${compareCtx.expressions.facturacionExpr}) ELSE GREATEST(${compareCtx.expressions.facturacionExpr}, 0) END) AS neto
             `
             : '';
 
@@ -1619,7 +1648,7 @@ export class AnalyticsModel {
 
         const {
             serieKeyExpr,
-            brutoExpr,
+            facturacionExpr,
             rectCond,
             businessLineExpr,
             businessLineLabelExpr,
@@ -1635,13 +1664,13 @@ export class AnalyticsModel {
                 ${businessLineExpr} AS linea,
                 ${businessLineLabelExpr} AS label,
                 ${businessLineGroupExpr} AS grupo,
-                SUM(CASE WHEN ${rectCond} THEN 0 ELSE ${brutoExpr} END) AS ventas,
-                SUM(CASE WHEN ${rectCond} THEN ${brutoExpr} ELSE 0 END) AS abonos,
-                SUM(${brutoExpr}) AS neto,
+                SUM(CASE WHEN ${rectCond} THEN 0 ELSE ${facturacionExpr} END) AS ventas,
+                SUM(CASE WHEN ${rectCond} THEN ${facturacionExpr} ELSE 0 END) AS abonos,
+                SUM(${facturacionExpr}) AS neto,
                 COUNT(*)::int AS numero_facturas,
                 SUM(CASE WHEN ${rectCond} THEN 1 ELSE 0 END)::int AS numero_abonos,
                 SUM(CASE WHEN NOT (${rectCond}) THEN 1 ELSE 0 END)::int AS numero_ventas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
             ${baseWhere}
             GROUP BY 1, 2, 3
@@ -1656,9 +1685,9 @@ export class AnalyticsModel {
                 ${serieKeyExpr} AS serie,
                 ${serieLabelExpr} AS serie_label,
                 ${movementTypeExpr} AS movimiento,
-                SUM(${brutoExpr}) AS total,
+                SUM(${facturacionExpr}) AS total,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
             ${baseWhere}
             GROUP BY 1, 2, 3, 4, 5, 6
@@ -1682,9 +1711,9 @@ export class AnalyticsModel {
                     q: `
                         SELECT
                             ${compareCtx.expressions.businessLineExpr} AS linea,
-                            SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN 0 ELSE ${compareCtx.expressions.brutoExpr} END) AS ventas_compare,
-                            SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN ${compareCtx.expressions.brutoExpr} ELSE 0 END) AS abonos_compare,
-                            SUM(${compareCtx.expressions.brutoExpr}) AS neto_compare,
+                            SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN 0 ELSE ${compareCtx.expressions.facturacionExpr} END) AS ventas_compare,
+                            SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN ${compareCtx.expressions.facturacionExpr} ELSE 0 END) AS abonos_compare,
+                            SUM(${compareCtx.expressions.facturacionExpr}) AS neto_compare,
                             COUNT(*)::int AS numero_facturas_compare
                         FROM public.facventa
                         ${compareWhere}
@@ -1787,16 +1816,16 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { serieKeyExpr, brutoExpr, projectCond } = ctx.expressions;
+        const { serieKeyExpr, facturacionExpr, projectCond } = ctx.expressions;
         const groupExpr = `CASE WHEN ${projectCond} THEN '${BUSINESS_UNIT_KEYS.PROJECTS}' ELSE '${BUSINESS_UNIT_KEYS.FABRIC}' END`;
         const baseWhere = ctx.whereSql ? `${ctx.whereSql} AND ${serieKeyExpr} IS NOT NULL` : `WHERE ${serieKeyExpr} IS NOT NULL`;
 
         const currentQ = `
             SELECT
                 ${groupExpr} AS grupo,
-                SUM(${brutoExpr}) AS ventas,
+                SUM(${facturacionExpr}) AS ventas,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
             ${baseWhere}
             GROUP BY 1;
@@ -1806,9 +1835,9 @@ export class AnalyticsModel {
             SELECT
                 ${groupExpr} AS grupo,
                 ${serieKeyExpr} AS serie,
-                SUM(${brutoExpr}) AS ventas,
+                SUM(${facturacionExpr}) AS ventas,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${brutoExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
             ${baseWhere}
             GROUP BY 1, 2
@@ -1834,9 +1863,9 @@ export class AnalyticsModel {
                     q: `
                         SELECT
                             ${compareGroupExpr} AS grupo,
-                            COALESCE(SUM(${compareCtx.expressions.brutoExpr}), 0) AS ventas_compare,
+                            COALESCE(SUM(${compareCtx.expressions.facturacionExpr}), 0) AS ventas_compare,
                             COUNT(*)::int AS numero_facturas_compare,
-                            CASE WHEN COUNT(*) = 0 THEN 0 ELSE COALESCE(SUM(${compareCtx.expressions.brutoExpr}), 0) / COUNT(*) END AS ticket_medio_compare
+                            CASE WHEN COUNT(*) = 0 THEN 0 ELSE COALESCE(SUM(${compareCtx.expressions.facturacionExpr}), 0) / COUNT(*) END AS ticket_medio_compare
                         FROM public.facventa
                         ${compareWhere}
                         GROUP BY 1;
@@ -1937,11 +1966,11 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { serieKeyExpr, clienteCol, razentreCol, brutoExpr, razentreKeyExpr } = ctx.expressions;
+        const { serieKeyExpr, clienteCol, razentreCol, facturacionExpr, razentreKeyExpr } = ctx.expressions;
 
         const [topBySales, topByCount, topClients] = await Promise.all([
             pool.query(
-                `SELECT ${serieKeyExpr} AS serie, SUM(${brutoExpr}) AS total
+                `SELECT ${serieKeyExpr} AS serie, SUM(${facturacionExpr}) AS total
                  FROM public.facventa
                  ${ctx.whereSql}
                  GROUP BY 1
@@ -1963,7 +1992,7 @@ export class AnalyticsModel {
                     `SELECT
                         ${textTrimExpr(clienteCol)} AS cliente,
                         ${razentreCol !== 'NULL' ? `MAX(${razentreKeyExpr})` : 'NULL'} AS razentre,
-                        SUM(${brutoExpr}) AS total
+                        SUM(${facturacionExpr}) AS total
                      FROM public.facventa
                      ${ctx.whereSql}
                      GROUP BY 1
@@ -2024,7 +2053,7 @@ export class AnalyticsModel {
 
         const sortMap = {
             fecha: `${fechaCol} DESC`,
-            total: `${metricExpr(brutoCol)} DESC`,
+            total: `${ctx.expressions.facturacionExpr} DESC`,
             serie: `${serieKeyExpr} ASC`,
         };
         const sort = sortMap[safeFilters.sort] || sortMap.fecha;
@@ -2100,6 +2129,7 @@ export class AnalyticsModel {
                 COALESCE(${baseCol}, 0) AS impbase,
                 COALESCE(${ivaCol}, 0) AS impiva,
                 COALESCE(${totalCol}, 0) AS imptotal,
+                ${ctx.expressions.facturacionExpr} AS importe_visualizado,
 
                 ${estadoSiiCol} AS estadosii,
                 ${errorSiiCol} AS conerroressii,
@@ -2347,7 +2377,7 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { clienteKeyExpr, serieKeyExpr, brutoExpr, fechaCol } = ctx.expressions;
+        const { clienteKeyExpr, serieKeyExpr, facturacionExpr, fechaCol } = ctx.expressions;
         if (fechaCol === 'NULL' || clienteKeyExpr === 'NULL') return {};
 
         const geographyColumn = scope === 'province' ? 'codprovi' : 'codpais';
@@ -2360,7 +2390,7 @@ export class AnalyticsModel {
                 SELECT
                     ${clienteKeyExpr} AS codclien,
                     ${serieKeyExpr} AS serie,
-                    ${brutoExpr} AS importe
+                    ${facturacionExpr} AS importe
                 FROM public.facventa
                 ${ctx.whereSql}
             ),

@@ -1185,7 +1185,8 @@ function countDaysWithSales(points) {
     return (points || []).reduce((acc, p) => acc + (clampFiniteNumber(p?.y, 0) > 0 ? 1 : 0), 0);
 }
 
-function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', excludeNonWorking = true, nonWorkingSet }) {
+function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', excludeNonWorking = true, nonWorkingSet, amountMode = 'bruto' }) {
+    const totalLabel = amountMode === 'total' ? 'Total con IVA y portes' : 'Total antes de impuestos';
     const width = 1100;
     const height = 420;
     const pad = { l: 52, r: 18, t: 18, b: 54 };
@@ -1266,7 +1267,7 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                 <div className="text-xs text-slate-500 tabular-nums">
                     Rango: {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
                     {excludeNonWorking ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días`} ·{' '}
-                    Facturación positiva: {kpiFormat(totalRange, 'money')} · Total antes de impuestos: {kpiFormat(totalRawRange, 'money')} · Días con ventas: {kpiFormat(daysWithSales)}
+                    Facturación positiva: {kpiFormat(totalRange, 'money')} · {totalLabel}: {kpiFormat(totalRawRange, 'money')} · Días con ventas: {kpiFormat(daysWithSales)}
                     {hasAbonos ? ` · Abonos: ${kpiFormat(abonosRange, 'money')}` : ''}
                     {lastNZ ? ` · Último con ventas: ${kpiFormat(lastNZ.y, 'money')}` : ''}
                 </div>
@@ -1330,7 +1331,7 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                     <div className="font-medium">{fmtFull.format(points[hoverIdx].date)}</div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <div className="tabular-nums">Facturación: {kpiFormat(points[hoverIdx].y, 'money')}</div>
-                        <div className="tabular-nums text-slate-500">Total antes de impuestos: {kpiFormat(points[hoverIdx].total, 'money')}</div>
+                        <div className="tabular-nums text-slate-500">{totalLabel}: {kpiFormat(points[hoverIdx].total, 'money')}</div>
                         {hasAbonos ? (
                             <>
                                 <div className="tabular-nums text-red-600">Abonos: {kpiFormat(points[hoverIdx].abonos, 'money')}</div>
@@ -1359,7 +1360,10 @@ function CompareLineChart({
     compareMode = COMPARE_MODES.BUSINESS_DAY,
     excludeNonWorking = true,
     nonWorkingSet,
+    amountMode = 'bruto',
 }) {
+    const totalLabel = amountMode === 'total' ? 'Total con IVA y portes' : 'Total antes de impuestos';
+    const totalBefore = amountMode === 'total' ? 'total con IVA y portes' : 'antes de impuestos';
     const width = 1100;
     const height = 420;
     const pad = { l: 52, r: 18, t: 18, b: 54 };
@@ -1486,7 +1490,7 @@ function CompareLineChart({
                     Modo: {compareModeConfig.shortLabel} ·{' '}
                     {comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días calendario`} ·{' '}
                     Facturación positiva Actual: {kpiFormat(totalCur, 'money')} · {compareLabel}:{' '}
-                    {kpiFormat(totalCmp, 'money')} · Total antes de impuestos: {kpiFormat(totalRawCur, 'money')} / {kpiFormat(totalRawCmp, 'money')} · Días con ventas: {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
+                    {kpiFormat(totalCmp, 'money')} · {totalLabel}: {kpiFormat(totalRawCur, 'money')} / {kpiFormat(totalRawCmp, 'money')} · Días con ventas: {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
                     {hasAbonos ? ` · Abonos: ${kpiFormat(abonosTotalCur, 'money')} / ${kpiFormat(abonosTotalCmp, 'money')}` : ''}
                     {missingCount ? ` · Faltan ${missingCount} ${comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? 'laborables' : 'días'} en ${compareLabel}` : ''}
                 </div>
@@ -1569,7 +1573,7 @@ function CompareLineChart({
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <div className="tabular-nums">Actual facturación: {kpiFormat(pointsCur[hoverIdx]?.y ?? 0, 'money')}</div>
-                        <div className="tabular-nums text-slate-500">Actual antes de impuestos: {kpiFormat(pointsCur[hoverIdx]?.total ?? 0, 'money')}</div>
+                        <div className="tabular-nums text-slate-500">Actual {totalBefore}: {kpiFormat(pointsCur[hoverIdx]?.total ?? 0, 'money')}</div>
                         <div className="tabular-nums text-slate-500">
                             {compareLabel} facturación:{' '}
                             {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.y ?? 0, 'money')}
@@ -1578,7 +1582,7 @@ function CompareLineChart({
                             ) : null}
                         </div>
                         <div className="tabular-nums text-slate-500">
-                            {compareLabel} antes de impuestos:{' '}
+                            {compareLabel} {totalBefore}:{' '}
                             {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.total ?? 0, 'money')}
                         </div>
                         {hasAbonos ? (
@@ -1768,6 +1772,7 @@ function FacturacionAnalyticsPageInner() {
             amountMin: params.get('amountMin') || '',
             amountMax: params.get('amountMax') || '',
             rectificativas: params.get('rectificativas') || '',
+            amountMode: params.get('amountMode') === 'total' ? 'total' : 'bruto',
             granularity: params.get('granularity') || 'day',
             compareMode: getCompareModeConfig(params.get('compareMode') || COMPARE_MODES.BUSINESS_DAY).key,
             compareYear,
@@ -1882,6 +1887,7 @@ function FacturacionAnalyticsPageInner() {
     ]);
 
     const reqId = useRef(0);
+    const invoicesReqId = useRef(0);
     const retryTick = useRef(0);
 
     const forceRetry = () => {
@@ -1935,6 +1941,7 @@ function FacturacionAnalyticsPageInner() {
         filters.amountMin,
         filters.amountMax,
         filters.rectificativas,
+        filters.amountMode,
         filters.granularity,
         filters.compareMode,
         filters.compareYear,
@@ -2056,10 +2063,12 @@ function FacturacionAnalyticsPageInner() {
         if (!isValidISODateString(filters.from) || !isValidISODateString(filters.to)) return;
 
         const controller = new AbortController();
+        const myInvoicesReq = ++invoicesReqId.current;
 
         analyticsClient
             .getInvoices(filters, { signal: controller.signal })
             .then((invoicesRaw) => {
+                if (myInvoicesReq !== invoicesReqId.current) return;
                 const invoices =
                     invoicesRaw && typeof invoicesRaw === 'object'
                         ? {
@@ -2073,7 +2082,7 @@ function FacturacionAnalyticsPageInner() {
                 setData((current) => ({ ...current, invoices }));
             })
             .catch((error) => {
-                if (isAbortError(error)) return;
+                if (isAbortError(error) || myInvoicesReq !== invoicesReqId.current) return;
                 console.error('Analytics request error (getInvoices):', error);
                 setReqState((s) => {
                     if (s.error) return s;
@@ -2149,6 +2158,15 @@ function FacturacionAnalyticsPageInner() {
         setFilters((f) => ({ ...f, from: fromISO, to: toISO, page: 1 }));
     };
 
+    const goToTodaySpain = () => {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date());
+        const getPart = (type) => parts.find((item) => item.type === type)?.value;
+        const today = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+        commitDates(today, today);
+    };
+
     const goToYearSameRange = (year) => {
         const shifted = shiftRangeToYear(filters.from, filters.to, year);
         setDateError(null);
@@ -2198,6 +2216,30 @@ function FacturacionAnalyticsPageInner() {
         a.download = 'facturas_filtradas.csv';
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
+    };
+
+    // El selector cambia la métrica de todas las consultas de facturación.
+    const showInvoiceTotal = filters.amountMode === 'total';
+    const amountLabel = showInvoiceTotal ? 'importe total con IVA y portes' : 'importe antes de IVA y portes';
+    const amountHelp = showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.impbruto;
+    const toggleAmountMode = () => {
+        // Invalida respuestas anteriores de ambos endpoints ANTES de cambiar el filtro.
+        // Un fetch anterior no debe sobrescribir datos del nuevo modo.
+        reqId.current += 1;
+        invoicesReqId.current += 1;
+        setReqState((state) => ({ ...state, error: null, loading: true }));
+        setSelectedInvoice(null);
+        // Evita ver cifras del modo anterior con el rótulo del modo nuevo mientras carga.
+        setData((current) => ({
+            ...current,
+            summary: null,
+            series: [],
+            timeseries: { series: [], compare_series: [], series_by_serie: [], yoy_mom: [], heatmap: [] },
+            businessUnits: null,
+            businessLines: null,
+            invoices: { ...current.invoices, rows: [], total: 0 },
+        }));
+        setFilters((f) => ({ ...f, amountMode: f.amountMode === 'total' ? 'bruto' : 'total', page: 1 }));
     };
 
     const summary = data.summary;
@@ -2529,7 +2571,7 @@ function FacturacionAnalyticsPageInner() {
                                 </div>
                                 <h1 className="mt-4 text-3xl font-semibold tracking-tight app-text md:text-4xl">Facturación</h1>
                                 <p className="cjm-muted mt-2 text-sm md:text-base">
-                                    Resumen comercial y fiscal con foco en ventas netas, comparativa por periodos y separación visual entre <b>Tejido</b> y <b>Proyectos</b>.
+                                    Resumen comercial y fiscal con foco en {showInvoiceTotal ? 'facturación final con IVA y portes' : 'ventas netas'}, comparativa por periodos y separación visual entre <b>Tejido</b> y <b>Proyectos</b>.
                                 </p>
                                 <div className="facturacion-help-guide mt-3">
                                     <HelpTooltip text="Los símbolos de ayuda explican cada concepto con palabras sencillas. Puedes pasar el ratón, enfocarlos con el teclado o tocarlos en móvil." label="Cómo usar las ayudas" />
@@ -2546,8 +2588,8 @@ function FacturacionAnalyticsPageInner() {
                                         días laborables
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1">
-                                        Ventas sin impuestos · impbruto
-                                        <HelpTooltip text={ANALYTICS_HELP.impbruto} label="Qué significa impbruto" />
+                                        {showInvoiceTotal ? 'Total con IVA y portes · imptotal' : 'Ventas sin IVA ni portes · impbruto'}
+                                        <HelpTooltip text={amountHelp} label="Cómo se calcula el importe mostrado" />
                                     </span>
                                     {reqState.lastOkAt ? <span className="rounded-full bg-slate-100 px-3 py-1 tabular-nums">Última respuesta: {reqState.lastOkAt}</span> : null}
                                 </div>
@@ -2571,7 +2613,29 @@ function FacturacionAnalyticsPageInner() {
                             </div>
 
                             <div className="flex flex-col sm:flex-row xl:flex-col gap-2 xl:min-w-[260px]">
+                                <button
+                                    type="button"
+                                    onClick={toggleAmountMode}
+                                    aria-pressed={showInvoiceTotal}
+                                    title={showInvoiceTotal ? 'Volver al importe original de ventas sin IVA ni portes (impbruto)' : 'Mostrar el total final de las facturas con impuestos y portes (imptotal)'}
+                                    className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showInvoiceTotal ? 'border-blue-700 bg-blue-700 text-white hover:bg-blue-800' : 'border-slate-300 bg-white text-slate-800 hover:bg-blue-50'}`}
+                                >
+                                    <span className="flex items-center justify-between gap-3">
+                                        <span>{showInvoiceTotal ? 'Total con IVA y portes' : 'Mostrar total con IVA y portes'}</span>
+                                        <span aria-hidden="true" className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${showInvoiceTotal ? 'bg-blue-300' : 'bg-slate-300'}`}>
+                                            <span className={`absolute h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-transform ${showInvoiceTotal ? 'translate-x-6' : 'translate-x-1'}`} style={{ width: 18, height: 18 }} />
+                                        </span>
+                                    </span>
+                                    <span className={`mt-1 block text-xs font-normal ${showInvoiceTotal ? 'text-blue-100' : 'text-slate-500'}`}>
+                                        {showInvoiceTotal ? 'Activado · campo imptotal' : 'Desactivado · campo impbruto'}
+                                    </span>
+                                </button>
                                 <div className="flex gap-2 flex-wrap xl:justify-end">
+                                    {showInvoiceTotal ? (
+                                        <button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" onClick={goToTodaySpain} title="Mostrar exclusivamente las facturas de hoy en España">
+                                            Hoy
+                                        </button>
+                                    ) : null}
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(7)}>
                                         7 días
                                     </button>
@@ -2636,7 +2700,9 @@ function FacturacionAnalyticsPageInner() {
                                     <span className="font-medium">Mensaje:</span> {reqState.error.message}
                                 </div>
                                 <div className="text-xs text-slate-600 mt-2">
-                                    Si este error es de una extensión del navegador (“content script”), prueba en incógnito.
+                                    {reqState.error.raw instanceof TypeError && reqState.error.message === 'Failed to fetch'
+                                        ? 'La API no responde. Comprueba que el proceso Node del servidor esté ejecutándose en el puerto configurado (habitualmente 1234). El selector no puede acceder a los importes hasta que la conexión vuelva a estar disponible.'
+                                        : 'Si este error procede de una extensión del navegador, comprueba la aplicación sin esa extensión.'}
                                 </div>
                             </div>
                             <button className="px-3 py-2 rounded-xl border border-rose-200 bg-white text-sm hover:bg-rose-100" onClick={forceRetry}>
@@ -2986,7 +3052,14 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'resumen' && summary && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <KpiTile label="Ventas netas" value={kpiFormat(ventasBruto, 'money')} hint={ANALYTICS_HELP.ventasNetas} />
+                            <KpiTile label={showInvoiceTotal ? "Facturación total" : "Ventas netas"} value={kpiFormat(ventasBruto, 'money')} hint={showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.ventasNetas} />
+                            {showInvoiceTotal ? (
+                                <KpiTile
+                                    label="Facturación de hoy (total)"
+                                    value={kpiFormat(summary.facturacion_dia_total || 0, 'money')}
+                                    hint="Total final (campo imptotal) de las facturas fechadas hoy, aplicando los filtros comerciales activos salvo el rango de fechas. No representa cobros."
+                                />
+                            ) : null}
                             <KpiTile label="Facturas" value={kpiFormat(facturas)} hint="Número de facturas emitidas." />
                             <KpiTile
                                 label="Pedidos"
@@ -3006,7 +3079,7 @@ function FacturacionAnalyticsPageInner() {
                                 value={compareYear ? pctFormat(summary.variacion_vs_compare) : 'Sin activar'}
                                 hint={
                                     compareYear
-                                        ? `Comparado con el mismo rango en ${compareYear} usando el importe antes de impuestos.`
+                                        ? `Comparado con el mismo rango en ${compareYear} usando el ${amountLabel}.`
                                         : 'La variación porcentual se muestra solo cuando activas la comparación. Así evitamos confundirla con el periodo anterior.'
                                 }
                                 trend={compareYear ? compareTrend : { kind: 'flat', text: '—' }}
@@ -3029,15 +3102,16 @@ function FacturacionAnalyticsPageInner() {
                             <div className="xl:col-span-2">
                                 <Card
                                     title="Evolución de ventas"
-                                    help={ANALYTICS_HELP.impbruto}
+                                    help={amountHelp}
                                     subtitle={
                                         compareYear
-                                            ? `Actual vs ${compareYear} · diario · importe antes de impuestos · sin no laborables`
-                                            : 'Diario · importe antes de impuestos · sin no laborables'
+                                            ? `Actual vs ${compareYear} · diario · ${amountLabel} · sin no laborables`
+                                            : `Diario · ${amountLabel} · sin no laborables`
                                     }
                                 >
                                     {compareYear ? (
                                         <CompareLineChart
+                                        amountMode={filters.amountMode}
                                             currentRows={data.timeseries.series || []}
                                             compareRows={data.timeseries.compare_series || []}
                                             compareLabel={String(compareYear)}
@@ -3049,6 +3123,7 @@ function FacturacionAnalyticsPageInner() {
                                         />
                                     ) : (
                                         <SimpleLineChart
+                                            amountMode={filters.amountMode}
                                             rows={data.timeseries.series || []}
                                             fromISO={filters.from}
                                             toISO={filters.to}
@@ -3144,7 +3219,7 @@ function FacturacionAnalyticsPageInner() {
                                 }
                             >
                                 <div className="text-sm text-slate-600">
-                                    Esta sección compara día a día el importe antes de impuestos, alineando los días laborables para que la comparación sea más justa.
+                                    Esta sección compara día a día el {amountLabel}, alineando los días laborables para que la comparación sea más justa.
                                 </div>
                             </Card>
                         ) : (
@@ -3152,7 +3227,7 @@ function FacturacionAnalyticsPageInner() {
                                 <Card
                                     title="Comparación detallada"
                                     help={filters.compareMode === COMPARE_MODES.BUSINESS_DAY ? ANALYTICS_HELP.laborableEquivalente : ANALYTICS_HELP.fechaExacta}
-                                    subtitle={`Actual vs ${compareYear} · Modo: ${getCompareModeConfig(filters.compareMode).label} · importe antes de impuestos`}
+                                    subtitle={`Actual vs ${compareYear} · Modo: ${getCompareModeConfig(filters.compareMode).label} · ${amountLabel}`}
                                     right={
                                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                                             <span className="text-xs text-slate-500">Modo comparación</span>
@@ -3172,6 +3247,7 @@ function FacturacionAnalyticsPageInner() {
                                     }
                                 >
                                     <CompareLineChart
+                                        amountMode={filters.amountMode}
                                         currentRows={data.timeseries.series || []}
                                         compareRows={data.timeseries.compare_series || []}
                                         compareLabel={String(compareYear)}
@@ -3186,12 +3262,12 @@ function FacturacionAnalyticsPageInner() {
 
                                 {compareStats ? (
                                     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
-                                        <KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint={`Importe antes de impuestos del periodo actual, usando el modo ${compareStats.compareModeLabel}.`} />
-                                        <KpiTile label={`Total ${compareYear}`} value={kpiFormat(compareStats.sumCmp, 'money')} hint="Importe antes de impuestos del periodo comparado, alineado según el modo elegido." />
+                                        <KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint={`Cálculo basado en ${amountLabel} del periodo actual, usando el modo ${compareStats.compareModeLabel}.`} />
+                                        <KpiTile label={`Total ${compareYear}`} value={kpiFormat(compareStats.sumCmp, 'money')} hint={`Cálculo basado en ${amountLabel} del periodo comparado, alineado según el modo elegido.`} />
                                         <KpiTile label="Δ €" value={kpiFormat(compareStats.deltaTotal, 'money')} hint={ANALYTICS_HELP.deltaEuro} />
                                         <KpiTile label="Δ %" value={compareStats.deltaTotalPct === null ? '—' : pctFormat(compareStats.deltaTotalPct)} hint={ANALYTICS_HELP.deltaPercent} />
                                         <KpiTile label="Media por punto" value={kpiFormat(compareStats.avgCur, 'money')} hint={ANALYTICS_HELP.mediaPunto} />
-                                        <KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint="Número de días o periodos agrupados cuyo importe antes de impuestos es mayor que cero." />
+                                        <KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint={`Número de días o periodos agrupados cuyo ${amountLabel} es mayor que cero.`} />
                                         <KpiTile
                                             label="Laborables"
                                             value={`${compareStats.actualBusinessDays}/${compareStats.compareBusinessDays}`}
@@ -3391,7 +3467,7 @@ function FacturacionAnalyticsPageInner() {
             SERIES
         ========================= */}
                 {tab === 'series' && (
-                    <Card title="Series" help={ANALYTICS_HELP.serie} subtitle="Ventas antes de impuestos. Proyectos reúne las series que empiezan por H; las series se clasifican además como facturas o abonos.">
+                    <Card title="Series" help={ANALYTICS_HELP.serie} subtitle={`Ventas calculadas por ${amountLabel}. Proyectos reúne las series que empiezan por H; las series se clasifican además como facturas o abonos.`}>
                         <ModernTableShell>
                             <table className="facturacion-data-table w-full text-sm">
                                 <thead className="bg-slate-50 sticky top-0 z-10">
@@ -3435,9 +3511,10 @@ function FacturacionAnalyticsPageInner() {
         ========================= */}
                 {tab === 'tendencias' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        <Card title="Evolución" help={ANALYTICS_HELP.impbruto} subtitle={compareYear ? `Actual vs ${compareYear} — importe antes de impuestos — sin no laborables` : 'Importe antes de impuestos — sin no laborables'}>
+                        <Card title="Evolución" help={amountHelp} subtitle={compareYear ? `Actual vs ${compareYear} — ${amountLabel} — sin no laborables` : `${amountLabel} — sin no laborables`}>
                             {compareYear ? (
                                 <CompareLineChart
+                                            amountMode={filters.amountMode}
                                     currentRows={data.timeseries.series || []}
                                     compareRows={data.timeseries.compare_series || []}
                                     compareLabel={String(compareYear)}
@@ -3449,6 +3526,7 @@ function FacturacionAnalyticsPageInner() {
                                 />
                             ) : (
                                 <SimpleLineChart
+                                            amountMode={filters.amountMode}
                                     rows={data.timeseries.series || []}
                                     fromISO={filters.from}
                                     toISO={filters.to}
@@ -3459,7 +3537,7 @@ function FacturacionAnalyticsPageInner() {
                             )}
                         </Card>
 
-                        <Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle="Mes anterior y mismo periodo del año anterior, sobre el importe antes de impuestos.">
+                        <Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle={`Mes anterior y mismo periodo del año anterior, sobre el ${amountLabel}.`}>
                             <div className="max-h-[360px] overflow-auto text-sm">
                                 {(data.timeseries.yoy_mom || []).map((r) => (
                                     <div key={r.month_key} className="py-2 border-b last:border-b-0">
@@ -3476,7 +3554,7 @@ function FacturacionAnalyticsPageInner() {
                             </div>
                         </Card>
 
-                        <Card title="Top series" help={ANALYTICS_HELP.serie} subtitle="Ordenadas por ventas antes de impuestos.">
+                        <Card title="Top series" help={ANALYTICS_HELP.serie} subtitle={`Ordenadas por el ${amountLabel}.`}>
                             <Ranking title="" rows={data.summary?.top_series_by_sales || []} />
                         </Card>
                     </div>
@@ -3680,8 +3758,8 @@ function FacturacionAnalyticsPageInner() {
                                                 <div className="mt-1 font-semibold app-text tabular-nums">{kpiFormat(r.impbruto ?? 0, 'money')}</div>
                                             </div>
                                             <div className="rounded-xl bg-slate-50 p-3 text-right">
-                                                <div className="cjm-muted text-xs">Total</div>
-                                                <div className="mt-1 font-semibold app-text tabular-nums">{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</div>
+                                                <div className={`text-xs ${showInvoiceTotal ? 'font-semibold text-blue-700' : 'cjm-muted'}`}>Total {showInvoiceTotal ? '· activo' : ''}</div>
+                                                <div className={`mt-1 font-semibold tabular-nums ${showInvoiceTotal ? 'text-blue-700' : 'app-text'}`}>{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</div>
                                             </div>
                                         </div>
                                     </article>
@@ -3740,7 +3818,7 @@ function FacturacionAnalyticsPageInner() {
                                                 <td className="py-3 px-3">{r.codvend ?? '—'}</td>
                                                 <td className="py-3 px-3 tabular-nums text-right font-medium">{kpiFormat(r.impbruto ?? 0, 'money')}</td>
                                                 <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(r.impiva ?? 0, 'money')}</td>
-                                                <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</td>
+                                                <td className={`py-3 px-3 tabular-nums text-right ${showInvoiceTotal ? 'font-semibold text-blue-700' : ''}`}>{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</td>
                                                 <td className="py-3 px-3 text-right">
                                                     <button
                                                         className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium hover:bg-white"
@@ -3793,7 +3871,7 @@ function FacturacionAnalyticsPageInner() {
             CLIENTES
         ========================= */}
                 {tab === 'clientes' && (
-                    <Card title="Clientes" help={ANALYTICS_HELP.pareto} subtitle="Clientes ordenados de mayor a menor facturación antes de impuestos. Se muestra la razón social cuando está disponible.">
+                    <Card title="Clientes" help={ANALYTICS_HELP.pareto} subtitle={`Clientes ordenados de mayor a menor facturación según ${amountLabel}. Se muestra la razón social cuando está disponible.`}>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <Ranking
                                 title="Top clientes"
@@ -3805,8 +3883,8 @@ function FacturacionAnalyticsPageInner() {
                             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
                                 <div className="text-sm font-semibold text-slate-800">Notas</div>
                                 <ul className="text-sm text-slate-600 mt-2 list-disc pl-5 space-y-1">
-                                    <li><HelpLabel help={ANALYTICS_HELP.impbruto}>“Ventas”</HelpLabel> representa el importe antes de impuestos.</li>
-                                    <li>El IVA se muestra como KPI fiscal de apoyo.</li>
+                                    <li><HelpLabel help={amountHelp}>“Ventas”</HelpLabel> representa el {amountLabel}.</li>
+                                    <li>{showInvoiceTotal ? 'El IVA y los portes ya están incluidos en imptotal, sin sumarse por segunda vez.' : 'El IVA se muestra como KPI fiscal de apoyo.'}</li>
                                     <li>Las gráficas y comparaciones se muestran <b>sin no-laborables</b> (festivos oficiales + Montilla 2025/2026 + fines de semana).</li>
                                 </ul>
                             </div>
@@ -3898,7 +3976,7 @@ function FacturacionAnalyticsPageInner() {
                             </Card>
 
                             <div className="lg:col-span-4">
-                                <Card title="Calidad por serie" help={ANALYTICS_HELP.puntuacionDatos} subtitle="Ventas, rectificativas, cobertura de coste y descuadres por serie.">
+                                <Card title="Calidad por serie" help={ANALYTICS_HELP.puntuacionDatos} subtitle="Controles contables según importes originales del ERP (impbruto, impuestos e imptotal), independientes del selector comercial.">
                                     <ModernTableShell>
                                         <table className="facturacion-data-table w-full text-sm">
                                             <thead className="bg-slate-50 sticky top-0 z-10">
