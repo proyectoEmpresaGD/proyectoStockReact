@@ -20,6 +20,7 @@ export default function MapasFacturacionPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [anio, setAnio] = useState(DEFAULT_YEAR);
   const [metric, setMetric] = useState('facturacion_total');
+  const [amountMode, setAmountMode] = useState('bruto');
   const [availableSeries, setAvailableSeries] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState([]);
   const [filtersError, setFiltersError] = useState('');
@@ -90,34 +91,67 @@ export default function MapasFacturacionPage() {
             </div>
           </div>
 
-          <div className="mt-5 inline-flex rounded-2xl border border-white/20 bg-white/10 p-1" role="tablist" aria-label="Tipo de mapa">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex self-start rounded-2xl border border-white/20 bg-white/10 p-1" role="tablist" aria-label="Tipo de mapa">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeView === 'spain'}
+                onClick={() => changeView('spain')}
+                className={`rounded-xl px-5 py-2 text-sm font-semibold transition ${
+                  activeView === 'spain'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-100 hover:bg-white/10'
+                }`}
+              >
+                España
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeView === 'global'}
+                onClick={() => changeView('global')}
+                className={`rounded-xl px-5 py-2 text-sm font-semibold transition ${
+                  activeView === 'global'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-100 hover:bg-white/10'
+                }`}
+              >
+                Global
+              </button>
+            </div>
+
             <button
               type="button"
-              role="tab"
-              aria-selected={activeView === 'spain'}
-              onClick={() => changeView('spain')}
-              className={`rounded-xl px-5 py-2 text-sm font-semibold transition ${
-                activeView === 'spain'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-100 hover:bg-white/10'
+              onClick={() => setAmountMode((mode) => (mode === 'total' ? 'bruto' : 'total'))}
+              aria-pressed={amountMode === 'total'}
+              title={amountMode === 'total'
+                ? 'Volver al importe original sin IVA ni portes (impbruto)'
+                : 'Mostrar el total final con impuestos y portes (imptotal)'}
+              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 sm:w-auto sm:min-w-[270px] ${
+                amountMode === 'total'
+                  ? 'border-blue-300 bg-blue-700 text-white hover:bg-blue-600'
+                  : 'border-white/40 bg-white text-slate-900 hover:bg-blue-50'
               }`}
             >
-              España
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeView === 'global'}
-              onClick={() => changeView('global')}
-              className={`rounded-xl px-5 py-2 text-sm font-semibold transition ${
-                activeView === 'global'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-100 hover:bg-white/10'
-              }`}
-            >
-              Global
+              <span className="flex items-center justify-between gap-3">
+                <span>{amountMode === 'total' ? 'Total con IVA y portes' : 'Mostrar total con IVA y portes'}</span>
+                <span aria-hidden="true" className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${amountMode === 'total' ? 'bg-blue-300' : 'bg-slate-300'}`}>
+                  <span
+                    className={`absolute h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ${amountMode === 'total' ? 'translate-x-6' : 'translate-x-1'}`}
+                  />
+                </span>
+              </span>
+              <span className={`mt-1 block text-xs font-normal ${amountMode === 'total' ? 'text-blue-100' : 'text-slate-500'}`}>
+                {amountMode === 'total' ? 'Activado · imptotal' : 'Desactivado · impbruto'}
+              </span>
             </button>
           </div>
+          <p className="mt-3 text-xs text-blue-100" role="status">
+            {amountMode === 'total'
+              ? 'Los mapas muestran importes finales con IVA y portes, según imptotal del ERP.'
+              : 'Los mapas muestran los importes originales sin IVA ni portes, según impbruto del ERP.'}
+          </p>
         </section>
 
         {filtersError && (
@@ -135,14 +169,18 @@ export default function MapasFacturacionPage() {
         <div role="tabpanel" aria-label={activeView === 'spain' ? 'Mapa de España' : 'Mapa global'}>
           {activeView === 'spain' ? (
             <MapaEspaña
+              key={`spain-${anio}-${amountMode}-${selectedSeries.join(',')}`}
               anio={anio}
+              amountMode={amountMode}
               selectedSeries={selectedSeries}
               metric={metric}
               onMetricChange={setMetric}
             />
           ) : (
             <MapaClientes
+              key={`global-${anio}-${amountMode}-${selectedSeries.join(',')}`}
               anio={anio}
+              amountMode={amountMode}
               selectedSeries={selectedSeries}
               metric={metric}
               onMetricChange={setMetric}

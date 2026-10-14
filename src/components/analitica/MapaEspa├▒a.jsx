@@ -192,6 +192,7 @@ const MapLegend = ({ metric }) => {
 export default function MapaEspaña({
   anio = DEFAULT_YEAR,
   selectedSeries = [],
+  amountMode = "bruto",
   metric = "facturacion_total",
   onMetricChange = () => {},
 }) {
@@ -205,27 +206,47 @@ export default function MapaEspaña({
   const [zoom, setZoom] = useState(12);
   const [tooltip, setTooltip] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const previousYear = String(Number(anio) - 1);
 
+  // La métrica se aplica a ambos años. Cancela consultas anteriores si cambian
+  // el modo, el año o las series, evitando presentar resultados mezclados.
   useEffect(() => {
-    const fetchProvinceData = async () => {
+    const controller = new AbortController();
+    setError("");
+    setLoading(true);
+    setCurrentData({});
+    setPreviousData({});
+
+    const loadData = async () => {
       try {
-        setError("");
-        const common = { scope: "province", series: selectedSeries };
+        const common = { scope: "province", series: selectedSeries, amountMode };
         const [current, previous] = await Promise.all([
-          analyticsClient.getGeography({ ...common, from: `${anio}-01-01`, to: `${anio}-12-31` }),
-          analyticsClient.getGeography({ ...common, from: `${previousYear}-01-01`, to: `${previousYear}-12-31` }),
+          analyticsClient.getGeography(
+            { ...common, from: `${anio}-01-01`, to: `${anio}-12-31` },
+            { signal: controller.signal }
+          ),
+          analyticsClient.getGeography(
+            { ...common, from: `${previousYear}-01-01`, to: `${previousYear}-12-31` },
+            { signal: controller.signal }
+          ),
         ]);
+        if (controller.signal.aborted) return;
         setCurrentData(current || {});
         setPreviousData(previous || {});
       } catch (fetchError) {
-        setError(fetchError.message || "No se pudo cargar el mapa de España");
+        if (controller.signal.aborted) return;
+        setError(fetchError.message || "No se pudieron cargar los datos por provincias");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    fetchProvinceData();
-  }, [anio, previousYear, token, selectedSeries]);
+    if (token) loadData();
+    else setLoading(false);
+    return () => controller.abort();
+  }, [anio, previousYear, token, selectedSeries, amountMode]);
 
   const provinceRows = useMemo(
     () => buildProvinceRows(currentData, previousData),
@@ -353,8 +374,16 @@ export default function MapaEspaña({
         </div>
       )}
 
+      {loading ? (
+        <div role="status" aria-live="polite" className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          Actualizando facturación del mapa según el modo seleccionado…
+        </div>
+      ) : null}
+
+      {!loading && !error && (
+      <>
       <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Facturación total" value={formatCurrency(totals.facturacion)} helper={`Vs ${previousYear}: ${formatPercent(totals.variacion)}`} />
+        <StatCard label={amountMode === "total" ? "Facturación con IVA y portes" : "Facturación sin IVA ni portes"} value={formatCurrency(totals.facturacion)} helper={`Vs ${previousYear}: ${formatPercent(totals.variacion)}`} />
         <StatCard label="Tejido / No Contract" value={formatCurrency(totals.tejido)} helper="Series seleccionadas no Contract" />
         <StatCard label="Contract / Proyectos" value={formatCurrency(totals.contract)} helper="Series H y HH" />
         <StatCard label="Clientes activos" value={formatNumber(totals.clientes)} helper="Clientes con facturas" />
@@ -629,6 +658,8 @@ export default function MapaEspaña({
           </div>
         </aside>
       </div>
+      </>
+      )}
     </div>
   );
 }
