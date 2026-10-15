@@ -31,7 +31,10 @@ const clienteSchema = z.object({
     impriesgo: z.number().optional(),
     portes: z.string().optional(),
     tipportes: z.string().optional(),
-    dadobaja: z.boolean().optional(),
+    dadobaja: z.union([
+        z.boolean().transform((value) => value ? 'S' : 'N'),
+        z.string().trim().toUpperCase().refine((value) => value === 'S' || value === 'N', 'Debe ser S o N'),
+    ]).optional(),
     codctacontab: z.string().optional(),
     codiva: z.string().optional(),
     forenvio: z.string().optional(),
@@ -46,6 +49,8 @@ const clienteSchema = z.object({
     codprovi: z.string().optional(),
     excluirbloqdoccobrosvencidospendientes: z.boolean().optional(),
 });
+
+export const CLIENT_FIELDS = Object.freeze(Object.keys(clienteSchema.shape));
 
 export function validateCliente(input) {
     return clienteSchema.safeParse(input);

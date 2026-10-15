@@ -1,5 +1,6 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { CLIENT_FIELDS } from '../../schemas/clients.js';
 
 dotenv.config();
 
@@ -112,157 +113,87 @@ const addCodclienFilter = ({ queryText, params, codclien, tableAlias = '' }) => 
     return queryText;
 };
 
+// El listado y el orden comercial deben usar exactamente los mismos filtros e importes.
+const buildClientWhere = ({ codpais, codprovi, query, status, codrepres, codclien }, alias = 'c') => {
+    let queryText = `WHERE COALESCE(UPPER(TRIM(${alias}.dadobaja::text)), '') <> 'S'`;
+    const params = [];
+    queryText = addCodclienFilter({ queryText, params, codclien, tableAlias: alias });
+    queryText = addCodrepresFilter({ queryText, params, codrepres, tableAlias: alias });
+
+    if (codpais) {
+        params.push(codpais);
+        queryText += ` AND ${alias}.codpais = $${params.length}`;
+    }
+    if (codprovi) {
+        params.push(codprovi);
+        queryText += ` AND ${alias}.codprovi = $${params.length}`;
+    }
+    if (query && normalizeClientSearchTerm(query)) {
+        const value = `%${normalizeClientSearchTerm(query)}%`;
+        params.push(value);
+        queryText += ` AND (
+            ${buildNormalizedClientSearch(`${alias}.razclien`)} LIKE $${params.length}
+            OR ${buildNormalizedClientSearch(`${alias}.codclien::text`)} LIKE $${params.length}
+        )`;
+    }
+    if (status) {
+        params.push(status);
+        queryText += ` AND ${alias}.estado = $${params.length}`;
+    }
+    return { queryText, params };
+};
+
+// Se trata del importe NETO DE LÍNEAS DE PEDIDO, no de facturas emitidas.
+// Los descuentos son sucesivos; no redondeamos el porcentaje a un entero.
+const netOrdersExpression = `SUM(GREATEST(
+    COALESCE(p.importe, 0)::numeric *
+    (CASE WHEN COALESCE(p.dt1, 0) > 0 THEN 1 - p.dt1::numeric / 100 ELSE 1 END) *
+    (CASE WHEN COALESCE(p.dt2, 0) > 0 THEN 1 - p.dt2::numeric / 100 ELSE 1 END) *
+    (CASE WHEN COALESCE(p.dt3, 0) > 0 THEN 1 - p.dt3::numeric / 100 ELSE 1 END),
+    0
+))`;
+
+const clientActivitySelect = `
+    COALESCE((SELECT ${netOrdersExpression} FROM pedventa p WHERE p.codclien = c.codclien), 0) AS total_billing,
+    (SELECT MAX(v.fecha) FROM visitas v
+     WHERE v.cliente_id = c.codclien AND v.estado = 'completada' AND v.fecha <= NOW()) AS "ultimaVisita"
+`;
+
 export class ClienteModel {
-    static async getAll({ offset, limit, codpais, codprovi, query, status, codrepres, codclien }) {
-        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
-            return [];
-        }
-
-        let queryText = `
-            SELECT * 
-            FROM clientes 
-            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+    static async getAll({ offset = 0, limit = 10, codpais, codprovi, query, status, codrepres, codclien }) {
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) return [];
+        const { queryText, params } = buildClientWhere({ codpais, codprovi, query, status, codrepres, codclien });
+        // Se pagina antes de calcular las métricas para no procesar miles de clientes
+        // cuando el orden es por localidad.
+        const sql = `
+            WITH pagina AS (
+                SELECT c.* FROM clientes c ${queryText}
+                ORDER BY c.localidad ASC NULLS LAST, c.razclien ASC, c.codclien ASC
+                LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+            )
+            SELECT c.*, ${clientActivitySelect}
+            FROM pagina c
+            ORDER BY c.localidad ASC NULLS LAST, c.razclien ASC, c.codclien ASC
         `;
-
-        const params = [];
-
-        queryText = addCodclienFilter({ queryText, params, codclien });
-        queryText = addCodrepresFilter({ queryText, params, codrepres });
-
-        if (codpais) {
-            queryText += ` AND codpais = $${params.length + 1}`;
-            params.push(codpais);
-        }
-
-        if (codprovi) {
-            queryText += ` AND codprovi = $${params.length + 1}`;
-            params.push(codprovi);
-        }
-
-        if (query) {
-            const normalizedQuery = normalizeClientSearchTerm(query);
-
-            queryText += `
-                AND ${buildNormalizedClientSearch('razclien')} LIKE $${params.length + 1}
-            `;
-
-            params.push(`%${normalizedQuery}%`);
-        }
-
-        if (status) {
-            queryText += ` AND estado = $${params.length + 1}`;
-            params.push(status);
-        }
-
-        queryText += `
-            ORDER BY localidad
-            LIMIT $${params.length + 1}
-            OFFSET $${params.length + 2}
-        `;
-
-        params.push(Number(limit), Number(offset));
-
-        try {
-            const { rows } = await pool.query(queryText, params);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching clients:', error);
-            throw new Error('Error fetching clients');
-        }
+        const { rows } = await pool.query(sql, [...params, Number(limit), Number(offset)]);
+        return rows;
     }
 
     static async getCount({ codpais, codprovi, query, status, codrepres, codclien }) {
-        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
-            return 0;
-        }
-
-        let queryText = `
-            SELECT COUNT(*) 
-            FROM clientes 
-            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
-        `;
-
-        const params = [];
-
-        queryText = addCodclienFilter({ queryText, params, codclien });
-        queryText = addCodrepresFilter({ queryText, params, codrepres });
-
-        if (codpais) {
-            queryText += ` AND codpais = $${params.length + 1}`;
-            params.push(codpais);
-        }
-
-        if (codprovi) {
-            queryText += ` AND codprovi = $${params.length + 1}`;
-            params.push(codprovi);
-        }
-
-        if (query) {
-            const normalizedQuery = normalizeClientSearchTerm(query);
-
-            queryText += `
-                AND ${buildNormalizedClientSearch('razclien')} LIKE $${params.length + 1}
-            `;
-
-            params.push(`%${normalizedQuery}%`);
-        }
-
-        if (status) {
-            queryText += ` AND estado = $${params.length + 1}`;
-            params.push(status);
-        }
-
-        try {
-            const { rows } = await pool.query(queryText, params);
-            return parseInt(rows[0].count, 10);
-        } catch (error) {
-            console.error('Error counting clients:', error);
-            throw new Error('Error counting clients');
-        }
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) return 0;
+        const { queryText, params } = buildClientWhere({ codpais, codprovi, query, status, codrepres, codclien });
+        const { rows } = await pool.query(`SELECT COUNT(*)::int AS total FROM clientes c ${queryText}`, params);
+        return rows[0]?.total || 0;
     }
 
     static async search({ query, limit = 10, codrepres, codclien }) {
-        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
-            return [];
-        }
-
-        try {
-            const normalizedQuery = normalizeClientSearchTerm(query);
-
-            let searchQuery = `
-                SELECT * 
-                FROM clientes
-                WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
-                AND ${buildNormalizedClientSearch('razclien')} LIKE $1
-            `;
-
-            const params = [`%${normalizedQuery}%`];
-
-            searchQuery = addCodclienFilter({
-                queryText: searchQuery,
-                params,
-                codclien,
-            });
-
-            searchQuery = addCodrepresFilter({
-                queryText: searchQuery,
-                params,
-                codrepres,
-            });
-
-            searchQuery += `
-                ORDER BY razclien ASC
-                LIMIT $${params.length + 1}
-            `;
-
-            params.push(Number(limit));
-
-            const { rows } = await pool.query(searchQuery, params);
-            return rows;
-        } catch (error) {
-            console.error('Error searching clients:', error);
-            throw new Error('Error searching clients');
-        }
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) return [];
+        const { queryText, params } = buildClientWhere({ query, codrepres, codclien });
+        const sql = `SELECT c.codclien, c.razclien, c.localidad, c.codpais
+                     FROM clientes c ${queryText}
+                     ORDER BY c.razclien ASC, c.codclien ASC LIMIT $${params.length + 1}`;
+        const { rows } = await pool.query(sql, [...params, Math.min(Math.max(Number(limit) || 10, 1), 50)]);
+        return rows;
     }
 
     static async checkExisting({ query, localidad = '', limit = 8 }) {
@@ -586,11 +517,11 @@ export class ClienteModel {
         return rows[0];
     }
 
-    static async update({ codclien, input }) {
+    static async update({ codclien, input, allowRepresentativeChange = false }) {
         const keys = Object.keys(input);
-
-        if (keys.length === 0) {
-            return null;
+        const editable = new Set(CLIENT_FIELDS.filter((field) => field !== 'codclien' && (field !== 'codrepre' || allowRepresentativeChange)));
+        if (keys.length === 0 || keys.some((key) => !editable.has(key))) {
+            throw new Error('Campos de cliente no autorizados.');
         }
 
         const fields = keys
@@ -651,59 +582,18 @@ export class ClienteModel {
         }
     }
 
-    static async getClientsWithBilling({ limit, offset, order = 'DESC', codrepres, codclien }) {
-        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
-            return [];
-        }
-
-        const allowedOrders = ['ASC', 'DESC'];
-        const safeOrder = allowedOrders.includes(String(order).toUpperCase())
-            ? String(order).toUpperCase()
-            : 'DESC';
-
-        let queryText = `
-        SELECT c.codclien, c.razclien, c.localidad, c.email,
-               COALESCE(SUM(p.importe * 
-                             (1 - COALESCE(p.dt1, 0) / 100) * 
-                             (1 - COALESCE(p.dt2, 0) / 100) * 
-                             (1 - COALESCE(p.dt3, 0) / 100)), 0) AS total_billing
-        FROM clientes c
-        LEFT JOIN pedventa p ON c.codclien = p.codclien
-        WHERE COALESCE(UPPER(c.dadobaja), '') <> 'S'
-    `;
-
-        const params = [];
-
-        queryText = addCodclienFilter({
-            queryText,
-            params,
-            codclien,
-            tableAlias: 'c',
-        });
-
-        queryText = addCodrepresFilter({
-            queryText,
-            params,
-            codrepres,
-            tableAlias: 'c',
-        });
-
-        queryText += `
-        GROUP BY c.codclien, c.razclien, c.localidad, c.email
-        ORDER BY total_billing ${safeOrder}
-        LIMIT $${params.length + 1}
-        OFFSET $${params.length + 2};
-    `;
-
-        params.push(Number(limit), Number(offset));
-
-        try {
-            const { rows } = await pool.query(queryText, params);
-            return rows;
-        } catch (error) {
-            console.error('Error fetching clients with billing:', error);
-            throw new Error('Error fetching clients with billing');
-        }
+    static async getClientsWithBilling({ limit = 10, offset = 0, order = 'DESC', codrepres, codclien, codpais, codprovi, query, status }) {
+        if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) return [];
+        const safeOrder = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        const { queryText, params } = buildClientWhere({ codpais, codprovi, query, status, codrepres, codclien });
+        const sql = `
+            SELECT c.*, ${clientActivitySelect}
+            FROM clientes c ${queryText}
+            ORDER BY total_billing ${safeOrder}, c.razclien ASC, c.codclien ASC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+        const { rows } = await pool.query(sql, [...params, Number(limit), Number(offset)]);
+        return rows;
     }
 
     static async getResumenPorPais(ejercicio) {

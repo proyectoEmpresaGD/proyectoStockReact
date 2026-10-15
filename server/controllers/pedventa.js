@@ -1,4 +1,5 @@
 import { PedVentaModel } from '../models/Postgres/pedventa.js';
+import { ensureClientAccess } from '../utils/clientPortfolioAccess.js';
 
 export class PedVentaController {
 
@@ -20,6 +21,7 @@ export class PedVentaController {
     async getByClient(req, res) {
         try {
             const { codclien } = req.params;
+            if (!await ensureClientAccess(req, res, codclien)) return;
             const { ejercicio } = req.query;           // <-- nuevo
             const ventas = await PedVentaModel.getByClient({ codclien, ejercicio });
 
@@ -34,6 +36,7 @@ export class PedVentaController {
 
     async create(req, res) {
         try {
+            if (!req.body?.codclien || !await ensureClientAccess(req, res, req.body.codclien)) return;
             const newVenta = await PedVentaModel.create({ input: req.body });
             res.status(201).json(newVenta);
         } catch (error) {
@@ -44,7 +47,14 @@ export class PedVentaController {
     async update(req, res) {
         try {
             const { id } = req.params;
-            const updatedVenta = await PedVentaModel.update({ id, input: req.body });
+            const owner = await PedVentaModel.getClientCodeById(id);
+            if (!owner) return res.status(404).json({ message: 'Sale not found' });
+            if (!await ensureClientAccess(req, res, owner)) return;
+            if (req.body?.codclien && String(req.body.codclien) !== String(owner)) {
+                return res.status(400).json({ message: 'No se permite cambiar el cliente del pedido.' });
+            }
+            const { codclien: _clientCode, ...editable } = req.body || {};
+            const updatedVenta = await PedVentaModel.update({ id, input: editable });
             if (updatedVenta) {
                 res.json(updatedVenta);
             } else {
@@ -58,6 +68,9 @@ export class PedVentaController {
     async delete(req, res) {
         try {
             const { id } = req.params;
+            const owner = await PedVentaModel.getClientCodeById(id);
+            if (!owner) return res.status(404).json({ message: 'Sale not found' });
+            if (!await ensureClientAccess(req, res, owner)) return;
             const result = await PedVentaModel.delete({ id });
             if (result) {
                 res.json({ message: 'Sale deleted' });

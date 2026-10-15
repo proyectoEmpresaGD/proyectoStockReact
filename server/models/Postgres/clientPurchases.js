@@ -1,6 +1,22 @@
 import pool from '../../db/pool.js';
 
 export class ClientPurchasesModel {
+    // Sólo códigos para la clasificación del catálogo: no se descargan líneas históricas.
+    static async getPurchasedCodes(codclien) {
+        const { rows } = await pool.query(`
+            SELECT DISTINCT TRIM(avl.codprodu) AS codprodu
+            FROM albventa av
+            INNER JOIN albventa_linea avl
+                ON avl.codseralbventa = av.codseralbventa
+                AND avl.nalbventa = av.nalbventa
+                AND avl.codclien = av.codclien
+            WHERE av.codclien = $1
+              AND avl.codprodu IS NOT NULL
+              AND TRIM(avl.codprodu) <> ''
+        `, [codclien]);
+        return rows.map((row) => row.codprodu);
+    }
+
     static async getByClient({ codclien, ejercicio }) {
         const params = [codclien];
 

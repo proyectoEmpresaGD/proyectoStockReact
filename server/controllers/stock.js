@@ -12,6 +12,21 @@ export class StockController {
         }
     }
 
+    async getClientProductStock(req, res) {
+        const codes = req.body?.codes;
+        if (!Array.isArray(codes) || codes.length > 1000
+            || codes.some((code) => typeof code !== 'string' || !code.trim() || code.length > 100)) {
+            return res.status(400).json({ message: 'Se admiten hasta 1000 códigos de producto válidos.' });
+        }
+        try {
+            const stock = await StockModel.getAll({ codes });
+            return res.json(stock);
+        } catch (error) {
+            console.error('Error consultando stock de clientes:', error);
+            return res.status(500).json({ message: 'No se ha podido consultar el stock.' });
+        }
+    }
+
     async getControlStockFilters(req, res) {
         try {
             const filters = await StockModel.getControlStockFilters();

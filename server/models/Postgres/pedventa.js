@@ -9,6 +9,11 @@ const pool = new pg.Pool({
 });
 
 export class PedVentaModel {
+    static async getClientCodeById(id) {
+        const { rows } = await pool.query('SELECT codclien FROM pedventa WHERE id = $1 LIMIT 1', [id]);
+        return rows[0]?.codclien ?? null;
+    }
+
 
     static async getAll() {
         const { rows } = await pool.query(`
@@ -55,8 +60,18 @@ export class PedVentaModel {
     }
 
     static async update({ id, input }) {
-        const fields = Object.keys(input).map((key, index) => `"${key}" = $${index + 2}`).join(", ");
-        const values = Object.values(input);
+        const allowedFields = new Set([
+            'empresa', 'ejercicio', 'canal', 'codserpedventa', 'npedventa', 'linea',
+            'razclien', 'fecha', 'fecentre', 'codalmac', 'codprodu', 'desprodu',
+            'cantidad', 'precio', 'importe', 'dt1', 'impdt1', 'dt2', 'impdt2',
+            'dt3', 'impdt3', 'impbruto', 'codiva',
+        ]);
+        const keys = Object.keys(input || {});
+        if (!keys.length || keys.some((field) => !allowedFields.has(field.toLowerCase()))) {
+            throw new Error('Campos del pedido no autorizados.');
+        }
+        const fields = keys.map((key, index) => `"${key.toLowerCase()}" = $${index + 2}`).join(', ');
+        const values = keys.map((key) => input[key]);
 
         const { rows } = await pool.query(`
             UPDATE pedventa

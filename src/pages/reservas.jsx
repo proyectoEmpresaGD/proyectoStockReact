@@ -1688,6 +1688,7 @@ function ReservasTejido() {
                                 </span>
 
                                 <ClientSearchBar
+                                    searchScope="reservas"
                                     searchTerm={clientSearchTerm}
                                     setSearchTerm={setClientSearchTerm}
                                     suggestions={clientSuggestions}

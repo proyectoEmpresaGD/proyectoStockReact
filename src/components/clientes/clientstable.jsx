@@ -111,7 +111,7 @@ export default function ClientTable({
                                 <th>Nombre</th>
                                 <th>Localidad</th>
                                 <th>Última visita</th>
-                                <th className="text-right">Facturación</th>
+                                <th className="text-right">Pedidos netos</th>
                                 {canManageVisits && <th className="text-center">Visitas</th>}
                             </tr>
                         </thead>
@@ -123,8 +123,8 @@ export default function ClientTable({
                                         <td>
                                             <span
                                                 className={`inline-block h-3 w-3 rounded-full ${getClientColor(billing)}`}
-                                                title={`Facturación ${formatBilling(billing)}`}
-                                                aria-label={`Facturación ${formatBilling(billing)}`}
+                                                title={`Importe neto de pedidos ${formatBilling(billing)}`}
+                                                aria-label={`Importe neto de pedidos ${formatBilling(billing)}`}
                                             />
                                         </td>
                                         <td>
@@ -228,7 +228,7 @@ export default function ClientTable({
                                     </span>
                                 </span>
                                 <span className="col-span-2 rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-3 py-2.5">
-                                    <span className="cjm-data-label block text-[var(--cjm-primary-deep)]">Facturación</span>
+                                    <span className="cjm-data-label block text-[var(--cjm-primary-deep)]">Pedidos netos</span>
                                     <span className="mt-1 block text-base font-bold tabular-nums text-[var(--cjm-primary-deep)]">
                                         {formatBilling(billing)}
                                     </span>

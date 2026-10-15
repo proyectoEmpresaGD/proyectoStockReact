@@ -19,9 +19,11 @@ export default function SearchBar({
     setSuggestions,
     handleSuggestionClick,
     handleSearchEnter,
+    searchScope = 'clientes',
 }) {
     const { token } = useAuthContext();
     const wrapperRef = useRef(null);
+    const suggestionAbortRef = useRef(null);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -48,28 +50,49 @@ export default function SearchBar({
         };
     }, []);
 
+    useEffect(() => () => suggestionAbortRef.current?.abort(), []);
+
     function fuzzyFilter(client, term) {
         const haystack = normalizeString(`${client.razclien} ${client.codclien}`);
         return normalizeString(term).split(' ').every((part) => haystack.includes(part));
     }
 
     async function fetchSuggestions(value) {
+        suggestionAbortRef.current?.abort();
+        const controller = new AbortController();
+        suggestionAbortRef.current = controller;
+
+        // Reservas consulta todos los clientes activos sin abrir permisos de
+        // cartera en /api/clients. En Clientes se conserva el endpoint anterior.
+        const isReserva = searchScope === 'reservas';
+        const path = isReserva ? '/api/reservas/clientes/search' : '/api/clients/search';
+        const params = new URLSearchParams({ query: value });
+        if (isReserva) params.set('limit', '50');
+
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}/api/clients/search?query=${encodeURIComponent(value)}`,
+                `${import.meta.env.VITE_API_BASE_URL}${path}?${params.toString()}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
+                    signal: controller.signal,
                 }
             );
 
-            if (!response.ok) throw new Error();
+            if (!response.ok) throw new Error(`Error de búsqueda: ${response.status}`);
             const data = await response.json();
-            setSuggestions(data.filter((client) => fuzzyFilter(client, value)));
-        } catch {
-            setSuggestions([]);
+            if (!controller.signal.aborted) {
+                setSuggestions(Array.isArray(data) ? data.filter((client) => fuzzyFilter(client, value)) : []);
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                console.error('No se han podido cargar las sugerencias de clientes:', error);
+                setSuggestions([]);
+            }
+        } finally {
+            if (suggestionAbortRef.current === controller) suggestionAbortRef.current = null;
         }
     }
 
@@ -81,6 +104,7 @@ export default function SearchBar({
             setShowSuggestions(true);
             fetchSuggestions(value);
         } else {
+            suggestionAbortRef.current?.abort();
             setShowSuggestions(false);
             setSuggestions([]);
         }
@@ -89,6 +113,7 @@ export default function SearchBar({
     };
 
     const selectClient = (client) => {
+        suggestionAbortRef.current?.abort();
         setSearchTerm(client.razclien);
         setShowSuggestions(false);
         setActiveIndex(-1);
@@ -123,6 +148,7 @@ export default function SearchBar({
     };
 
     const clearSearch = () => {
+        suggestionAbortRef.current?.abort();
         setSearchTerm('');
         setSuggestions([]);
         setShowSuggestions(false);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { useAuthContext } from '../../../Auth/AuthContext';
+import { getClientStock } from './clientStock.js';
 
 const FILTERS = ['LIBRO', 'PERCHA', 'QUALITY'];
 const MARCAS = ['FLA', 'CJM', 'HAR', 'ARE', 'BAS'];
@@ -12,29 +13,33 @@ export default function CatalogTab({ client }) {
     const [catalog, setCatalog] = useState([]);
     const [purchased, setPurchased] = useState([]);
     const [stock, setStock] = useState([]);
-    const [stockFetched, setStockFetched] = useState(false);
 
     const [brand, setBrand] = useState('');
     const [type, setType] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 50;
 
+    const catalogCodesKey = [...new Set(catalog.map((item) => String(item.codprodu || '').trim()).filter(Boolean))].join('|');
+
     useEffect(() => {
-        if (!stockFetched) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => (r.ok ? r.json() : []))
-                .then((data) => {
-                    setStock(Array.isArray(data) ? data : []);
-                    setStockFetched(true);
-                })
-                .catch(() => {
-                    setStock([]);
-                    setStockFetched(true);
-                });
+        const controller = new AbortController();
+        const codes = catalogCodesKey ? catalogCodesKey.split('|') : [];
+        if (!codes.length) {
+            setStock([]);
+            return () => controller.abort();
         }
-    }, [stockFetched, token]);
+        getClientStock(codes, token, controller.signal)
+            .then((items) => {
+                if (!controller.signal.aborted) setStock(items);
+            })
+            .catch((error) => {
+                if (!controller.signal.aborted) {
+                    console.error('Error obteniendo stock del catálogo:', error);
+                    setStock([]);
+                }
+            })
+        return () => controller.abort();
+    }, [catalogCodesKey, token]);
 
     useEffect(() => {
         if (!codclien) {
@@ -43,7 +48,7 @@ export default function CatalogTab({ client }) {
         }
 
         fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/api/client-purchases/client/${codclien}`,
+            `${import.meta.env.VITE_API_BASE_URL}/api/client-purchases/client/${codclien}/codes`,
             {
                 headers: { Authorization: `Bearer ${token}` },
             }
@@ -55,11 +60,8 @@ export default function CatalogTab({ client }) {
             })
             .then((data) => {
                 const purchasedCodes = Array.isArray(data)
-                    ? data
-                        .map((product) => product.codprodu)
-                        .filter((codprodu) => codprodu && codprodu.trim() !== '')
+                    ? data.filter((code) => typeof code === 'string' && code.trim() !== '')
                     : [];
-
                 setPurchased([...new Set(purchasedCodes)]);
             })
             .catch(() => {
@@ -83,7 +85,8 @@ export default function CatalogTab({ client }) {
                     ? data.filter(
                         (product) =>
                             product.codprodu &&
-                            product.codprodu.trim() !== ''
+                            product.codprodu.trim() !== '' &&
+                            String(product.obsoleto ?? '').trim().toUpperCase() !== 'S'
                     )
                     : [];
 
@@ -95,20 +98,11 @@ export default function CatalogTab({ client }) {
             });
     }, [brand, type, token]);
 
-    const getStock = (codprodu) => {
-        const stockProduct = stock.find((item) => item.codprodu === codprodu);
-        const stockValue = stockProduct ? parseFloat(stockProduct.stockactual) : 0;
-
-        return stockValue.toFixed(2);
-    };
-
-    const bought = catalog.filter((product) =>
-        purchased.includes(product.codprodu)
-    );
-
-    const notBought = catalog.filter((product) =>
-        !purchased.includes(product.codprodu)
-    );
+    const stockByCode = new Map(stock.map((item) => [item.codprodu, Number(item.stockactual) || 0]));
+    const getStock = (codprodu) => (stockByCode.get(codprodu) || 0).toFixed(2);
+    const purchasedSet = new Set(purchased);
+    const bought = catalog.filter((product) => purchasedSet.has(product.codprodu));
+    const notBought = catalog.filter((product) => !purchasedSet.has(product.codprodu));
 
     const sliceEnd = page * pageSize;
 

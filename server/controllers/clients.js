@@ -1,61 +1,9 @@
 import { ClienteModel } from '../models/Postgres/clients.js';
 import { UserModel } from '../models/Postgres/usuarios.js';
 import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
+import { normalizeUserClientAccess, ensureClientAccess } from '../utils/clientPortfolioAccess.js';
 
 const COMMERCIAL_ROLE = 'comercial';
-
-const USER_CLIENT_ACCESS_OVERRIDES = {
-    DECOANDYOU: ['430046019'],
-};
-
-const normalizeUserClientAccess = (user) => {
-    const username = String(user?.username || '').trim().toUpperCase();
-
-    if (USER_CLIENT_ACCESS_OVERRIDES[username]) {
-        return {
-            codclien: USER_CLIENT_ACCESS_OVERRIDES[username],
-            codrepres: undefined,
-        };
-    }
-
-    const userRole = String(user?.role || '').trim().toLowerCase();
-
-    if (userRole !== COMMERCIAL_ROLE) {
-        return {
-            codclien: undefined,
-            codrepres: undefined,
-        };
-    }
-
-    const codrepres = [];
-
-    if (user?.codrepre) {
-        codrepres.push(String(user.codrepre).trim());
-    }
-
-    if (Array.isArray(user?.codrepres)) {
-        codrepres.push(
-            ...user.codrepres
-                .map((codrepre) => String(codrepre).trim())
-                .filter(Boolean)
-        );
-    }
-
-    if (typeof user?.codrepres === 'string') {
-        codrepres.push(
-            ...user.codrepres
-                .replace(/[{}"]/g, '')
-                .split(',')
-                .map((codrepre) => codrepre.trim())
-                .filter(Boolean)
-        );
-    }
-
-    return {
-        codclien: undefined,
-        codrepres: [...new Set(codrepres.filter(Boolean))],
-    };
-};
 
 const normalizeRepresentativeCodes = (value) => {
     if (Array.isArray(value)) {
@@ -99,35 +47,17 @@ const buildCommercialByRepresentative = (users = []) => {
     return map;
 };
 
-const ensureClientAccess = async (req, res, codclien) => {
-    const { codclien: allowedClients, codrepres } = normalizeUserClientAccess(req.user);
-    const allowed = await ClienteModel.userCanAccessClient({
-        targetCodclien: codclien,
-        codclien: allowedClients,
-        codrepres,
-    });
-
-    if (!allowed) {
-        res.status(403).json({
-            error: 'CLIENT_NOT_IN_PORTFOLIO',
-            message: 'Este cliente no pertenece a tu cartera comercial.',
-        });
-        return false;
-    }
-
-    return true;
-};
-
 export class ClienteController {
     async getAll(req, res) {
         try {
             const { page = 1, limit = 10, codpais, codprovi, query, status } = req.query;
-            const offset = (Number(page) - 1) * Number(limit);
+            const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
+            const offset = (Math.max(Number.parseInt(page, 10) || 1, 1) - 1) * safeLimit;
             const { codclien, codrepres } = normalizeUserClientAccess(req.user);
 
             const clientes = await ClienteModel.getAll({
                 offset,
-                limit: Number(limit),
+                limit: safeLimit,
                 codpais,
                 codprovi,
                 query,
@@ -283,7 +213,12 @@ export class ClienteController {
                 return res.status(400).json({ error: validationResult.error.errors });
             }
 
-            const newCliente = await ClienteModel.create({ input: req.body });
+            const data = validationResult.data;
+            const access = normalizeUserClientAccess(req.user);
+            if (access.codclien || (access.codrepres && !access.codrepres.includes(String(data.codrepre || '').trim()))) {
+                return res.status(403).json({ message: 'No puedes dar de alta clientes fuera de tu cartera.' });
+            }
+            const newCliente = await ClienteModel.create({ input: data });
             res.status(201).json(newCliente);
         } catch (error) {
             res.status(400).json({ error: error.message });
@@ -300,7 +235,18 @@ export class ClienteController {
                 return res.status(400).json({ error: validationResult.error.errors });
             }
 
-            const updatedCliente = await ClienteModel.update({ codclien, input: req.body });
+            const data = validationResult.data;
+            if (!Object.keys(data).length) {
+                return res.status(400).json({ message: 'No se han proporcionado campos editables.' });
+            }
+            if ('codclien' in data) {
+                return res.status(400).json({ message: 'No se permite modificar el código del cliente.' });
+            }
+            const canReassign = ['admin', 'administracion'].includes(String(req.user?.role || '').toLowerCase());
+            if ('codrepre' in data && !canReassign) {
+                return res.status(403).json({ message: 'Solo administración puede cambiar el representante del cliente.' });
+            }
+            const updatedCliente = await ClienteModel.update({ codclien, input: data, allowRepresentativeChange: canReassign });
 
             if (updatedCliente) {
                 res.json(updatedCliente);
@@ -315,6 +261,9 @@ export class ClienteController {
     async delete(req, res) {
         try {
             const { codclien } = req.params;
+            if (!['admin', 'administracion'].includes(String(req.user?.role || '').toLowerCase())) {
+                return res.status(403).json({ message: 'Solo administración puede eliminar clientes.' });
+            }
             if (!await ensureClientAccess(req, res, codclien)) return;
             const result = await ClienteModel.delete({ codclien });
 
@@ -341,19 +290,18 @@ export class ClienteController {
 
     async getClientsWithBilling(req, res) {
         try {
-            const { page = 1, limit = 10, order = 'DESC' } = req.query;
-            const offset = (Number(page) - 1) * Number(limit);
+            const { page = 1, limit = 10, order = 'DESC', codpais, codprovi, query, status } = req.query;
+            const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
+            const offset = (Math.max(Number.parseInt(page, 10) || 1, 1) - 1) * safeLimit;
             const { codclien, codrepres } = normalizeUserClientAccess(req.user);
 
-            const clients = await ClienteModel.getClientsWithBilling({
-                limit: Number(limit),
-                offset,
-                order,
-                codclien,
-                codrepres,
-            });
+            const filters = { codpais, codprovi, query, status, codclien, codrepres };
+            const [clients, total] = await Promise.all([
+                ClienteModel.getClientsWithBilling({ ...filters, limit: safeLimit, offset, order }),
+                ClienteModel.getCount(filters),
+            ]);
 
-            res.json({ clients });
+            res.json({ clients, total });
         } catch (error) {
             console.error('Error fetching clients with billing:', error.message);
             res.status(500).json({ error: error.message });

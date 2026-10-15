@@ -8,8 +8,8 @@ export default function KPIGrid({ purchased, totalBilling, billingWithFilters })
     const items = [
         // ['Total Líneas', purchased.length],
         // ['Únicos', uniqueProducts],
-        ['Total global (sin filtros)', totalBilling.toFixed(2)],
-        ['Total con filtros', billingWithFilters.toFixed(2)],
+        ['Importe de albaranes (sin filtros)', totalBilling.toFixed(2)],
+        ['Importe de albaranes (filtros)', billingWithFilters.toFixed(2)],
         // ['Importe Medio', avg],
     ];
 

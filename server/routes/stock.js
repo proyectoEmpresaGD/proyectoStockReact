@@ -12,6 +12,9 @@ export const createStockRouter = () => {
     stockRouter.get('/control-stock', requirePurchasingRole, stockController.getControlStock.bind(stockController));
     stockRouter.post('/control-stock/validate-products', requirePurchasingRole, stockController.validateControlStockProducts.bind(stockController));
 
+    // Consulta acotada de stock desde fichas de clientes.
+    stockRouter.post('/client-products', requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou'), stockController.getClientProductStock.bind(stockController));
+
     stockRouter.get('/', stockController.getAll.bind(stockController));
 
     // ✅ endpoint fechas (ANTES de "/:codprodu")

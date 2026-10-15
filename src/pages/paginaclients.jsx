@@ -88,39 +88,11 @@ export default function Clients() {
                 setClients(currentClients);
                 setTotalClients(data.total || 0);
 
-                const billingEntries = await Promise.all(currentClients.map(async (client) => {
-                    try {
-                        const billingResponse = await fetch(
-                            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
-                            {
-                                headers: { Authorization: `Bearer ${token}` },
-                                signal: controller.signal,
-                            }
-                        );
+                setClientBillings(Object.fromEntries(currentClients.map((client) => [
+                    client.codclien,
+                    Number(client.total_billing) || 0,
+                ])));
 
-                        if (!billingResponse.ok) {
-                            return [client.codclien, 0];
-                        }
-
-                        const orders = await billingResponse.json();
-                        const total = (Array.isArray(orders) ? orders : []).reduce((sum, order) => {
-                            let amount = Number(order.importe) || 0;
-                            [order.dt1, order.dt2, order.dt3].forEach((discount) => {
-                                if (Number(discount) > 0) amount *= 1 - Number(discount) / 100;
-                            });
-                            return sum + Math.max(amount, 0);
-                        }, 0);
-
-                        return [client.codclien, total];
-                    } catch (error) {
-                        if (error?.name === 'AbortError') throw error;
-                        return [client.codclien, 0];
-                    }
-                }));
-
-                if (!controller.signal.aborted) {
-                    setClientBillings(Object.fromEntries(billingEntries));
-                }
             } catch (error) {
                 if (error?.name !== 'AbortError') {
                     console.error(error);
@@ -293,7 +265,7 @@ export default function Clients() {
                             className={`w-full ${sortByBilling ? 'cjm-primary-button' : 'cjm-secondary-button'}`}
                         >
                             <FiTrendingUp aria-hidden="true" />
-                            {sortByBilling ? 'Ordenado por facturación' : 'Ordenar por facturación'}
+                            {sortByBilling ? 'Ordenado por importe de pedidos' : 'Ordenar por importe de pedidos'}
                         </button>
 
                         <button

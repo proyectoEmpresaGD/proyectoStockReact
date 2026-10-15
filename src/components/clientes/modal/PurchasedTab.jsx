@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import KPIGrid from './KPIGrid';
 import ColumnMenu from './ColumnMenu';
+import { getClientStock } from './clientStock.js';
 
 export const ALL_COLUMNS = [
     { key: 'desprodu', label: 'Descripción' },
@@ -29,7 +30,6 @@ export default function PurchasedTab({ client, updateClientBilling }) {
     const [selectedFilter, setSelectedFilter] = useState('');
     const [sortOrder, setSortOrder] = useState('newest');
     const [filtered, setFiltered] = useState([]);
-    const [totalBilling, setTotalBilling] = useState(0);
 
     const totalBillingFixed =
         selectedYear === 'All'
@@ -51,22 +51,33 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         ALL_COLUMNS.map((c) => c.key)
     );
 
+    // Solicitar únicamente el stock de los productos del historial, no todo el almacén.
+    const purchasedCodesKey = [...new Set(purchased.map((item) => String(item.codprodu || '').trim()).filter(Boolean))].join('|');
+
     useEffect(() => {
-        if (!stockFetched) {
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.json())
-                .then((data) => {
-                    setStockData(data);
-                    setStockFetched(true);
-                })
-                .catch(() => {
-                    setStockData([]);
-                    setStockFetched(true);
-                });
+        const controller = new AbortController();
+        const codes = purchasedCodesKey ? purchasedCodesKey.split('|') : [];
+        setStockFetched(false);
+        if (!codes.length) {
+            setStockData([]);
+            setStockFetched(true);
+            return () => controller.abort();
         }
-    }, [stockFetched, token]);
+        getClientStock(codes, token, controller.signal)
+            .then((items) => {
+                if (!controller.signal.aborted) setStockData(items);
+            })
+            .catch((error) => {
+                if (!controller.signal.aborted) {
+                    console.error('Error obteniendo stock del cliente:', error);
+                    setStockData([]);
+                }
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setStockFetched(true);
+            });
+        return () => controller.abort();
+    }, [purchasedCodesKey, token]);
 
     const fetchPurchases = useCallback(async () => {
         if (!client) return;
@@ -89,13 +100,13 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 let imp = +p.importe || 0;
 
                 [p.dt1, p.dt2, p.dt3].forEach((d) => {
-                    if (d > 0) imp *= 1 - Math.floor(d) / 100;
+                    if (Number(d) > 0) imp *= 1 - Number(d) / 100;
                 });
 
                 return {
                     ...p,
                     importeDescuento: imp.toFixed(2),
-                    dt1: Math.floor(p.dt1 || 0),
+                    dt1: Number(p.dt1) || 0,
                 };
             });
 
@@ -120,14 +131,11 @@ export default function PurchasedTab({ client, updateClientBilling }) {
 
     useEffect(() => {
         if (stockFetched) {
-            setPurchased((ps) =>
-                ps.map((x) => ({
-                    ...x,
-                    stockactual:
-                        stockData.find((s) => s.codprodu === x.codprodu)
-                            ?.stockactual || '0',
-                }))
-            );
+            const stocks = new Map(stockData.map((item) => [item.codprodu, item.stockactual]));
+            setPurchased((previous) => previous.map((item) => ({
+                ...item,
+                stockactual: stocks.get(item.codprodu) ?? 0,
+            })));
         }
     }, [stockFetched, stockData]);
 
@@ -137,7 +145,6 @@ export default function PurchasedTab({ client, updateClientBilling }) {
             0
         );
 
-        setTotalBilling(total);
         updateClientBilling?.(client.codclien, total);
     }, [purchased, client, updateClientBilling]);
 
@@ -193,7 +200,7 @@ export default function PurchasedTab({ client, updateClientBilling }) {
         setFiltered(tmp);
     }, [purchased, selectedYear, searchQuery, selectedFilter, sortOrder]);
 
-    const exportToExcel = () => {
+    const exportToCsv = () => {
         if (!filtered.length) return;
 
         const rows = [
@@ -230,15 +237,16 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                                 ? ''
                                 : String(value);
 
-                        const escaped = v.replace(/"/g, '""');
-
+                        // Evitar la ejecución de fórmulas al abrir el CSV en Excel.
+                        const safe = /^[\s]*[=+@-]/.test(v) && typeof value === 'string' ? `'${v}` : v;
+                        const escaped = safe.replace(/"/g, '""');
                         return `"${escaped}"`;
                     })
                     .join(';')
             )
             .join('\r\n');
 
-        const blob = new Blob([csvContent], {
+        const blob = new Blob(['\uFEFF', csvContent], {
             type: 'text/csv;charset=utf-8;',
         });
 
@@ -322,10 +330,10 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                 </button>
 
                 <button
-                    onClick={exportToExcel}
+                    onClick={exportToCsv}
                     className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
                 >
-                    Exportar Excel
+                    Exportar CSV
                 </button>
 
                 <ColumnMenu

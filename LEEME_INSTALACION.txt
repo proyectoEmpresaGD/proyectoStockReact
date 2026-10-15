@@ -1,31 +1,35 @@
-STOCK+ - EXCLUSION DE PRODUCTOS OBSOLETOS EN COMPRAS Y CONTROL DE STOCK
+STOCK+ / CORRECCIONES DE CLIENTES — 15/10/2026
 
-INSTALACION
-1. Haz una copia de seguridad de tu proyecto antes de sustituir archivos.
-2. Descomprime este ZIP EN LA RAIZ de proyectoStockReact, conservando las carpetas.
-3. Sobrescribe los archivos coincidentes y reinicia backend y frontend.
-4. No es necesaria ninguna modificacion de tablas ni del archivo .env.
+CONTENIDO
+Paquete con SOLO los 20 archivos añadidos o modificados para las incidencias
+identificadas en el módulo de CLIENTES, conservando los ajustes de Stock+
+que se entregaron previamente (seguridad y exclusión de obsoletos en compras).
 
-CAMBIO FUNCIONAL
-- La consulta /api/stock/control-stock descarta los registros de productos con
-  TRIM(UPPER(obsoleto)) = 'S'. Valores N, vacios o NULL siguen incluidos.
-- Los filtros de familias y proveedores dejan de incluir valores asociados
-  exclusivamente a productos obsoletos.
-- Las propuestas de compra guardadas localmente se comprueban contra PostgreSQL
-  y se depuran antes de mostrarlas o exportarlas a CSV.
-- La validacion de propuestas usa un endpoint autenticado, protegido por los
-  permisos de Compras y control de stock.
-- Si no se puede validar un borrador guardado, no se muestra ni se exporta:
-  permanece en el almacenamiento local para volver a comprobarlo despues.
+CAMBIOS
+- Control de cartera en pedidos y albaranes, incluida la consulta de códigos comprados.
+- Validación estricta en edición y creación; bloqueo de columnas no autorizadas;
+  reasignación de comercial sólo por admin/administración.
+- Control del cliente propietario de un pedido antes de editarlo o borrarlo.
+- Búsqueda por nombre o código y filtros coherentes en los dos modos de ordenación.
+- Última visita completada tomada de la tabla visitas.
+- Indicador de listado identificado como importe neto de PEDIDOS (no facturas).
+- Histórico comprado identificado como importe de ALBARANES.
+- Cálculo de descuentos con porcentajes decimales, sin truncarlos.
+- Peticiones de pedidos agrupadas en SQL; stock limitado a productos de la ficha;
+  consulta de códigos comprados sin descargar todas las líneas históricas.
+- Exclusión de obsoletos S exclusivamente en la pestaña Catálogo de clientes.
+- Nombre correcto de exportación CSV, con BOM UTF-8 y protección de fórmulas.
 
-COMPROBACIONES
-- Node --check de 125 ficheros .js: sin errores.
-- Dos ficheros React JSX modificados: sintaxis valida (parser TypeScript).
-- 5 pruebas de regresion pasan. SQL generado tambien revisado con
-  simulacion de consultas; sin conexion real a PostgreSQL.
-- Pendiente de validar en la instalacion real con Node 24 y PostgreSQL.
+INSTALACIÓN
+1. Hacer una copia de seguridad de tu proyecto actual.
+2. Extraer el ZIP en la raíz de proyectoStockReact, manteniendo las carpetas.
+3. Confirmar la sustitución de archivos y reiniciar servidor y frontend.
+4. Verificar con usuarios de admin y comercial (en cartera y fuera de cartera),
+   especialmente consultas, filtros, últimas visitas y actualización de fichas.
 
-NO SE MODIFICAN OTRAS PANTALLAS DE PRODUCTOS (STOCK GENERAL, TARIFAS,
-CATALOGOS Y RESERVAS). EL CAMBIO SOLO AFECTA A COMPRAS/CONTROL DE STOCK.
-
-ESTE ZIP SOLO CONTIENE LOS CAMBIOS NUEVOS DE CONTROL DE STOCK.
+IMPORTANTE
+No incluye .env, datos personales, archivos .git, ni cambios SQL de esquema.
+No se ha conectado con tu PostgreSQL: comprobar allí las consultas finales.
+No se ha completado la compilación total de Vite, por no disponer del entorno
+Node 24 + npm 11 con dependencias instaladas. Sí han pasado 44 pruebas
+locales y las validaciones sintácticas de los archivos afectados.

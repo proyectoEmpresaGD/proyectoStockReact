@@ -255,7 +255,9 @@ export class StockModel {
     }
 
     // ✅ /api/stock: NO calcular fecha aquí
-    static async getAll({ empresa, ejercicio }) {
+    static async getAll({ empresa, ejercicio, codes } = {}) {
+        // Una lista de códigos limita la consulta para las fichas de clientes.
+        if (Array.isArray(codes) && codes.length === 0) return [];
         const stockParams = [];
         const stockFilters = [
             CODALMAC_CERO_FILTER,
@@ -282,12 +284,27 @@ export class StockModel {
             lotesFilters.push(`sl.ejercicio = $${lotesParams.length}`);
         }
 
+        if (Array.isArray(codes)) {
+            const normalized = [...new Set(codes.map(StockModel.normalizeCode).filter(Boolean))];
+            stockParams.push(normalized);
+            stockFilters.push(`s.codprodu = ANY($${stockParams.length}::text[])`);
+            lotesParams.push(normalized);
+            lotesFilters.push(`sl.codprodu = ANY($${lotesParams.length}::text[])`);
+        }
+
+        // La CTE de lotes y la consulta exterior comparten una sola lista de parámetros.
+        // Se desplazan los índices de la consulta exterior para evitar colisiones.
+        const offsetStockPlaceholder = (sql) => sql.replace(/\$(\d+)/g, (_, number) => `$${Number(number) + lotesParams.length}`);
         const stockWhereClause = stockFilters.length
-            ? `WHERE ${stockFilters.join(' AND ')}`
+            ? `WHERE ${stockFilters.map(offsetStockPlaceholder).join(' AND ')}`
             : '';
 
         const lotesWhereClause = lotesFilters.length
             ? `WHERE ${lotesFilters.join(' AND ')}`
+            : '';
+
+        const clientReservationFilter = Array.isArray(codes)
+            ? ` AND UPPER(pr.codprodu) = ANY($${lotesParams.length}::text[])`
             : '';
 
         try {
@@ -315,6 +332,7 @@ export class StockModel {
                     WHERE r.fechavencimientoreserva >= CURRENT_DATE
                       AND pr.lotereservado IS NOT NULL
                       AND TRIM(pr.lotereservado) <> ''
+                      ${clientReservationFilter}
                     GROUP BY
                         UPPER(pr.codprodu),
                         TRIM(pr.lotereservado)

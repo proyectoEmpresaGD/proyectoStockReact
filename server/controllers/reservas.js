@@ -1,4 +1,5 @@
 import { ReservasModel } from '../models/Postgres/reservas.js';
+import { ClienteModel } from '../models/Postgres/clients.js';
 
 
 const getReservaUsernameFromRequest = (req) => {
@@ -12,6 +13,31 @@ const getReservaUsernameFromRequest = (req) => {
 
 
 export class ReservasController {
+    async searchClientes(req, res) {
+        try {
+            const query = String(req.query?.query ?? '').trim();
+            const normalized = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase().replace(/[^a-z0-9]/g, '');
+            // Evitar devolver clientes al abrir el selector con búsquedas vacías.
+            if (normalized.length < 2) return res.json([]);
+            if (query.length > 120) {
+                return res.status(400).json({ message: 'La búsqueda es demasiado larga.' });
+            }
+
+            const requestedLimit = Number.parseInt(req.query?.limit, 10);
+            const limit = Number.isFinite(requestedLimit)
+                ? Math.min(Math.max(requestedLimit, 1), 50)
+                : 50;
+            // SIN restricciones de cartera: es un selector de clientes de Reservas,
+            // no la consulta de fichas, historiales o ventas de Gestión de clientes.
+            const clientes = await ClienteModel.search({ query, limit });
+            return res.json(clientes);
+        } catch (error) {
+            console.error('Error buscando clientes para reservas:', error);
+            return res.status(500).json({ message: 'No se han podido buscar clientes.' });
+        }
+    }
+
     async getReservas(req, res) {
         try {
             const reservas = await ReservasModel.getReservas();
