@@ -12,6 +12,12 @@ const pool = new pg.Pool({
 // acepta 0, 00, 000, etc.
 const CODALMAC_CERO_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) ~ '^0+$'";
 
+// Compras y control de stock: solo productos vigentes. NULL, vacío y N siguen siendo válidos.
+// TRIM y UPPER evitan que variantes como " s " se incluyan por error.
+const controlStockActiveProductCondition = (alias = 'productos') =>
+    `UPPER(TRIM(COALESCE(${alias}.obsoleto::text, ''))) <> 'S'`;
+
+
 const sanitizeTableName = (name, fallback) => {
     const value = String(name || fallback).trim().toLowerCase();
     if (!/^[a-z_][a-z0-9_]*$/.test(value)) return fallback;
@@ -407,6 +413,21 @@ export class StockModel {
         return Math.min(Math.max(months, 1), 36);
     }
 
+    // Verifica los borradores guardados independientemente de los filtros, límites y consumos.
+    static async getActiveControlStockProductCodes(codes = []) {
+        const uniqueCodes = [...new Set(codes.map(StockModel.normalizeCode).filter(Boolean))];
+        if (!uniqueCodes.length) return [];
+
+        const { rows } = await pool.query(`
+            SELECT DISTINCT TRIM(productos.codprodu::text) AS codprodu
+            FROM productos
+            WHERE TRIM(productos.codprodu::text) = ANY($1::text[])
+              AND ${controlStockActiveProductCondition()}
+        `, [uniqueCodes]);
+
+        return rows.map((row) => row.codprodu);
+    }
+
     static async getControlStockFilters() {
         try {
             const { rows: providers } = await pool.query(`
@@ -414,7 +435,9 @@ export class StockModel {
                 provider.codprove,
                 COALESCE(proveedores.razprove, provider.codprove) AS nombre_proveedor
             FROM (
-                SELECT NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') AS codprove
+                SELECT
+                    NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') AS codprove,
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key
                 FROM albcompra_linea
                 LEFT JOIN faccompra
                     ON faccompra.ejercicio = albcompra_linea.ejercicio
@@ -425,6 +448,14 @@ export class StockModel {
             ) provider
             LEFT JOIN proveedores
                 ON TRIM(proveedores.codprove::text) = provider.codprove
+            WHERE EXISTS (
+                SELECT 1
+                FROM productos p
+                WHERE UPPER(REGEXP_REPLACE(TRIM(COALESCE(p.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) = provider.codprodu_key
+                  AND COALESCE(TRIM(p.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+                  AND TRIM(COALESCE(p.desprodu, '')) NOT ILIKE '%TRABAJO%'
+                  AND ${controlStockActiveProductCondition('p')}
+            )
             ORDER BY nombre_proveedor
         `);
 
@@ -433,6 +464,9 @@ export class StockModel {
                 NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia
             FROM productos
             WHERE NULLIF(TRIM(productos.codfamil::text), '') IS NOT NULL
+              AND COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+              AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+              AND ${controlStockActiveProductCondition()}
             ORDER BY codfamilia
         `);
 
@@ -547,6 +581,7 @@ export class StockModel {
                 FROM productos
                 WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
                 AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+                AND ${controlStockActiveProductCondition()}
             ),
             consumo_mensual AS (
                 SELECT

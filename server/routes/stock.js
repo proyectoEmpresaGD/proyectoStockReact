@@ -10,6 +10,7 @@ export const createStockRouter = () => {
 
     stockRouter.get('/control-stock/filters', requirePurchasingRole, stockController.getControlStockFilters.bind(stockController));
     stockRouter.get('/control-stock', requirePurchasingRole, stockController.getControlStock.bind(stockController));
+    stockRouter.post('/control-stock/validate-products', requirePurchasingRole, stockController.validateControlStockProducts.bind(stockController));
 
     stockRouter.get('/', stockController.getAll.bind(stockController));
 

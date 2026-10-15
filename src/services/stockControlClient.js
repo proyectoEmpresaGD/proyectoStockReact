@@ -43,3 +43,23 @@ export async function fetchStockControlRows({ token, filters, signal }) {
 
     return response.json();
 }
+// Usado para depurar propuestas anteriores y validar cada descarga contra la tabla productos.
+export async function validateStockControlProductCodes({ token, codes, signal }) {
+    const response = await fetch(`${getApiBaseUrl()}/api/stock/control-stock/validate-products`, {
+        method: 'POST',
+        headers: { ...buildHeaders(token), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes }),
+        cache: 'no-store',
+        signal,
+    });
+
+    if (!response.ok) {
+        throw new Error('No se ha podido comprobar si la propuesta contiene productos obsoletos.');
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data?.activeCodes)) {
+        throw new Error('Respuesta no válida al comprobar los productos de la propuesta.');
+    }
+    return data.activeCodes;
+}

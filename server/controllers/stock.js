@@ -22,6 +22,22 @@ export class StockController {
         }
     }
 
+    async validateControlStockProducts(req, res) {
+        const codes = req.body?.codes;
+        if (!Array.isArray(codes) || codes.length > 2000
+            || codes.some((code) => typeof code !== 'string' || !code.trim() || code.length > 100)) {
+            return res.status(400).json({ error: 'Se requiere una lista de hasta 2000 códigos de producto válidos.' });
+        }
+
+        try {
+            const activeCodes = await StockModel.getActiveControlStockProductCodes(codes);
+            return res.json({ activeCodes });
+        } catch (error) {
+            console.error('Error validating stock purchase plan:', error);
+            return res.status(500).json({ error: 'No se ha podido validar la propuesta de compra.' });
+        }
+    }
+
     async getControlStock(req, res) {
         try {
             const { provider = '', collection = '', productName = '', monthsBack = 12, limit = 500 } = req.query;

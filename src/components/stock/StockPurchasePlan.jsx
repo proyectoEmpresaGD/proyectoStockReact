@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ClipboardList, Download, Trash2, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { formatQuantity, toNumber } from './stockControlUtils';
 
 const escapeCsv = (value) => {
@@ -67,8 +68,23 @@ function downloadPlanCsv(items) {
     URL.revokeObjectURL(url);
 }
 
-function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNotes, onRemove, onClear }) {
+function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNotes, onRemove, onClear, onPrepareDownload }) {
     const [confirmClear, setConfirmClear] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+
+    const handleDownload = async () => {
+        if (downloading) return;
+        setDownloading(true);
+        try {
+            // Comprobación actualizada contra PostgreSQL justo antes de generar el CSV.
+            const validItems = await onPrepareDownload();
+            if (validItems.length) downloadPlanCsv(validItems);
+        } catch (error) {
+            toast.error(error?.message || 'No se ha podido validar la propuesta para exportarla.');
+        } finally {
+            setDownloading(false);
+        }
+    };
     const items = useMemo(() => Object.values(plan), [plan]);
     const totalQuantity = useMemo(
         () => items.reduce((sum, item) => sum + Math.max(toNumber(item.quantity), 0), 0),
@@ -187,8 +203,8 @@ function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNote
 
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <button type="button" onClick={onClose} className="cjm-ghost-button min-h-11">Seguir revisando</button>
-                        <button type="button" onClick={() => downloadPlanCsv(items)} disabled={!items.length} className="cjm-primary-button min-h-11 disabled:opacity-40">
-                            <Download size={17} aria-hidden="true" /> Descargar CSV para Excel
+                        <button type="button" onClick={handleDownload} disabled={!items.length || downloading} className="cjm-primary-button min-h-11 disabled:opacity-40">
+                            <Download size={17} aria-hidden="true" /> {downloading ? 'Comprobando productos…' : 'Descargar CSV para Excel'}
                         </button>
                     </div>
                 </footer>

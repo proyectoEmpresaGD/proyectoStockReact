@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ArrowDownUp,
     ListPlus,
@@ -18,6 +18,8 @@ import StockControlTable from '../components/stock/StockControlTable.jsx';
 import StockProductDetailsModal from '../components/stock/StockProductDetailsModal.jsx';
 import StockPurchasePlan from '../components/stock/StockPurchasePlan.jsx';
 import { useStockControl } from '../hooks/useStockControl.js';
+import { validateStockControlProductCodes } from '../services/stockControlClient.js';
+import { prunePurchasePlan } from '../components/stock/stockPurchasePlanUtils.js';
 import {
     buildPurchasePlanItem,
     compareStockRows,
@@ -74,20 +76,54 @@ function LowStockAlertsPage() {
     const [planOpen, setPlanOpen] = useState(false);
     const [purchasePlan, setPurchasePlan] = useState({});
     const [planHydrated, setPlanHydrated] = useState(false);
+    const [planChecking, setPlanChecking] = useState(false);
+    const [planError, setPlanError] = useState('');
+    const [planReloadCount, setPlanReloadCount] = useState(0);
 
     const storageKey = useMemo(() => getPlanStorageKey(user), [user]);
 
+    const checkActivePlan = useCallback(async (candidate, signal) => {
+        const codes = Object.keys(candidate);
+        if (!codes.length) return {};
+        const activeCodes = await validateStockControlProductCodes({ token, codes, signal });
+        return prunePurchasePlan(candidate, activeCodes);
+    }, [token]);
+
+    // Los borradores pueden contener referencias obsoletas de sesiones anteriores.
+    // No se muestran ni se guardan de nuevo hasta consultar el estado real en PostgreSQL.
     useEffect(() => {
+        let mounted = true;
+        const controller = new AbortController();
         setPlanHydrated(false);
+        setPlanError('');
+        setPurchasePlan({});
+
+        let savedPlan = {};
         try {
-            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            setPurchasePlan(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {});
+            const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) savedPlan = parsed;
         } catch {
-            setPurchasePlan({});
-        } finally {
-            setPlanHydrated(true);
+            // Una propuesta corrupta no debe impedir utilizar el control de stock.
         }
-    }, [storageKey]);
+
+        checkActivePlan(savedPlan, controller.signal)
+            .then((validPlan) => {
+                if (!mounted) return;
+                setPurchasePlan(validPlan);
+                setPlanHydrated(true);
+            })
+            .catch((error) => {
+                if (!mounted || controller.signal.aborted) return;
+                // Conservar el borrador original en localStorage, sin mostrar ni exportar
+                // referencias que no se hayan podido verificar.
+                setPlanError(error?.message || 'No se ha podido validar la propuesta guardada.');
+            });
+
+        return () => {
+            mounted = false;
+            controller.abort();
+        };
+    }, [storageKey, checkActivePlan, planReloadCount]);
 
     useEffect(() => {
         if (!planHydrated) return;
@@ -126,13 +162,31 @@ function LowStockAlertsPage() {
             .sort(compareStockRows(sortBy, horizon));
     }, [rows, status, sortBy, horizon]);
 
-    const planItems = useMemo(() => Object.values(purchasePlan), [purchasePlan]);
+    const planItems = useMemo(() => planHydrated ? Object.values(purchasePlan) : [], [purchasePlan, planHydrated]);
+
+    const openPurchasePlan = async () => {
+        if (!planHydrated || planChecking) return;
+        setPlanChecking(true);
+        try {
+            const validPlan = await checkActivePlan(purchasePlan);
+            setPurchasePlan(validPlan);
+            setPlanOpen(true);
+        } catch {
+            toast.error('No se pudo comprobar la vigencia de los productos de la propuesta.');
+        } finally {
+            setPlanChecking(false);
+        }
+    };
     const planQuantity = useMemo(
         () => planItems.reduce((total, item) => total + Math.max(toNumber(item.quantity), 0), 0),
         [planItems]
     );
 
     const togglePlanProduct = (product) => {
+        if (!planHydrated || planChecking) {
+            toast.info('La propuesta se está comprobando. Inténtalo de nuevo.');
+            return;
+        }
         setPurchasePlan((current) => {
             if (current[product.codprodu]) {
                 const next = { ...current };
@@ -150,6 +204,10 @@ function LowStockAlertsPage() {
     };
 
     const addVisibleProducts = () => {
+        if (!planHydrated || planChecking) {
+            toast.info('La propuesta se está comprobando. Inténtalo de nuevo.');
+            return;
+        }
         const productsToAdd = visibleRows.filter((product) => getSuggestedOrder(product, horizon) > 0);
 
         if (!productsToAdd.length) {
@@ -205,7 +263,7 @@ function LowStockAlertsPage() {
                 description="Prioriza qué comprar, revisa la cobertura real y crea una propuesta para Excel sin depender de correos automáticos."
                 icon={PackageSearch}
                 actions={(
-                    <button type="button" onClick={() => setPlanOpen(true)} className="cjm-primary-button min-h-11">
+                    <button type="button" onClick={openPurchasePlan} disabled={!planHydrated || planChecking} className="cjm-primary-button min-h-11 disabled:opacity-50">
                         <ClipboardList size={18} aria-hidden="true" />
                         Propuesta ({planItems.length})
                     </button>
@@ -222,6 +280,16 @@ function LowStockAlertsPage() {
                     onReset={resetFilters}
                     onApply={applyFilters}
                 />
+
+                {planError && (
+                    <div className="cjm-alert-error" role="alert">
+                        <strong>No se ha podido revisar la propuesta de compra guardada.</strong>
+                        <span>El borrador sigue conservado en este navegador, pero se oculta para evitar que aparezcan productos obsoletos.</span>
+                        <button type="button" onClick={() => setPlanReloadCount((n) => n + 1)} className="cjm-ghost-button min-h-10">
+                            <RefreshCw size={16} aria-hidden="true" /> Reintentar comprobación
+                        </button>
+                    </div>
+                )}
 
                 {hasPendingChanges && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -339,7 +407,8 @@ function LowStockAlertsPage() {
             {planItems.length > 0 && (
                 <button
                     type="button"
-                    onClick={() => setPlanOpen(true)}
+                    onClick={openPurchasePlan}
+                    disabled={!planHydrated || planChecking}
                     className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[900] flex min-h-12 items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-left text-white shadow-2xl transition hover:bg-slate-800 sm:right-6"
                 >
                     <ShoppingCart size={20} aria-hidden="true" />
@@ -365,6 +434,11 @@ function LowStockAlertsPage() {
                 onChangeNotes={changePlanNotes}
                 onRemove={removePlanItem}
                 onClear={() => setPurchasePlan({})}
+                onPrepareDownload={async () => {
+                    const validPlan = await checkActivePlan(purchasePlan);
+                    setPurchasePlan(validPlan);
+                    return Object.values(validPlan);
+                }}
             />
         </PageShell>
     );
