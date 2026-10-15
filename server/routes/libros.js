@@ -1,16 +1,11 @@
 import { Router } from 'express';
 import { LibroController } from '../controllers/libroController.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // Importar el middleware de autenticación
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createLibroRouter = () => {
-    const libroRouter = Router();
-    const libroController = new LibroController();
-
-    // Ruta protegida para 'comercial' y 'admin'
-    libroRouter.get('/cliente/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, libroController.getLibrosByCliente.bind(libroController));
-
-    return libroRouter;
+    const router = Router();
+    const controller = new LibroController();
+    const canAccessBooks = requireRouteAccess('/libro', 'comercial', 'almacen', 'compras', 'user', 'administracion');
+    router.get('/cliente/:codclien', canAccessBooks, controller.getLibrosByCliente.bind(controller));
+    return router;
 };

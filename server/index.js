@@ -30,6 +30,7 @@ import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
 import { createJornadaRouter } from "./routes/jornada.js";
 import { ensureJornadaSchema } from "./services/jornadaMigrations.js";
 import { ensureUserAccessSchema } from "./services/userAccessMigrations.js";
+import { fetchAllowedImage, parseAllowedImageProxyUrl } from "./utils/imageProxy.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -230,23 +231,28 @@ app.get(
   }
 );
 
-// Proxy imágenes externas
-app.get("/api/proxy", async (req, res) => {
-  const imageUrl = req.query.url;
-  if (!imageUrl) return res.status(400).send("URL is required");
+// Proxy de imágenes públicas: dominio autorizado, HTTPS, sin redirecciones,
+// formatos de imagen conocidos, tamaño y duración limitados.
+app.get('/api/proxy', async (req, res) => {
+  const imageUrl = parseAllowedImageProxyUrl(req.query.url);
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'URL de imagen no permitida' });
+  }
 
   try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) return res.status(404).send("Image not found");
+    const result = await fetchAllowedImage(imageUrl);
+    if (result.status !== 200) {
+      return res.status(result.status).json({ error: 'No se pudo obtener una imagen válida' });
+    }
 
-    const contentType = response.headers.get("content-type");
-    const buffer = await response.arrayBuffer();
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", buffer.byteLength);
-    res.send(Buffer.from(buffer));
-  } catch (err) {
-    console.error("❌ Error en /api/proxy:", err);
-    res.status(500).send("Error proxying image");
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Length', result.buffer.byteLength);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(result.buffer);
+  } catch (error) {
+    console.error('Error al cargar una imagen autorizada:', error.message);
+    return res.status(502).json({ error: 'No se pudo cargar la imagen' });
   }
 });
 

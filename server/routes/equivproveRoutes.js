@@ -1,25 +1,14 @@
 import { Router } from 'express';
 import { EquivproveController } from '../controllers/equivproveController.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // Importar el middleware de autenticación
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createEquivalenciasRouter = () => {
-    const equivalenciasRouter = Router();
+    const router = Router();
+    const canAccessEquivalencias = requireRouteAccess('/equivalencias', 'almacen', 'compras');
 
-    // Rutas protegidas por 'almacen' y 'admin'
-    equivalenciasRouter.get('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'almacen'; // Permitir acceso a 'almacen' y 'admin'
-        next();
-    }, EquivproveController.getAll);
-
-    equivalenciasRouter.get('/search', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'almacen'; // Permitir acceso a 'almacen' y 'admin'
-        next();
-    }, EquivproveController.search);
-
-    equivalenciasRouter.get('/searchCJMW', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'almacen'; // Permitir acceso a 'almacen' y 'admin'
-        next();
-    }, EquivproveController.searchCJMW);
-
-    return equivalenciasRouter;
+    router.use(canAccessEquivalencias);
+    router.get('/', EquivproveController.getAll);
+    router.get('/search', EquivproveController.search);
+    router.get('/searchCJMW', EquivproveController.searchCJMW);
+    return router;
 };

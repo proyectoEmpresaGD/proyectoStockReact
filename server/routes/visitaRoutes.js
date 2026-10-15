@@ -1,18 +1,13 @@
 import { Router } from 'express';
 import { VisitaController } from '../controllers/visitaController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createVisitaRouter = () => {
     const router = Router();
     const controller = new VisitaController();
 
-    const roleMiddleware = (req, res, next) => {
-        const role = String(req.user?.role || '').toLowerCase();
-        if (['admin', 'comercial', 'administracion'].includes(role)) return next();
-        return res.status(403).json({ error: 'No tienes acceso a la agenda comercial' });
-    };
-
-    router.use(authMiddleware, roleMiddleware);
+    router.use(authMiddleware, requireRouteAccess('/agenda', 'comercial', 'administracion'));
     router.get('/calendario', controller.getVisitasCalendario.bind(controller));
     router.get('/client/:cliente_id', controller.getVisitsByClienteId.bind(controller));
     router.post('/client/:cliente_id', controller.createVisit.bind(controller));

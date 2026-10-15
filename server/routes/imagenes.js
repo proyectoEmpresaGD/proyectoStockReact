@@ -1,76 +1,24 @@
 import { Router } from 'express';
 import { ImagenController } from '../controllers/imagenes.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requireAdmin } from '../middlewares/requireAdmin.js';
+import { requireAnyRouteAccess } from '../middlewares/requireRouteAccess.js';
 
+// En server/index.js se comprueba JWT antes de entrar en este router.
 export const createImagenRouter = () => {
-    const imagenRouter = Router();
-    const imagenController = new ImagenController();
-
-    // Solo admin: listado completo
-    imagenRouter.get(
-        '/',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = 'admin';
-            next();
-        },
-        imagenController.getAll.bind(imagenController)
+    const router = Router();
+    const controller = new ImagenController();
+    const canReadStockImages = requireAnyRouteAccess(
+        ['/stock', 'almacen', 'compras', 'ventas', 'user', 'comercial', 'administracion', 'administrativo', 'decoandyou'],
+        ['/Libro35AnchoConImagen'],
+        ['/Libro45AnchoConImagen']
     );
 
-    // Solo admin: create
-    imagenRouter.post(
-        '/',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = 'admin';
-            next();
-        },
-        imagenController.create.bind(imagenController)
-    );
+    router.get('/', requireAdmin, controller.getAll.bind(controller));
+    router.post('/', requireAdmin, controller.create.bind(controller));
+    router.get('/producto/:codprodu', canReadStockImages, controller.getByCodprodu.bind(controller));
+    router.get('/:codprodu/:codclaarchivo', canReadStockImages, controller.getByCodproduAndCodclaarchivo.bind(controller));
+    router.patch('/:codprodu/:codclaarchivo', requireAdmin, controller.update.bind(controller));
+    router.delete('/:codprodu/:codclaarchivo', requireAdmin, controller.delete.bind(controller));
 
-    // ✅ STOCK: listar imágenes disponibles para un producto
-    imagenRouter.get(
-        '/producto/:codprodu',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = ['admin', 'almacen'];
-            next();
-        },
-        imagenController.getByCodprodu.bind(imagenController)
-    );
-
-    // ✅ STOCK: obtener imagen por tipo (codclaarchivo)
-    imagenRouter.get(
-        '/:codprodu/:codclaarchivo',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = ['admin', 'almacen'];
-            next();
-        },
-        imagenController.getByCodproduAndCodclaarchivo.bind(imagenController)
-    );
-
-    // Solo admin: update
-    imagenRouter.patch(
-        '/:codprodu/:codclaarchivo',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = 'admin';
-            next();
-        },
-        imagenController.update.bind(imagenController)
-    );
-
-    // Solo admin: delete
-    imagenRouter.delete(
-        '/:codprodu/:codclaarchivo',
-        authMiddleware,
-        (req, _res, next) => {
-            req.requiredRole = 'admin';
-            next();
-        },
-        imagenController.delete.bind(imagenController)
-    );
-
-    return imagenRouter;
+    return router;
 };

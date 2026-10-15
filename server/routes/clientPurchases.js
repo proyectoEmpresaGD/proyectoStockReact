@@ -1,20 +1,11 @@
 import { Router } from 'express';
 import { ClientPurchasesController } from '../controllers/clientPurchases.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
 export const createClientPurchasesRouter = () => {
-    const clientPurchasesRouter = Router();
-    const clientPurchasesController = new ClientPurchasesController();
-
-    clientPurchasesRouter.get(
-        '/client/:codclien',
-        authMiddleware,
-        (req, res, next) => {
-            req.requiredRole = 'comercial';
-            next();
-        },
-        clientPurchasesController.getByClient.bind(clientPurchasesController)
-    );
-
-    return clientPurchasesRouter;
+    const router = Router();
+    const controller = new ClientPurchasesController();
+    const canAccessClients = requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou');
+    router.get('/client/:codclien', canAccessClients, controller.getByClient.bind(controller));
+    return router;
 };

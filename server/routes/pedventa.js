@@ -1,39 +1,24 @@
 import { Router } from 'express';
 import { PedVentaController } from '../controllers/pedventa.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // Importar el middleware de autenticación
+import { requireRouteAccess, requireAnyRouteAccess } from '../middlewares/requireRouteAccess.js';
 
+// Autenticación JWT aplicada en server/index.js.
 export const createPedVentaRouter = () => {
-    const pedVentaRouter = Router();
-    const pedVentaController = new PedVentaController();
+    const router = Router();
+    const controller = new PedVentaController();
+    const canAccessClients = requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou');
+    const canReadOrders = requireAnyRouteAccess(
+        ['/clients', 'comercial', 'administracion', 'decoandyou'],
+        ['/entradas', 'ventas'],
+        ['/analitica-facturacion', 'administracion', 'administrativo']
+    );
 
-    pedVentaRouter.get('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial'; // Permitir a 'comercial' y 'admin'
-        next();
-    }, pedVentaController.getAll.bind(pedVentaController));
+    // El contador de pedidos del inicio también lo consultan usuarios del área de ventas.
+    router.get('/', canReadOrders, controller.getAll.bind(controller));
+    router.get('/client/:codclien', canAccessClients, controller.getByClient.bind(controller));
+    router.post('/', canAccessClients, controller.create.bind(controller));
+    router.patch('/:id', canAccessClients, controller.update.bind(controller));
+    router.delete('/:id', canAccessClients, controller.delete.bind(controller));
 
-
-    // Rutas protegidas para 'comercial' y 'admin'
-    pedVentaRouter.get('/client/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, pedVentaController.getByClient.bind(pedVentaController));
-
-    pedVentaRouter.post('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, pedVentaController.create.bind(pedVentaController));
-
-    pedVentaRouter.patch('/:id', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, pedVentaController.update.bind(pedVentaController));
-
-    pedVentaRouter.delete('/:id', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, pedVentaController.delete.bind(pedVentaController));
-
-
-
-    return pedVentaRouter;
+    return router;
 };

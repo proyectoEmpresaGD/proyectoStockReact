@@ -47,7 +47,7 @@ export class PedVentaModel {
 
         const { rows } = await pool.query(`
             INSERT INTO pedventa (empresa, ejercicio, canal, codSerPedVenta, nPedVenta, linea, codclien, razclien, fecha, fecEntre, codAlmac, codProdu, desProdu, cantidad, precio, importe, dt1, impDt1, dt2, impDt2, dt3, impDt3, impBruto, codIva)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
             RETURNING *;
         `, [empresa, ejercicio, canal, codSerPedVenta, nPedVenta, linea, codclien, razclien, fecha, fecEntre, codAlmac, codProdu, desProdu, cantidad, precio, importe, dt1, impDt1, dt2, impDt2, dt3, impDt3, impBruto, codIva]);
 

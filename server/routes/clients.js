@@ -1,89 +1,32 @@
 import { Router } from 'express';
 import { ClienteController } from '../controllers/clients.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // Middleware de autenticación
 import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 
+// Autenticación JWT aplicada globalmente en server/index.js.
 export const createClienteRouter = () => {
-    const clienteRouter = Router();
-    const clienteController = new ClienteController();
-    const requireClientRouteAccess = requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou');
+    const router = Router();
+    const controller = new ClienteController();
+    const canAccessClients = requireRouteAccess('/clients', 'comercial', 'administracion', 'decoandyou');
+    const canAccessMap = requireRouteAccess('/mapas-facturacion', 'administracion');
 
-    clienteRouter.get('/mapa/resumen-paises', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';
-        next();
-    }, clienteController.getResumenPorPais.bind(clienteController));
-    clienteRouter.get(
-        '/mapa/resumen-provincias',
-        // authMiddleware, // Descomenta si necesitas proteger la ruta
-        // (req, res, next) => {
-        //     req.requiredRole = 'comercial';
-        //     next();
-        // },
-        clienteController.getResumenPorProvincias.bind(clienteController)
-    );
-    // Rutas para la gestión de clientes (protegidas para 'comercial' y 'admin')
-    clienteRouter.get('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.getAll.bind(clienteController));
+    // Los mapas tienen permiso específico; no deben heredar el acceso a clientes.
+    router.get('/mapa/resumen-paises', canAccessMap, controller.getResumenPorPais.bind(controller));
+    router.get('/mapa/resumen-provincias', canAccessMap, controller.getResumenPorProvincias.bind(controller));
 
-    clienteRouter.post('/', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.create.bind(clienteController));
+    // Todas las operaciones con fichas e historiales respetan las excepciones por usuario.
+    router.use(canAccessClients);
+    router.get('/', controller.getAll.bind(controller));
+    router.post('/', controller.create.bind(controller));
+    router.get('/billing', controller.getClientsWithBilling.bind(controller));
+    router.get('/billing/:codclien', controller.getBillingHistory.bind(controller));
+    router.get('/check-existing', controller.checkExisting.bind(controller));
+    router.get('/search', controller.search.bind(controller));
+    router.get('/cliente/:codclien', controller.getByCodclien.bind(controller));
+    router.get('/province/:codprovi', controller.getByProvince.bind(controller));
+    router.get('/detalle/:codclien', controller.getByCodclien.bind(controller));
+    router.patch('/:codclien', controller.update.bind(controller));
+    router.delete('/:codclien', controller.delete.bind(controller));
+    router.get('/:codclien', controller.getById.bind(controller));
 
-    // Ruta para obtener clientes con su facturación total
-    clienteRouter.get('/billing', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial'; // Roles permitidos
-        next();
-    }, clienteController.getClientsWithBilling.bind(clienteController));
-
-    // Ruta para obtener el historial de facturación de un cliente específico
-    clienteRouter.get('/billing/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.getBillingHistory.bind(clienteController));
-
-    // Comprobación global y limitada para evitar visitas a clientes asignados a otra cartera.
-    clienteRouter.get('/check-existing', authMiddleware, requireClientRouteAccess, clienteController.checkExisting.bind(clienteController));
-
-    // Rutas para operaciones específicas de clientes
-    clienteRouter.get('/search', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.search.bind(clienteController));
-
-    clienteRouter.get('/cliente/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.getByCodclien.bind(clienteController)); // Ajusta si es necesario
-
-    clienteRouter.get('/province/:codprovi', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.getByProvince.bind(clienteController));
-
-    clienteRouter.patch('/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.update.bind(clienteController));
-
-    clienteRouter.delete('/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';  // Permitir a 'comercial' y 'admin'
-        next();
-    }, clienteController.delete.bind(clienteController));
-
-    // Rutas más específicas deben ir primero
-    clienteRouter.get('/detalle/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';
-        next();
-    }, clienteController.getByCodclien.bind(clienteController));
-
-    // Luego las más generales
-    clienteRouter.get('/:codclien', authMiddleware, (req, res, next) => {
-        req.requiredRole = 'comercial';
-        next();
-    }, clienteController.getById.bind(clienteController));
-
-    return clienteRouter;
+    return router;
 };

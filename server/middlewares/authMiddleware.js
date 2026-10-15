@@ -23,11 +23,6 @@ export const authMiddleware = async (req, res, next) => {
             return next(); // Continuar con la solicitud
         }
 
-        // Verificar si la ruta requiere un rol específico y si el usuario lo tiene
-        if (req.requiredRole && user.role !== req.requiredRole) {
-            return res.status(403).json({ message: 'Access denied: Insufficient role privileges' });
-        }
-
         // Si todo está bien, almacenar al usuario en la solicitud y continuar
         req.user = user;
         next();

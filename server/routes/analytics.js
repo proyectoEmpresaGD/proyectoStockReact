@@ -6,19 +6,20 @@ export const createAnalyticsRouter = () => {
     const router = Router();
     const controller = new AnalyticsController();
     const requireMapAccess = requireRouteAccess('/mapas-facturacion', 'administracion');
+    const requireBillingAccess = requireRouteAccess('/analitica-facturacion', 'administracion', 'administrativo');
 
-    router.get('/dashboard', controller.getDashboard.bind(controller));
-    router.get('/filters', controller.getFilters.bind(controller));
-    router.get('/summary', controller.getSummary.bind(controller));
-    router.get('/series', controller.getSeries.bind(controller));
-    router.get('/timeseries', controller.getTimeseries.bind(controller));
-    router.get('/top', controller.getTop.bind(controller));
-    router.get('/business-units', controller.getBusinessUnits.bind(controller));
-    router.get('/business-lines', controller.getBusinessLines.bind(controller));
-    router.get('/invoices', controller.getInvoices.bind(controller));
-    router.get('/data-quality', controller.getDataQuality.bind(controller));
+    router.get('/dashboard', requireBillingAccess, controller.getDashboard.bind(controller));
+    router.get('/filters', requireBillingAccess, controller.getFilters.bind(controller));
+    router.get('/summary', requireBillingAccess, controller.getSummary.bind(controller));
+    router.get('/series', requireBillingAccess, controller.getSeries.bind(controller));
+    router.get('/timeseries', requireBillingAccess, controller.getTimeseries.bind(controller));
+    router.get('/top', requireBillingAccess, controller.getTop.bind(controller));
+    router.get('/business-units', requireBillingAccess, controller.getBusinessUnits.bind(controller));
+    router.get('/business-lines', requireBillingAccess, controller.getBusinessLines.bind(controller));
+    router.get('/invoices', requireBillingAccess, controller.getInvoices.bind(controller));
+    router.get('/data-quality', requireBillingAccess, controller.getDataQuality.bind(controller));
     router.get('/geography', requireMapAccess, controller.getGeography.bind(controller));
-    router.get('/compliance', controller.getCompliance.bind(controller));
+    router.get('/compliance', requireBillingAccess, controller.getCompliance.bind(controller));
 
     return router;
 };

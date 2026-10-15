@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { AgendaController } from '../controllers/agendaController.js';
+import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
+import { requireAdmin } from '../middlewares/requireAdmin.js';
 
 export const createAgendaRouter = () => {
     const router = Router();
     const controller = new AgendaController();
 
-    router.use(authMiddleware);
+    router.use(authMiddleware, requireRouteAccess('/agenda', 'comercial', 'administracion'));
 
     router.get('/overview', controller.overview.bind(controller));
     router.get('/clients', controller.searchClients.bind(controller));
@@ -15,8 +17,8 @@ export const createAgendaRouter = () => {
     router.get('/history', controller.history.bind(controller));
 
     // Herramientas de mantenimiento reservadas al administrador.
-    router.get('/admin/health', controller.adminHealth.bind(controller));
-    router.post('/admin/repair/:action', controller.adminRepair.bind(controller));
+    router.get('/admin/health', requireAdmin, controller.adminHealth.bind(controller));
+    router.post('/admin/repair/:action', requireAdmin, controller.adminRepair.bind(controller));
 
     router.get('/reminders', controller.listReminders.bind(controller));
     router.post('/reminders', controller.createReminder.bind(controller));
