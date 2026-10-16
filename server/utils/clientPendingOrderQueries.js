@@ -4,6 +4,17 @@ const asText = (sql) => sql ? `TRIM(${sql}::text)` : `''::text`;
 const asQuantity = (sql) => sql ? `COALESCE(${sql}::numeric, 0)` : '0::numeric';
 const asDate = (sql) => sql ? `${sql}::timestamp` : 'NULL::timestamp';
 
+/** Una línea técnica o informativa no constituye un producto pendiente.
+ * No filtramos por precio: una línea sin coste puede ser un producto real.
+ */
+function realProductFilter(columns, alias = 'p') {
+    const product = column(columns, 'codprodu', alias);
+    const quantity = column(columns, 'cantidad', alias);
+    if (!product || !quantity) return 'FALSE';
+    return `${asText(product)} <> '' AND ${asQuantity(quantity)} > 0`;
+}
+
+
 /**
  * linservi es la fuente de verdad: P = pendiente, S = servido.
  * pedventa proporciona el cliente y los datos comerciales de cada línea;
@@ -12,15 +23,15 @@ const asDate = (sql) => sql ? `${sql}::timestamp` : 'NULL::timestamp';
 export function determinePendingSource(tables) {
     const order = tables.pedventa;
     const line = tables.pedventa_linea;
-    const orderKeys = ['codclien', 'codserpedventa', 'npedventa', 'linea', 'cantidad'];
-    const lineKeys = ['codserpedventa', 'npedventa', 'linea', 'linservi'];
+    const orderKeys = ['codclien', 'codserpedventa', 'npedventa', 'linea', 'codprodu', 'cantidad'];
+    const lineKeys = ['codserpedventa', 'npedventa', 'linea', 'codprodu', 'cantidad', 'linservi'];
 
     if (line?.has('linservi')) {
         if (order && orderKeys.every((key) => order.has(key)) && lineKeys.every((key) => line.has(key))) {
             return { table: 'pedventa', mode: 'status', reliableClosure: order.has('cancerrada') };
         }
         // Algunas sincronizaciones solo incorporan los datos en pedventa_linea.
-        if (['codclien', 'codserpedventa', 'npedventa', 'linea', 'cantidad', 'linservi']
+        if (['codclien', 'codserpedventa', 'npedventa', 'linea', 'codprodu', 'cantidad', 'linservi']
             .every((key) => line.has(key))) {
             return { table: 'pedventa_linea', mode: 'status-direct', reliableClosure: line.has('cancerrada') };
         }
@@ -48,13 +59,14 @@ export function determinePendingSource(tables) {
 
 function pendingStatusFilter(tables, orderColumns, pendingOnly = true) {
     const lineColumns = tables.pedventa_linea;
-    const match = ['codserpedventa', 'npedventa', 'linea', 'canal', 'ejercicio', 'empresa', 'codclien']
+    const match = ['codserpedventa', 'npedventa', 'linea', 'canal', 'ejercicio', 'empresa', 'codclien', 'codprodu']
         .filter((key) => lineColumns.has(key) && orderColumns.has(key))
         .map((key) => `${asText(column(lineColumns, key, 'l'))} = ${asText(column(orderColumns, key, 'p'))}`);
     return `EXISTS (
         SELECT 1 FROM public.pedventa_linea l
         WHERE ${match.join('\n          AND ')}
-          ${pendingOnly ? `AND UPPER(TRIM(${column(lineColumns, 'linservi', 'l')}::text)) = 'P'` : ''}
+          AND ${realProductFilter(lineColumns, 'l')}
+          AND UPPER(TRIM(${column(lineColumns, 'linservi', 'l')}::text)) ${pendingOnly ? "= 'P'" : "IN ('P', 'S')"}
     )`;
 }
 
@@ -63,10 +75,12 @@ function pendingStatusFilter(tables, orderColumns, pendingOnly = true) {
 export function buildPendingStatusCoverageQuery(tables) {
     const columns = tables.pedventa;
     const customer = asText(column(columns, 'codclien'));
+    const realProduct = realProductFilter(columns);
     return `SELECT
-        EXISTS (SELECT 1 FROM public.pedventa p WHERE ${customer} = $1) AS tiene_pedidos,
         EXISTS (SELECT 1 FROM public.pedventa p
-                WHERE ${customer} = $1
+                WHERE ${customer} = $1 AND ${realProduct}) AS tiene_pedidos,
+        EXISTS (SELECT 1 FROM public.pedventa p
+                WHERE ${customer} = $1 AND ${realProduct}
                   AND ${pendingStatusFilter(tables, columns, false)}) AS tiene_estados`;
 }
 
@@ -121,6 +135,7 @@ export function buildPendingOrdersQuery(tables, source) {
           ${tables.albventa_linea.has('canal') && columns.has('canal') ? `AND a.canal = ${asText(field('canal'))}` : ''}
           ${tables.albventa_linea.has('ejercicio') && columns.has('ejercicio') ? `AND a.ejercicio = ${asText(field('ejercicio'))}` : ''}` : ''}
         WHERE ${asText(field('codclien'))} = $1
+          AND ${realProductFilter(columns)}
         ${statusWhere}
     `;
 
@@ -144,7 +159,7 @@ export function buildPendingOrdersQuery(tables, source) {
     }
 
     // Se pagina por pedido, NO por líneas. No separar líneas del mismo pedido.
-    // Con linservi, no filtramos por cantidad calculada: P es la autoridad.
+    // Con linservi, filtramos P y artículos reales, nunca por su precio ni por pendientes estimados.
     return `WITH ${cte}
         lineas AS (${lines}),
         pendientes AS (SELECT * FROM lineas ${isStatus ? '' : 'WHERE pendiente > 0'}),
@@ -167,6 +182,9 @@ const round = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 10
 export function groupPendingOrderLines(rows, pageSize) {
     const map = new Map();
     for (const row of rows) {
+        // Defensa adicional ante sincronizaciones incompletas o respuestas antiguas:
+        // ni encabezados, ni observaciones, ni líneas con cantidad cero.
+        if (!String(row.codprodu ?? '').trim() || !(Number(row.cantidad) > 0)) continue;
         const id = [row.canal, row.ejercicio, row.serie, row.numero].join('|');
         if (!map.has(id)) {
             map.set(id, {

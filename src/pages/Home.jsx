@@ -26,11 +26,6 @@ function Home() {
     const shouldHideKpis = rolesWithoutKpis.includes(
         String(user?.role || '').trim().toLowerCase()
     );
-    const canSeeClients = userCanAccessRoute(user?.role, '/clients', user?.route_access);
-    const canSeeStock = userCanAccessRoute(user?.role, '/stock', user?.route_access);
-    const canSeeOrders = canSeeClients
-        || userCanAccessRoute(user?.role, '/entradas', user?.route_access)
-        || userCanAccessRoute(user?.role, '/analitica-facturacion', user?.route_access);
 
     const username = String(user?.username || 'equipo').trim();
     const displayName = username
@@ -57,47 +52,64 @@ function Home() {
 
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [token, shouldHideKpis, canSeeClients, canSeeStock, canSeeOrders]);
+    }, [token, shouldHideKpis]);
 
     const fetchData = async () => {
         try {
-            if (!token) return;
+            if (!token) {
+                setIsLoading(false);
+                return;
+            }
 
-            const authHeaders = { Authorization: `Bearer ${token}` };
-            const getJson = async (endpoint) => {
-                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`, {
-                    headers: authHeaders,
-                });
+            const authHeaders = {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            };
+
+            const ensureAuth = async (response, entityName) => {
                 if (response.status === 401) {
                     logout();
                     navigate('/login');
                     throw new Error('Sesión expirada. Inicia sesión de nuevo.');
                 }
-                if (!response.ok) throw new Error(`Error al cargar ${endpoint}: ${response.status}`);
-                return response.json();
+                if (!response.ok) throw new Error(`Error al obtener ${entityName}: ${response.status}`);
+                return response;
             };
 
-            // Las consultas independientes no deben bloquear el resto del panel si falla una.
-            const requests = [
-                ...(canSeeClients ? [getJson('/api/clients').then((data) => setTotalClients(data.total || 0))] : []),
-                ...(canSeeStock ? [
-                    getJson('/api/products').then((data) => setTotalProducts(data.total || 0)),
-                    getJson('/api/stock').then((data) => {
-                        const stockTotal = Array.isArray(data)
-                            ? data.reduce((total, item) => total + Number(item.stockactual || 0), 0)
-                            : 0;
-                        setTotalStock(stockTotal.toFixed(2));
-                    }),
-                ] : []),
-                ...(canSeeOrders ? [getJson('/api/pedventa').then((data) => {
-                    const uniqueOrders = new Set((Array.isArray(data) ? data : []).map((order) => order.npedventa));
-                    setTotalOrders(uniqueOrders.size);
-                })] : []),
-            ];
-            const results = await Promise.allSettled(requests);
-            results.forEach((result) => {
-                if (result.status === 'rejected') console.error('Error al cargar indicador:', result.reason);
+            const clientsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/clients`, {
+                headers: authHeaders,
             });
+            await ensureAuth(clientsResponse, 'clientes');
+            const clientsData = await clientsResponse.json();
+            setTotalClients(clientsData.total || 0);
+
+            const productsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products`, {
+                headers: authHeaders,
+            });
+            await ensureAuth(productsResponse, 'productos');
+            const productsData = await productsResponse.json();
+            setTotalProducts(productsData.total || 0);
+
+            const stockResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/stock`, {
+                headers: authHeaders,
+            });
+            await ensureAuth(stockResponse, 'stock');
+            const stockData = await stockResponse.json();
+            const totalStockValue = stockData.reduce(
+                (acc, stock) => acc + parseFloat(stock.stockactual || 0),
+                0
+            );
+            setTotalStock(totalStockValue.toFixed(2));
+
+            const ordersResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/pedventa`, {
+                headers: authHeaders,
+            });
+            await ensureAuth(ordersResponse, 'pedidos');
+            const ordersData = await ordersResponse.json();
+            const uniqueOrders = new Set(ordersData.map((order) => order.npedventa));
+            setTotalOrders(uniqueOrders.size);
+        } catch (error) {
+            console.error('Error al obtener datos:', error);
         } finally {
             setIsLoading(false);
         }
@@ -142,13 +154,13 @@ function Home() {
     ];
 
     const kpis = [
-        ...(canSeeClients ? [{
+        {
             label: 'Clientes',
             value: totalClients,
             helper: 'Registros disponibles',
             icon: <AiOutlineTeam size={22} />,
-        }] : []),
-        ...(canSeeStock ? [{
+        },
+        {
             label: 'Productos',
             value: totalProducts,
             helper: 'Referencias gestionadas',
@@ -159,13 +171,13 @@ function Home() {
             value: totalStock,
             helper: 'Unidades en inventario',
             icon: <AiOutlineStock size={22} />,
-        }] : []),
-        ...(canSeeOrders ? [{
+        },
+        {
             label: 'Pedidos',
             value: totalOrders,
             helper: 'Pedidos únicos',
             icon: <AiOutlineFile size={22} />,
-        }] : []),
+        },
     ];
 
     return (
@@ -247,7 +259,7 @@ function Home() {
                     </div>
                 </section>
 
-                {!shouldHideKpis && kpis.length > 0 && (
+                {!shouldHideKpis && (
                     <section className="cjm-panel rounded-3xl p-5 sm:p-6 lg:p-7">
                         <div className="mb-5 flex items-center justify-between gap-4">
                             <div>

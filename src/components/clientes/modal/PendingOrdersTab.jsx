@@ -1,339 +1,217 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiAlertCircle, FiChevronDown, FiClock, FiLoader, FiPackage, FiRefreshCw, FiSearch, FiShoppingBag, FiTruck } from 'react-icons/fi';
+import { FiAlertCircle, FiCalendar, FiChevronDown, FiChevronUp, FiClock, FiPackage, FiRefreshCw, FiSearch } from 'react-icons/fi';
 import { useAuthContext } from '../../../Auth/AuthContext';
-import EmptyState from '../../../common/EmptyState.jsx';
 
-const formatDate = (value) => {
+const money = (amount) => new Intl.NumberFormat('es-ES', {
+    style: 'currency', currency: 'EUR', maximumFractionDigits: 2,
+}).format(Number(amount) || 0);
+const quantity = (value) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(Number(value) || 0);
+const dateLabel = (value) => {
     if (!value) return 'Sin fecha';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-ES');
 };
+const normalize = (text) => String(text || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-const formatCurrency = (value) => new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 2,
-}).format(Number(value) || 0);
+const orderNumber = (order) => [order.serie, order.numero].filter(Boolean).join(' · ') || 'Sin número';
 
-const formatQuantity = (value) => new Intl.NumberFormat('es-ES', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-}).format(Number(value) || 0);
-
-const applyDiscounts = (amount, discounts = []) => discounts.reduce((current, discount) => {
-    const numeric = Number(discount) || 0;
-    return numeric > 0 ? current * (1 - numeric / 100) : current;
-}, Number(amount) || 0);
-
-const buildOrderKey = (line) => [line.canal, line.codserpedventa, line.npedventa].map((part) => String(part || '').trim()).join('|');
-
-export default function PendingOrdersTab({ client, active = true }) {
+export default function PendingOrdersTab({ client }) {
     const { token } = useAuthContext();
-    const codclien = client?.codclien;
-
-    const [items, setItems] = useState([]);
+    const clientCode = client?.codclien;
+    const [orders, setOrders] = useState([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [source, setSource] = useState('');
+    const [isEstimate, setIsEstimate] = useState(false);
     const [search, setSearch] = useState('');
-    const [expandedKey, setExpandedKey] = useState(null);
+    const [expandedId, setExpandedId] = useState(null);
+    const [revision, setRevision] = useState(0);
 
     useEffect(() => {
-        if (!active || !codclien) return undefined;
+        setPage(1);
+        setSearch('');
+        setExpandedId(null);
+        setOrders([]);
+    }, [clientCode]);
 
+    useEffect(() => {
+        if (!clientCode || !token) return undefined;
         const controller = new AbortController();
-
-        const loadPendingOrders = async () => {
-            setLoading(true);
-            setError('');
-
-            try {
-                const response = await fetch(
-                    `${import.meta.env.VITE_API_BASE_URL}/api/clients/${codclien}/pending-orders`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                        signal: controller.signal,
-                    }
-                );
-
-                const data = await response.json().catch(() => ([]));
+        setLoading(true);
+        setError('');
+        const url = `${import.meta.env.VITE_API_BASE_URL}/api/clients/${encodeURIComponent(clientCode)}/pending-orders?page=${page}&limit=12`;
+        fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal, cache: 'no-store' })
+            .then(async (response) => {
+                const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data?.message || 'No se han podido cargar los pedidos pendientes.');
+                    throw new Error(data.message || (response.status === 403
+                        ? 'No tienes permiso para consultar los pedidos de este cliente.'
+                        : 'No se ha podido consultar los pedidos pendientes.'));
                 }
-
-                setItems(Array.isArray(data) ? data : []);
-            } catch (fetchError) {
-                if (fetchError?.name !== 'AbortError') {
-                    console.error(fetchError);
-                    setError(fetchError.message || 'No se han podido cargar los pedidos pendientes.');
-                    setItems([]);
-                }
-            } finally {
+                return data;
+            })
+            .then((data) => {
+                if (controller.signal.aborted) return;
+                const incoming = Array.isArray(data.orders) ? data.orders : [];
+                setOrders((previous) => page === 1 ? incoming : [
+                    ...previous, ...incoming.filter((order) => !previous.some((item) => item.id === order.id)),
+                ]);
+                setHasMore(Boolean(data.hasMore));
+                setSource(data.source || '');
+                setIsEstimate(Boolean(data.isEstimate));
+            })
+            .catch((failure) => {
+                if (!controller.signal.aborted) setError(failure.message);
+            })
+            .finally(() => {
                 if (!controller.signal.aborted) setLoading(false);
-            }
-        };
-
-        loadPendingOrders();
+            });
         return () => controller.abort();
-    }, [active, codclien, token]);
+    }, [clientCode, token, page, revision]);
 
-    const groupedOrders = useMemo(() => {
-        const normalizedSearch = String(search || '').trim().toLowerCase();
-        const groups = new Map();
+    const filteredOrders = useMemo(() => {
+        const needle = normalize(search.trim());
+        return needle ? orders.filter((order) => normalize([
+            order.serie, order.numero, ...order.lineas.flatMap((line) => [line.codprodu, line.desprodu]),
+        ].join(' ')).includes(needle)) : orders;
+    }, [orders, search]);
 
-        items.forEach((line) => {
-            if (String(line?.linservi || '').toUpperCase() !== 'P') return;
-
-            const searchable = [
-                line?.npedventa,
-                line?.codprodu,
-                line?.desprodu,
-                line?.referencia,
-            ]
-                .map((value) => String(value || '').toLowerCase())
-                .join(' ');
-
-            if (normalizedSearch && !searchable.includes(normalizedSearch)) return;
-
-            const key = buildOrderKey(line);
-            const netAmount = applyDiscounts(line?.importe, [line?.dt1, line?.dt2, line?.dt3]);
-            const normalizedLine = {
-                ...line,
-                importeNeto: netAmount,
-            };
-
-            if (!groups.has(key)) {
-                groups.set(key, {
-                    key,
-                    npedventa: line?.npedventa,
-                    canal: line?.canal,
-                    codserpedventa: line?.codserpedventa,
-                    fecha: line?.fecha,
-                    fecentre: line?.fecentre,
-                    lineas: [],
-                    totalImporte: 0,
-                });
-            }
-
-            const group = groups.get(key);
-            group.lineas.push(normalizedLine);
-            group.totalImporte += netAmount;
-
-            if (!group.fecha && line?.fecha) group.fecha = line.fecha;
-            if (!group.fecentre && line?.fecentre) group.fecentre = line.fecentre;
-        });
-
-        return Array.from(groups.values());
-    }, [items, search]);
-
-    useEffect(() => {
-        if (!groupedOrders.length) {
-            setExpandedKey(null);
-            return;
-        }
-
-        if (!expandedKey || !groupedOrders.some((order) => order.key === expandedKey)) {
-            setExpandedKey(groupedOrders[0].key);
-        }
-    }, [groupedOrders, expandedKey]);
-
-    const summary = useMemo(() => {
-        const orderCount = groupedOrders.length;
-        const lineCount = groupedOrders.reduce((sum, order) => sum + order.lineas.length, 0);
-        const totalImporte = groupedOrders.reduce((sum, order) => sum + order.totalImporte, 0);
-        return { orderCount, lineCount, totalImporte };
-    }, [groupedOrders]);
+    const totalLines = orders.reduce((sum, order) => sum + order.lineas.length, 0);
+    const refresh = () => {
+        setOrders([]);
+        setPage(1);
+        setRevision((value) => value + 1);
+        setExpandedId(null);
+    };
 
     return (
-        <div className="space-y-4 sm:space-y-5">
-            <div className="rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-4 sm:p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <p className="cjm-kicker">Seguimiento comercial</p>
-                        <h3 className="mt-1 text-lg font-semibold app-text sm:text-xl">Pedidos pendientes</h3>
-                        <p className="cjm-muted mt-2 max-w-3xl text-sm leading-6">
-                            Aquí solo se muestran las líneas del cliente con estado pendiente en <strong className="app-text">pedventa_linea.linservi = P</strong>.
-                        </p>
-                    </div>
+        <section className="space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]" aria-label="Pedidos pendientes del cliente">
+            <header className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-bold app-text sm:text-xl">Pedidos pendientes</h3>
+                    <p className="cjm-muted mt-1 text-sm">Pedidos que aún tienen cantidades por servir.</p>
+                </div>
+                <button type="button" onClick={refresh} disabled={loading}
+                    className="cjm-secondary-button min-h-11 rounded-xl px-3 text-sm disabled:opacity-50">
+                    <FiRefreshCw aria-hidden="true" className={loading ? 'animate-spin' : ''} /> Actualizar
+                </button>
+            </header>
 
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[420px]">
-                        <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm">
-                            <span className="cjm-data-label">Pedidos</span>
-                            <strong className="mt-1 block text-xl font-semibold app-text">{summary.orderCount}</strong>
-                        </div>
-                        <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm">
-                            <span className="cjm-data-label">Líneas pendientes</span>
-                            <strong className="mt-1 block text-xl font-semibold app-text">{summary.lineCount}</strong>
-                        </div>
-                        <div className="rounded-2xl bg-white/80 px-4 py-3 shadow-sm">
-                            <span className="cjm-data-label">Importe orientativo</span>
-                            <strong className="mt-1 block text-xl font-semibold app-text">{formatCurrency(summary.totalImporte)}</strong>
-                        </div>
+            {source === 'linservi' && (
+                <p className="cjm-muted text-xs">Solo se muestran líneas con <strong>linservi = P</strong> (pendientes). Las servidas (S) quedan excluidas. Si no se ha sincronizado la cantidad servida, se muestra la cantidad pedida, pero no se inventa la pendiente.</p>
+            )}
+            {source && isEstimate && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-950" role="status">
+                    <FiAlertCircle className="mt-0.5 shrink-0" size={19} aria-hidden="true" />
+                    <p>{source === 'linservi' ? 'Las líneas están confirmadas como pendientes por su estado P. Cuando se muestra una cantidad restante, es orientativa porque falta información completa de cierre.' : <>Las cantidades son <strong>estimadas</strong> {source === 'albaranes' ? 'a partir de pedidos y albaranes' : 'a partir de las cantidades servidas'}. Pueden incluir líneas cerradas o anuladas que aún no estén identificadas en los datos sincronizados.</>} Confirma las cantidades antes de comprometer una entrega.</p>
+                </div>
+            )}
+            {source && source !== 'linservi' && !isEstimate && (
+                <p className="cjm-muted text-xs">Cantidades calculadas con los datos de pedido servido y cerrado.</p>
+            )}
+
+            {(orders.length > 0 || (!loading && !error)) && (
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3 sm:p-4">
+                        <p className="cjm-muted text-xs">Pedidos cargados</p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums app-text">{orders.length}{hasMore ? '+' : ''}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3 sm:p-4">
+                        <p className="cjm-muted text-xs">Líneas pendientes cargadas</p>
+                        <p className="mt-1 text-2xl font-bold tabular-nums app-text">{totalLines}</p>
                     </div>
                 </div>
-            </div>
+            )}
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <label className="block">
-                    <span className="cjm-control-label">Buscar dentro de los pedidos</span>
-                    <div className="relative">
-                        <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" />
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-4"
-                            placeholder="Pedido, referencia o producto"
-                        />
-                    </div>
+            {orders.length > 0 && (
+                <label className="relative block">
+                    <FiSearch className="pointer-events-none absolute left-3 top-3.5 text-[var(--cjm-muted)]" size={19} aria-hidden="true" />
+                    <span className="sr-only">Buscar entre los pedidos cargados</span>
+                    <input value={search} onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Buscar pedido o tejido cargado…"
+                        className="cjm-input min-h-12 w-full rounded-xl py-3 pl-10 pr-3 text-base" />
                 </label>
-
-                <button
-                    type="button"
-                    onClick={() => {
-                        setSearch('');
-                        setExpandedKey(groupedOrders[0]?.key || null);
-                    }}
-                    className="cjm-secondary-button min-h-12 w-full lg:w-auto"
-                >
-                    <FiRefreshCw aria-hidden="true" />
-                    Limpiar búsqueda
-                </button>
-            </div>
+            )}
 
             {error && (
                 <div className="cjm-alert cjm-alert-error" role="alert">
-                    {error}
+                    <p>{error}</p>
+                    <button type="button" onClick={refresh} className="mt-2 min-h-11 font-bold underline">Reintentar consulta</button>
                 </div>
             )}
 
-            {loading ? (
-                <div className="cjm-empty-state flex min-h-48 items-center justify-center">
-                    <span className="inline-flex items-center gap-3 text-sm font-semibold app-text">
-                        <FiLoader className="animate-spin text-xl text-[var(--cjm-primary-deep)]" />
-                        Cargando pedidos pendientes…
-                    </span>
+            {!error && !loading && orders.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-[var(--cjm-border)] px-4 py-12 text-center">
+                    <FiPackage size={34} className="mx-auto text-[var(--cjm-muted)]" aria-hidden="true" />
+                    <p className="mt-3 font-semibold app-text">No se han encontrado líneas pendientes</p>
+                    <p className="cjm-muted mt-1 text-sm">{source === 'linservi' ? 'No hay pedidos con líneas marcadas como pendientes para este cliente.' : 'No hay pedidos pendientes en los datos disponibles para este cliente.'}</p>
                 </div>
-            ) : groupedOrders.length === 0 ? (
-                <EmptyState
-                    icon={FiPackage}
-                    title="No hay pedidos pendientes"
-                    description={search
-                        ? 'No hay coincidencias con esa búsqueda dentro de los pedidos pendientes.'
-                        : 'Este cliente no tiene líneas de pedido con estado pendiente.'}
-                />
-            ) : (
-                <div className="space-y-3">
-                    {groupedOrders.map((order) => {
-                        const isExpanded = expandedKey === order.key;
-                        return (
-                            <article key={order.key} className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] shadow-sm">
-                                <button
-                                    type="button"
-                                    onClick={() => setExpandedKey((current) => current === order.key ? null : order.key)}
-                                    className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left sm:px-5"
-                                >
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--cjm-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--cjm-primary-deep)]">
-                                                <FiShoppingBag aria-hidden="true" />
-                                                Pedido {order.npedventa || '—'}
-                                            </span>
-                                            <span className="cjm-badge">{order.lineas.length} línea{order.lineas.length === 1 ? '' : 's'}</span>
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                                                <FiClock aria-hidden="true" />
-                                                Pendiente
-                                            </span>
-                                        </div>
+            )}
 
-                                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
-                                            <div>
-                                                <span className="cjm-data-label block">Fecha pedido</span>
-                                                <strong className="mt-1 block app-text">{formatDate(order.fecha)}</strong>
-                                            </div>
-                                            <div>
-                                                <span className="cjm-data-label block">Entrega prevista</span>
-                                                <strong className="mt-1 block app-text">{formatDate(order.fecentre)}</strong>
-                                            </div>
-                                            <div>
-                                                <span className="cjm-data-label block">Importe orientativo</span>
-                                                <strong className="mt-1 block app-text">{formatCurrency(order.totalImporte)}</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <span className={`mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] transition ${isExpanded ? 'rotate-180' : ''}`}>
-                                        <FiChevronDown aria-hidden="true" />
+            <div className="space-y-3">
+                {filteredOrders.map((order) => {
+                    const expanded = expandedId === order.id;
+                    const dateLimit = order.lineas.map((line) => line.fechaEntrega).filter(Boolean).sort()[0];
+                    return (
+                        <article key={order.id} className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] shadow-sm">
+                            <button type="button" onClick={() => setExpandedId(expanded ? null : order.id)}
+                                aria-expanded={expanded}
+                                className="flex min-h-20 w-full items-start justify-between gap-3 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--cjm-primary)] sm:p-4">
+                                <span className="min-w-0 flex-1 space-y-2">
+                                    <span className="block break-words text-base font-bold app-text">Pedido {orderNumber(order)}</span>
+                                    <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--cjm-muted)]">
+                                        <span className="inline-flex items-center gap-1"><FiCalendar aria-hidden="true" /> {dateLabel(order.fecha)}</span>
+                                        {dateLimit && <span className="inline-flex items-center gap-1"><FiClock aria-hidden="true" /> Entrega {dateLabel(dateLimit)}</span>}
                                     </span>
-                                </button>
-
-                                {isExpanded && (
-                                    <div className="border-t border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-4 py-4 sm:px-5">
-                                        <div className="grid gap-3">
-                                            {order.lineas.map((line, index) => (
-                                                <section key={`${order.key}-${line.linea || index}`} className="rounded-2xl bg-[var(--cjm-surface)] p-4 shadow-sm">
-                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                        <div className="min-w-0">
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <strong className="text-sm font-semibold app-text sm:text-base">
-                                                                    {line.desprodu || line.codprodu || 'Producto pendiente'}
-                                                                </strong>
-                                                                <span className="cjm-badge">{line.codprodu || 'Sin código'}</span>
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                                                                    <FiTruck aria-hidden="true" />
-                                                                    {line.linservi || 'P'}
-                                                                </span>
-                                                            </div>
-
-                                                            {line.referencia && (
-                                                                <p className="cjm-muted mt-2 text-sm">
-                                                                    Referencia: <strong className="app-text">{line.referencia}</strong>
-                                                                </p>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-4 py-3 text-left sm:min-w-[180px] sm:text-right">
-                                                            <span className="cjm-data-label block text-[var(--cjm-primary-deep)]">Importe</span>
-                                                            <strong className="mt-1 block text-base font-semibold text-[var(--cjm-primary-deep)]">
-                                                                {formatCurrency(line.importeNeto)}
-                                                            </strong>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                                        <div>
-                                                            <span className="cjm-data-label block">Cantidad</span>
-                                                            <strong className="mt-1 block app-text">{formatQuantity(line.cantidad)}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <span className="cjm-data-label block">Precio</span>
-                                                            <strong className="mt-1 block app-text">{formatCurrency(line.precio)}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <span className="cjm-data-label block">Fecha pedido</span>
-                                                            <strong className="mt-1 block app-text">{formatDate(line.fecha)}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <span className="cjm-data-label block">Entrega prevista</span>
-                                                            <strong className="mt-1 block app-text">{formatDate(line.fecentre)}</strong>
-                                                        </div>
-                                                    </div>
-                                                </section>
-                                            ))}
+                                    <span className="block text-sm font-medium app-text">{order.lineas.length} línea{order.lineas.length === 1 ? '' : 's'} · {order.cantidadPendiente === null ? 'estado pendiente' : `${quantity(order.cantidadPendiente)} pendiente`}</span>
+                                </span>
+                                <span className="flex shrink-0 flex-col items-end gap-2">
+                                    <span className="text-sm font-semibold tabular-nums text-[var(--cjm-primary-deep)]">{order.importePendiente === null ? 'Importe no disponible' : money(order.importePendiente)}</span>
+                                    {expanded ? <FiChevronUp aria-hidden="true" /> : <FiChevronDown aria-hidden="true" />}
+                                </span>
+                            </button>
+                            {expanded && (
+                                <div className="space-y-2 border-t border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3 sm:p-4">
+                                    {order.lineas.map((line, index) => (
+                                        <div key={`${line.linea}-${index}`} className="rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-3">
+                                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="break-words text-sm font-semibold app-text">{line.desprodu || line.codprodu || 'Producto sin descripción'}</p>
+                                                    <p className="cjm-muted mt-1 text-xs">{line.codprodu || 'Sin código'} · Línea {line.linea || '—'}</p>
+                                                </div>
+                                                <span className="rounded-lg border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-2.5 py-1.5 text-sm font-bold tabular-nums text-[var(--cjm-primary-deep)]">
+                                                    {line.pendiente === null ? 'Pendiente' : `${quantity(line.pendiente)} pend.`}
+                                                </span>
+                                            </div>
+                                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                                                <span><span className="cjm-muted block">Pedido</span><strong className="app-text">{quantity(line.cantidad)}</strong></span>
+                                                <span><span className="cjm-muted block">Servido</span><strong className="app-text">{line.servido === null ? 'Sin datos' : quantity(line.servido)}</strong></span>
+                                                <span><span className="cjm-muted block">Importe pend.</span><strong className="app-text">{line.importePendiente === null ? 'No disponible' : money(line.importePendiente)}</strong></span>
+                                                <span><span className="cjm-muted block">Fecha entrega</span><strong className="app-text">{dateLabel(line.fechaEntrega)}</strong></span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </article>
-                        );
-                    })}
-                </div>
-            )}
-
-            <div className="rounded-2xl border border-dashed border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-4 py-3 text-sm cjm-muted">
-                <span className="inline-flex items-start gap-2">
-                    <FiAlertCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-                    Se consideran pendientes únicamente las líneas con <strong className="app-text">linservi = P</strong>. Las líneas con <strong className="app-text">linservi = S</strong> no se muestran.
-                </span>
+                                    ))}
+                                </div>
+                            )}
+                        </article>
+                    );
+                })}
             </div>
-        </div>
+
+            {orders.length > 0 && filteredOrders.length === 0 && (
+                <p className="cjm-muted py-6 text-center text-sm">No hay coincidencias entre los pedidos cargados.</p>
+            )}
+            {loading && <p className="cjm-muted flex items-center justify-center gap-2 py-6 text-sm" role="status"><FiRefreshCw className="animate-spin" aria-hidden="true" /> Consultando pedidos…</p>}
+            {hasMore && !error && (
+                <button type="button" disabled={loading} onClick={() => setPage((value) => value + 1)}
+                    className="cjm-secondary-button min-h-12 w-full rounded-xl text-sm font-bold disabled:opacity-50">
+                    Cargar más pedidos
+                </button>
+            )}
+            <p className="cjm-muted text-xs">Consulta de solo lectura. Los importes pendientes solo se muestran cuando hay cantidad restante calculable; son orientativos, sin impuestos y con los descuentos disponibles.</p>
+        </section>
     );
 }

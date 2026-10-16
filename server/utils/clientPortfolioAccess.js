@@ -7,7 +7,9 @@ export function normalizeUserClientAccess(user) {
     if (CLIENT_ACCESS_OVERRIDES[username]) {
         return { codclien: CLIENT_ACCESS_OVERRIDES[username], codrepres: undefined };
     }
-    if (String(user?.role || '').trim().toLowerCase() !== 'comercial') {
+    // Ventas con acceso explícito a /clients también respeta la cartera.
+    // La búsqueda transversal de Reservas usa un endpoint independiente.
+    if (!['comercial', 'ventas'].includes(String(user?.role || '').trim().toLowerCase())) {
         return { codclien: undefined, codrepres: undefined };
     }
     const codes = [user?.codrepre];

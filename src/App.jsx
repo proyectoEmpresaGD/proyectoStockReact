@@ -2,7 +2,9 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { AuthProvider } from './Auth/AuthContext.jsx';
+import { AuthProvider, useAuthContext } from './Auth/AuthContext.jsx';
+import { canAccessSgaPreview } from './sga/sgaPreviewAccess.js';
+import { decodeJwtPayload } from './utils/jwt.js';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
@@ -11,6 +13,7 @@ import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
 const Stock = lazy(() => import('./pages/paginaStock.jsx'));
+const SgaPage = lazy(() => import('./pages/SgaPage.jsx'));
 const Clients = lazy(() => import('./pages/paginaclients.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const Intrastat = lazy(() => import('./pages/Intrastat.jsx'));
@@ -63,6 +66,23 @@ const PageLoader = () => (
     </div>
   </div>
 );
+
+// El SGA permanece oculto para Almacén y otros roles mientras está en pruebas.
+// Únicamente puede abrirlo quien inicie sesión con el rol admin.
+function SgaPreviewGate({ children }) {
+  const { user, token } = useAuthContext();
+  let activeUser = user;
+  if (!activeUser && token) {
+    try {
+      activeUser = decodeJwtPayload(token);
+    } catch {
+      // ProtectedRoute gestiona las sesiones inválidas.
+    }
+  }
+
+  if (!canAccessSgaPreview(activeUser)) return <Navigate to="/" replace />;
+  return children;
+}
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,6 +143,7 @@ function App() {
                             <Route path="/intrastat" element={<ProtectedRoute requiredRole="admin"><Intrastat /></ProtectedRoute>} />
                             <Route path="/analitica-facturacion" element={<ProtectedRoute><FacturacionAnalyticsPage /></ProtectedRoute>} />
                             <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                            <Route path="/sga" element={<SgaPreviewGate><ProtectedRoute><SgaPage /></ProtectedRoute></SgaPreviewGate>} />
                             <Route path="/reservasTejido" element={<ProtectedRoute><ReservasTejido /></ProtectedRoute>} />
                             <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />
                             <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />

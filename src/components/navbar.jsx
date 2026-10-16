@@ -143,6 +143,10 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'productos',
                 links: [
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion', 'decoandyou'] },
+                    // Visible solamente para admin. No cambia el menú de Almacén.
+                    ...(String(user?.role || '').trim().toLowerCase() === 'admin'
+                        ? [{ to: '/sga', label: 'SGA · Pruebas', icon: <FaCubes className="mr-3 text-lg" />, roles: ['admin'] }]
+                        : []),
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },
                     { to: '/reservasTejido', label: 'Reservas', icon: <FaCalendarCheck className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'ventas', 'administracion'] },
                     { to: '/fichaTecnica', label: 'Ficha técnica', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'user', 'administracion'] },
