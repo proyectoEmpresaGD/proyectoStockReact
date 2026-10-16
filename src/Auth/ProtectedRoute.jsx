@@ -1,10 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from './AuthContext';
 import { decodeJwtPayload } from '../utils/jwt';
-import { getFirstAccessibleRoute, userCanAccessRoute } from '../utils/roleAccessConfig';
+import { getFirstAccessibleRoute, getRoleDefinition, userCanAccessRoute } from '../utils/roleAccessConfig';
 
 const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
-    const { token, user } = useAuthContext();
+    const { token, user, roleCatalogLoading } = useAuthContext();
     const location = useLocation();
 
     if (!token) {
@@ -16,6 +16,12 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
         const currentRole = decoded.role;
         const routeAccess = decoded.route_access || {};
         const normalizedRole = String(currentRole || '').trim().toLowerCase();
+
+        // Un rol personalizado necesita el catálogo asíncrono antes de navegar.
+        // Nunca mostramos contenido sin permisos ni expulsamos al usuario antes de cargarlo.
+        if (roleCatalogLoading && !getRoleDefinition(normalizedRole)) {
+            return <div role="status" className="p-6 text-center app-text">Comprobando permisos de acceso…</div>;
+        }
         const canAccessCurrentRoute = userCanAccessRoute(
             normalizedRole,
             location.pathname,

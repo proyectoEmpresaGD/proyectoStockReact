@@ -1,85 +1,164 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tab } from '@headlessui/react';
-import { AiOutlineClose } from 'react-icons/ai';
-
+import {
+    FiBookOpen,
+    FiClock,
+    FiInfo,
+    FiMail,
+    FiMapPin,
+    FiPhone,
+    FiShoppingBag,
+    FiX,
+} from 'react-icons/fi';
 import InfoTab from './InfoTab';
+import PendingOrdersTab from './PendingOrdersTab';
 import PurchasedTab from './PurchasedTab';
 import CatalogTab from './CatalogTab';
+import '../clientesResponsive.css';
 
-const tabs = ['Información', 'Productos comprados', 'Catálogo'];
+const SECTIONS = [
+    { id: 'info', title: 'Información', subtitle: 'Contacto y datos comerciales', icon: FiInfo },
+    { id: 'pending', title: 'Pedidos pendientes', subtitle: 'Artículos por servir', icon: FiClock },
+    { id: 'purchased', title: 'Historial de compras', subtitle: 'Productos y facturas', icon: FiShoppingBag },
+    { id: 'catalog', title: 'Catálogo', subtitle: 'Comprados y no comprados', icon: FiBookOpen },
+];
 
 export default function ClientModal({
     modalVisible,
     selectedClientDetails,
     closeModal,
     updateClientBilling,
+    initialTab = 'info',
 }) {
+    const initialIndex = useMemo(() => {
+        const foundIndex = SECTIONS.findIndex((section) => section.id === initialTab);
+        return foundIndex === -1 ? 0 : foundIndex;
+    }, [initialTab]);
+    const [selectedIndex, setSelectedIndex] = useState(initialIndex);
+    const contentRef = useRef(null);
+    const changeSection = (nextIndex) => {
+        setSelectedIndex(nextIndex);
+        if (contentRef.current) contentRef.current.scrollTop = 0;
+    };
+
+    useEffect(() => {
+        if (modalVisible) setSelectedIndex(initialIndex);
+    }, [modalVisible, initialIndex, selectedClientDetails?.codclien]);
+
+    useEffect(() => {
+        if (!modalVisible) return undefined;
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape' && !event.defaultPrevented) closeModal();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [modalVisible, closeModal]);
+
     if (!modalVisible) return null;
 
+    const phone = String(selectedClientDetails?.tlfno || '').trim();
+    const email = String(selectedClientDetails?.email || '')
+        .split(/[,;\s]+/)
+        .find((part) => part.includes('@')) || '';
+    const address = [
+        selectedClientDetails?.direccion,
+        selectedClientDetails?.localidad,
+        selectedClientDetails?.codprovi,
+        selectedClientDetails?.codpais,
+    ].filter(Boolean).join(', ');
+
     return (
-        <div
-            className="cjm-modal-backdrop z-[1000]"
-            role="presentation"
+        <div className="cjm-modal-backdrop clients-workspace__backdrop" role="presentation"
             onMouseDown={(event) => {
-                if (event.target === event.currentTarget) closeModal();
-            }}
-        >
-            <section
-                className="cjm-modal sm:max-w-6xl"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="client-detail-title"
-            >
-                <div className="cjm-modal-header flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-6">
-                    <div className="min-w-0">
-                        <p className="cjm-kicker">Ficha de cliente</p>
-                        <h2 id="client-detail-title" className="mt-1 truncate text-lg font-semibold app-text sm:text-2xl">
-                            {selectedClientDetails?.razclien || 'Detalle de cliente'}
-                        </h2>
-                        {selectedClientDetails?.codclien && (
-                            <p className="cjm-muted mt-1 text-sm">Código {selectedClientDetails.codclien}</p>
-                        )}
+                if (event.currentTarget === event.target) closeModal();
+            }}>
+            <section className="cjm-modal clients-workspace" role="dialog" aria-modal="true" aria-labelledby="client-detail-title">
+                <header className="clients-workspace__header">
+                    <div className="clients-workspace__identity">
+                        <div className="clients-workspace__avatar" aria-hidden="true">
+                            {String(selectedClientDetails?.razclien || 'C').trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="clients-workspace__eyebrow">Ficha de cliente</p>
+                            <h2 id="client-detail-title" className="clients-workspace__name">
+                                {selectedClientDetails?.razclien || 'Detalle del cliente'}
+                            </h2>
+                            <p className="clients-workspace__meta">
+                                <span>Código {selectedClientDetails?.codclien || '—'}</span>
+                                {selectedClientDetails?.localidad && <><span aria-hidden="true">·</span><span>{selectedClientDetails.localidad}</span></>}
+                            </p>
+                        </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={closeModal}
-                        className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                        aria-label="Cerrar detalle de cliente"
-                    >
-                        <AiOutlineClose size={22} aria-hidden="true" />
-                    </button>
-                </div>
+                    <div className="clients-workspace__actions" aria-label="Acciones de contacto">
+                        {phone && (
+                            <a href={`tel:${phone}`} className="clients-workspace__action clients-workspace__action--primary" title={`Llamar a ${phone}`}>
+                                <FiPhone aria-hidden="true"/><span>Llamar</span>
+                            </a>
+                        )}
+                        {email && (
+                            <a href={`mailto:${email}`} className="clients-workspace__action" title={`Enviar correo a ${email}`}>
+                                <FiMail aria-hidden="true"/><span>Correo</span>
+                            </a>
+                        )}
+                        {address && (
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                                target="_blank" rel="noopener noreferrer" className="clients-workspace__action" title="Ver dirección en Google Maps">
+                                <FiMapPin aria-hidden="true"/><span>Mapa</span>
+                            </a>
+                        )}
+                        <button type="button" onClick={closeModal} className="clients-workspace__close" aria-label="Cerrar la ficha de cliente" title="Cerrar ficha">
+                            <FiX aria-hidden="true" size={22}/>
+                        </button>
+                    </div>
+                </header>
 
-                <Tab.Group as="div" className="flex min-h-0 flex-1 flex-col">
-                    <Tab.List className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2 sm:px-6">
-                        {tabs.map((tab) => (
-                            <Tab
-                                key={tab}
-                                className={({ selected }) => `min-h-10 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cjm-primary)] ${
-                                    selected
-                                        ? 'bg-[var(--cjm-surface)] text-[var(--cjm-primary-deep)] shadow-sm'
-                                        : 'text-[var(--cjm-muted)] hover:bg-[var(--cjm-surface)] hover:text-[var(--cjm-text)]'
-                                }`}
-                            >
-                                {tab}
-                            </Tab>
-                        ))}
-                    </Tab.List>
+                <Tab.Group as="div" className="clients-workspace__layout" selectedIndex={selectedIndex} onChange={changeSection}>
+                    <nav className="clients-workspace__nav" aria-label="Secciones de la ficha">
+                        <p className="clients-workspace__nav-heading">CONSULTAS</p>
+                        <Tab.List className="clients-workspace__tabs">
+                            {SECTIONS.map(({ id, title, subtitle, icon: Icon }) => (
+                                <Tab key={id} className={({ selected }) =>
+                                    `clients-workspace__tab${selected ? ' clients-workspace__tab--active' : ''}`
+                                }>
+                                    <Icon className="clients-workspace__tab-icon" aria-hidden="true"/>
+                                    <span className="clients-workspace__tab-copy">
+                                        <span className="clients-workspace__tab-title">{title}</span>
+                                        <span className="clients-workspace__tab-caption">{subtitle}</span>
+                                    </span>
+                                </Tab>
+                            ))}
+                        </Tab.List>
+                        <div className="clients-workspace__aside-foot">
+                            <strong>{selectedClientDetails?.codgesti || 'Sin código de gestión'}</strong>
+                            <span>{selectedClientDetails?.codtarifa ? `Tarifa ${selectedClientDetails.codtarifa}` : 'Tarifa no indicada'}</span>
+                        </div>
+                    </nav>
 
-                    <Tab.Panels className="cjm-modal-body">
-                        <Tab.Panel className="min-h-full p-3 sm:p-5 md:p-6">
-                            <InfoTab client={selectedClientDetails} />
-                        </Tab.Panel>
-                        <Tab.Panel className="min-h-full p-3 sm:p-5 md:p-6">
-                            <PurchasedTab
-                                client={selectedClientDetails}
-                                updateClientBilling={updateClientBilling}
-                            />
-                        </Tab.Panel>
-                        <Tab.Panel className="min-h-full p-3 sm:p-5 md:p-6">
-                            <CatalogTab client={selectedClientDetails} />
-                        </Tab.Panel>
-                    </Tab.Panels>
+                    <main className="clients-workspace__main">
+                        <div className="clients-workspace__section-bar">
+                            <h3>{SECTIONS[selectedIndex]?.title}</h3>
+                            <span>{SECTIONS[selectedIndex]?.subtitle}</span>
+                        </div>
+                        <Tab.Panels ref={contentRef} className="clients-workspace__panels" key={selectedClientDetails?.codclien || 'client'}>
+                            <Tab.Panel className="clients-workspace__pane">
+                                <InfoTab client={selectedClientDetails}/>
+                            </Tab.Panel>
+                            <Tab.Panel className="clients-workspace__pane">
+                                <PendingOrdersTab client={selectedClientDetails}/>
+                            </Tab.Panel>
+                            <Tab.Panel className="clients-workspace__pane">
+                                <PurchasedTab client={selectedClientDetails} updateClientBilling={updateClientBilling}/>
+                            </Tab.Panel>
+                            <Tab.Panel className="clients-workspace__pane">
+                                <CatalogTab client={selectedClientDetails}/>
+                            </Tab.Panel>
+                        </Tab.Panels>
+                    </main>
                 </Tab.Group>
             </section>
         </div>

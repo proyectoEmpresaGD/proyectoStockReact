@@ -8,7 +8,7 @@ export const createImagenRouter = () => {
     const router = Router();
     const controller = new ImagenController();
     const canReadStockImages = requireAnyRouteAccess(
-        ['/stock', 'almacen', 'compras', 'ventas', 'user', 'comercial', 'administracion', 'administrativo', 'decoandyou'],
+        ['/stock', 'almacen', 'compras', 'ventas', 'user', 'comercial', 'administracion', 'decoandyou'],
         ['/Libro35AnchoConImagen'],
         ['/Libro45AnchoConImagen']
     );

@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
-import { FiLoader, FiRotateCcw, FiShield, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import {
+    FiChevronDown,
+    FiFilter,
+    FiLoader,
+    FiRotateCcw,
+    FiShield,
+    FiTrendingUp,
+    FiUsers,
+} from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
 import SearchBar from '../components/clientes/SearchBarClients';
@@ -31,10 +39,12 @@ export default function Clients() {
     const [selectedCountry, setSelectedCountry] = useState(null);
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [sortByBilling, setSortByBilling] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
     const [ownershipCheckOpen, setOwnershipCheckOpen] = useState(false);
+    const [modalInitialTab, setModalInitialTab] = useState('info');
 
     useEffect(() => {
         const country = searchParams.get('codpais');
@@ -86,13 +96,41 @@ export default function Clients() {
                 const data = await response.json();
                 const currentClients = data.clients || [];
                 setClients(currentClients);
-                setTotalClients(data.total || 0);
+                setTotalClients(data.total || currentClients.length || 0);
 
-                setClientBillings(Object.fromEntries(currentClients.map((client) => [
-                    client.codclien,
-                    Number(client.total_billing) || 0,
-                ])));
+                const billingEntries = await Promise.all(currentClients.map(async (client) => {
+                    try {
+                        const billingResponse = await fetch(
+                            `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
+                            {
+                                headers: { Authorization: `Bearer ${token}` },
+                                signal: controller.signal,
+                            }
+                        );
 
+                        if (!billingResponse.ok) {
+                            return [client.codclien, 0];
+                        }
+
+                        const orders = await billingResponse.json();
+                        const total = (Array.isArray(orders) ? orders : []).reduce((sum, order) => {
+                            let amount = Number(order.importe) || 0;
+                            [order.dt1, order.dt2, order.dt3].forEach((discount) => {
+                                if (Number(discount) > 0) amount *= 1 - Number(discount) / 100;
+                            });
+                            return sum + Math.max(amount, 0);
+                        }, 0);
+
+                        return [client.codclien, total];
+                    } catch (error) {
+                        if (error?.name === 'AbortError') throw error;
+                        return [client.codclien, 0];
+                    }
+                }));
+
+                if (!controller.signal.aborted) {
+                    setClientBillings(Object.fromEntries(billingEntries));
+                }
             } catch (error) {
                 if (error?.name !== 'AbortError') {
                     console.error(error);
@@ -139,7 +177,7 @@ export default function Clients() {
         setSearchParams({});
     };
 
-    const openClientDetails = async (clientCode) => {
+    const openClientDetails = async (clientCode, initialTab = 'info') => {
         try {
             const response = await fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientCode}`,
@@ -152,6 +190,7 @@ export default function Clients() {
             }
 
             setSelectedClientDetails(data);
+            setModalInitialTab(initialTab);
             setModalVisible(true);
             setOwnershipCheckOpen(false);
         } catch (error) {
@@ -166,11 +205,11 @@ export default function Clients() {
     const hasActiveFilters = Boolean(searchTerm || selectedCountry || selectedProvince || sortByBilling);
 
     return (
-        <PageShell maxWidth="max-w-screen-xl" className="mt-16 sm:mt-20">
+        <PageShell maxWidth="max-w-[1800px]" className="mt-16 sm:mt-20 clients-directory">
             <PageHeader
                 eyebrow="CRM · Comercial"
                 title="Gestión de clientes"
-                description="Localiza clientes, consulta su actividad y registra visitas con una vista adaptada automáticamente a móvil, tablet y ordenador."
+                description="Busca un cliente y consulta su ficha o los pedidos pendientes."
                 icon={FiUsers}
                 actions={(
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -191,21 +230,36 @@ export default function Clients() {
             />
 
             <section className="cjm-toolbar mt-5 space-y-4 sm:mt-6" aria-label="Filtros de clientes">
-                <SearchBar
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    suggestions={suggestions}
-                    setSuggestions={setSuggestions}
-                    handleSuggestionClick={(client) => {
-                        setSearchTerm(client.razclien);
-                        setClients([client]);
-                        setTotalClients(1);
-                        setCurrentPage(1);
-                    }}
-                    handleSearchEnter={() => setCurrentPage(1)}
-                />
+                <div className="clients-directory__search">
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        suggestions={suggestions}
+                        setSuggestions={setSuggestions}
+                        handleSuggestionClick={(client) => {
+                            setSearchTerm(client.razclien);
+                            setClients([client]);
+                            setTotalClients(1);
+                            setCurrentPage(1);
+                        }}
+                        handleSearchEnter={() => setCurrentPage(1)}
+                    />
+                </div>
 
-                <div className="cjm-toolbar-group">
+                <div className="md:hidden">
+                    <button
+                        type="button"
+                        onClick={() => setFiltersOpen((value) => !value)}
+                        className="cjm-secondary-button w-full"
+                        aria-expanded={filtersOpen}
+                    >
+                        <FiFilter aria-hidden="true" />
+                        {filtersOpen ? 'Ocultar filtros y opciones' : 'Mostrar filtros y opciones'}
+                        <FiChevronDown aria-hidden="true" className={`transition ${filtersOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+
+                <div className={`${filtersOpen ? 'grid' : 'hidden'} cjm-toolbar-group md:grid`}>
                     <label className="block">
                         <span className="cjm-control-label">País</span>
                         <Select
@@ -265,7 +319,7 @@ export default function Clients() {
                             className={`w-full ${sortByBilling ? 'cjm-primary-button' : 'cjm-secondary-button'}`}
                         >
                             <FiTrendingUp aria-hidden="true" />
-                            {sortByBilling ? 'Ordenado por importe de pedidos' : 'Ordenar por importe de pedidos'}
+                            {sortByBilling ? 'Ordenado por facturación' : 'Ordenar por facturación'}
                         </button>
 
                         <button
@@ -285,7 +339,10 @@ export default function Clients() {
                         Mostrando <strong className="app-text">{startItem}–{endItem}</strong> de{' '}
                         <strong className="app-text">{totalClients}</strong>
                     </p>
-                    {hasActiveFilters && <span className="cjm-badge">Filtros activos</span>}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {hasActiveFilters && <span className="cjm-badge">Filtros activos</span>}
+                        {sortByBilling && <span className="cjm-badge">Orden por facturación</span>}
+                    </div>
                 </div>
             </section>
 
@@ -313,7 +370,8 @@ export default function Clients() {
                                     : billing <= 5000 ? 'bg-emerald-500'
                                         : 'bg-[#6D8DB3]'
                         )}
-                        handleClientClick={openClientDetails}
+                        handleClientClick={(clientCode) => openClientDetails(clientCode, 'info')}
+                        onOpenPendingOrders={(clientCode) => openClientDetails(clientCode, 'pending')}
                         setClients={setClients}
                     />
                 )}
@@ -339,6 +397,7 @@ export default function Clients() {
                     selectedClientDetails={selectedClientDetails}
                     closeModal={() => setModalVisible(false)}
                     updateClientBilling={() => {}}
+                    initialTab={modalInitialTab}
                 />
             )}
         </PageShell>

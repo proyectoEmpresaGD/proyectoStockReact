@@ -61,6 +61,32 @@ export const getRouteOverride = (user, path) => {
     };
 };
 
+// Caché: la configuración de roles no debe parsearse en cada consulta API.
+let lastDefinitionsSource;
+let lastConfiguredRoleRoutes = {};
+
+export const getConfiguredRoleRoutes = () => {
+    const source = process.env.ROLE_DEFINITIONS_JSON || '';
+    if (source === lastDefinitionsSource) return lastConfiguredRoleRoutes;
+    lastDefinitionsSource = source;
+    lastConfiguredRoleRoutes = {};
+    if (!source) return lastConfiguredRoleRoutes;
+    try {
+        const parsed = JSON.parse(source);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return lastConfiguredRoleRoutes;
+        for (const [roleName, definition] of Object.entries(parsed)) {
+            const role = normalizeRole(roleName);
+            if (!role || !Array.isArray(definition?.routes)) continue;
+            lastConfiguredRoleRoutes[role] = definition.routes
+                .map((route) => String(route || '').trim())
+                .filter((route) => route === '*' || route.startsWith('/'));
+        }
+    } catch {
+        // Configuración no válida: no se habilitan permisos adicionales.
+    }
+    return lastConfiguredRoleRoutes;
+};
+
 export const userHasAppRouteAccess = (user, path, allowedRoles = []) => {
     const role = normalizeRole(user?.role);
 
@@ -77,5 +103,14 @@ export const userHasAppRouteAccess = (user, path, allowedRoles = []) => {
         .map(normalizeRole)
         .filter(Boolean);
 
-    return normalizedAllowedRoles.includes(role);
+    if (normalizedAllowedRoles.includes(role)) return true;
+
+    // El catálogo enviado al frontend incorpora ROLE_DEFINITIONS_JSON.
+    // Un rol personalizado con una ruta configurada debe tener el mismo
+    // acceso en la API, manteniendo la prioridad de los permisos individuales.
+    const customDefinitions = getConfiguredRoleRoutes();
+    const configuredRoutes = customDefinitions[role] || [];
+    return configuredRoutes.some((configuredRoute) => (
+        configuredRoute === '*' || routeMatches(path, configuredRoute)
+    ));
 };

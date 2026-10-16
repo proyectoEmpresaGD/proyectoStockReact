@@ -417,9 +417,10 @@ const roleCanAccessRoute = (roleName, path) => {
 
     const roleDefinition = getRoleDefinition(normalizedRoleName);
 
-    // Se conserva el comportamiento histórico para roles dinámicos todavía no hidratados.
+    // Los roles aún no hidratados no tienen permisos implícitos.
+    // Si el servidor configura el rol, AuthContext actualizará la vista al cargar el catálogo.
     if (!roleDefinition) {
-        return true;
+        return false;
     }
 
     return (roleDefinition.routes || []).some((allowedRoute) => {

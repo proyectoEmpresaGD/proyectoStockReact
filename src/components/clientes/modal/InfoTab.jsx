@@ -1,43 +1,19 @@
-// src/components/clientes/modal/InfoTab.jsx
 import React, { useMemo } from 'react';
-import {
-    AiOutlineUser,
-    AiOutlineMail,
-    AiOutlinePhone,
-    AiOutlineHome,
-    AiOutlineTags,
-    AiOutlineTeam
-} from 'react-icons/ai';
-import { FiMapPin } from 'react-icons/fi';
 import { provinces } from '../../../Constants/constants';
 
-
 const MANAGEMENT_NAMES = {
-    'AM': 'CLIENTE AMERICA/INGLATERRA/NORUEGA',
-    'AR': 'CLIENTE ARABIA SAUDI',
-    'CI': 'CLIENTES ITALIA',
-    'DE': 'CLIENTE DECORACION',
-    'EN': 'CLIENTE ENVIO',
-    'ES': 'CLIENTE ESTUDIO',
-    'HO': 'CLIENTE HOTELES',
-    'OF': 'CLIENTE OFICIAL',
-    'PA': 'CLIENTE PARIS',
-    'PR': 'PROVEEDOR',
-    'PV': 'CLIENTE PROFESIONAL',
-    'RE': 'REPRESENTANTE',
-};
-
-const getManagementLabel = (value) => {
-    if (value === null || value === undefined || String(value).trim() === '') {
-        return '–';
-    }
-
-    const code = String(value).trim().toUpperCase();
-    const managementName = MANAGEMENT_NAMES[code];
-
-    return managementName
-        ? `${code} · ${managementName}`
-        : code;
+    AM: 'CLIENTE AMERICA/INGLATERRA/NORUEGA',
+    AR: 'CLIENTE ARABIA SAUDI',
+    CI: 'CLIENTES ITALIA',
+    DE: 'CLIENTE DECORACION',
+    EN: 'CLIENTE ENVIO',
+    ES: 'CLIENTE ESTUDIO',
+    HO: 'CLIENTE HOTELES',
+    OF: 'CLIENTE OFICIAL',
+    PA: 'CLIENTE PARIS',
+    PR: 'PROVEEDOR',
+    PV: 'CLIENTE PROFESIONAL',
+    RE: 'REPRESENTANTE',
 };
 
 const TARIFF_NAMES = {
@@ -53,119 +29,70 @@ const TARIFF_NAMES = {
     '10': 'TARIFA PARIS +30%',
 };
 
-const getTariffLabel = (value) => {
-    if (value === null || value === undefined || String(value).trim() === '') {
-        return '–';
-    }
-
-    const rawCode = String(value).trim();
-    const normalizedCode = /^\d+$/.test(rawCode)
-        ? rawCode.padStart(2, '0')
-        : rawCode;
-    const tariffName = TARIFF_NAMES[normalizedCode];
-
-    return tariffName
-        ? `${normalizedCode} · ${tariffName}`
-        : normalizedCode;
+const getManagementLabel = (value) => {
+    if (value === null || value === undefined || String(value).trim() === '') return '–';
+    const code = String(value).trim().toUpperCase();
+    return MANAGEMENT_NAMES[code] ? `${code} · ${MANAGEMENT_NAMES[code]}` : code;
 };
 
+const getTariffLabel = (value) => {
+    if (value === null || value === undefined || String(value).trim() === '') return '–';
+    const rawCode = String(value).trim();
+    const normalizedCode = /^\d+$/.test(rawCode) ? rawCode.padStart(2, '0') : rawCode;
+    return TARIFF_NAMES[normalizedCode] ? `${normalizedCode} · ${TARIFF_NAMES[normalizedCode]}` : normalizedCode;
+};
+
+
+function Detail({ title, children }) {
+    return <div className="clients-info__item"><dt>{title}</dt><dd>{children || '—'}</dd></div>;
+}
+
 export default function InfoTab({ client }) {
-    // Divide múltiples emails y filtra los válidos
-    const emails = useMemo(
-        () =>
-            (client?.email || '')
-                .split(/[,;\s]+/)
-                .filter((e) => e.includes('@')),
-        [client]
-    );
-
-    // Etiqueta legible de la provincia
-    const provinceLabel = useMemo(() => {
-        const p = provinces.find(
-            (x) => x.value === String(client?.codprovi)
-        );
-        return p?.label || client?.codprovi || '–';
-    }, [client]);
-
-    const managementLabel = useMemo(
-        () => getManagementLabel(client?.codgesti),
-        [client?.codgesti]
-    );
-
-    const tariffLabel = useMemo(
-        () => getTariffLabel(client?.codtarifa),
-        [client?.codtarifa]
-    );
-
-    // Las filas de información
-    const rows = [
-        ['Código', client?.codclien || '–', AiOutlineUser],
-        ['Código de gestión', managementLabel, AiOutlineTeam],
-        ['Tarifa', tariffLabel, AiOutlineTags],
-        ['Email', emails, AiOutlineMail],
-        ['Teléfono', client?.tlfno || '–', AiOutlinePhone],
-        ['Dirección', client?.direccion || '–', AiOutlineHome],
-        ['Localidad', client?.localidad || '–', FiMapPin],
-        ['Provincia', provinceLabel, FiMapPin],
-    ];
+    const emails = useMemo(() => String(client?.email || '')
+        .split(/[,;\s]+/).map((email) => email.trim()).filter((email) => email.includes('@')),
+    [client?.email]);
+    const provinceName = provinces.find((province) => province.value === String(client?.codprovi || ''))?.label
+        || client?.codprovi || '—';
+    const address = [client?.direccion, client?.localidad, provinceName, client?.codpais]
+        .filter(Boolean).join(', ');
+    const telephone = String(client?.tlfno || '').trim();
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rows.map(([label, value, Icon]) => (
-                <div
-                    key={label}
-                    className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg shadow-sm"
-                >
-                    <Icon className="text-gray-600 mt-1" size={20} />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500">{label}</p>
-
-                        {/* Renderizado especial según tipo */}
-                        {label === 'Email' ? (
-                            emails.length > 0 ? (
-                                <ul className="text-sm list-disc list-inside">
-                                    {emails.map((email) => (
-                                        <li key={email}>
-                                            <a
-                                                href={`mailto:${email}`}
-                                                className="text-blue-600 hover:underline break-all"
-                                            >
-                                                {email}
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm">–</p>
-                            )
-                        ) : label === 'Teléfono' ? (
-                            value !== '–' ? (
-                                <a
-                                    href={`tel:${value}`}
-                                    className="text-sm text-blue-600 hover:underline"
-                                >
-                                    {value}
-                                </a>
-                            ) : (
-                                <p className="text-sm">–</p>
-                            )
-                        ) : label === 'Dirección' && value !== '–' ? (
-                            <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                    `${value}, ${client.localidad}, ${provinceLabel}`
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:underline"
-                            >
-                                {value}
+        <div className="clients-info">
+            <div className="clients-info__layout">
+                <section className="clients-info__section" aria-label="Datos del cliente">
+                    <h4 className="clients-info__section-head">Datos comerciales</h4>
+                    <dl>
+                        <Detail title="Cliente">{client?.razclien}</Detail>
+                        <Detail title="Código">{client?.codclien}</Detail>
+                        <Detail title="Tipo de cliente">{getManagementLabel(client?.codgesti)}</Detail>
+                        <Detail title="Tarifa asignada">{getTariffLabel(client?.codtarifa)}</Detail>
+                    </dl>
+                </section>
+                <section className="clients-info__section" aria-label="Contacto del cliente">
+                    <h4 className="clients-info__section-head">Contacto y ubicación</h4>
+                    <dl>
+                        <Detail title="Teléfono">{telephone ? <a href={`tel:${telephone}`}>{telephone}</a> : null}</Detail>
+                        <Detail title="Correo">{emails.length ? emails.map((email, i) => (
+                            <React.Fragment key={email}>
+                                {i > 0 ? ', ' : null}<a href={`mailto:${email}`}>{email}</a>
+                            </React.Fragment>
+                        )) : null}</Detail>
+                        <Detail title="Dirección">{client?.direccion}</Detail>
+                        <Detail title="Localidad">{client?.localidad}</Detail>
+                        <Detail title="Provincia">{provinceName}</Detail>
+                        <Detail title="País">{client?.codpais}</Detail>
+                    </dl>
+                    {address && (
+                        <div className="clients-info__tip">
+                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                                target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">
+                                Abrir dirección en Google Maps ↗
                             </a>
-                        ) : (
-                            <p className="text-sm break-words">{value}</p>
-                        )}
-                    </div>
-                </div>
-            ))}
+                        </div>
+                    )}
+                </section>
+            </div>
         </div>
     );
 }
