@@ -5,6 +5,7 @@ import {
     AiOutlineFile,
     AiOutlineAppstore,
     AiOutlineStock,
+    AiOutlineInbox,
     AiOutlineTeam,
     AiOutlineUser,
     AiOutlineCalendar,
@@ -132,6 +133,15 @@ function Home() {
                 description: 'Revisa disponibilidad, lotes, reservas y movimientos de inventario.',
                 to: '/stock',
                 icon: <AiOutlineStock size={27} />,
+            }]
+            : []),
+        ...(String(user?.role || '').toLowerCase() === 'almacen' && userCanAccessRoute(user?.role, '/sga', user?.route_access)
+            ? [{
+                title: 'SGA · Almacén',
+                eyebrow: 'Tablet · Modo simulación',
+                description: 'Entradas, salidas con merma y regularizaciones. Sin modificar existencias.',
+                to: '/sga',
+                icon: <AiOutlineInbox size={27} />,
             }]
             : []),
         {

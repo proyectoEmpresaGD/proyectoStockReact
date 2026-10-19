@@ -42,6 +42,14 @@ test('El acceso de aplicación no depende de .env y la pantalla también admite 
   assert.doesNotMatch(app, /VITE_SGA_PREVIEW|import\.meta\.env\.DEV/);
   assert.match(sga, /canAccessSgaPreview\(activeUser\)/);
   assert.doesNotMatch(sga, /role === 'almacen' && userCanAccessRoute\(role, '\/sga'/);
-  assert.match(navbar, /'admin'[\s\S]{0,110}\? \[\{ to: '\/sga'/);
+  assert.match(navbar, /\.\.\.\(canAccessSgaPreview\(user\)/);
+  assert.match(navbar, /SGA · Pruebas/);
+  const productsStart = navbar.indexOf("label: 'Productos'");
+  const salesStart = navbar.indexOf("label: 'Ventas'", productsStart);
+  assert.ok(productsStart !== -1 && salesStart > productsStart, 'Existe el apartado Productos');
+  const products = navbar.slice(productsStart, salesStart);
+  assert.match(products, /to: '\/stock'[\s\S]*to: '\/sga'/, 'SGA aparece después de Stock dentro de Productos');
+  assert.match(products, /canAccessSgaPreview\(user\)/, 'Solo admin recibe el enlace SGA');
+  assert.equal((navbar.match(/to: '\/sga'/g) || []).length, 1, 'No hay enlaces SGA duplicados');
   assert.doesNotMatch(home, /['"]\/sga['"]/);
 });

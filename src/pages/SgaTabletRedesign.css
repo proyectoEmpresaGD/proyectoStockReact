@@ -1,0 +1,460 @@
+/*
+ * Stock+ · SGA 2026 — diseño de trabajo para tablets (vertical y horizontal).
+ * Sobrescribe solo los estilos del SGA. No altera Stock ni la interfaz de almacén actual.
+ */
+.sga-w-page {
+  --sga-ui-accent: #315d86;
+  --sga-ui-accent-dark: #214a73;
+  --sga-ui-soft: #e8f1fa;
+  --sga-ui-border: #d9e2ec;
+  --sga-ui-muted: #5a6b80;
+  max-width: 1740px;
+  padding: clamp(12px, 1.5vw, 24px) clamp(14px, 1.5vw, 26px) 54px;
+  font-size: 16px;
+}
+.sga-w-page .sga-w-top {
+  padding: 6px 0 15px;
+  gap: 12px;
+}
+.sga-w-page .sga-w-brand > svg {
+  width: 54px;
+  height: 54px;
+  padding: 12px;
+  border-radius: 15px;
+}
+.sga-w-page .sga-w-brand h1 {
+  font-size: clamp(19px, 1.8vw, 27px);
+  letter-spacing: -0.025em;
+}
+.sga-w-page .sga-w-header-side {gap: 11px}
+.sga-w-page .sga-w-simulation {
+  background: #fff6e7;
+  color: #835318;
+  border: 1px solid #ebd6ac;
+  font-weight: 800;
+  letter-spacing: .015em;
+  border-radius: 11px;
+}
+.sga-w-page .sga-w-operator {font-weight: 700}
+.sga-w-page .sga-w-intro {
+  margin: 24px 0 19px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.sga-w-page .sga-w-intro h2 {font-size: clamp(25px, 2.5vw, 37px); line-height: 1.15}
+.sga-w-page .sga-w-intro p {font-size: 15px; margin-top: 7px}
+.sga-w-eyebrow {display: block; font-weight: 900; font-size: 11px; letter-spacing: .12em; color: var(--sga-ui-accent); margin-bottom: 6px}
+.sga-w-demo-tag {display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--sga-ui-soft); color: var(--sga-ui-accent-dark); border: 1px solid #bed4e9; border-radius: 12px; white-space: nowrap; font-size: 12px; font-weight: 800}
+.sga-w-page .sga-w-home-grid {grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px}
+.sga-w-page .sga-w-home-action {
+  min-height: 142px;
+  padding: clamp(20px, 2.2vw, 30px);
+  gap: 18px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  border-radius: 20px;
+  border: 1.5px solid var(--sga-ui-border);
+  box-shadow: 0 6px 18px rgba(28, 54, 79, .055);
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.sga-w-page .sga-w-home-action:hover {border-color: #6f9bc3; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(28, 54, 79, .1)}
+.sga-w-page .sga-w-home-action:active {transform: scale(.995)}
+.sga-w-page .sga-w-home-primary {grid-column: 1 / -1; background: #eaf3fc; border-color: #9dbfde; min-height: 158px}
+.sga-w-page .sga-w-home-primary .sga-w-icon {color: #fff; background: #315d86}
+.sga-w-page .sga-w-home-action .sga-w-icon {flex-shrink: 0; width: 68px; height: 68px; border-radius: 19px}
+.sga-w-page .sga-w-action-name {display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 6px}
+.sga-w-page .sga-w-action-name strong {font-size: clamp(21px, 2vw, 29px); line-height: 1.17; letter-spacing: -.025em}
+.sga-w-page .sga-w-action-name small {font-size: 15px; color: var(--sga-ui-muted); line-height: 1.45}
+.sga-w-page .sga-w-action-name em {margin-top: 5px; font-size: 12px; font-style: normal; color: var(--sga-ui-accent); font-weight: 900; text-transform: uppercase; letter-spacing: .05em}
+.sga-w-page .sga-w-action-arrow {color: #5a82a6; flex-shrink: 0}
+.sga-w-page .sga-w-tools {margin-top: 25px; border: 1px solid var(--sga-ui-border); border-radius: 15px; overflow: hidden; background: var(--sga-card)}
+.sga-w-page .sga-w-tools > summary {cursor: pointer; list-style: none; padding: 16px 19px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; font-size: 14px; min-height: 54px}
+.sga-w-page .sga-w-tools > summary::-webkit-details-marker {display: none}
+.sga-w-page .sga-w-tools[open] > summary svg {transform: rotate(90deg)}
+.sga-w-page .sga-w-tools > div {padding: 4px 18px 16px; gap: 9px}
+.sga-w-page .sga-w-demo-foot {font-size: 12px; margin-top: 18px; color: var(--sga-ui-muted)}
+/* Entradas y regularizaciones: una sola zona ancha para el formulario. */
+.sga-w-page .sga-w-trail {margin: 14px 0; gap: 12px}
+.sga-w-page .sga-w-steps {margin: 10px 0 18px; gap: 6px}
+.sga-w-page .sga-w-step {border-radius: 11px; min-height: 52px; padding: 9px 8px}
+.sga-w-page .sga-w-step b {font-size: 13px; line-height: 1.2}
+.sga-w-page .sga-w-workspace {display: block; width: 100%; max-width: none}
+.sga-w-page .sga-w-card {padding: clamp(20px, 2.6vw, 37px); border-radius: 19px; width: 100%}
+.sga-w-page .sga-w-guide {display: none}
+.sga-w-page .sga-w-step-header {margin-bottom: 19px}
+.sga-w-page .sga-w-step-header h2 {font-size: clamp(23px, 2.3vw, 32px); line-height: 1.22}
+.sga-w-page .sga-w-step-header p {font-size: 15px; max-width: 800px}
+.sga-w-page .sga-w-products {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px}
+.sga-w-page .sga-w-products > button {height: 100%; min-height: 91px; border-radius: 14px}
+.sga-w-page .sga-w-fields {column-gap: 24px; row-gap: 18px}
+.sga-w-page .sga-w-field > input,.sga-w-page .sga-w-field > select {min-height: 55px; border-radius: 11px; font-size: 17px}
+.sga-w-page .sga-w-qty input {font-size: 25px}
+.sga-w-page .sga-w-actions {position: sticky; bottom: 0; z-index: 12; margin-top: 23px; padding: 14px 10px; border: 1px solid var(--sga-ui-border); border-radius: 13px; background: var(--sga-card); box-shadow: 0 -5px 22px rgba(26, 48, 70, .07)}
+.sga-w-page .sga-w-actions > button {min-height: 58px; min-width: 155px; border-radius: 12px; font-size: 16px; font-weight: 850}
+.sga-w-page .sga-w-summary-grid {grid-template-columns: repeat(4, minmax(0,1fr))}
+/* Pedidos: se muestra contexto del pedido y lista de líneas junto al corte. */
+.sga-w-page .sga-order-flow {padding-bottom: 18px}
+.sga-w-page .sga-order-steps {margin: 10px 0 14px; gap: 8px}
+.sga-w-page .sga-order-steps > span {font-size: 13px; font-weight: 760; min-height: 48px; border-radius: 10px; padding: 6px 10px}
+.sga-w-page .sga-order-steps > span b {width: 30px; height: 30px; flex-shrink: 0; font-size: 14px}
+.sga-w-page .sga-order-panel {border-radius: 19px; padding: clamp(20px, 2.5vw, 34px)}
+.sga-w-page .sga-order-list-heading {display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 23px 0 11px; font-size: 15px}
+.sga-w-page .sga-order-list-heading span {font-size: 12px; color: var(--sga-ui-muted); font-weight: 700}
+.sga-w-page .sga-order-list {display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px}
+.sga-w-page .sga-order-list > button {border-radius: 14px; min-height: 116px; padding: 15px; border: 1.5px solid var(--sga-ui-border); background: var(--sga-card)}
+.sga-w-page .sga-order-list > button:hover {background: var(--sga-ui-soft); border-color: #91b4d4}
+.sga-w-page .sga-order-context {border-radius: 13px; padding: 14px 20px; margin-bottom: 11px; background: #e8f1fa}
+.sga-w-page .sga-order-context h2 {font-size: clamp(22px, 2.3vw, 31px); line-height: 1.12}
+.sga-w-page .sga-order-context > div:last-child {width: 195px; flex-shrink: 0}
+.sga-w-page .sga-order-workspace {grid-template-columns: minmax(270px, 29%) minmax(0, 1fr); gap: 11px; align-items: start}
+.sga-w-page .sga-order-lines, .sga-w-page .sga-order-main {border-radius: 16px}
+.sga-w-page .sga-order-lines {padding: 11px; gap: 7px}
+.sga-w-page .sga-order-lines h3 {margin: 6px 6px 9px; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 16px}
+.sga-w-page .sga-order-lines h3 small {font-size: 12px; color: var(--sga-ui-muted); font-weight: 650}
+.sga-w-page .sga-order-lines > button:not(.sga-order-review-shortcut) {min-height: 81px; padding: 12px; border-radius: 12px; gap: 7px}
+.sga-w-page .sga-order-line-title b {font-size: 14px; line-height: 1.23}
+.sga-w-page .sga-order-line-quantity {font-size: 13px; line-height: 1.25}
+.sga-w-page .sga-order-lines > button.is-active {background: #e5f0fa; border: 2px solid #477da9}
+.sga-w-page .sga-order-lines > button.is-finished {background: #ebf7f0}
+.sga-w-page .sga-order-main {padding: clamp(17px, 2.1vw, 27px)}
+.sga-w-page .sga-order-product-head {margin-bottom: 12px}
+.sga-w-page .sga-order-product-head h2 {font-size: clamp(23px, 2vw, 30px)}
+.sga-w-page .sga-order-quickstats {gap: 7px}
+.sga-w-page .sga-order-quickstats > div {padding: 10px 13px; border-radius: 11px}
+.sga-w-page .sga-order-quickstats b {font-size: clamp(16px,1.8vw,23px)}
+.sga-w-page .sga-order-quickstats span {font-size: 12px}
+.sga-w-page .sga-order-scan-section {margin-top: 16px; padding-top: 15px}
+.sga-w-page .sga-order-scan-section h3, .sga-w-page .sga-order-qty-area h3 {font-size: clamp(17px, 1.65vw, 22px); gap: 9px; line-height: 1.25}
+.sga-w-page .sga-order-scan-section > p {font-size: 13px; margin-top: 6px}
+.sga-w-page .sga-order-instruction-index {display: inline-grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; color: #fff; background: #315d86; font-size: 14px; font-weight: 900; flex-shrink: 0}
+.sga-w-page .sga-order-scanner {min-height: 61px; margin-top: 10px; border-radius: 12px; border-color: #6f9fc6}
+.sga-w-page .sga-order-scanner > input {font-size: 17px; min-height: 44px}
+.sga-w-page .sga-order-scanner > button {min-height: 44px; font-size: 14px}
+.sga-w-page .sga-order-qty-area {margin-top: 18px; padding-top: 17px}
+.sga-w-page .sga-order-qty-fields label > div {height: 63px; border-radius: 11px}
+.sga-w-page .sga-order-qty-fields input {font-size: 24px}
+.sga-w-page .sga-order-impact {background: #e9f1fb; border: 1px solid #c2d6e9; border-radius: 10px; margin-top: 11px; padding: 12px 14px}
+.sga-w-page .sga-order-impact b {font-size: 22px; white-space: nowrap}
+.sga-w-page .sga-order-add-cut {min-height: 59px; border-radius: 12px; font-size: 16px; font-weight: 900; margin-top: 12px}
+.sga-w-page .sga-order-scan-error {margin-top: 10px; padding: 11px 13px; font-size: 13px}
+.sga-w-page .sga-order-success {font-size: 13px; margin-top: 9px}
+.sga-w-page .sga-order-pending-button {font-size: 13px; min-height: 48px; margin-top: 14px}
+.sga-w-page .sga-order-picks {margin-top: 15px}
+.sga-w-page .sga-order-picks > div {flex-wrap: wrap}
+.sga-w-page .sga-order-bottom {margin-top: 12px}
+.sga-w-page .sga-order-bottom > button {min-height: 58px; border-radius: 12px; font-size: 16px; font-weight: 800; padding: 12px 21px}
+.sga-w-page .sga-order-sticky-actions {position: sticky; bottom: 0; z-index: 12; margin: 11px 0 0; padding: 12px; border: 1px solid var(--sga-ui-border); border-radius: 15px; background: var(--sga-card); box-shadow: 0 -6px 24px rgba(26, 48, 70, .085)}
+.sga-w-page .sga-order-review-list > div {border-radius: 12px}
+.sga-w-page .sga-order-reviewstats {gap: 8px}
+.sga-w-page .sga-order-reviewstats > div {padding: 12px; border-radius: 11px}
+.sga-w-page .sga-order-reviewstats b {font-size: clamp(16px, 1.7vw, 23px)}
+.sga-w-page .sga-order-dialog {border-radius: 18px}
+.sga-w-page .sga-suggest-input {min-height: 58px; border-radius: 12px; border-color: #6795bb}
+.sga-w-page .sga-suggest-input input {font-size: 17px}
+.sga-w-page .sga-suggest-options {border-radius: 12px}
+.sga-w-page .sga-suggest-options button {min-height: 62px}
+/* La tablet horizontal debe usar dos columnas; no heredar el corte a 1080px. */
+@media (min-width: 920px) {
+  .sga-w-page .sga-order-workspace {grid-template-columns: minmax(255px, 28%) minmax(0, 1fr)}
+  .sga-w-page .sga-order-lines {display: grid; overflow: visible}
+  .sga-w-page .sga-order-lines h3 {display: flex}
+  .sga-w-page .sga-order-lines > button:not(.sga-order-review-shortcut) {min-width: 0; max-width: none}
+  .sga-w-page .sga-order-review-shortcut {min-width: 0}
+}
+@media (max-width: 919px) {
+  .sga-w-page .sga-order-workspace {grid-template-columns: minmax(0,1fr)}
+  .sga-w-page .sga-order-lines {display: flex; overflow-x: auto; gap: 9px; padding: 10px}
+  .sga-w-page .sga-order-lines h3 {display: none}
+  .sga-w-page .sga-order-lines > button:not(.sga-order-review-shortcut) {flex: 0 0 205px; min-width: 205px; max-width: 240px}
+  .sga-w-page .sga-order-review-shortcut {min-width: 140px; flex-shrink: 0}
+  .sga-w-page .sga-order-list {grid-template-columns: 1fr}
+  .sga-w-page .sga-w-products {grid-template-columns: 1fr}
+  .sga-w-page .sga-w-summary-grid {grid-template-columns: repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 700px) {
+  .sga-w-page {padding: 12px 10px 75px; font-size: 15px}
+  .sga-w-page .sga-w-brand > svg {width: 45px; height: 45px}
+  .sga-w-page .sga-w-intro {align-items: start; margin: 17px 0}
+  .sga-w-page .sga-w-intro h2 {font-size: 26px}
+  .sga-w-page .sga-w-intro p {font-size: 14px}
+  .sga-w-page .sga-w-demo-tag {display: none}
+  .sga-w-page .sga-w-home-grid {grid-template-columns: 1fr; gap: 10px}
+  .sga-w-page .sga-w-home-primary {grid-column: auto}
+  .sga-w-page .sga-w-home-action {min-height: 107px; padding: 15px; gap: 12px; border-radius: 15px}
+  .sga-w-page .sga-w-home-action .sga-w-icon {width: 53px; height: 53px; border-radius: 14px}
+  .sga-w-page .sga-w-home-action .sga-w-icon svg {width: 27px}
+  .sga-w-page .sga-w-action-name strong {font-size: 20px}
+  .sga-w-page .sga-w-action-name small {font-size: 13px}
+  .sga-w-page .sga-w-action-name em {font-size: 10px}
+  .sga-w-page .sga-w-card, .sga-w-page .sga-order-panel {padding: 17px 13px; border-radius: 15px}
+  .sga-w-page .sga-w-fields {grid-template-columns: 1fr; gap: 13px}
+  .sga-w-page .sga-w-step-header h2 {font-size: 23px}
+  .sga-w-page .sga-w-step-header p {font-size: 14px}
+  .sga-w-page .sga-order-context {padding: 12px; gap: 10px}
+  .sga-w-page .sga-order-context > div:last-child {width: 125px; min-width: 120px}
+  .sga-w-page .sga-order-steps > span {font-size: 10px; gap: 5px; padding: 7px 3px}
+  .sga-w-page .sga-order-steps > span b {width: 27px; height: 27px}
+  .sga-w-page .sga-order-main {padding: 15px 12px}
+  .sga-w-page .sga-order-product-head h2 {font-size: 22px}
+  .sga-w-page .sga-order-qty-fields {grid-template-columns: 1fr}
+  .sga-w-page .sga-order-scanner > input {font-size: 16px}
+  .sga-w-page .sga-order-impact b {font-size: 19px}
+  .sga-w-page .sga-order-bottom > button {font-size: 13px; min-height: 53px; padding: 10px 8px}
+  .sga-w-page .sga-order-sticky-actions {padding: 8px; margin: 8px 0 0}
+}
+@media (prefers-reduced-motion: reduce) {
+  .sga-w-page .sga-w-home-action {transition: none}
+}
+@media print {
+  .sga-w-page .sga-w-actions {position: static; box-shadow: none}
+  .sga-w-page .sga-order-sticky-actions {position: static; display: none !important}
+  .sga-w-page .sga-w-top, .sga-w-page .sga-w-trail {display: none !important}
+}
+
+/* Ajuste de corte y sobrantes: decisiones táctiles para tablets. */
+.sga-w-page .sga-order-fixed-waste {display:flex;flex-direction:column;gap:5px;padding:12px 16px;min-height:63px;border:1.5px solid #b8d5be;background:#eef8f0;border-radius:12px;color:#205c35}
+.sga-w-page .sga-order-fixed-waste > span {font-size:13px;font-weight:750}
+.sga-w-page .sga-order-fixed-waste > strong {font-size:24px;font-weight:900}
+.sga-w-page .sga-order-fixed-waste > small {font-size:12px;color:#39734e}
+.sga-w-page .sga-order-small-remainder-alert {display:flex;align-items:flex-start;gap:9px;padding:12px 14px;border:1px solid #e8c48a;border-radius:11px;background:#fff6e8;color:#875416;font-size:14px;font-weight:800;margin-top:12px}
+.sga-w-page .sga-order-small-remainder-alert svg {flex-shrink:0}
+.sga-w-page .sga-order-pick-disposition {font-size:12px;color:#426587;font-weight:700}
+.sga-w-page .sga-order-remainder-dialog {width:min(100%,680px)}
+.sga-w-page .sga-order-remainder-dialog .sga-order-remainder-choices {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:17px 0}
+.sga-w-page .sga-order-remainder-choices button {min-height:96px;border:2px solid #abc6dd;border-radius:14px;background:#f3f8fc;padding:14px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;color:#1e3f61}
+.sga-w-page .sga-order-remainder-choices button:hover:not(:disabled),.sga-w-page .sga-order-remainder-choices button:focus-visible {border-color:#276ca6;background:#e7f2fc;outline:2px solid transparent}
+.sga-w-page .sga-order-remainder-choices button:disabled {opacity:.48;cursor:not-allowed}
+.sga-w-page .sga-order-remainder-choices b {font-size:17px}
+.sga-w-page .sga-order-remainder-choices small {font-size:13px;color:#546b82;line-height:1.35}
+.sga-w-page .sga-order-remainder-warning {padding:10px;background:#fff1db;color:#805119;border-radius:11px;font-size:13px;font-weight:700}
+.sga-w-page .sga-order-remainder-cancel {display:flex;justify-content:center;width:100%;min-height:52px;margin-top:12px}
+.sga-w-page .sga-order-remainder-disclaimer {font-size:12px!important;color:#667586;margin-top:12px}
+.sga-w-page .sga-order-cut-remainder {display:block;flex:1 0 100%;font-size:12px;font-weight:700;color:#365c85}
+@media (max-width: 600px) {
+  .sga-w-page .sga-order-remainder-dialog .sga-order-remainder-choices {grid-template-columns:1fr}
+  .sga-w-page .sga-order-remainder-choices button {min-height:72px}
+}
+@media print { .sga-w-page .sga-order-remainder-dialog {display:none!important} }
+
+.sga-w-page .sga-order-review-adjustments {display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 15px;margin:-5px 0 15px;border:1px solid #b8d3e8;border-radius:12px;background:#eff6fb;color:#234e70;font-size:14px}
+.sga-w-page .sga-order-review-adjustments strong {flex-basis:100%;font-size:15px}
+.sga-w-page .sga-order-review-adjustments small {flex-basis:100%;color:#526f88}
+
+
+/* Ajustes exclusivos para tablet sobre el diseño original (19/10/2026).
+   Sin nueva capa de tema: seguimos con los componentes del primer SGA táctil. */
+.sga-w-page,
+.sga-w-page * { box-sizing: border-box; }
+.sga-w-page { min-width: 0; }
+.sga-w-page :is(button, input, textarea, select, summary, a):focus-visible {
+  outline: 3px solid rgba(49, 93, 134, .33);
+  outline-offset: 2px;
+}
+.sga-w-page :is(button, input, select, textarea) { touch-action: manipulation; }
+.sga-w-page :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+/* La antigua botonera flotante ocultaba el escáner y parte del formulario. */
+.sga-w-page .sga-w-actions,
+.sga-w-page .sga-order-sticky-actions {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  margin: 20px 0 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--sga-ui-border, #d9e2ec);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.sga-w-page .sga-w-actions > button,
+.sga-w-page .sga-order-bottom > button { min-height: 54px; }
+/* Estado inequívoco con borde y texto, también para lectores en tablet. */
+.sga-w-page .sga-order-lines > button.is-active,
+.sga-w-page .sga-receiving-lines > button[aria-pressed="true"] {
+  border: 2px solid #315d86;
+  background: #e5f0fa;
+  box-shadow: inset 4px 0 0 #315d86;
+}
+.sga-w-page .sga-order-selected-badge,
+.sga-w-page .sga-receiving-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #214a73;
+  background: #d2e6f7;
+  font-size: 11px;
+  font-weight: 850;
+  font-style: normal;
+  letter-spacing: .01em;
+}
+.sga-w-page .sga-order-manual-lots button[aria-pressed="true"],
+.sga-w-page .sga-receiving-piece-actions button[aria-pressed="true"],
+.sga-w-page .sga-w-document-types button[aria-pressed="true"] {
+  border: 2px solid #315d86;
+  background: #e5f0fa;
+  color: #214a73;
+  box-shadow: inset 4px 0 0 #315d86;
+}
+.sga-w-page .sga-order-active-lot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border: 1.5px solid #a6d2b5;
+  border-left: 4px solid #2b7d50;
+  border-radius: 12px;
+  background: #eff9f2;
+  color: #245d3b;
+  line-height: 1.45;
+}
+.sga-w-page .sga-order-active-lot svg { flex-shrink: 0; }
+.sga-w-page .sga-order-active-lot > span { font-weight: 750; overflow-wrap: anywhere; }
+.sga-w-page .sga-order-active-lot > small {
+  width: 100%;
+  font-size: 13px;
+  color: #346849;
+}
+/* Lectura ordenada y con separación real de la merma. */
+.sga-w-page .sga-order-fixed-waste {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 13px 15px;
+}
+.sga-w-page .sga-order-fixed-waste > span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.sga-w-page .sga-order-fixed-waste > strong {
+  font-size: 22px;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+.sga-w-page .sga-order-fixed-waste > small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+/* Formulario de referencia y código por pieza: estados activos sin efectos decorativos. */
+.sga-w-page .sga-receiving-eq-confirm,
+.sga-w-page .sga-receiving-auto { line-height: 1.5; }
+.sga-w-page .sga-receiving-piece-actions > button { min-height: 50px; }
+.sga-w-page .sga-audit-card { border-color: #d9e2ec; }
+/* Tablet vertical: dos columnas para ver las líneas, sin carrusel oculto. */
+@media (min-width: 700px) and (max-width: 919px) {
+  .sga-w-page .sga-order-workspace,
+  .sga-w-page .sga-receiving-workspace { grid-template-columns: minmax(0, 1fr); }
+  .sga-w-page .sga-order-lines,
+  .sga-w-page .sga-receiving-lines {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    overflow: visible;
+  }
+  .sga-w-page .sga-order-lines h3,
+  .sga-w-page .sga-receiving-lines h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    grid-column: 1 / -1;
+  }
+  .sga-w-page .sga-order-lines > button:not(.sga-order-review-shortcut),
+  .sga-w-page .sga-receiving-lines > button {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: none;
+  }
+  .sga-w-page .sga-order-review-shortcut {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .sga-w-page .sga-w-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 699px) {
+  .sga-w-page .sga-order-lines,
+  .sga-w-page .sga-receiving-lines {
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sga-w-page .sga-order-lines > button:not(.sga-order-review-shortcut),
+  .sga-w-page .sga-receiving-lines > button {
+    scroll-snap-align: start;
+  }
+  .sga-w-page .sga-w-actions,
+  .sga-w-page .sga-order-sticky-actions { padding-top: 12px; }
+  .sga-w-page .sga-order-qty-fields { grid-template-columns: minmax(0, 1fr); }
+  .sga-w-page .sga-order-qty-fields label > div { min-width: 0; }
+  .sga-w-page .sga-order-fixed-waste > strong { font-size: 21px; }
+  .sga-w-page .sga-receiving-piece-actions { flex-direction: column; }
+  .sga-w-page .sga-receiving-piece-actions > button { width: 100%; }
+  .sga-w-page .sga-order-bottom > button { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sga-w-page :is(button, input, select, textarea) { transition: none !important; }
+}
+@media print {
+  .sga-w-page .sga-w-actions,
+  .sga-w-page .sga-order-sticky-actions { display: none !important; }
+}
+
+/* Historial: mantiene la lectura cronológica aunque no carguemos SgaPremium.css. */
+.sga-w-page .sga-audit-heading { margin-top: 22px; }
+.sga-w-page .sga-audit-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.sga-w-page .sga-audit-list { display: grid; gap: 10px; margin-top: 19px; }
+.sga-w-page .sga-audit-card {
+  display: grid;
+  gap: 10px;
+  padding: 17px;
+  border: 1px solid #d9e2ec;
+  border-radius: 14px;
+  background: var(--sga-card, #fff);
+  color: var(--sga-ink, #17243b);
+  line-height: 1.55;
+}
+.sga-w-page .sga-audit-event-header,
+.sga-w-page .sga-audit-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 9px 16px;
+}
+.sga-w-page .sga-audit-event-title { display: grid; gap: 3px; }
+.sga-w-page .sga-audit-event-title strong { font-size: 16px; }
+.sga-w-page .sga-audit-event-title span,
+.sga-w-page .sga-audit-event-meta { font-size: 13px; color: #5a6b80; }
+.sga-w-page .sga-audit-event-description { font-size: 14px; overflow-wrap: anywhere; }
+.sga-w-page .sga-audit-demo-label {
+  padding: 5px 9px;
+  border: 1px solid #eed4aa;
+  border-radius: 8px;
+  color: #835318;
+  background: #fff6e7;
+  font-size: 11px;
+  font-weight: 800;
+}
+.sga-w-page .sga-audit-event-meta time { display: inline-flex; align-items: center; gap: 6px; }
+.sga-w-page .sga-audit-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.sga-w-page .sga-audit-pagination > span { font-size: 13px; color: #5a6b80; }
+@media (max-width: 699px) {
+  .sga-w-page .sga-audit-filters { grid-template-columns: minmax(0, 1fr); }
+  .sga-w-page .sga-audit-pagination > button { min-width: 0; flex: 1; }
+}

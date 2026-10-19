@@ -25,6 +25,7 @@ import {
 import { useAuthContext } from '../Auth/AuthContext';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
 import useVacationModuleAccess from '../hooks/useVacationModuleAccess';
+import { canAccessSgaPreview } from '../sga/sgaPreviewAccess.js';
 
 // Evita "magic numbers": sidebar fijo 16rem = w-64 / pl-64
 export const SIDEBAR_WIDTH_CLASS = 'md:pl-64';
@@ -143,8 +144,8 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'productos',
                 links: [
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion', 'decoandyou'] },
-                    // Visible solamente para admin. No cambia el menú de Almacén.
-                    ...(String(user?.role || '').trim().toLowerCase() === 'admin'
+                    // Enlace de pruebas dentro de Productos, únicamente para admin.
+                    ...(canAccessSgaPreview(user)
                         ? [{ to: '/sga', label: 'SGA · Pruebas', icon: <FaCubes className="mr-3 text-lg" />, roles: ['admin'] }]
                         : []),
                     { to: '/equivalencias', label: 'Equivalencias', icon: <FaBalanceScale className="mr-3 text-lg" />, roles: ['admin', 'almacen'] },

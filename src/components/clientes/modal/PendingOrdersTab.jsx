@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiAlertCircle, FiCalendar, FiChevronDown, FiChevronUp, FiClock, FiPackage, FiRefreshCw, FiSearch } from 'react-icons/fi';
+import { FiCalendar, FiChevronDown, FiChevronUp, FiPackage, FiRefreshCw, FiSearch } from 'react-icons/fi';
 import { useAuthContext } from '../../../Auth/AuthContext';
 
 const money = (amount) => new Intl.NumberFormat('es-ES', {
@@ -25,7 +25,6 @@ export default function PendingOrdersTab({ client }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [source, setSource] = useState('');
-    const [isEstimate, setIsEstimate] = useState(false);
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [revision, setRevision] = useState(0);
@@ -61,7 +60,6 @@ export default function PendingOrdersTab({ client }) {
                 ]);
                 setHasMore(Boolean(data.hasMore));
                 setSource(data.source || '');
-                setIsEstimate(Boolean(data.isEstimate));
             })
             .catch((failure) => {
                 if (!controller.signal.aborted) setError(failure.message);
@@ -92,7 +90,7 @@ export default function PendingOrdersTab({ client }) {
             <header className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h3 className="text-lg font-bold app-text sm:text-xl">Pedidos pendientes</h3>
-                    <p className="cjm-muted mt-1 text-sm">Pedidos que aún tienen cantidades por servir.</p>
+                    <p className="cjm-muted mt-1 text-sm">Artículos que siguen marcados como pendientes en los pedidos del cliente.</p>
                 </div>
                 <button type="button" onClick={refresh} disabled={loading}
                     className="cjm-secondary-button min-h-11 rounded-xl px-3 text-sm disabled:opacity-50">
@@ -101,16 +99,7 @@ export default function PendingOrdersTab({ client }) {
             </header>
 
             {source === 'linservi' && (
-                <p className="cjm-muted text-xs">Solo se muestran líneas con <strong>linservi = P</strong> (pendientes). Las servidas (S) quedan excluidas. Si no se ha sincronizado la cantidad servida, se muestra la cantidad pedida, pero no se inventa la pendiente.</p>
-            )}
-            {source && isEstimate && (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-950" role="status">
-                    <FiAlertCircle className="mt-0.5 shrink-0" size={19} aria-hidden="true" />
-                    <p>{source === 'linservi' ? 'Las líneas están confirmadas como pendientes por su estado P. Cuando se muestra una cantidad restante, es orientativa porque falta información completa de cierre.' : <>Las cantidades son <strong>estimadas</strong> {source === 'albaranes' ? 'a partir de pedidos y albaranes' : 'a partir de las cantidades servidas'}. Pueden incluir líneas cerradas o anuladas que aún no estén identificadas en los datos sincronizados.</>} Confirma las cantidades antes de comprometer una entrega.</p>
-                </div>
-            )}
-            {source && source !== 'linservi' && !isEstimate && (
-                <p className="cjm-muted text-xs">Cantidades calculadas con los datos de pedido servido y cerrado.</p>
+                <p className="cjm-muted text-xs">Se muestran únicamente productos con estado pendiente en el ERP.</p>
             )}
 
             {(orders.length > 0 || (!loading && !error)) && (
@@ -154,7 +143,6 @@ export default function PendingOrdersTab({ client }) {
             <div className="space-y-3">
                 {filteredOrders.map((order) => {
                     const expanded = expandedId === order.id;
-                    const dateLimit = order.lineas.map((line) => line.fechaEntrega).filter(Boolean).sort()[0];
                     return (
                         <article key={order.id} className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] shadow-sm">
                             <button type="button" onClick={() => setExpandedId(expanded ? null : order.id)}
@@ -164,12 +152,14 @@ export default function PendingOrdersTab({ client }) {
                                     <span className="block break-words text-base font-bold app-text">Pedido {orderNumber(order)}</span>
                                     <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--cjm-muted)]">
                                         <span className="inline-flex items-center gap-1"><FiCalendar aria-hidden="true" /> {dateLabel(order.fecha)}</span>
-                                        {dateLimit && <span className="inline-flex items-center gap-1"><FiClock aria-hidden="true" /> Entrega {dateLabel(dateLimit)}</span>}
                                     </span>
-                                    <span className="block text-sm font-medium app-text">{order.lineas.length} línea{order.lineas.length === 1 ? '' : 's'} · {order.cantidadPendiente === null ? 'estado pendiente' : `${quantity(order.cantidadPendiente)} pendiente`}</span>
+                                    <span className="block text-sm font-medium app-text">{order.lineas.length} producto{order.lineas.length === 1 ? '' : 's'} pendiente{order.lineas.length === 1 ? '' : 's'}</span>
                                 </span>
                                 <span className="flex shrink-0 flex-col items-end gap-2">
-                                    <span className="text-sm font-semibold tabular-nums text-[var(--cjm-primary-deep)]">{order.importePendiente === null ? 'Importe no disponible' : money(order.importePendiente)}</span>
+                                    <span className="text-right">
+                                        <span className="cjm-muted block text-xs">Importe de productos mostrados</span>
+                                        <span className="block text-sm font-semibold tabular-nums text-[var(--cjm-primary-deep)] sm:text-base">{order.importePedido === null || order.importePedido === undefined ? 'Sin importe registrado' : money(order.importePedido)}{order.importePedido !== null && order.importePedido !== undefined && order.importeCalculado ? ' *' : ''}</span>
+                                    </span>
                                     {expanded ? <FiChevronUp aria-hidden="true" /> : <FiChevronDown aria-hidden="true" />}
                                 </span>
                             </button>
@@ -183,14 +173,12 @@ export default function PendingOrdersTab({ client }) {
                                                     <p className="cjm-muted mt-1 text-xs">{line.codprodu || 'Sin código'} · Línea {line.linea || '—'}</p>
                                                 </div>
                                                 <span className="rounded-lg border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-2.5 py-1.5 text-sm font-bold tabular-nums text-[var(--cjm-primary-deep)]">
-                                                    {line.pendiente === null ? 'Pendiente' : `${quantity(line.pendiente)} pend.`}
+                                                    Pendiente
                                                 </span>
                                             </div>
-                                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                                                <span><span className="cjm-muted block">Pedido</span><strong className="app-text">{quantity(line.cantidad)}</strong></span>
-                                                <span><span className="cjm-muted block">Servido</span><strong className="app-text">{line.servido === null ? 'Sin datos' : quantity(line.servido)}</strong></span>
-                                                <span><span className="cjm-muted block">Importe pend.</span><strong className="app-text">{line.importePendiente === null ? 'No disponible' : money(line.importePendiente)}</strong></span>
-                                                <span><span className="cjm-muted block">Fecha entrega</span><strong className="app-text">{dateLabel(line.fechaEntrega)}</strong></span>
+                                            <div className="mt-3 grid grid-cols-1 gap-3 border-t border-[var(--cjm-border)] pt-3 text-sm sm:grid-cols-2">
+                                                <span><span className="cjm-muted block text-xs">Cantidad pedida</span><strong className="app-text text-base tabular-nums">{quantity(line.cantidad)}</strong></span>
+                                                <span><span className="cjm-muted block text-xs">Importe del artículo</span><strong className="app-text text-base tabular-nums">{line.importePedido === null || line.importePedido === undefined ? 'Sin importe registrado' : money(line.importePedido)}{line.importePedido !== null && line.importePedido !== undefined && line.importeCalculado ? ' *' : ''}</strong></span>
                                             </div>
                                         </div>
                                     ))}
@@ -211,7 +199,7 @@ export default function PendingOrdersTab({ client }) {
                     Cargar más pedidos
                 </button>
             )}
-            <p className="cjm-muted text-xs">Consulta de solo lectura. Los importes pendientes solo se muestran cuando hay cantidad restante calculable; son orientativos, sin impuestos y con los descuentos disponibles.</p>
+            <p className="cjm-muted text-xs">Importes de las líneas marcadas como pendientes, no necesariamente el total original del pedido. Se usa el campo Importe del ERP cuando está disponible. Los valores con * se calculan a partir de cantidad, precio y descuentos porque no se recibió ese importe. Consulta de solo lectura.</p>
         </section>
     );
 }

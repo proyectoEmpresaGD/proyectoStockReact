@@ -19,6 +19,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/agenda', label: 'Agenda' },
     { path: '/notas', label: 'Notas' },
     { path: '/stock', label: 'Stock' },
+    { path: '/sga', label: 'SGA · Operaciones de almacén', accessNote: 'Solo usuarios con rol Almacén' },
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
     { path: '/fichaTecnica', label: 'Ficha Técnica' },
@@ -80,6 +81,7 @@ const WAREHOUSE_ROUTES = [
 
     '/',
     '/stock',
+    '/sga',
     '/equivalencias',
     '/fichaTecnica',
     '/etiquetas',
@@ -138,7 +140,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
     compras: {
         name: 'compras',
         permissions: ['stock.read', 'stock.write', 'labels.read', 'purchasing.read'],
-        routes: [...WAREHOUSE_ROUTES, '/stock-alerts']
+        routes: [...WAREHOUSE_ROUTES.filter((path) => path !== '/sga'), '/stock-alerts']
     },
     ventas: {
         name: 'ventas',

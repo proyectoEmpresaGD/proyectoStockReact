@@ -1,11 +1,13 @@
-import { cleanCode, formatUnitTotals, getOrderProgress, pendingLines } from './sgaPicking.js';
+import { REMAINDER_ACTIONS, cleanCode, formatUnitTotals, getOrderProgress, pendingLines, validateOrderReview } from './sgaPicking.js';
 import { qtyText } from './sgaRules.js';
 const metric = (value, unit = 'm') => `${qtyText(value)} ${unit}`;
 
 /** A preparation sheet, NOT an official ERP delivery note. */
-export function buildOrderDraft(order, picks, products, pendingAcknowledged, kind = 'interno') {
+export function buildOrderDraft(order, picks, products, pendingAcknowledged = [], kind = 'interno') {
     const forClient = kind === 'entrega';
-    const progress = getOrderProgress(order, picks, products);
+    const verification = validateOrderReview(order, picks, products, pendingAcknowledged);
+    if (!verification.ok) throw new Error(verification.errors.join(' '));
+    const progress = verification.progress;
     const lines = pendingLines(order).map((line) => {
         const progressLine = progress.lines.find((row) => row.id === line.id);
         const product = products.find((item) => cleanCode(item.code) === cleanCode(line.productCode));
@@ -22,7 +24,25 @@ export function buildOrderDraft(order, picks, products, pendingAcknowledged, kin
             status: progressLine.finished ? 'Preparado' : pendingAcknowledged.includes(String(line.id)) ? 'Pendiente confirmado' : 'Pendiente',
             // No stock data, merma, warehouse, roll or internal notes in client sheet.
             ...(forClient ? {} : {
-                cuts: picksOfLine.map((item) => ({ lotCode: item.lotCode, delivered: metric(item.delivered, unit), waste: metric(item.waste, unit), stockDeduction: metric(item.stockDeduction, unit) })),
+                cuts: picksOfLine.map((item) => ({
+                    lotCode: item.lotCode || 'Sin lote',
+                    delivered: metric(item.delivered, unit),
+                    waste: metric(item.waste, unit),
+                    stockDeduction: metric(item.stockDeduction, unit),
+                    ...(item.remainderDecision ? {
+                        remainder: {
+                            action: item.remainderDecision.action,
+                            quantity: metric(item.remainderDecision.physicalAfterCut, unit),
+                            adjustment: item.remainderDecision.action === REMAINDER_ACTIONS.ZERO
+                                ? metric(item.remainderDecision.stockReduction, unit) : null,
+                            transfer: item.remainderDecision.destinationName ? {
+                                destination: item.remainderDecision.destinationName,
+                                destinationCode: item.remainderDecision.warehouseDestination,
+                                quantity: metric(item.remainderDecision.stockReduction, unit),
+                            } : null,
+                        },
+                    } : {}),
+                })),
                 waste: metric(picksOfLine.reduce((sum, item) => sum + Math.round(item.waste * 100), 0) / 100, unit),
             }),
         };
@@ -33,6 +53,12 @@ export function buildOrderDraft(order, picks, products, pendingAcknowledged, kin
         lines, totalDelivered: formatUnitTotals(progress.totalsByUnit, 'delivered'),
         pendingLines: progress.pending,
     };
-    if (!forClient) { out.totalWaste = formatUnitTotals(progress.totalsByUnit, 'waste'); out.totalStockDeduction = formatUnitTotals(progress.totalsByUnit, 'deduction'); }
+    if (!forClient) {
+        out.totalWaste = formatUnitTotals(progress.totalsByUnit, 'waste');
+        out.totalStockDeduction = formatUnitTotals(progress.totalsByUnit, 'deduction');
+        out.totalRegularized = formatUnitTotals(progress.totalsByUnit, 'regularized');
+        out.totalTransferred = formatUnitTotals(progress.totalsByUnit, 'transferred');
+        out.totalSourceReduction = formatUnitTotals(progress.totalsByUnit, 'sourceReduction');
+    }
     return out;
 }

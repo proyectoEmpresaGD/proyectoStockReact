@@ -1,28 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-    ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, PackageSearch,
-    ScanLine, ShieldCheck, AlertTriangle, LockKeyhole, RefreshCw,
-    Search, CheckCircle2, Scissors, FileText, ChevronRight,
+    ArrowDownToLine, ClipboardCheck, PackageSearch,
+    AlertTriangle, LockKeyhole, RefreshCw,
+    CheckCircle2, Scissors, FileText, ChevronRight,
     Warehouse, ArrowLeft, ArrowRight, ClipboardList, Boxes, Tag,
-    CalendarCheck, UserRound, PackageCheck, CircleHelp,
+    CalendarCheck, CalendarDays, Clock3, UserRound, PackageCheck,
 } from 'lucide-react';
 import { useAuthContext } from '../Auth/AuthContext';
+import useVacationModuleAccess from '../hooks/useVacationModuleAccess.js';
 import { decodeJwtPayload } from '../utils/jwt.js';
 import { canAccessSgaPreview } from '../sga/sgaPreviewAccess.js';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
 import { sgaGateway } from '../sga/sgaGateway.js';
+import { matchesSgaSearch } from '../sga/sgaSearch.js';
 import { buildSgaPreview, MOVEMENT_TYPES, qtyText } from '../sga/sgaRules.js';
 import { SGA_STEPS, validateSgaStep, validateSgaOperation } from '../sga/sgaSteps.js';
 import SgaDocument from '../sga/SgaDocument.jsx';
 import SgaOrderPicking from '../sga/SgaOrderPicking.jsx';
+import SgaPurchaseReceiving from '../sga/SgaPurchaseReceiving.jsx';
 import SgaSuggestInput from '../sga/SgaSuggestInput.jsx';
+import { sgaAuditGateway } from '../sga/sgaAuditGateway.js';
+import SgaAuditHistory from '../sga/SgaAuditHistory.jsx';
 import './SgaPage.css';
+import './SgaTabletRedesign.css';
 
 const OPERATIONS = [
-    { type: MOVEMENT_TYPES.ENTRY, label: 'Entrada', caption: 'Recibir mercancía', icon: ArrowDownToLine },
-    { type: MOVEMENT_TYPES.EXIT, label: 'Salida y corte', caption: 'Preparar pedidos y anotar la merma', icon: Scissors },
-    { type: MOVEMENT_TYPES.ADJUST, label: 'Regularización', caption: 'Corregir diferencias de inventario', icon: ClipboardCheck },
+    { type: MOVEMENT_TYPES.EXIT, label: 'Preparar pedidos', caption: 'Escanear lotes, cortar tejido y controlar mermas', icon: Scissors },
+    { type: MOVEMENT_TYPES.ENTRY, label: 'Entradas', caption: 'Recibir pedidos de compra y dar de alta piezas por lote', icon: ArrowDownToLine },
+    { type: MOVEMENT_TYPES.ADJUST, label: 'Regularizaciones', caption: 'Ajustar diferencias de inventario', icon: ClipboardCheck },
 ];
 const SHORTCUTS = [
     { path: '/stock', label: 'Consultar stock', icon: PackageSearch },
@@ -31,6 +37,8 @@ const SHORTCUTS = [
     { path: '/equivalencias', label: 'Equivalencias', icon: Boxes },
     { path: '/etiquetas', label: 'Etiquetas', icon: Tag },
     { path: '/perfilusuario', label: 'Mi perfil', icon: UserRound },
+    { path: '/rrhh/jornada', label: 'Gestión horaria', icon: Clock3 },
+    { path: '/rrhh/vacaciones', label: 'Vacaciones', icon: CalendarDays, requiresVacationAccess: true },
 ];
 const REASONS = [
     { value: 'RECUENTO', label: 'Diferencia de inventario' },
@@ -39,8 +47,8 @@ const REASONS = [
     { value: 'OTROS', label: 'Otro motivo' },
 ];
 const initialForm = () => ({
-    warehouse: '', location: '', lotCode: '', newLotCode: '', rollCode: '',
-    quantity: '', waste: '0', counted: '', reference: '', reason: '', note: '',
+    warehouse: '', location: '', lotCode: '', newLotCode: '',
+    quantity: '', counted: '', reference: '', reason: '', note: '',
 });
 const formatAmount = (number, unit = 'm') => `${qtyText(number ?? 0)} ${unit}`;
 
@@ -64,6 +72,7 @@ function SummaryItem({ label, value, important = false }) {
 
 export default function SgaPage() {
     const { user, token } = useAuthContext();
+    const { canAccess: canAccessVacations } = useVacationModuleAccess();
     let activeUser = user;
     if (!activeUser && token) {
         try {
@@ -75,6 +84,8 @@ export default function SgaPage() {
     const role = String(activeUser?.role || '').trim().toLowerCase();
     const warehouseAccess = canAccessSgaPreview(activeUser);
     const [operation, setOperation] = useState(null);
+    const [showAudit, setShowAudit] = useState(false);
+    const [auditBusy, setAuditBusy] = useState(false);
     const [step, setStep] = useState(0);
     const [catalog, setCatalog] = useState([]);
     const [warehouses, setWarehouses] = useState([]);
@@ -101,14 +112,19 @@ export default function SgaPage() {
         return () => { mounted = false; };
     }, [warehouseAccess]);
 
+    // Al avanzar por el asistente, el siguiente paso comienza visible.
+    // Evita que en tablet permanezcamos al pie de un formulario largo.
+    useEffect(() => {
+        if (operation !== null) window.scrollTo(0, 0);
+    }, [operation, step]);
+
     const product = useMemo(() => catalog.find((item) => item.code === productCode) || null, [catalog, productCode]);
     const lots = product?.lots || [];
     const lot = useMemo(() => form.lotCode === '__NEW__'
         ? (form.newLotCode.trim() ? { code: form.newLotCode.trim(), physical: '0', reserved: '0', rolls: [] } : null)
         : lots.find((item) => item.code === form.lotCode) || null, [lots, form.lotCode, form.newLotCode]);
     const searchResults = useMemo(() => catalog.filter((item) => {
-        const normalized = query.trim().toLocaleLowerCase('es');
-        return !normalized || `${item.code} ${item.description}`.toLocaleLowerCase('es').includes(normalized);
+        return matchesSgaSearch(`${item.code} ${item.description}`, query);
     }), [catalog, query]);
     const preview = useMemo(() => buildSgaPreview({ type: operation, product, lot, ...form }), [operation, product, lot, form]);
     const { movement } = preview;
@@ -133,17 +149,38 @@ export default function SgaPage() {
     };
     const chooseProduct = (item) => {
         setProductCode(item.code);
+        setQuery(item.code);
         setForm((old) => ({
-            ...old, lotCode: '', newLotCode: '', rollCode: '', quantity: '', counted: '', waste: '0',
+            ...old, lotCode: '', newLotCode: '', quantity: '', counted: '',
         }));
         setErrors([]);
         setReviewConfirmed(false);
     };
-    const goNext = () => {
+    const goNext = async () => {
         if (step === 3) {
             const issues = validateSgaOperation({ type: operation, product, lot, form });
             if (issues.length) { setErrors(issues); setReviewConfirmed(false); return; }
             if (!reviewConfirmed) { setErrors(['Marca «He comprobado los datos» antes de preparar el documento.']); return; }
+            if (auditBusy) return;
+            setAuditBusy(true);
+            try {
+                await sgaAuditGateway.record(token, {
+                    action: 'REGULARIZACION_DOCUMENTO',
+                    reference: `${product.code}-${lot?.code || 'SIN_LOTE'}`,
+                    detail: {
+                        productCode: product.code, lotCode: lot?.code || null,
+                        warehouse: form.warehouse, location: form.location,
+                        counted: movement.physicalAfter, previous: movement.physicalBefore,
+                        reserved: movement.reservedBefore, stockDelta: movement.stockDelta,
+                        reason: form.reason, note: form.note, reference: form.reference,
+                    },
+                });
+            } catch (err) {
+                setErrors([`No se ha guardado el registro: ${err.message}`]);
+                setAuditBusy(false);
+                return;
+            }
+            setAuditBusy(false);
         } else {
             const issues = validateSgaStep(step, { type: operation, product, lot, form });
             if (issues.length) { setErrors(issues); return; }
@@ -156,40 +193,54 @@ export default function SgaPage() {
         if (operation && step > 0 && !window.confirm('¿Salir? Los datos de esta simulación se perderán.')) return;
         setOperation(null); setStep(0); setErrors([]); setReviewConfirmed(false);
     };
-    const availableShortcuts = SHORTCUTS.filter((item) => userCanAccessRoute(role, item.path, activeUser?.route_access));
+    const availableShortcuts = SHORTCUTS.filter((item) =>
+        (!item.requiresVacationAccess || canAccessVacations) &&
+        userCanAccessRoute(role, item.path, activeUser?.route_access)
+    );
 
     if (!warehouseAccess) return <div className="sga-w-denied" role="alert"><LockKeyhole size={32}/><h1>SGA en fase de pruebas</h1><p>Solo los usuarios con rol admin pueden acceder al módulo durante el desarrollo.</p></div>;
 
     if (operation === MOVEMENT_TYPES.EXIT) {
         return <div className="sga-w-page" data-testid="sga-order-picking">
             <header className="sga-w-top"><div className="sga-w-brand"><Warehouse size={27}/><div><small>STOCK+ · ALMACÉN</small><h1>Preparar pedidos</h1></div></div>
-                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> MODO PRUEBA · NO GUARDA</span><span className="sga-w-operator">{activeUser?.username || 'Operario'}</span></div>
+                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> MODO PRUEBA · NO MODIFICA STOCK</span><span className="sga-w-operator">{activeUser?.username || 'Operario'}</span></div>
             </header>
-            <SgaOrderPicking operator={activeUser?.username} onHome={goHome}/>
+            <SgaOrderPicking operator={activeUser?.username} token={token} onHome={goHome}/>
+        </div>;
+    }
+    if (operation === MOVEMENT_TYPES.ENTRY) {
+        return <div className="sga-w-page" data-testid="sga-purchase-receiving">
+            <header className="sga-w-top"><div className="sga-w-brand"><Warehouse size={27}/><div><small>STOCK+ · ALMACÉN</small><h1>Entradas de mercancía</h1></div></div>
+                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> MODO PRUEBA · NO MODIFICA STOCK</span><span className="sga-w-operator">{activeUser?.username || 'Operario'}</span></div>
+            </header>
+            <SgaPurchaseReceiving operator={activeUser?.username} token={token} onHome={goHome}/>
         </div>;
     }
     return <div className="sga-w-page" data-testid="sga-wizard">
         <header className="sga-w-top">
             <div className="sga-w-brand"><Warehouse size={27}/><div><small>STOCK+ · ALMACÉN</small><h1>{selectedOperation ? selectedOperation.label : 'Mi almacén'}</h1></div></div>
-            <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> MODO PRUEBA · NO GUARDA</span><span className="sga-w-operator">{activeUser?.username || 'Operario'}</span></div>
+            <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> MODO PRUEBA · NO MODIFICA STOCK</span><span className="sga-w-operator">{activeUser?.username || 'Operario'}</span></div>
         </header>
 
-        {operation === null ? <>
-            <div className="sga-w-intro"><h2>¿Qué necesitas hacer?</h2><p>Pulsa una opción para empezar. Te guiaremos paso a paso.</p></div>
+        {operation === null && showAudit ? <SgaAuditHistory token={token} onBack={() => setShowAudit(false)} /> : operation === null ? <>
+            <div className="sga-w-intro"><div><span className="sga-w-eyebrow">CENTRO DE TRABAJO</span><h2>¿Qué vas a hacer ahora?</h2><p>Elige una tarea. Solo verás los datos necesarios para completarla.</p></div><span className="sga-w-demo-tag"><LockKeyhole size={17}/> Versión de pruebas · Sin cambios reales</span></div>
             <div className="sga-w-home-grid">
-                {OPERATIONS.map(({ type, label, caption, icon: Icon }) => <button key={type} type="button" className="sga-w-home-action" onClick={() => beginOperation(type)}>
-                    <span className="sga-w-icon"><Icon size={31}/></span><span className="sga-w-action-name"><strong>{label}</strong><small>{caption}</small></span><ChevronRight size={24}/>
+                {OPERATIONS.map(({ type, label, caption, icon: Icon }) => <button key={type} type="button" className={`sga-w-home-action ${type === MOVEMENT_TYPES.EXIT ? 'sga-w-home-primary' : ''}`} onClick={() => beginOperation(type)}>
+                    <span className="sga-w-icon"><Icon size={32}/></span><span className="sga-w-action-name"><strong>{label}</strong><small>{caption}</small>{type === MOVEMENT_TYPES.EXIT && <em>Pedidos del ERP · Escáner de lotes</em>}</span><ChevronRight className="sga-w-action-arrow" size={27}/>
                 </button>)}
                 {userCanAccessRoute(role, '/stock', activeUser?.route_access) && <Link to="/stock" className="sga-w-home-action sga-w-home-stock">
-                    <span className="sga-w-icon"><PackageSearch size={31}/></span><span className="sga-w-action-name"><strong>Consultar stock</strong><small>Ver metros, lotes y disponibilidad</small></span><ChevronRight size={24}/>
+                    <span className="sga-w-icon"><PackageSearch size={31}/></span><span className="sga-w-action-name"><strong>Consultar stock</strong><small>Consultar existencias y lotes sin modificarlos</small></span><ChevronRight className="sga-w-action-arrow" size={27}/>
                 </Link>}
             </div>
-            <section className="sga-w-tools" aria-label="Otras herramientas de almacén">
-                <h3>Otras herramientas</h3><div>
+            {availableShortcuts.some((item) => item.path !== '/stock') && <details className="sga-w-tools" aria-label="Otras herramientas de almacén">
+                <summary>Otras herramientas <ChevronRight size={19}/></summary><div>
                     {availableShortcuts.filter((item) => item.path !== '/stock').map(({ path, label, icon: Icon }) => <Link key={path} to={path}><Icon size={21}/>{label}<ChevronRight size={18}/></Link>)}
                 </div>
-            </section>
-            <div className="sga-w-demo-foot">Datos ficticios de prueba. Ninguna acción crea documentos oficiales ni modifica existencias.</div>
+            </details>}
+            <button type="button" className="sga-w-secondary" onClick={() => setShowAudit(true)} style={{ marginTop: 14, minHeight: 50 }}>
+                <ClipboardList size={21}/> Consultar historial de operaciones (pruebas)
+            </button>
+            <div className="sga-w-demo-foot">Simulación: no cambia existencias ni pedidos del ERP. Las operaciones que aceptes sí quedan en el historial de pruebas.</div>
         </> : <>
             <div className="sga-w-trail"><button type="button" onClick={goHome}><ArrowLeft size={19}/> Volver a las tareas</button><span>{selectedOperation?.caption}</span></div>
             <nav className="sga-w-steps" aria-label="Progreso del proceso">
@@ -200,10 +251,10 @@ export default function SgaPage() {
             <div className="sga-w-workspace">
                 <main className="sga-w-card" aria-live="polite">
                     {step === 0 && <>
-                        <div className="sga-w-step-header"><span>PASO 1 DE 5</span><h2>Selecciona el producto</h2><p>Busca por código o nombre y pulsa el producto correcto.</p></div>
+                        <div className="sga-w-step-header"><span>PASO 1 DE 5</span><h2>¿Qué producto vas a registrar?</h2><p>Busca por referencia o descripción y selecciona el artículo.</p></div>
                         <SgaSuggestInput label="Producto o referencia" value={query} onChange={setQuery} options={searchResults}
                             getKey={(item) => item.code} getLabel={(item) => item.description} getDetail={(item) => `${item.code} · ${item.unit === 'm' ? 'Metros' : 'Unidades'}`}
-                            onSelect={(item) => { chooseProduct(item); setQuery(item.code); }} placeholder="Buscar código o nombre del producto"/>
+                            onSelect={chooseProduct} placeholder="Buscar código o nombre del producto"/>
                         {loading ? <p className="sga-w-message">Cargando productos de ejemplo…</p> : dataError ? <p className="sga-w-message">{dataError}</p> : <div className="sga-w-products">
                             {searchResults.length ? searchResults.slice(0, 8).map((item) => <button type="button" key={item.code} onClick={() => chooseProduct(item)} className={item.code === productCode ? 'is-selected' : ''} aria-pressed={item.code === productCode}>
                                 <span><strong>{item.description}</strong><small>{item.code} · {item.unit === 'm' ? 'Metros' : 'Unidades'}</small></span>{item.code === productCode ? <CheckCircle2 size={25}/> : <ChevronRight size={22}/>}
@@ -211,23 +262,22 @@ export default function SgaPage() {
                         </div>}
                     </>}
                     {step === 1 && <>
-                        <div className="sga-w-step-header"><span>PASO 2 DE 5</span><h2>Indica dónde está</h2><p>Confirma almacén, lote y ubicación antes de continuar.</p></div>
+                        <div className="sga-w-step-header"><span>PASO 2 DE 5</span><h2>¿En qué almacén y lote?</h2><p>Comprueba el lote y la ubicación antes de introducir cantidades.</p></div>
                         <div className="sga-w-fields">
                             <label className="sga-w-field"><span>Almacén</span><select value={form.warehouse} onChange={(e) => changeField('warehouse', e.target.value)}><option value="">Elegir almacén…</option>{warehouses.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-                            <label className="sga-w-field"><span>Lote</span><select value={form.lotCode} onChange={(e) => { setForm((old) => ({ ...old, lotCode: e.target.value, rollCode: '', newLotCode: '' }));setErrors([]);setReviewConfirmed(false); }}><option value="">Elegir lote…</option>{lots.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}{operation === MOVEMENT_TYPES.ENTRY && <option value="__NEW__">+ Crear lote nuevo (simulación)</option>}</select></label>
+                            {product?.tracksLots !== false && <label className="sga-w-field"><span>Lote</span><select value={form.lotCode} onChange={(e) => { setForm((old) => ({ ...old, lotCode: e.target.value, newLotCode: '' }));setErrors([]);setReviewConfirmed(false); }}><option value="">Elegir lote…</option>{lots.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}{operation === MOVEMENT_TYPES.ENTRY && <option value="__NEW__">+ Crear lote nuevo (simulación)</option>}</select></label>}
                             <label className="sga-w-field"><span>Ubicación</span><select value={form.location} onChange={(e) => changeField('location', e.target.value)}><option value="">Elegir ubicación…</option>{locations.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-                            {unit === 'm' && <label className="sga-w-field"><span>Rollo <small>(si está identificado)</small></span><select value={form.rollCode} onChange={(e) => changeField('rollCode', e.target.value)}><option value="">Sin identificar</option>{(lot?.rolls || []).map((roll) => <option key={roll} value={roll}>{roll}</option>)}</select></label>}
                             {operation === MOVEMENT_TYPES.ENTRY && form.lotCode === '__NEW__' && <label className="sga-w-field"><span>Código del nuevo lote</span><input value={form.newLotCode} onChange={(e) => changeField('newLotCode', e.target.value)} placeholder="Escribir código del lote" /></label>}
                         </div>
-                        {lot && <div className="sga-w-current-stock"><span>Físico <b>{formatAmount(movement.physicalBefore, unit)}</b></span><span>Reservado <b>{formatAmount(movement.reservedBefore, unit)}</b></span><span>Disponible <b>{formatAmount(available, unit)}</b></span></div>}
-                        {form.rollCode && <p className="sga-w-subnote">El stock mostrado corresponde al lote completo. La disponibilidad por rollo se conectará en la fase real.</p>}
+                        {(lot || product?.tracksLots === false) && <div className="sga-w-current-stock"><span>Físico <b>{formatAmount(movement.physicalBefore, unit)}</b></span><span>Reservado <b>{formatAmount(movement.reservedBefore, unit)}</b></span><span>Disponible <b>{formatAmount(available, unit)}</b></span></div>}
+                        {product?.tracksLots === false && <p className="sga-w-subnote">Este artículo se controla sin lotes; el ajuste afecta al stock total del artículo.</p>}
                     </>}
                     {step === 2 && <>
                         <div className="sga-w-step-header"><span>PASO 3 DE 5</span><h2>{operation === MOVEMENT_TYPES.ENTRY ? '¿Qué cantidad ha llegado?' : operation === MOVEMENT_TYPES.EXIT ? '¿Cuánto se corta?' : '¿Cuánto hay realmente?'}</h2><p>{operation === MOVEMENT_TYPES.EXIT ? 'Indica por separado la cantidad para el cliente y lo que se pierde en el corte.' : 'Introduce la cantidad comprobada físicamente.'}</p></div>
                         <div className="sga-w-fields">
                             {operation === MOVEMENT_TYPES.ENTRY && <TouchField id="sga-quantity" label="Cantidad recibida" value={form.quantity} onChange={(v) => changeField('quantity', v)} unit={unit} />}
                             {operation === MOVEMENT_TYPES.EXIT && <><TouchField id="sga-delivered" label="Cantidad para el cliente" value={form.quantity} onChange={(v) => changeField('quantity', v)} unit={unit} helper="Esta cantidad se incluirá en el documento para el cliente." />
-                                {unit === 'm' && <TouchField id="sga-waste" label="Merma del corte" value={form.waste} onChange={(v) => changeField('waste', v)} unit="m" helper="Se descuenta del stock, pero no se factura." />}</>}
+                                {unit === 'm' && <p className="sga-w-clarity">Merma automática: 0,10 m por corte, no facturable.</p>}</>}
                             {operation === MOVEMENT_TYPES.ADJUST && <><TouchField id="sga-counted" label="Stock físico contado" value={form.counted} onChange={(v) => changeField('counted', v)} unit={unit}/>
                                 <label className="sga-w-field"><span>¿Por qué regularizas?</span><select value={form.reason} onChange={(e) => changeField('reason', e.target.value)}><option value="">Elegir motivo…</option>{REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></>}
                             <label className="sga-w-field"><span>{operation === MOVEMENT_TYPES.ENTRY ? 'Documento de recepción' : operation === MOVEMENT_TYPES.EXIT ? 'Número de pedido o referencia' : 'Referencia interna (opcional)'}</span><input value={form.reference} onChange={(e) => changeField('reference', e.target.value)} placeholder="Escribir referencia" autoComplete="off" /></label>
@@ -237,7 +287,7 @@ export default function SgaPage() {
                     </>}
                     {step === 3 && <>
                         <div className="sga-w-step-header"><span>PASO 4 DE 5</span><h2>Comprueba los datos</h2><p>Revisa las cantidades. Si ves algo incorrecto, pulsa «Atrás» para corregirlo.</p></div>
-                        <div className="sga-w-check-title"><PackageCheck size={23}/><div><strong>{product?.description || 'Producto'}</strong><small>{product?.code || ''} · Lote {lot?.code || '—'}</small></div></div>
+                        <div className="sga-w-check-title"><PackageCheck size={23}/><div><strong>{product?.description || 'Producto'}</strong><small>{product?.code || ''} · {product?.tracksLots === false ? 'Sin lote' : `Lote ${lot?.code || '—'}`}</small></div></div>
                         <div className="sga-w-summary-grid"><SummaryItem label="Almacén" value={warehouses.find((item) => item.code === form.warehouse)?.name || form.warehouse} /><SummaryItem label="Ubicación" value={locations.find((item) => item.code === form.location)?.name || form.location}/><SummaryItem label="Stock antes" value={formatAmount(movement.physicalBefore, unit)} /><SummaryItem label="Stock reservado" value={formatAmount(movement.reservedBefore, unit)} />
                             {operation === MOVEMENT_TYPES.EXIT && <><SummaryItem label="Para el cliente / albarán" value={formatAmount(movement.billableQuantity, unit)} important/><SummaryItem label="Merma interna (no facturar)" value={formatAmount(movement.wasteQuantity, unit)} /></>}
                             <SummaryItem label="Variación de stock" value={`${movement.stockDelta > 0 ? '+' : ''}${formatAmount(movement.stockDelta, unit)}`} /><SummaryItem label="Stock después (simulado)" value={formatAmount(movement.physicalAfter, unit)} important />
@@ -257,10 +307,10 @@ export default function SgaPage() {
                     {errors.length > 0 && <div className="sga-w-error" role="alert"><AlertTriangle size={22}/><div><strong>Revisa estos datos:</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div></div>}
                     <footer className="sga-w-actions">
                         {step > 0 ? <button type="button" className="sga-w-secondary" onClick={goBack}><ArrowLeft size={21}/> Atrás</button> : <button type="button" className="sga-w-secondary" onClick={goHome}><ArrowLeft size={21}/> Cancelar</button>}
-                        {step < 4 ? <button type="button" className="sga-w-primary" onClick={goNext}>{step === 3 ? 'Preparar documento' : 'Continuar'}<ArrowRight size={21}/></button> : <button type="button" className="sga-w-secondary" onClick={() => beginOperation(operation)}><RefreshCw size={19}/> Nueva simulación</button>}
+                        {step < 4 ? <button type="button" className="sga-w-primary" onClick={goNext} disabled={auditBusy}>{step === 3 ? 'Preparar documento' : 'Continuar'}<ArrowRight size={21}/></button> : <button type="button" className="sga-w-secondary" onClick={() => beginOperation(operation)}><RefreshCw size={19}/> Nueva simulación</button>}
                     </footer>
                 </main>
-                <aside className="sga-w-guide"><CircleHelp size={29}/><h3>Una cosa cada vez</h3><p>{step === 0 ? 'Selecciona un único producto.' : step === 1 ? 'Comprueba dónde está antes de introducir cantidades.' : step === 2 ? 'Introduce las cantidades que has medido.' : step === 3 ? 'Repasa los datos antes de ver el borrador.' : 'El documento es de ejemplo; no registra un movimiento real.'}</p><div className="sga-w-guide-bottom"><ShieldCheck size={17}/> Sin modificaciones de stock</div></aside>
+                
             </div>
         </>}
     </div>;

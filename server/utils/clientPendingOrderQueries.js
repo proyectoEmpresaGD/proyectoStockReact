@@ -2,6 +2,7 @@ const quote = (name) => `"${String(name).replace(/"/g, '""')}"`;
 const column = (columns, name, alias = 'p') => columns?.has(name) ? `${alias}.${quote(columns.get(name))}` : null;
 const asText = (sql) => sql ? `TRIM(${sql}::text)` : `''::text`;
 const asQuantity = (sql) => sql ? `COALESCE(${sql}::numeric, 0)` : '0::numeric';
+const asNullableNumber = (sql) => sql ? `${sql}::numeric` : 'NULL::numeric';
 const asDate = (sql) => sql ? `${sql}::timestamp` : 'NULL::timestamp';
 
 /** Una línea técnica o informativa no constituye un producto pendiente.
@@ -122,7 +123,8 @@ export function buildPendingOrdersQuery(tables, source) {
             ${quantity} AS cantidad,
             ${served} AS servido,
             ${pending} AS pendiente,
-            ${asQuantity(field('precio'))} AS precio,
+            ${asNullableNumber(field('importe'))} AS importe,
+            ${asNullableNumber(field('precio'))} AS precio,
             ${asQuantity(field('dt1'))} AS dt1,
             ${asQuantity(field('dt2'))} AS dt2,
             ${asQuantity(field('dt3'))} AS dt3
@@ -179,11 +181,35 @@ export function buildPendingOrdersQuery(tables, source) {
 
 const round = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
+/**
+ * Importe de la línea del PEDIDO, no importe que falte por servir.
+ * El ERP ya informa `importe` en pedventa: no debe depender de `canservi`.
+ * Si la sincronización no trae ese campo, calculamos con precio y cantidad,
+ * aplicando los descuentos disponibles y señalando que es un valor calculado.
+ * Un importe explícito 0 es válido (muestras/artículos gratuitos).
+ */
+export function resolveOrderLineAmount(row) {
+    const hasAmount = row.importe !== null && row.importe !== undefined && row.importe !== '';
+    if (hasAmount && Number.isFinite(Number(row.importe))) {
+        return { amount: round(Number(row.importe)), calculated: false };
+    }
+
+    const hasPrice = row.precio !== null && row.precio !== undefined && row.precio !== '';
+    if (!hasPrice || !Number.isFinite(Number(row.precio)) || !Number.isFinite(Number(row.cantidad))) {
+        return { amount: null, calculated: false };
+    }
+
+    const discountFactor = [row.dt1, row.dt2, row.dt3].reduce(
+        (value, discount) => value * (1 - Math.min(Math.max(Number(discount) || 0, 0), 100) / 100),
+        1
+    );
+    return { amount: round(Number(row.cantidad) * Number(row.precio) * discountFactor), calculated: true };
+}
+
 export function groupPendingOrderLines(rows, pageSize) {
     const map = new Map();
     for (const row of rows) {
-        // Defensa adicional ante sincronizaciones incompletas o respuestas antiguas:
-        // ni encabezados, ni observaciones, ni líneas con cantidad cero.
+        // Evitamos artículos de cabecera u observaciones sin producto/cantidad.
         if (!String(row.codprodu ?? '').trim() || !(Number(row.cantidad) > 0)) continue;
         const id = [row.canal, row.ejercicio, row.serie, row.numero].join('|');
         if (!map.has(id)) {
@@ -197,16 +223,24 @@ export function groupPendingOrderLines(rows, pageSize) {
                 lineas: [],
                 cantidadPendiente: 0,
                 importePendiente: 0,
+                importePedido: 0,
+                importeCalculado: false,
             });
         }
         const order = map.get(id);
         const known = row.pendiente !== null && row.pendiente !== undefined && row.pendiente !== '';
         const pending = known && Number.isFinite(Number(row.pendiente))
             ? Math.max(0, Number(row.pendiente)) : null;
+        const { amount: orderAmount, calculated } = resolveOrderLineAmount(row);
+
+        // Campo histórico conservado por compatibilidad con clientes antiguos de
+        // la API. No se utiliza para calcular ni mostrar el importe del pedido.
         const discount = [row.dt1, row.dt2, row.dt3].reduce(
             (product, value) => product * (1 - Math.min(Math.max(Number(value) || 0, 0), 100) / 100), 1
         );
-        const amount = pending === null ? null : round(pending * (Number(row.precio) || 0) * discount);
+        const pendingAmount = pending === null || row.precio === null || row.precio === undefined
+            ? null : round(pending * Number(row.precio) * discount);
+
         order.lineas.push({
             linea: row.linea,
             codprodu: row.codprodu,
@@ -215,12 +249,19 @@ export function groupPendingOrderLines(rows, pageSize) {
             cantidad: Number(row.cantidad) || 0,
             servido: row.servido === null || row.servido === undefined ? null : Number(row.servido),
             pendiente: pending,
-            importePendiente: amount,
+            importePendiente: pendingAmount,
+            importePedido: orderAmount,
+            importeCalculado: calculated,
         });
         order.cantidadPendiente = order.cantidadPendiente === null || pending === null
             ? null : order.cantidadPendiente + pending;
-        order.importePendiente = order.importePendiente === null || amount === null
-            ? null : order.importePendiente + amount;
+        order.importePendiente = order.importePendiente === null || pendingAmount === null
+            ? null : order.importePendiente + pendingAmount;
+        // Si alguna línea no trae importe ni precio, no mostramos un falso total
+        // parcial como si fuera el importe completo de las líneas pendientes.
+        order.importePedido = order.importePedido === null || orderAmount === null
+            ? null : order.importePedido + orderAmount;
+        order.importeCalculado ||= calculated;
     }
     const orders = [...map.values()];
     return {
@@ -228,6 +269,7 @@ export function groupPendingOrderLines(rows, pageSize) {
             ...order,
             cantidadPendiente: order.cantidadPendiente === null ? null : round(order.cantidadPendiente),
             importePendiente: order.importePendiente === null ? null : round(order.importePendiente),
+            importePedido: order.importePedido === null ? null : round(order.importePedido),
         })),
         hasMore: orders.length > pageSize,
     };

@@ -149,3 +149,71 @@ test('cobertura de estados ignora encabezados y considera P y S reales', async (
     assert.match(sql, /AND TRIM\(p\."codprodu"::text\) <> ''/);
     assert.match(sql, /UPPER\(TRIM\(l\."linservi"::text\)\) IN \('P', 'S'\)/);
 });
+
+test('incluye Importe de pedventa en el SELECT, sin depender de la cantidad servida o pendiente', () => {
+    const tables = {
+        pedventa: columns([...baseColumns, 'importe', 'dt1', 'dt2', 'dt3']),
+        pedventa_linea: columns([...baseColumns, 'linservi']),
+    };
+    const source = determinePendingSource(tables);
+    assert.equal(source.table, 'pedventa');
+    const query = buildPendingOrdersQuery(tables, source);
+    assert.match(query, /p\."importe"::numeric AS importe/);
+    assert.match(query, /p\."precio"::numeric AS precio/);
+    assert.match(query, /UPPER\(TRIM\(l\."linservi"::text\)\) = 'P'/);
+});
+
+test('importe de línea P procede del campo importe aunque servido y pendiente sean desconocidos', () => {
+    const result = groupPendingOrderLines([
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'26001750', linea:'1',
+          codprodu:'ARE00582', desprodu:'ATISAN PORCELAIN 300 CM', cantidad:25,
+          servido:null, pendiente:null, precio:13.5, importe:337.5, dt1:10 },
+    ], 12);
+    assert.equal(result.orders[0].importePedido, 337.5);
+    assert.equal(result.orders[0].lineas[0].importePedido, 337.5);
+    assert.equal(result.orders[0].importeCalculado, false);
+    assert.equal(result.orders[0].cantidadPendiente, null);
+});
+
+test('si importe no está sincronizado y hay precio calcula el subtotal usando descuentos', () => {
+    const result = groupPendingOrderLines([
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'001', linea:'1', codprodu:'TELA',
+          cantidad:25, servido:null, pendiente:null, importe:null, precio:12, dt1:10, dt2:5, dt3:0 },
+    ], 12);
+    assert.equal(result.orders[0].importePedido, 256.5);
+    assert.equal(result.orders[0].importeCalculado, true);
+    assert.equal(result.orders[0].lineas[0].importeCalculado, true);
+});
+
+test('precio o importe cero es válido, y un precio no sincronizado no se convierte falsamente en 0 euros', () => {
+    const result = groupPendingOrderLines([
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'002', linea:'1', codprodu:'REGALO',
+          cantidad:1, importe:0, precio:55, pendiente:null },
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'002', linea:'2', codprodu:'SINPRECIO',
+          cantidad:1, importe:null, precio:null, pendiente:null },
+    ], 12);
+    assert.equal(result.orders[0].lineas[0].importePedido, 0);
+    assert.equal(result.orders[0].lineas[0].importeCalculado, false);
+    assert.equal(result.orders[0].lineas[1].importePedido, null);
+    assert.equal(result.orders[0].importePedido, null);
+});
+
+test('el total visual solo suma líneas realmente pendientes presentes en la consulta', () => {
+    const result = groupPendingOrderLines([
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'001', linea:'1', codprodu:'TELA1', cantidad:2, importe:20, pendiente:null },
+        { canal:'1', ejercicio:'2026', serie:'A', numero:'001', linea:'2', codprodu:'TELA2', cantidad:3, importe:30, pendiente:null },
+    ], 12);
+    assert.equal(result.orders[0].importePedido, 50);
+});
+
+test('la ficha enseña cantidad pedida e importe del artículo sin servido, pendiente monetario ni entrega', () => {
+    const frontend = readFileSync(new URL('../../src/components/clientes/modal/PendingOrdersTab.jsx', import.meta.url), 'utf8');
+    assert.match(frontend, /Cantidad pedida/);
+    assert.match(frontend, /Importe del artículo/);
+    assert.match(frontend, /line\.importePedido/);
+    assert.match(frontend, /order\.importePedido/);
+    assert.doesNotMatch(frontend, /<span className="cjm-muted block">Servido/);
+    assert.doesNotMatch(frontend, /Importe pend\./);
+    assert.doesNotMatch(frontend, /Fecha entrega/);
+    assert.doesNotMatch(frontend, /<span className="cjm-muted block">Pedido/);
+});

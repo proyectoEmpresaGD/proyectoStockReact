@@ -28,6 +28,8 @@ import { createIntrastatRouter } from './routes/intrastat.js';
 import { createReservasRouter } from "./routes/reservas.js";
 import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
 import { createJornadaRouter } from "./routes/jornada.js";
+import { createSgaOrderLocksRouter } from "./routes/sgaOrderLocks.js";
+import { createSgaAuditRouter } from "./routes/sgaAudit.js";
 import { ensureJornadaSchema } from "./services/jornadaMigrations.js";
 import { ensureUserAccessSchema } from "./services/userAccessMigrations.js";
 import { fetchAllowedImage, parseAllowedImageProxyUrl } from "./utils/imageProxy.js";
@@ -112,6 +114,10 @@ try {
 app.use("/api/products", authMiddleware, createProductRouter({ pool }));
 app.use("/api/images", authMiddleware, createImagenRouter({ pool }));
 app.use("/api/stock", authMiddleware, createStockRouter({ pool }));
+// Bloqueo técnico de pedidos para pruebas del SGA; no escribe en stock ni ERP.
+app.use("/api/sga/order-locks", authMiddleware, createSgaOrderLocksRouter({ pool }));
+// Bitácora persistente de operaciones de prueba; no escribe existencias ni pedidos del ERP.
+app.use("/api/sga/audit", authMiddleware, createSgaAuditRouter({ pool }));
 app.use("/api/stocklotes", authMiddleware, createStockLotesRouter({ pool }));
 app.use("/api/clients", authMiddleware, createClienteRouter({ pool }));
 app.use("/api/jornada", authMiddleware, createJornadaRouter({ pool }));
