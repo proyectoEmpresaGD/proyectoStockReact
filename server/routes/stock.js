@@ -9,6 +9,7 @@ export const createStockRouter = () => {
     const requirePurchasingRole = requireRouteAccess('/stock-alerts', 'compras');
 
     stockRouter.get('/control-stock/filters', requirePurchasingRole, stockController.getControlStockFilters.bind(stockController));
+    stockRouter.get('/control-stock/suggestions', requirePurchasingRole, stockController.searchControlStockProducts.bind(stockController));
     stockRouter.get('/control-stock', requirePurchasingRole, stockController.getControlStock.bind(stockController));
     stockRouter.post('/control-stock/validate-products', requirePurchasingRole, stockController.validateControlStockProducts.bind(stockController));
 
@@ -22,6 +23,8 @@ export const createStockRouter = () => {
 
     stockRouter.post('/', stockController.create.bind(stockController));
     stockRouter.get('/alerts', stockController.getLowStockAlerts.bind(stockController));
+    stockRouter.get('/entradas/lotes/:codprodu', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getLotesParaEntradas.bind(stockController));
+    stockRouter.get('/entradas/recepciones', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getRecepcionesCompra.bind(stockController));
     stockRouter.get('/entradas', stockController.getEntradas.bind(stockController));
     stockRouter.get('/producto/:codprodu', stockController.getByCodprodu.bind(stockController));
 

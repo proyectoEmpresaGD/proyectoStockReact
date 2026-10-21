@@ -1,23 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Activity, ArrowDownUp, ArrowRight, Bell, CalendarDays, CheckCheck, Clock3,
-    Copy, Info, Package, PackageCheck, RefreshCw, Search, SlidersHorizontal, X,
+    Copy, Info, Package, PackageCheck, ChevronDown, RefreshCw, Search, SlidersHorizontal, X,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PageShell from '../common/PageShell.jsx';
 import EmptyState from '../common/EmptyState.jsx';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { useStockActivity } from '../features/entradas/StockActivityContext.jsx';
-import { groupEntries, localISODate, normalizeSearch, offsetLocalDate, sortStockActivity } from '../features/entradas/entradasUtils.js';
+import { groupEntries, groupConfirmedReceipts, localISODate, madridISODate, normalizeSearch, offsetLocalDate, sortStockActivity } from '../features/entradas/entradasUtils.js';
 import { userCanAccessRoute } from '../utils/roleAccessConfig.js';
 import { useEntryT } from '../features/entradas/entryCopy.js';
+import EntryLotDetails from '../features/entradas/EntryLotDetails.jsx';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 const PAGE_SIZE = 12;
 const quantityFormat = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const shortDateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 const timeFormat = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
+const madridTimeFormat = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
+const USING_CONFIRMED_RECEIPTS = import.meta.env.VITE_CJM_ENTRADAS_REALES === 'true';
 const fullDate = (text) => {
     const [year, month, day] = text.split('-').map(Number);
     return shortDateFormat.format(new Date(year, month - 1, day, 12));
@@ -37,14 +40,17 @@ function Metric({ icon: Icon, label, value, note }) {
     );
 }
 
-function EntryCard({ entry, canViewStock, isChanged, detectedAt, onCopy }) {
+function EntryCard({ entry, canViewStock, token, expanded, onToggle, isChanged, detectedAt, onCopy }) {
     const t = useEntryT();
+    const detailsId = useId();
     // No mostrar fecultmod como hora de recepción: es una modificación de stock
     // y su serialización puede variar con la zona horaria del servidor.
+    const receivedAt = USING_CONFIRMED_RECEIPTS && entry.updatedAt && Number.isFinite(Date.parse(entry.updatedAt)) ? new Date(entry.updatedAt) : null;
     const detectionTime = detectedAt && Number.isFinite(Date.parse(detectedAt)) ? new Date(detectedAt) : null;
     const brand = (String(entry.codprodu).match(/^[A-Za-z]+/) || [])[0] || 'ST';
     return (
-        <article className="group flex flex-col gap-4 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 transition-colors hover:border-[var(--cjm-primary-border)] sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4">
+        <article className="group rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 transition-colors hover:border-[var(--cjm-primary-border)] sm:px-5 sm:py-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-xs font-extrabold tracking-widest text-[var(--cjm-primary-deep)]" aria-hidden="true">{brand.slice(0, 3).toUpperCase()}</div>
                 <div className="min-w-0 flex-1">
@@ -52,8 +58,9 @@ function EntryCard({ entry, canViewStock, isChanged, detectedAt, onCopy }) {
                         <span className="font-mono text-xs font-semibold tracking-wide text-[var(--cjm-primary-deep)]">{entry.codprodu}</span>
                         {isChanged && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{t('Cambio detectado')}</span>}
                     </div>
-                    <h3 className="mt-1 break-words text-sm font-semibold leading-snug app-text sm:text-base">{entry.desprodu}</h3>
+                    <h3 className="mt-1 break-words text-sm font-semibold leading-snug app-text sm:text-base"><button type="button" onClick={onToggle} aria-expanded={expanded} aria-controls={detailsId} className="text-left hover:text-[var(--cjm-primary-deep)]">{entry.desprodu}</button></h3>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--cjm-muted)]">
+                        {receivedAt && <span className="inline-flex items-center gap-1"><Clock3 size={12}/>{t('Hora del albarán')} {madridTimeFormat.format(receivedAt)}</span>}
                         {detectionTime && <span className="inline-flex items-center gap-1"><Clock3 size={12}/>{t('Detectado a las')} {timeFormat.format(detectionTime)}</span>}
                         {entry.recordCount > 1 && <span>{entry.recordCount} {t('registros agrupados')}</span>}
                     </div>
@@ -61,16 +68,19 @@ function EntryCard({ entry, canViewStock, isChanged, detectedAt, onCopy }) {
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-[var(--cjm-border)] pt-3 sm:min-w-[185px] sm:justify-end sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 sm:pt-0">
                 <div className="sm:text-right">
-                    <p className="text-[11px] font-medium text-[var(--cjm-muted)]">{t('Cantidad registrada')}</p>
+                    <p className="text-[11px] font-medium text-[var(--cjm-muted)]">{t(USING_CONFIRMED_RECEIPTS ? 'Cantidad documentada' : 'Cantidad registrada')}</p>
                     <p className="text-xl font-bold tabular-nums app-text">{quantityFormat.format(entry.quantity)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" onClick={onToggle} aria-expanded={expanded} aria-controls={detailsId} className="inline-flex h-9 items-center gap-1 rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-2.5 text-xs font-semibold text-[var(--cjm-primary-deep)] hover:bg-[var(--cjm-primary-border)]" title={t(expanded ? 'Ocultar lotes' : 'Ver lotes')}><span>{t(expanded ? 'Ocultar lotes' : 'Ver lotes')}</span><ChevronDown size={15} className={`transition-transform ${expanded ? 'rotate-180' : ''}`}/></button>
                     <button type="button" onClick={() => onCopy(entry.codprodu)} className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--cjm-muted)] hover:bg-[var(--cjm-surface-muted)] hover:text-[var(--cjm-primary-deep)]" title={`Copiar referencia ${entry.codprodu}`} aria-label={`Copiar referencia ${entry.codprodu}`}><Copy size={16} /></button>
                     {canViewStock && (
                         <Link to={`/stock?buscar=${encodeURIComponent(entry.codprodu)}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)] transition hover:bg-[var(--cjm-primary-border)]" title={`Abrir referencia exacta ${entry.codprodu} en stock`} aria-label={`Abrir referencia exacta ${entry.codprodu} en stock`}><ArrowRight size={18} /></Link>
                     )}
                 </div>
             </div>
+            </div>
+            {expanded && <div id={detailsId} className="mt-4"><EntryLotDetails entry={entry} token={token} confirmed={USING_CONFIRMED_RECEIPTS}/></div>}
         </article>
     );
 }
@@ -80,7 +90,7 @@ export default function EntradasPage() {
     const t = useEntryT();
     const { entriesToday, notifications, unreadCount, loading: todayLoading, error: todayError, lastUpdated, refresh, markAllRead } = useStockActivity();
     const [searchParams] = useSearchParams();
-    const today = localISODate();
+    const today = USING_CONFIRMED_RECEIPTS ? madridISODate() : localISODate();
     const initialDate = searchParams.get('fecha');
     const [selectedDate, setSelectedDate] = useState(() => validQueryDate(initialDate) ? initialDate : today);
     const [search, setSearch] = useState(() => (searchParams.get('buscar') || '').slice(0, 120));
@@ -92,6 +102,7 @@ export default function EntradasPage() {
     const [historicalError, setHistoricalError] = useState('');
     const [historicalRequest, setHistoricalRequest] = useState(0);
     const [showInfo, setShowInfo] = useState(false);
+    const [expandedCode, setExpandedCode] = useState(null);
 
     const isToday = selectedDate === today;
     const canViewStock = userCanAccessRoute(String(user?.role || '').toLowerCase(), '/stock', user?.route_access);
@@ -109,24 +120,28 @@ export default function EntradasPage() {
         setHistoricalLoading(true);
         setHistoricalError('');
         setHistoricalRows([]);
-        fetch(`${API_BASE}/api/stock/entradas?date=${encodeURIComponent(selectedDate)}`, {
+        fetch(`${API_BASE}/api/stock/entradas${USING_CONFIRMED_RECEIPTS ? '/recepciones' : ''}?date=${encodeURIComponent(selectedDate)}`, {
             headers: { Authorization: `Bearer ${token}` },
             signal: controller.signal,
             cache: 'no-store',
         })
             .then(async (response) => {
-                if (!response.ok) throw new Error(`No se pudieron consultar las entradas (${response.status}).`);
+                if (!response.ok) {
+                    const responseBody = await response.json().catch(() => null);
+                    throw new Error(responseBody?.message || `No se pudieron consultar las entradas (${response.status}).`);
+                }
                 const rows = await response.json();
                 if (!Array.isArray(rows)) throw new Error('Respuesta de entradas no válida.');
                 return rows;
             })
-            .then((rows) => { if (!controller.signal.aborted) setHistoricalRows(groupEntries(rows)); })
+            .then((rows) => { if (!controller.signal.aborted) setHistoricalRows(USING_CONFIRMED_RECEIPTS ? groupConfirmedReceipts(rows) : groupEntries(rows)); })
             .catch((error) => { if (!controller.signal.aborted) setHistoricalError(error.message || 'Error al consultar entradas.'); })
             .finally(() => { if (!controller.signal.aborted) setHistoricalLoading(false); });
         return () => controller.abort();
     }, [selectedDate, token, isToday, historicalRequest]);
 
     useEffect(() => { setPage(1); }, [search, sort, view, selectedDate]);
+    useEffect(() => { setExpandedCode(null); }, [selectedDate]);
     useEffect(() => { if (!isToday && view !== 'all') setView('all'); }, [isToday, view]);
 
     const entries = isToday ? entriesToday : historicalRows;
@@ -182,8 +197,8 @@ export default function EntradasPage() {
                                 <span className="inline-flex items-center gap-1 rounded-full border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--cjm-primary-deep)]"><span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-rose-500' : 'bg-emerald-500'}`} /> {t(error ? 'Consulta no disponible' : 'Consulta cada minuto')}</span>
                             </div>
                             <h1 className="mt-2 text-2xl font-bold tracking-tight app-text sm:text-[2rem]">{t('Novedades de stock')}</h1>
-                            <p className="cjm-muted mt-2 max-w-2xl text-sm leading-6">{t('Encuentra referencias con actividad, revisa cantidades registradas y consulta el stock sin perder tiempo.')}</p>
-                            <p className="cjm-muted mt-2 max-w-2xl text-xs leading-5"><Info size={14} className="mr-1 inline-block align-[-2px]" />{t('Actividad basada en modificaciones de stock, no en albaranes de venta ni en recepciones confirmadas.')}</p>
+                            <p className="cjm-muted mt-2 max-w-2xl text-sm leading-6">{t(USING_CONFIRMED_RECEIPTS ? 'Consulta productos incluidos en albaranes de compra confirmados, con acceso directo al stock.' : 'Encuentra referencias con actividad, revisa cantidades registradas y consulta el stock sin perder tiempo.')}</p>
+                            <p className="cjm-muted mt-2 max-w-2xl text-xs leading-5"><Info size={14} className="mr-1 inline-block align-[-2px]" />{t(USING_CONFIRMED_RECEIPTS ? 'Recepciones según estados y fechas verificados en el ERP. Las cantidades son las documentadas, no stock libre.' : 'Actividad basada en modificaciones de stock, no en albaranes de venta ni en recepciones confirmadas.')}</p>
                         </div>
                     </div>
                     <button type="button" onClick={handleRefresh} disabled={loading} className="cjm-ghost-button inline-flex shrink-0 items-center justify-center gap-2 self-start disabled:opacity-60 lg:self-center">
@@ -193,8 +208,8 @@ export default function EntradasPage() {
             </section>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Metric icon={Package} label={t('Referencias con actividad')} value={entries.length.toLocaleString('es-ES')} note={dateLabel} />
-                <Metric icon={Activity} label={t('Registros consultados')} value={totalRecords.toLocaleString('es-ES')} note={t('Agrupados por referencia')} />
+                <Metric icon={Package} label={t(USING_CONFIRMED_RECEIPTS ? 'Referencias recibidas' : 'Referencias con actividad')} value={entries.length.toLocaleString('es-ES')} note={dateLabel} />
+                <Metric icon={Activity} label={t(USING_CONFIRMED_RECEIPTS ? 'Líneas documentadas' : 'Registros consultados')} value={totalRecords.toLocaleString('es-ES')} note={t('Agrupados por referencia')} />
                 <Metric icon={Bell} label={t('Avisos pendientes')} value={isToday ? unreadCount : '—'} note={t(isToday ? 'Cambios detectados en este navegador' : 'Disponibles en la vista de hoy')} />
             </div>
 
@@ -220,20 +235,20 @@ export default function EntradasPage() {
                         <ArrowDownUp size={17} className="shrink-0 text-[var(--cjm-muted)]" aria-hidden="true" />
                         <span className="sr-only">Ordenar resultados</span>
                         <select value={sort} onChange={(event) => setSort(event.target.value)} className="w-full bg-transparent py-3 text-sm app-text outline-none">
-                            <option value="recent">{t('Actividad más reciente')}</option>
-                            <option value="oldest">{t('Actividad más antigua')}</option>
+                            <option value="recent">{t(USING_CONFIRMED_RECEIPTS ? 'Últimas entradas primero' : 'Actividad más reciente')}</option>
+                            <option value="oldest">{t(USING_CONFIRMED_RECEIPTS ? 'Primeras entradas primero' : 'Actividad más antigua')}</option>
                             <option value="quantity">{t('Mayor cantidad')}</option>
                             <option value="code">{t('Referencia A–Z')}</option>
                         </select>
                     </label>
                 </div>
-                <p className="mt-2 text-xs text-[var(--cjm-muted)]">{t('El orden usa la última modificación de stock, no la hora de recepción de mercancía.')}</p>
+                <p className="mt-2 text-xs text-[var(--cjm-muted)]">{t(USING_CONFIRMED_RECEIPTS ? 'Ordenado por la fecha/hora del albarán configurada; cuando falta la hora se muestra al final.' : 'El orden usa la última modificación de stock, no la hora de recepción de mercancía.')}</p>
             </section>
 
             <section className="mt-6" aria-labelledby="entries-section-title" aria-live="polite">
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                     <div>
-                        <h2 id="entries-section-title" className="text-lg font-bold app-text">{t('Actividad del')} {dateLabel.toLowerCase()}</h2>
+                        <h2 id="entries-section-title" className="text-lg font-bold app-text">{t(USING_CONFIRMED_RECEIPTS ? 'Entradas del' : 'Actividad del')} {dateLabel.toLowerCase()}</h2>
                         <p className="cjm-muted mt-1 text-xs">{filtered.length} {t(filtered.length === 1 ? 'referencia' : 'referencias')} {t(search ? 'coincidentes' : 'registradas')}{isToday && lastUpdated ? ` · ${t('Última consulta')}: ${timeFormat.format(lastUpdated)}` : ''}</p>
                     </div>
                     <div className="inline-flex items-center gap-1 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-1" role="group" aria-label="Filtrar actividad">
@@ -241,7 +256,7 @@ export default function EntradasPage() {
                         {isToday && <button type="button" onClick={() => setView('changed')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'changed' ? 'bg-[var(--cjm-surface)] app-text shadow-sm' : 'cjm-muted'}`}>{t('Cambios detectados')} ({changedCodes.size})</button>}
                     </div>
                 </div>
-                <p className="mb-3 flex items-center gap-2 text-xs text-[var(--cjm-muted)]"><Info size={14} className="shrink-0" /> {t('Las horas de recepción no están disponibles. Solo se muestra la hora en que este navegador detecta un cambio.')}</p>
+                <p className="mb-3 flex items-center gap-2 text-xs text-[var(--cjm-muted)]"><Info size={14} className="shrink-0" /> {t(USING_CONFIRMED_RECEIPTS ? 'La hora procede del campo configurado en el albarán de compra. Si no existe, no se inventa.' : 'Las horas de recepción no están disponibles. Solo se muestra la hora en que este navegador detecta un cambio.')}</p>
                 {error && <div className="cjm-alert cjm-alert-error mb-4 flex flex-wrap items-center justify-between gap-2" role="alert"><span>{error}{entries.length ? ` ${t('Mostrando la última consulta correcta.')}` : ''}</span><button type="button" className="font-semibold underline" onClick={handleRefresh}>{t('Reintentar')}</button></div>}
                 {loading && entries.length === 0 ? (
                     <div className="cjm-empty-state py-14" role="status"><RefreshCw className="mx-auto animate-spin text-[var(--cjm-primary-deep)]" size={26} /><p className="cjm-muted mt-3 text-sm">{t('Consultando datos de stock…')}</p></div>
@@ -250,7 +265,7 @@ export default function EntradasPage() {
                 ) : (
                     <div className="grid gap-2.5">
                         {visible.map((entry) => (
-                            <EntryCard key={entry.codprodu.toUpperCase()} entry={entry} canViewStock={canViewStock} isChanged={isToday && changedCodes.has(entry.codprodu.toUpperCase())} detectedAt={isToday ? changedDetails.get(entry.codprodu.toUpperCase())?.detectedAt : null} onCopy={handleCopy} />
+                            <EntryCard key={entry.codprodu.toUpperCase()} entry={entry} canViewStock={canViewStock} token={token} expanded={expandedCode === entry.codprodu.toUpperCase()} onToggle={() => setExpandedCode((current) => current === entry.codprodu.toUpperCase() ? null : entry.codprodu.toUpperCase())} isChanged={isToday && changedCodes.has(entry.codprodu.toUpperCase())} detectedAt={isToday ? changedDetails.get(entry.codprodu.toUpperCase())?.detectedAt : null} onCopy={handleCopy} />
                         ))}
                     </div>
                 )}
@@ -273,7 +288,7 @@ export default function EntradasPage() {
             )}
             <footer className="mt-5 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-4 py-3 text-xs leading-5 text-[var(--cjm-muted)]">
                 <button type="button" className="inline-flex items-center gap-1.5 font-semibold text-[var(--cjm-primary-deep)] hover:underline" aria-expanded={showInfo} onClick={() => setShowInfo((current) => !current)}><Info size={15} /> {t('Acerca de estos datos')} {showInfo ? '−' : '+'}</button>
-                {showInfo && <p className="mt-2">{t('La consulta existente utiliza la fecha de última modificación del stock y la cantidad acumulada de compra. No confirma la entrada de un lote nuevo ni la cantidad disponible tras reservas. Los avisos de esta versión solo detectan aumentos entre consultas de este navegador; no son notificaciones oficiales de recepción. Para conocer los metros comercializables, abre la ficha de stock de cada producto.')}</p>}
+                {showInfo && <p className="mt-2">{t(USING_CONFIRMED_RECEIPTS ? 'Se muestran líneas de albaranes de compra con estados confirmados según configuración del ERP. Las cantidades documentadas no equivalen a stock comercializable y no se ha modificado ninguna existencia ni reserva.' : 'La consulta existente utiliza la fecha de última modificación del stock y la cantidad acumulada de compra. No confirma la entrada de un lote nuevo ni la cantidad disponible tras reservas. Los avisos de esta versión solo detectan aumentos entre consultas de este navegador; no son notificaciones oficiales de recepción. Para conocer los metros comercializables, abre la ficha de stock de cada producto.')}</p>}
             </footer>
         </PageShell>
     );

@@ -15,9 +15,10 @@ const buildQueryString = (params = {}) => {
 
 const getApiBaseUrl = () => import.meta.env.VITE_API_BASE_URL;
 
-export async function fetchStockControlFilters({ token }) {
+export async function fetchStockControlFilters({ token, signal }) {
     const response = await fetch(`${getApiBaseUrl()}/api/stock/control-stock/filters`, {
         headers: buildHeaders(token),
+        signal,
     });
 
     if (!response.ok) {
@@ -25,6 +26,19 @@ export async function fetchStockControlFilters({ token }) {
     }
 
     return response.json();
+}
+
+export async function fetchStockControlSuggestions({ token, query, signal }) {
+    const search = String(query || '').trim();
+    if (search.length < 2) return [];
+    const response = await fetch(`${getApiBaseUrl()}/api/stock/control-stock/suggestions?q=${encodeURIComponent(search)}`, {
+        headers: buildHeaders(token),
+        cache: 'no-store',
+        signal,
+    });
+    if (!response.ok) throw new Error('No se han podido cargar las sugerencias.');
+    const suggestions = await response.json();
+    return Array.isArray(suggestions) ? suggestions : [];
 }
 
 export async function fetchStockControlRows({ token, filters, signal }) {

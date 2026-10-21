@@ -69,6 +69,7 @@ function LowStockAlertsPage() {
         hasPendingChanges,
         updateFilter,
         applyFilters,
+        selectProduct,
         resetFilters,
         reload,
     } = useStockControl({ token });
@@ -76,6 +77,8 @@ function LowStockAlertsPage() {
     const [status, setStatus] = useState(STOCK_STATUS.all);
     const [horizon, setHorizon] = useState(HORIZONS.month);
     const [sortBy, setSortBy] = useState('priority');
+    const [page, setPage] = useState(1);
+    const pageSize = 40;
     const [detailsProduct, setDetailsProduct] = useState(null);
     const [planOpen, setPlanOpen] = useState(false);
     const [purchasePlan, setPurchasePlan] = useState({});
@@ -165,6 +168,12 @@ function LowStockAlertsPage() {
             })
             .sort(compareStockRows(sortBy, horizon));
     }, [rows, status, sortBy, horizon]);
+
+    // Paginar sólo la representación, nunca los cálculos, filtros ni las propuestas.
+    const pagesCount = Math.max(1, Math.ceil(visibleRows.length / pageSize));
+    const currentPage = Math.min(page, pagesCount);
+    const pageRows = useMemo(() => visibleRows.slice((currentPage - 1) * pageSize, currentPage * pageSize), [visibleRows, currentPage]);
+    useEffect(() => setPage(1), [rows, status, sortBy, horizon]);
 
     const planItems = useMemo(() => planHydrated ? Object.values(purchasePlan) : [], [purchasePlan, planHydrated]);
 
@@ -280,6 +289,9 @@ function LowStockAlertsPage() {
                     filterOptions={filterOptions}
                     loadingFilters={loadingFilters}
                     loading={loading}
+                    token={token}
+                    rows={rows}
+                    onProductSelect={selectProduct}
                     onFilterChange={updateFilter}
                     onReset={resetFilters}
                     onApply={applyFilters}
@@ -374,7 +386,7 @@ function LowStockAlertsPage() {
                         </div>
 
                         <button type="button" onClick={addVisibleProducts} className="cjm-ghost-button min-h-11 shrink-0">
-                            <ListPlus size={17} aria-hidden="true" /> <TranslatedText>Añadir necesidades visibles</TranslatedText>
+                            <ListPlus size={17} aria-hidden="true" /> <TranslatedText>Añadir necesidades del filtro</TranslatedText>
                         </button>
                     </div>
                 </section>
@@ -386,13 +398,23 @@ function LowStockAlertsPage() {
                     </div>
                 ) : !error && (
                     <StockControlTable
-                        rows={visibleRows}
+                        rows={pageRows}
                         horizon={horizon}
                         purchasePlan={purchasePlan}
                         onTogglePlan={togglePlanProduct}
                         onQuantityChange={changePlanQuantity}
                         onOpenDetails={setDetailsProduct}
                     />
+                )}
+                {!loading && !error && pagesCount > 1 && (
+                    <nav aria-label="Páginas de necesidades de compra" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                        <span className="text-slate-600">Mostrando {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleRows.length)} de {visibleRows.length} productos</span>
+                        <div className="flex items-center gap-3">
+                            <button type="button" onClick={() => setPage((n) => Math.max(1, n - 1))} disabled={currentPage === 1} className="cjm-ghost-button min-h-10 disabled:opacity-40">Anterior</button>
+                            <span aria-live="polite">{currentPage} / {pagesCount}</span>
+                            <button type="button" onClick={() => setPage((n) => Math.min(pagesCount, n + 1))} disabled={currentPage === pagesCount} className="cjm-ghost-button min-h-10 disabled:opacity-40">Siguiente</button>
+                        </div>
+                    </nav>
                 )}
 
                 <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-5">

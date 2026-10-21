@@ -5,6 +5,7 @@ const DEFAULT_FILTERS = {
     provider: '',
     collection: '',
     productName: '',
+    productCode: '',
     monthsBack: '12',
     limit: '2000',
 };
@@ -25,11 +26,25 @@ export function useStockControl({ token }) {
     );
 
     const updateFilter = useCallback((key, value) => {
-        setFilters((current) => ({ ...current, [key]: value }));
+        setFilters((current) => ({
+            ...current, [key]: value,
+            ...(key === 'productName' ? { productCode: '' } : {}),
+        }));
     }, []);
 
-    const applyFilters = useCallback(() => {
-        setAppliedFilters({ ...filters });
+    const applyFilters = useCallback((searchOverride) => {
+        // Introducir Enter inmediatamente después de escribir no debe consultar
+        // el término anterior si React aún está agrupando actualizaciones.
+        const next = typeof searchOverride === 'string'
+            ? { ...filters, productName: searchOverride, productCode: '' }
+            : filters;
+        setAppliedFilters((current) => JSON.stringify(current) === JSON.stringify(next) ? current : { ...next });
+    }, [filters]);
+
+    const selectProduct = useCallback((code) => {
+        const next = { ...filters, productName: String(code || '').trim(), productCode: String(code || '').trim() };
+        setFilters(next);
+        setAppliedFilters(next);
     }, [filters]);
 
     const resetFilters = useCallback(() => {
@@ -68,18 +83,24 @@ export function useStockControl({ token }) {
     useEffect(() => {
         if (!token) return undefined;
 
+        const controller = new AbortController();
         setLoadingFilters(true);
-        fetchStockControlFilters({ token })
+        fetchStockControlFilters({ token, signal: controller.signal })
             .then((data) => {
+                if (controller.signal.aborted) return;
                 setFilterOptions({
                     providers: Array.isArray(data?.providers) ? data.providers : [],
                     collections: Array.isArray(data?.collections) ? data.collections : [],
                 });
             })
-            .catch(() => setFilterOptions({ providers: [], collections: [] }))
-            .finally(() => setLoadingFilters(false));
+            .catch(() => {
+                if (!controller.signal.aborted) setFilterOptions({ providers: [], collections: [] });
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoadingFilters(false);
+            });
 
-        return undefined;
+        return () => controller.abort();
     }, [token]);
 
     useEffect(() => {
@@ -98,6 +119,7 @@ export function useStockControl({ token }) {
         hasPendingChanges,
         updateFilter,
         applyFilters,
+        selectProduct,
         resetFilters,
         reload: loadRows,
     };

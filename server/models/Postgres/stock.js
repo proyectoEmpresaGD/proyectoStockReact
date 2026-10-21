@@ -446,6 +446,34 @@ export class StockModel {
         return rows.map((row) => row.codprodu);
     }
 
+    // Autocompletado independiente de las agregaciones de ventas y stock.
+    // Ofrece productos vigentes del catálogo; no garantiza que estén entre los que requieren compra.
+    static async searchControlStockProducts(search = '') {
+        const tokens = String(search || '').trim().slice(0, 100).split(/\s+/).filter(Boolean).slice(0, 5);
+        if (!tokens.length || tokens.join('').length < 2) return [];
+
+        const parameters = tokens.map((token) => `%${token}%`);
+        const conditions = parameters.map((_, index) => `(
+            productos.codprodu::text ILIKE $${index + 1}
+            OR productos.desprodu ILIKE $${index + 1}
+        )`).join(' AND ');
+        const firstTokenPrefix = `${tokens[0]}%`;
+        const { rows } = await pool.query(`
+            SELECT TRIM(productos.codprodu::text) AS codprodu,
+                   COALESCE(productos.desprodu, '') AS desprodu
+            FROM productos
+            WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+              AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+              AND ${controlStockActiveProductCondition()}
+              AND ${conditions}
+            ORDER BY CASE WHEN TRIM(productos.codprodu::text) ILIKE $${parameters.length + 1}
+                          THEN 0 ELSE 1 END,
+                     productos.codprodu ASC
+            LIMIT 10
+        `, [...parameters, firstTokenPrefix]);
+        return rows;
+    }
+
     static async getControlStockFilters() {
         try {
             const { rows: providers } = await pool.query(`
@@ -510,46 +538,86 @@ export class StockModel {
         }
     }
 
-    static async getControlStock({ provider = '', collection = '', productName = '', monthsBack = 12, limit = 500 }) {
+    static async getControlStock({ provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500 }) {
         const safeMonthsBack = StockModel.getControlStockMonthsBack(monthsBack);
         const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 500, 1), 2000);
 
-        const filters = [];
+        const lateFilters = [];
+        const earlyFilters = [];
         const params = [safeMonthsBack, safeLimit];
         let paramIndex = params.length + 1;
 
+        // El proveedor es el último de cada referencia: hay que filtrarlo DESPUÉS
+        // de elegirlo, nunca sobre líneas de compra históricas.
         if (provider) {
-            filters.push(`COALESCE(ultimo_proveedor.codprove, '') = $${paramIndex++}`);
+            lateFilters.push(`COALESCE(ultimo_proveedor.codprove, '') = $${paramIndex++}`);
             params.push(String(provider).trim());
         }
 
+        // Familia y texto dependen solo del producto. Filtrarlos en productos_base
+        // evita calcular historia y existencias de referencias descartadas.
         if (collection) {
-            filters.push(`COALESCE(productos_base.codfamilia, '') = $${paramIndex++}`);
+            earlyFilters.push(`COALESCE(NULLIF(TRIM(productos.codfamil::text), ''), '') = $${paramIndex++}`);
             params.push(String(collection).trim());
         }
 
-        if (productName) {
-            const tokens = String(productName)
-                .trim()
-                .split(/\s+/)
-                .filter(Boolean);
-
+        if (productCode) {
+            earlyFilters.push(`TRIM(productos.codprodu::text) = $${paramIndex++}`);
+            params.push(String(productCode).trim());
+        } else if (productName) {
+            const tokens = String(productName).trim().split(/\s+/).filter(Boolean);
             for (const token of tokens) {
-                filters.push(`(
-                    productos_base.desprodu ILIKE $${paramIndex}
-                    OR productos_base.codprodu::text ILIKE $${paramIndex}
+                earlyFilters.push(`(
+                    productos.desprodu ILIKE $${paramIndex}
+                    OR productos.codprodu::text ILIKE $${paramIndex}
                 )`);
                 params.push(`%${token}%`);
                 paramIndex += 1;
             }
         }
 
-        const extraFilters = filters.length ? `AND ${filters.join(' AND ')}` : '';
+        const extraFilters = lateFilters.length ? `AND ${lateFilters.join(' AND ')}` : '';
+        const baseFilters = earlyFilters.length ? `AND ${earlyFilters.join(' AND ')}` : '';
+        // Sólo al acotar la familia o la búsqueda, limitar las agregaciones auxiliares
+        // a los códigos seleccionados. EXISTS evita multiplicar ventas si hay códigos
+        // distintos que comparten una forma canónica.
+        const scopedProducts = earlyFilters.length > 0;
+        const scopeSales = scopedProducts ? `AND EXISTS (
+            SELECT 1 FROM productos_base pb
+            WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+        )` : '';
+        const scopeProviders = scopedProducts ? `AND EXISTS (
+            SELECT 1 FROM productos_base pb
+            WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+        )` : '';
+        const scopeStock = scopedProducts ? `AND EXISTS (
+            SELECT 1 FROM productos_base pb
+            WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+        )` : '';
+        const scopeLots = scopedProducts ? `AND EXISTS (
+            SELECT 1 FROM productos_base pb
+            WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
+        )` : '';
 
         try {
             const { rows } = await pool.query(
                 `
-            WITH ultimo_proveedor AS (
+            WITH productos_base AS (
+                SELECT
+                    productos.codprodu,
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(productos.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    COALESCE(productos.desprodu, '') AS desprodu,
+                    COALESCE(productos.coleccion, '') AS coleccion,
+                    NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia,
+                    COALESCE(productos.codmarca, '') AS codmarca,
+                    COALESCE(TRIM(productos.codtipo::text), '') AS tipo
+                FROM productos
+                WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+                AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+                AND ${controlStockActiveProductCondition()}
+                ${baseFilters}
+            ),
+            ultimo_proveedor AS (
                 SELECT DISTINCT ON (
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
                 )
@@ -565,6 +633,7 @@ export class StockModel {
                 LEFT JOIN proveedores
                     ON TRIM(proveedores.codprove::text) = NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '')
                 WHERE NULLIF(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '') IS NOT NULL
+                ${scopeProviders}
                 ORDER BY
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
                     COALESCE(faccompra.fecha, albcompra_linea.fecha) DESC NULLS LAST
@@ -577,6 +646,7 @@ export class StockModel {
                     SUM(COALESCE(stock.canpenservir, 0))::numeric AS canpenservir
                 FROM stock
                 WHERE TRIM(COALESCE(stock.codalmac::text, '')) ~ '^0+$'
+                ${scopeStock}
                 GROUP BY UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
             ),
             stock_lotes_tipo_101 AS (
@@ -585,21 +655,8 @@ export class StockModel {
                     SUM(COALESCE(stocklotes.stockactual, 0))::numeric AS stock_lotes_actual
                 FROM stocklotes
                 WHERE TRIM(COALESCE(stocklotes.codalmac::text, '')) ~ '^0+$'
+                ${scopeLots}
                 GROUP BY UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
-            ),
-            productos_base AS (
-                SELECT
-                    productos.codprodu,
-                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(productos.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
-                    COALESCE(productos.desprodu, '') AS desprodu,
-                    COALESCE(productos.coleccion, '') AS coleccion,
-                    NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia,
-                    COALESCE(productos.codmarca, '') AS codmarca,
-                    COALESCE(TRIM(productos.codtipo::text), '') AS tipo
-                FROM productos
-                WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
-                AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
-                AND ${controlStockActiveProductCondition()}
             ),
             consumo_mensual AS (
                 SELECT
@@ -624,6 +681,7 @@ export class StockModel {
                 AND albventa_linea.nalbventa = albventa.nalbventa
                 AND albventa_linea.codclien = albventa.codclien
                 WHERE NULLIF(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '') IS NOT NULL
+                ${scopeSales}
                 AND facventa.fecha >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
                 AND facventa.fecha < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
                 GROUP BY

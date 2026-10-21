@@ -1,6 +1,8 @@
 import { StockModel } from '../models/Postgres/stock.js';
 import { ProductModel } from '../models/Postgres/productos.js';
+import { StockLotesModel } from '../models/Postgres/stockLotes.js';
 import { validateStock, validatePartialStock } from '../schemas/stock.js';
+import { getRecepcionesCompraByDate, todayMadrid, validDate, RecepcionesNoConfiguradasError } from '../services/recepcionesCompra.js';
 
 export class StockController {
     async getAll(req, res) {
@@ -29,12 +31,25 @@ export class StockController {
     }
 
     async getControlStockFilters(req, res) {
+        const startedAt = performance.now();
         try {
             const filters = await StockModel.getControlStockFilters();
+            res.set('Server-Timing', `filters-db;dur=${(performance.now() - startedAt).toFixed(1)}`);
             res.json(filters);
         } catch (error) {
             console.error('Error fetching control stock filters:', error);
             res.status(500).json({ error: error.message });
+        }
+    }
+
+    async searchControlStockProducts(req, res) {
+        try {
+            const search = String(req.query.q ?? '').slice(0, 100);
+            const suggestions = await StockModel.searchControlStockProducts(search);
+            return res.json(suggestions);
+        } catch (error) {
+            console.error('Error buscando sugerencias de control de stock:', error);
+            return res.status(500).json({ error: 'No se han podido cargar las sugerencias.' });
         }
     }
 
@@ -55,17 +70,22 @@ export class StockController {
     }
 
     async getControlStock(req, res) {
+        const startedAt = performance.now();
         try {
-            const { provider = '', collection = '', productName = '', monthsBack = 12, limit = 500 } = req.query;
+            const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500 } = req.query;
 
             const data = await StockModel.getControlStock({
                 provider,
                 collection,
                 productName,
+                productCode,
                 monthsBack,
                 limit,
             });
 
+            const elapsed = performance.now() - startedAt;
+            res.set('Server-Timing', `stock-db;dur=${elapsed.toFixed(1)}`);
+            if (elapsed > 3000) console.warn(`Control de stock: consulta lenta (${Math.round(elapsed)} ms, ${data.length} productos).`);
             res.json(data);
         } catch (error) {
             console.error('Error fetching control stock:', error);
@@ -156,6 +176,40 @@ export class StockController {
             else res.status(404).json({ message: 'Stock not found' });
         } catch (error) {
             res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Consulta de solo lectura y bajo permiso /entradas: los comerciales autorizados
+    // pueden ver lotes actuales sin necesitar permiso para abrir todo el módulo Stock.
+    // Estos lotes NO se atribuyen a un albarán sin un vínculo de recepción verificado.
+    async getLotesParaEntradas(req, res) {
+        const codProdu = String(req.params.codprodu ?? '').trim().toUpperCase();
+        if (!/^[A-Z0-9_-]{1,64}$/.test(codProdu)) {
+            return res.status(400).json({ message: 'Referencia de producto no válida.' });
+        }
+        try {
+            const rows = await StockLotesModel.getByCodProdu({ codProdu, almacenes: [0] });
+            return res.json(rows);
+        } catch (error) {
+            console.error('Error consultando lotes actuales para Entradas:', error);
+            return res.status(500).json({ message: 'No ha sido posible consultar los lotes actuales.' });
+        }
+    }
+
+    // Endpoint adicional y protegido. NO sustituye la consulta de stock
+    // hasta validar los estados/fechas en el ERP con datos reales.
+    async getRecepcionesCompra(req, res) {
+        const date = req.query.date || todayMadrid();
+        if (!validDate(date)) return res.status(400).json({ message: 'Fecha no válida (AAAA-MM-DD).' });
+        try {
+            const rows = await getRecepcionesCompraByDate(date);
+            return res.json(rows);
+        } catch (error) {
+            if (error instanceof RecepcionesNoConfiguradasError) {
+                return res.status(503).json({ code: error.code, message: error.message });
+            }
+            console.error('Error consultando albaranes de compra recibidos:', error);
+            return res.status(500).json({ message: 'No se pudieron consultar los albaranes de compra.' });
         }
     }
 

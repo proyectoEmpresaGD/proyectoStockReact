@@ -2,6 +2,7 @@ import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Filter, RefreshCw, RotateCcw, Search } from 'lucide-react';
+import StockControlProductSearch from './StockControlProductSearch.jsx';
 
 const MONTH_OPTIONS = [
     { value: '6', label: 'Últimos 6 meses' },
@@ -151,6 +152,9 @@ function StockControlFilters({
     onFilterChange,
     onReset,
     onApply,
+    onProductSelect,
+    token,
+    rows,
 }) {
     return (
         <section className="cjm-toolbar stock-control-filters">
@@ -172,7 +176,7 @@ function StockControlFilters({
                         <RotateCcw size={17} aria-hidden="true" />
                         Limpiar
                     </button>
-                    <button type="button" onClick={onApply} className="cjm-primary-button min-h-11" disabled={loading}>
+                    <button type="button" onClick={onApply} className="cjm-primary-button min-h-11">
                         {loading ? <RefreshCw size={17} className="animate-spin" aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
                         <TranslatedText>Ver resultados</TranslatedText>
                     </button>
@@ -200,19 +204,14 @@ function StockControlFilters({
                     onChange={(value) => onFilterChange('collection', value)}
                 /></LocalizedElement>
 
-                <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium text-slate-700 xl:col-span-1">
-                    <TranslatedText>Producto o código</TranslatedText>
-                    <LocalizedElement><input
-                        type="search"
-                        value={filters.productName}
-                        onChange={(event) => onFilterChange('productName', event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') onApply();
-                        }}
-                        placeholder="Ej. ARE00125 o Lino azul"
-                        className="cjm-input min-h-11 w-full rounded-xl px-3 py-2.5"
-                    /></LocalizedElement>
-                </label>
+                <LocalizedElement><StockControlProductSearch
+                    token={token}
+                    rows={rows}
+                    value={filters.productName}
+                    onChange={(value) => onFilterChange('productName', value)}
+                    onSelect={onProductSelect}
+                    onApply={onApply}
+                /></LocalizedElement>
 
                 <LocalizedElement><SelectField
                     id="stock-months"

@@ -7,6 +7,15 @@ export const localISODate = (date = new Date()) => {
     return `${year}-${month}-${day}`;
 };
 
+// Fecha comercial de la empresa: el navegador puede estar fuera de España.
+export const madridISODate = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', year: 'numeric',
+    }).formatToParts(date);
+    const value = (kind) => parts.find((part) => part.type === kind)?.value;
+    return `${value('year')}-${value('month')}-${value('day')}`;
+};
+
 export const offsetLocalDate = (date, days) => {
     const [year, month, day] = date.split('-').map(Number);
     const value = new Date(year, month - 1, day, 12);
@@ -56,6 +65,69 @@ export function groupEntries(rows) {
     return [...grouped.values()].sort((a, b) => b.timestamp - a.timestamp || a.codprodu.localeCompare(b.codprodu));
 }
 
+// Cabeceras y líneas de COMPRA acreditadas por una configuración verificada:
+// conservamos sus IDs estables, no inferimos nuevas entradas por cancompra.
+export function groupConfirmedReceipts(rows) {
+    const grouped = new Map();
+    for (const row of Array.isArray(rows) ? rows : []) {
+        const code = String(row?.codprodu ?? '').trim();
+        const lineId = String(row?.receiptLineId ?? '').trim();
+        if (!code || !lineId) continue;
+        const key = code.toUpperCase();
+        const amount = quantityOf(row.cantidad);
+        const timestamp = validTimestamp(row.receivedAt);
+        const existing = grouped.get(key);
+        if (!existing) {
+            grouped.set(key, {
+                codprodu: code,
+                desprodu: String(row.desprodu || 'Sin descripción').trim(),
+                quantity: amount,
+                updatedAt: row.receivedAt || null,
+                timestamp,
+                firstTimestamp: timestamp,
+                recordCount: 1,
+                receiptLines: [{ id: lineId, quantity: amount, serieAlbaran: String(row.serieAlbaran || '').trim(), numeroAlbaran: String(row.numeroAlbaran || '').trim(), receivedAt: row.receivedAt || null }],
+                receiptDocuments: [String(row.serieAlbaran || '') + String(row.numeroAlbaran || '')],
+            });
+        } else if (!existing.receiptLines.some((line) => line.id === lineId)) {
+            existing.quantity += amount;
+            existing.recordCount += 1;
+            existing.receiptLines.push({ id: lineId, quantity: amount, serieAlbaran: String(row.serieAlbaran || '').trim(), numeroAlbaran: String(row.numeroAlbaran || '').trim(), receivedAt: row.receivedAt || null });
+            const doc = String(row.serieAlbaran || '') + String(row.numeroAlbaran || '');
+            if (!existing.receiptDocuments.includes(doc)) existing.receiptDocuments.push(doc);
+            if (timestamp && (!existing.firstTimestamp || timestamp < existing.firstTimestamp)) {
+                existing.firstTimestamp = timestamp;
+            }
+            if (timestamp > existing.timestamp) {
+                existing.timestamp = timestamp;
+                existing.updatedAt = row.receivedAt;
+            }
+        }
+    }
+    return sortStockActivity([...grouped.values()], 'recent');
+}
+
+export function collectReceiptIds(entries) {
+    return (Array.isArray(entries) ? entries : []).flatMap((row) =>
+        (row.receiptLines || []).map((line) => `${row.codprodu.toUpperCase()}|${line.id}`));
+}
+
+export function detectNewReceipts(previousIds, entries, date, detectedAt = new Date().toISOString()) {
+    if (!Array.isArray(previousIds)) return [];
+    const known = new Set(previousIds);
+    return (Array.isArray(entries) ? entries : []).flatMap((row) => {
+        const newlyReceived = (row.receiptLines || []).filter((line) =>
+            !known.has(`${row.codprodu.toUpperCase()}|${line.id}`));
+        if (!newlyReceived.length) return [];
+        return [{
+            id: `${date}:${row.codprodu.toUpperCase()}:${newlyReceived.map((line) => line.id).sort().join(',')}`,
+            date, codprodu: row.codprodu, desprodu: row.desprodu,
+            change: newlyReceived.reduce((sum, line) => sum + line.quantity, 0),
+            kind: 'receipt', detectedAt, read: false,
+        }];
+    });
+}
+
 export function makeSnapshot(entries) {
     const result = {};
     for (const row of entries) result[row.codprodu.toUpperCase()] = row.quantity;
@@ -92,17 +164,22 @@ export function normalizeStoredActivity(value, date) {
         date,
         snapshot: value.snapshot && typeof value.snapshot === 'object' ? value.snapshot : null,
         notifications: Array.isArray(value.notifications) ? value.notifications.slice(0, 40) : [],
+        receiptIds: Array.isArray(value.receiptIds) ? value.receiptIds : null,
     };
 }
 
-export function updateStoredActivity(previous, entries, date) {
+export function updateStoredActivity(previous, entries, date, receiptMode = false) {
     const current = normalizeStoredActivity(previous, date);
-    const newNotifications = detectIncreases(current.snapshot, entries, date);
+    const isReceiptMode = receiptMode || entries.some((row) => Array.isArray(row.receiptLines));
+    const newNotifications = isReceiptMode
+        ? detectNewReceipts(current.receiptIds, entries, date)
+        : detectIncreases(current.snapshot, entries, date);
     const seen = new Set(current.notifications.map((item) => item.id));
     const additions = newNotifications.filter((item) => !seen.has(item.id));
     return {
         date,
         snapshot: makeSnapshot(entries),
+        receiptIds: isReceiptMode ? collectReceiptIds(entries) : null,
         notifications: [...additions, ...current.notifications].slice(0, 40),
     };
 }
@@ -123,8 +200,10 @@ export function sortStockActivity(entries, order = 'recent') {
     if (order === 'code') return result.sort(byReference);
     const ascending = order === 'oldest';
     return result.sort((a, b) => {
-        const aTime = Number(a.timestamp) > 0 && Number.isFinite(Number(a.timestamp)) ? Number(a.timestamp) : null;
-        const bTime = Number(b.timestamp) > 0 && Number.isFinite(Number(b.timestamp)) ? Number(b.timestamp) : null;
+        const candidateA = ascending && Array.isArray(a.receiptLines) ? a.firstTimestamp : a.timestamp;
+        const candidateB = ascending && Array.isArray(b.receiptLines) ? b.firstTimestamp : b.timestamp;
+        const aTime = Number(candidateA) > 0 && Number.isFinite(Number(candidateA)) ? Number(candidateA) : null;
+        const bTime = Number(candidateB) > 0 && Number.isFinite(Number(candidateB)) ? Number(candidateB) : null;
         if (aTime === null && bTime !== null) return 1;
         if (bTime === null && aTime !== null) return -1;
         if (aTime !== null && bTime !== null && aTime !== bTime) {

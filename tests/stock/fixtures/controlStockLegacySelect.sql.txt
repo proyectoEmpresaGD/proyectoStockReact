@@ -1,0 +1,159 @@
+            SELECT
+                productos_base.codprodu,
+                productos_base.desprodu,
+                productos_base.coleccion,
+                productos_base.codfamilia,
+                productos_base.codmarca,
+                productos_base.tipo,
+                COALESCE(ultimo_proveedor.codprove, '') AS codprove,
+                COALESCE(ultimo_proveedor.nombre_proveedor, ultimo_proveedor.codprove, '') AS nombre_proveedor,
+
+                CASE
+                    WHEN productos_base.tipo = '101'
+                        THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                    ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                END::numeric AS stockactual,
+
+                COALESCE(stock_almacen.canpenrecib, 0)::numeric AS canpenrecib,
+                COALESCE(stock_almacen.canpenservir, 0)::numeric AS canpenservir,
+                COALESCE(resumen_consumo.consumo_total_periodo, 0)::numeric AS total_period_consumption,
+                COALESCE(resumen_consumo.consumo_medio_mensual, 0)::numeric AS avg_monthly_consumption,
+
+                (
+                    CASE
+                        WHEN productos_base.tipo = '101'
+                            THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                        ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                    END
+                    + COALESCE(stock_almacen.canpenrecib, 0)
+                    - COALESCE(stock_almacen.canpenservir, 0)
+                )::numeric AS stock_projected,
+
+                CASE
+                    WHEN COALESCE(resumen_consumo.consumo_medio_mensual, 0) > 0
+                        THEN (
+                            CASE
+                                WHEN productos_base.tipo = '101'
+                                    THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                            END
+                        ) / resumen_consumo.consumo_medio_mensual
+                    ELSE 99
+                END::numeric AS current_coverage_months,
+
+                CASE
+                    WHEN COALESCE(resumen_consumo.consumo_medio_mensual, 0) > 0
+                        THEN GREATEST(
+                            (
+                                CASE
+                                    WHEN productos_base.tipo = '101'
+                                        THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                    ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                                END
+                                + COALESCE(stock_almacen.canpenrecib, 0)
+                                - COALESCE(stock_almacen.canpenservir, 0)
+                            ) / resumen_consumo.consumo_medio_mensual,
+                            0
+                        )
+                    ELSE 99
+                END::numeric AS projected_coverage_months,
+
+                GREATEST(
+                    CEIL(
+                        COALESCE(resumen_consumo.consumo_medio_mensual, 0)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                    ),
+                    0
+                )::numeric AS recommended_next_month,
+
+                GREATEST(
+                    CEIL(
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                    ),
+                    0
+                )::numeric AS recommended_next_three_months,
+
+                GREATEST(
+                    CEIL(
+                        COALESCE(resumen_consumo.consumo_medio_mensual, 0)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                        + COALESCE(stock_almacen.canpenservir, 0)
+                    ),
+                    0
+                )::numeric AS recommended_net_next_month,
+
+                GREATEST(
+                    CEIL(
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        - CASE
+                            WHEN productos_base.tipo = '101'
+                                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                            ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                          END
+                        - COALESCE(stock_almacen.canpenrecib, 0)
+                        + COALESCE(stock_almacen.canpenservir, 0)
+                    ),
+                    0
+                )::numeric AS recommended_net_next_three_months,
+
+                COALESCE(resumen_consumo.monthly_history, '[]'::json) AS monthly_history
+            FROM productos_base
+            LEFT JOIN stock_almacen
+                ON stock_almacen.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN stock_lotes_tipo_101
+                ON stock_lotes_tipo_101.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN ultimo_proveedor
+                ON ultimo_proveedor.codprodu_key = productos_base.codprodu_key
+            LEFT JOIN resumen_consumo
+                ON resumen_consumo.codprodu_key = productos_base.codprodu_key
+            WHERE 1 = 1
+              ${extraFilters}
+              AND COALESCE(resumen_consumo.consumo_total_periodo, 0) > 0
+              AND (
+                    (
+                        productos_base.tipo = '101'
+                        AND COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0) < 30
+                    )
+                    OR (
+                        productos_base.tipo = '103'
+                        AND COALESCE(stock_almacen.stock_stockactual, 0) < 15
+                    )
+                    OR (
+                        productos_base.tipo IN ('105', '106', '109')
+                        AND COALESCE(stock_almacen.stock_stockactual, 0) < 10
+                    )
+                    OR (
+                        (COALESCE(resumen_consumo.consumo_medio_mensual, 0) * 3)
+                        > (
+                            CASE
+                                WHEN productos_base.tipo = '101'
+                                    THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                                ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+                            END
+                            + COALESCE(stock_almacen.canpenrecib, 0)
+                            - COALESCE(stock_almacen.canpenservir, 0)
+                        )
+                    )
+              )
+            ORDER BY
+                recommended_net_next_month DESC,
+                recommended_net_next_three_months DESC,
+                avg_monthly_consumption DESC,
+                productos_base.desprodu ASC
+            LIMIT $2
