@@ -1,3 +1,5 @@
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
@@ -206,7 +208,7 @@ export default function Clients() {
 
     return (
         <PageShell maxWidth="max-w-[1800px]" className="mt-16 sm:mt-20 clients-directory">
-            <PageHeader
+            <LocalizedElement><PageHeader
                 eyebrow="CRM · Comercial"
                 title="Gestión de clientes"
                 description="Busca un cliente y consulta su ficha o los pedidos pendientes."
@@ -219,17 +221,17 @@ export default function Clients() {
                             className="cjm-primary-button min-h-11 rounded-xl px-4 text-sm font-semibold"
                         >
                             <FiShield aria-hidden="true" />
-                            Comprobar cliente
+                            <TranslatedText>Comprobar cliente</TranslatedText>
                         </button>
                         <span className="cjm-brand-chip px-3 py-2 text-sm font-semibold">
                             <span className="cjm-brand-dot" aria-hidden="true" />
-                            {totalClients} cliente{totalClients === 1 ? '' : 's'}
+                            {totalClients} <TranslatedText>cliente</TranslatedText>{totalClients === 1 ? '' : 's'}
                         </span>
                     </div>
                 )}
-            />
+            /></LocalizedElement>
 
-            <section className="cjm-toolbar mt-5 space-y-4 sm:mt-6" aria-label="Filtros de clientes">
+            <LocalizedElement><section className="cjm-toolbar mt-5 space-y-4 sm:mt-6" aria-label="Filtros de clientes">
                 <div className="clients-directory__search">
                     <SearchBar
                         searchTerm={searchTerm}
@@ -261,8 +263,8 @@ export default function Clients() {
 
                 <div className={`${filtersOpen ? 'grid' : 'hidden'} cjm-toolbar-group md:grid`}>
                     <label className="block">
-                        <span className="cjm-control-label">País</span>
-                        <Select
+                        <span className="cjm-control-label"><TranslatedText>País</TranslatedText></span>
+                        <LocalizedElement><Select
                             options={countryCodes}
                             value={countryCodes.find((option) => option.value === selectedCountry) || null}
                             onChange={(option) => {
@@ -273,12 +275,12 @@ export default function Clients() {
                             placeholder="Todos los países"
                             isClearable
                             classNamePrefix="cjm-select"
-                        />
+                        /></LocalizedElement>
                     </label>
 
                     <label className="block">
-                        <span className="cjm-control-label">Provincia</span>
-                        <Select
+                        <span className="cjm-control-label"><TranslatedText>Provincia</TranslatedText></span>
+                        <LocalizedElement><Select
                             options={provinces}
                             value={selectedProvince}
                             onChange={(option) => {
@@ -289,11 +291,11 @@ export default function Clients() {
                             placeholder="Todas las provincias"
                             isClearable
                             classNamePrefix="cjm-select"
-                        />
+                        /></LocalizedElement>
                     </label>
 
                     <label className="block">
-                        <span className="cjm-control-label">Resultados por página</span>
+                        <span className="cjm-control-label"><TranslatedText>Resultados por página</TranslatedText></span>
                         <select
                             value={itemsPerPage}
                             onChange={(event) => {
@@ -303,7 +305,7 @@ export default function Clients() {
                             className="cjm-input min-h-11 rounded-xl px-3 py-2"
                         >
                             {[10, 25, 50].map((amount) => (
-                                <option key={amount} value={amount}>{amount} clientes</option>
+                                <option key={amount} value={amount}>{amount} <TranslatedText>clientes</TranslatedText></option>
                             ))}
                         </select>
                     </label>
@@ -336,15 +338,15 @@ export default function Clients() {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--cjm-border)] pt-3">
                     <p className="cjm-muted text-sm">
-                        Mostrando <strong className="app-text">{startItem}–{endItem}</strong> de{' '}
+                        <TranslatedText>Mostrando</TranslatedText> <strong className="app-text">{startItem}–{endItem}</strong> <TranslatedText>de</TranslatedText>{' '}
                         <strong className="app-text">{totalClients}</strong>
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
-                        {hasActiveFilters && <span className="cjm-badge">Filtros activos</span>}
-                        {sortByBilling && <span className="cjm-badge">Orden por facturación</span>}
+                        {hasActiveFilters && <span className="cjm-badge"><TranslatedText>Filtros activos</TranslatedText></span>}
+                        {sortByBilling && <span className="cjm-badge"><TranslatedText>Orden por facturación</TranslatedText></span>}
                     </div>
                 </div>
-            </section>
+            </section></LocalizedElement>
 
             {errorMessage && (
                 <div className="cjm-alert cjm-alert-error mt-4" role="alert">
@@ -357,7 +359,7 @@ export default function Clients() {
                     <div className="cjm-empty-state flex min-h-48 items-center justify-center">
                         <span className="inline-flex items-center gap-3 text-sm font-semibold app-text">
                             <FiLoader className="animate-spin text-xl text-[var(--cjm-primary-deep)]" />
-                            Cargando clientes…
+                            <TranslatedText>Cargando clientes…</TranslatedText>
                         </span>
                     </div>
                 ) : (

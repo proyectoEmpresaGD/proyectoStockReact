@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, Trash2, UsersRound } from 'lucide-react';
 
@@ -91,23 +93,23 @@ export default function CapacityRulesPanel({ apiBase, token, onChanged }) {
             <div className="flex items-start gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-700"><UsersRound size={19} /></div>
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Límites de vacaciones simultáneas</h2>
-                    <p className="mt-1 text-sm text-slate-500">Define reglas sencillas por rol o departamento. Si ya existe una regla para el mismo grupo, se actualizará.</p>
+                    <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Límites de vacaciones simultáneas</TranslatedText></h2>
+                    <p className="mt-1 text-sm text-slate-500"><TranslatedText>Define reglas sencillas por rol o departamento. Si ya existe una regla para el mismo grupo, se actualizará.</TranslatedText></p>
                 </div>
             </div>
 
             <form onSubmit={save} className="mt-5 grid gap-3 lg:grid-cols-[180px_1fr_180px_1.4fr_auto]">
                 <select value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value, valor: '' }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                    <option value="rol">Por rol</option>
-                    <option value="departamento">Por departamento</option>
+                    <option value="rol"><TranslatedText>Por rol</TranslatedText></option>
+                    <option value="departamento"><TranslatedText>Por departamento</TranslatedText></option>
                 </select>
                 <select required value={form.valor} onChange={(e) => setForm((p) => ({ ...p, valor: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                    <option value="">Selecciona {form.tipo === 'rol' ? 'un rol' : 'un departamento'}</option>
+                    <option value=""><TranslatedText>Selecciona</TranslatedText> {form.tipo === 'rol' ? 'un rol' : 'un departamento'}</option>
                     {options.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-                <input type="number" min="1" required value={form.max_personas} onChange={(e) => setForm((p) => ({ ...p, max_personas: Number(e.target.value) }))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Máximo" />
-                <input type="text" value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Nota opcional, ej. mantener cobertura" />
-                <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Guardar</button>
+                <LocalizedElement><input type="number" min="1" required value={form.max_personas} onChange={(e) => setForm((p) => ({ ...p, max_personas: Number(e.target.value) }))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Máximo" /></LocalizedElement>
+                <LocalizedElement><input type="text" value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Nota opcional, ej. mantener cobertura" /></LocalizedElement>
+                <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"><TranslatedText>Guardar</TranslatedText></button>
             </form>
 
             {error && <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -120,7 +122,7 @@ export default function CapacityRulesPanel({ apiBase, token, onChanged }) {
                                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{rule.tipo === 'rol' ? 'Rol' : 'Departamento'}</p>
                                 <h3 className="mt-1 font-semibold text-slate-900">{rule.valor}</h3>
                             </div>
-                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-bold text-indigo-700">Máx. {rule.max_personas}</span>
+                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-bold text-indigo-700"><TranslatedText>Máx.</TranslatedText> {rule.max_personas}</span>
                         </div>
                         <p className="mt-3 min-h-5 text-sm text-slate-500">{rule.descripcion || 'Sin nota adicional'}</p>
                         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
@@ -134,7 +136,7 @@ export default function CapacityRulesPanel({ apiBase, token, onChanged }) {
                     </article>
                 ))}
             </div>
-            {!loading && rules.length === 0 && <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No hay límites personalizados. Se mantiene la regla automática existente por departamento.</p>}
+            {!loading && rules.length === 0 && <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500"><TranslatedText>No hay límites personalizados. Se mantiene la regla automática existente por departamento.</TranslatedText></p>}
         </section>
     );
 }

@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BellRing, FileImage, Link2, Loader2, Save, Search, Star } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -109,7 +112,7 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
     const handleImages = (event) => {
         const files = [...event.target.files].filter((file) => file.type.startsWith('image/'));
         if (existingImages.length + newImages.length + files.length > 3) {
-            setError('Puedes guardar un máximo de 3 imágenes por nota.');
+            setError(translateCurrent('Puedes guardar un máximo de 3 imágenes por nota.'));
             return;
         }
         setNewImages((current) => [...current, ...files]);
@@ -118,8 +121,8 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
 
     const handleSubmit = async () => {
         setError('');
-        if (!form.titulo?.trim()) return setError('Escribe un título para la nota.');
-        if (!form.contenido?.trim()) return setError('Escribe el contenido de la nota.');
+        if (!form.titulo?.trim()) return setError(translateCurrent('Escribe un título para la nota.'));
+        if (!form.contenido?.trim()) return setError(translateCurrent('Escribe el contenido de la nota.'));
         const data = new FormData();
         data.append('titulo', form.titulo.trim());
         data.append('contenido', form.contenido.trim());
@@ -133,7 +136,7 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
         if (!editing && form.recordatorio_fecha) {
             const reminderDate = new Date(form.recordatorio_fecha);
             if (Number.isNaN(reminderDate.getTime()) || reminderDate <= new Date()) {
-                return setError('El recordatorio debe tener una fecha futura válida.');
+                return setError(translateCurrent('El recordatorio debe tener una fecha futura válida.'));
             }
             data.append('recordatorio_fecha', reminderDate.toISOString());
         }
@@ -158,7 +161,7 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
 
     const footer = (
         <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="cjm-icon-button min-h-11 rounded-xl px-5 font-medium" disabled={saving}>Cancelar</button>
+            <button type="button" onClick={onClose} className="cjm-icon-button min-h-11 rounded-xl px-5 font-medium" disabled={saving}><TranslatedText>Cancelar</TranslatedText></button>
             <button type="button" onClick={handleSubmit} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 font-semibold" disabled={saving}><Save size={17} /> {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear nota'}</button>
         </div>
     );
@@ -167,30 +170,30 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
         <AgendaDrawer open={open} onClose={onClose} title={editing ? 'Editar nota' : 'Nueva nota'} eyebrow="Notas y seguimientos" footer={footer} size="xl">
             <div className="agenda2-form-grid">
                 <section className="agenda2-form-section sm:col-span-2">
-                    <div className="agenda2-section-heading"><span><Star size={19} /></span><div><h3>Contenido</h3><p>Registra el contexto y la próxima acción sin perder la relación comercial.</p></div></div>
+                    <div className="agenda2-section-heading"><span><Star size={19} /></span><div><h3><TranslatedText>Contenido</TranslatedText></h3><p><TranslatedText>Registra el contexto y la próxima acción sin perder la relación comercial.</TranslatedText></p></div></div>
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <label className="agenda2-field sm:col-span-2"><span>Título</span><input className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.titulo || ''} onChange={(event) => setField('titulo', event.target.value)} maxLength={160} placeholder="Ej. Cliente interesado en colección exterior" disabled={saving} /></label>
-                        <label className="agenda2-field sm:col-span-2"><span>Contenido</span><textarea className="cjm-input min-h-40 rounded-xl px-3 py-3 text-base" value={form.contenido || ''} onChange={(event) => setField('contenido', event.target.value)} placeholder="Acuerdos, necesidades, muestras, precios y próximos pasos…" disabled={saving} /></label>
-                        <ClientPicker token={token} value={client} onChange={setClient} disabled={saving} label="Cliente relacionado (opcional)" />
-                        <TeamSelect users={users} value={form.assigned_to} onChange={(value) => setField('assigned_to', value)} disabled={saving} label="Responsable del seguimiento" />
+                        <label className="agenda2-field sm:col-span-2"><span><TranslatedText>Título</TranslatedText></span><LocalizedElement><input className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.titulo || ''} onChange={(event) => setField('titulo', event.target.value)} maxLength={160} placeholder="Ej. Cliente interesado en colección exterior" disabled={saving} /></LocalizedElement></label>
+                        <label className="agenda2-field sm:col-span-2"><span><TranslatedText>Contenido</TranslatedText></span><LocalizedElement><textarea className="cjm-input min-h-40 rounded-xl px-3 py-3 text-base" value={form.contenido || ''} onChange={(event) => setField('contenido', event.target.value)} placeholder="Acuerdos, necesidades, muestras, precios y próximos pasos…" disabled={saving} /></LocalizedElement></label>
+                        <LocalizedElement><ClientPicker token={token} value={client} onChange={setClient} disabled={saving} label="Cliente relacionado (opcional)" /></LocalizedElement>
+                        <LocalizedElement><TeamSelect users={users} value={form.assigned_to} onChange={(value) => setField('assigned_to', value)} disabled={saving} label="Responsable del seguimiento" /></LocalizedElement>
                     </div>
                 </section>
 
                 <section className="agenda2-form-section">
-                    <div className="agenda2-section-heading"><span><Link2 size={19} /></span><div><h3>Clasificación</h3><p>Ayuda a localizar y priorizar la información.</p></div></div>
+                    <div className="agenda2-section-heading"><span><Link2 size={19} /></span><div><h3><TranslatedText>Clasificación</TranslatedText></h3><p><TranslatedText>Ayuda a localizar y priorizar la información.</TranslatedText></p></div></div>
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <label className="agenda2-field"><span>Tipo</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.tipo || 'general'} onChange={(event) => setField('tipo', event.target.value)} disabled={saving}>{NOTE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                        <label className="agenda2-field"><span>Prioridad</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.prioridad || 'media'} onChange={(event) => setField('prioridad', event.target.value)} disabled={saving}>{PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                        <label className="agenda2-field"><span>Estado</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.estado || 'activa'} onChange={(event) => setField('estado', event.target.value)} disabled={saving}>{Object.entries(NOTE_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                        <label className="agenda2-field"><span>Fecha de seguimiento</span><div className="agenda2-native-date"><input type="datetime-local" value={form.fecha_seguimiento || ''} onChange={(event) => setField('fecha_seguimiento', event.target.value)} disabled={saving} /></div></label>
-                        {!editing && <label className="agenda2-field sm:col-span-2"><span className="inline-flex items-center gap-1.5"><BellRing size={15} /> Recordatorio opcional</span><div className="agenda2-native-date"><input type="datetime-local" value={form.recordatorio_fecha || ''} onChange={(event) => setField('recordatorio_fecha', event.target.value)} disabled={saving} /></div><small className="cjm-muted">El aviso se guardará para el responsable seleccionado y estará disponible en todos sus dispositivos.</small></label>}
-                        <label className="form-check form-switch sm:col-span-2"><input className="form-check-input" type="checkbox" checked={Boolean(form.destacada)} onChange={(event) => setField('destacada', event.target.checked)} disabled={saving} /><span className="form-check-label">Destacar esta nota en la parte superior</span></label>
+                        <label className="agenda2-field"><span><TranslatedText>Tipo</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.tipo || 'general'} onChange={(event) => setField('tipo', event.target.value)} disabled={saving}>{NOTE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                        <label className="agenda2-field"><span><TranslatedText>Prioridad</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.prioridad || 'media'} onChange={(event) => setField('prioridad', event.target.value)} disabled={saving}>{PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                        <label className="agenda2-field"><span><TranslatedText>Estado</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.estado || 'activa'} onChange={(event) => setField('estado', event.target.value)} disabled={saving}>{Object.entries(NOTE_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                        <label className="agenda2-field"><span><TranslatedText>Fecha de seguimiento</TranslatedText></span><div className="agenda2-native-date"><input type="datetime-local" value={form.fecha_seguimiento || ''} onChange={(event) => setField('fecha_seguimiento', event.target.value)} disabled={saving} /></div></label>
+                        {!editing && <label className="agenda2-field sm:col-span-2"><span className="inline-flex items-center gap-1.5"><BellRing size={15} /> <TranslatedText>Recordatorio opcional</TranslatedText></span><div className="agenda2-native-date"><input type="datetime-local" value={form.recordatorio_fecha || ''} onChange={(event) => setField('recordatorio_fecha', event.target.value)} disabled={saving} /></div><small className="cjm-muted"><TranslatedText>El aviso se guardará para el responsable seleccionado y estará disponible en todos sus dispositivos.</TranslatedText></small></label>}
+                        <label className="form-check form-switch sm:col-span-2"><input className="form-check-input" type="checkbox" checked={Boolean(form.destacada)} onChange={(event) => setField('destacada', event.target.checked)} disabled={saving} /><span className="form-check-label"><TranslatedText>Destacar esta nota en la parte superior</TranslatedText></span></label>
                     </div>
                 </section>
 
                 <section className="agenda2-form-section">
-                    <div className="agenda2-section-heading"><span><Link2 size={19} /></span><div><h3>Visitas relacionadas</h3><p>Una nota puede estar vinculada a varias citas sin perderse al editar.</p></div></div>
-                    <label className="agenda2-search-field mt-5"><Search size={16} /><input type="search" value={visitQuery} onChange={(event) => setVisitQuery(event.target.value)} placeholder="Buscar visita o cliente, incluso en el historial" />{visitsLoading && <Loader2 size={16} className="animate-spin cjm-muted" />}</label>
+                    <div className="agenda2-section-heading"><span><Link2 size={19} /></span><div><h3><TranslatedText>Visitas relacionadas</TranslatedText></h3><p><TranslatedText>Una nota puede estar vinculada a varias citas sin perderse al editar.</TranslatedText></p></div></div>
+                    <label className="agenda2-search-field mt-5"><Search size={16} /><LocalizedElement><input type="search" value={visitQuery} onChange={(event) => setVisitQuery(event.target.value)} placeholder="Buscar visita o cliente, incluso en el historial" /></LocalizedElement>{visitsLoading && <Loader2 size={16} className="animate-spin cjm-muted" />}</label>
                     <div className="agenda2-link-list mt-3">
                         {filteredVisitOptions.length ? filteredVisitOptions.slice(0, 30).map((visit) => {
                             const checked = linkedVisits.includes(Number(visit.id));
@@ -200,16 +203,16 @@ export default function NoteFormDrawer({ open, token, users, currentUser, note, 
                                     <span className="min-w-0"><strong>{visit.titulo || visit.descripcion || 'Visita'}</strong><small>{visit.cliente_nombre || visit.cliente_id || 'Sin cliente'} · {formatDateTime(visit.fecha)}</small></span>
                                 </label>
                             );
-                        }) : <p className="text-sm cjm-muted">No hay visitas que coincidan con la búsqueda.</p>}
+                        }) : <p className="text-sm cjm-muted"><TranslatedText>No hay visitas que coincidan con la búsqueda.</TranslatedText></p>}
                     </div>
                 </section>
 
                 <section className="agenda2-form-section sm:col-span-2">
-                    <div className="agenda2-section-heading"><span><FileImage size={19} /></span><div><h3>Imágenes</h3><p>Adjunta hasta tres fotografías o capturas.</p></div></div>
+                    <div className="agenda2-section-heading"><span><FileImage size={19} /></span><div><h3><TranslatedText>Imágenes</TranslatedText></h3><p><TranslatedText>Adjunta hasta tres fotografías o capturas.</TranslatedText></p></div></div>
                     <div className="mt-5 flex flex-wrap gap-3">
-                        {existingImages.map((image) => <figure key={image} className="agenda2-image-preview"><img src={image} alt={getImageName(image)} /><button type="button" onClick={() => setExistingImages((current) => current.filter((item) => item !== image))} aria-label="Quitar imagen">×</button></figure>)}
-                        {newImagePreviews.map(({ file, url }, index) => <figure key={`${file.name}-${file.lastModified}-${index}`} className="agenda2-image-preview"><img src={url} alt={file.name} /><button type="button" onClick={() => setNewImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Quitar imagen">×</button></figure>)}
-                        {existingImages.length + newImages.length < 3 && <label className="agenda2-image-add"><FileImage size={22} /><span>Añadir imagen</span><input type="file" accept="image/*" multiple onChange={handleImages} disabled={saving} /></label>}
+                        {existingImages.map((image) => <figure key={image} className="agenda2-image-preview"><img src={image} alt={getImageName(image)} /><LocalizedElement><button type="button" onClick={() => setExistingImages((current) => current.filter((item) => item !== image))} aria-label="Quitar imagen">×</button></LocalizedElement></figure>)}
+                        {newImagePreviews.map(({ file, url }, index) => <figure key={`${file.name}-${file.lastModified}-${index}`} className="agenda2-image-preview"><img src={url} alt={file.name} /><LocalizedElement><button type="button" onClick={() => setNewImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Quitar imagen">×</button></LocalizedElement></figure>)}
+                        {existingImages.length + newImages.length < 3 && <label className="agenda2-image-add"><FileImage size={22} /><span><TranslatedText>Añadir imagen</TranslatedText></span><input type="file" accept="image/*" multiple onChange={handleImages} disabled={saving} /></label>}
                     </div>
                 </section>
             </div>

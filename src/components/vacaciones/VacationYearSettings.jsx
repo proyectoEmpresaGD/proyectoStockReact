@@ -1,3 +1,8 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import { useLanguage } from '../../i18n/LanguageContext.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, CalendarCog, CheckCircle2, Info, LockKeyhole, Plus, RotateCcw, Save, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
 
@@ -27,10 +32,11 @@ function formatDateTime(value) {
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+    return date.toLocaleString(getActiveLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export default function VacationYearSettings({ apiBase, token, year, onChanged }) {
+    const { t } = useLanguage();
     const [config, setConfig] = useState(() => fallbackConfig(year));
     const [newMandatoryDate, setNewMandatoryDate] = useState('');
     const [loading, setLoading] = useState(false);
@@ -92,7 +98,7 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
     const save = async (event) => {
         event.preventDefault();
         if (config.cerrado) {
-            setError(`El ejercicio ${year} está cerrado. Reábrelo antes de modificar su política.`);
+            setError(translateCurrent('El ejercicio {year} está cerrado. Reábrelo antes de modificar su política.', { year }));
             return;
         }
         setSaving(true);
@@ -170,14 +176,14 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                             <CalendarCog size={20} />
                         </span>
                         <div>
-                            <h2 className="text-lg font-semibold text-slate-900">Política anual · {year}</h2>
-                            <p className="mt-0.5 text-sm text-slate-500">La configuración queda guardada por año para preservar el histórico.</p>
+                            <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Política anual ·</TranslatedText> {year}</h2>
+                            <p className="mt-0.5 text-sm text-slate-500"><TranslatedText>La configuración queda guardada por año para preservar el histórico.</TranslatedText></p>
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {config.cerrado && (
                             <span className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">
-                                <Archive size={13} /> Ejercicio cerrado
+                                <Archive size={13} /> <TranslatedText>Ejercicio cerrado</TranslatedText>
                             </span>
                         )}
                         {!config.cerrado && (
@@ -196,9 +202,9 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                         <div className="flex items-start gap-3">
                             <Archive size={19} className="mt-0.5 shrink-0 text-slate-700" />
                             <div>
-                                <p className="text-sm font-semibold text-slate-900">El ejercicio {year} está cerrado</p>
+                                <p className="text-sm font-semibold text-slate-900"><TranslatedText>El ejercicio</TranslatedText> {year} <TranslatedText>está cerrado</TranslatedText></p>
                                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    El histórico está protegido: no se pueden cambiar solicitudes, ajustes de saldo ni la política anual hasta reabrirlo.
+                                    <TranslatedText>El histórico está protegido: no se pueden cambiar solicitudes, ajustes de saldo ni la política anual hasta reabrirlo.</TranslatedText>
                                     {config.cerrado_at ? ` Cerrado el ${formatDateTime(config.cerrado_at)}.` : ''}
                                 </p>
                             </div>
@@ -213,20 +219,20 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                                 {hasFrozenAllowances ? <ShieldCheck size={18} /> : <UsersRound size={18} />}
                             </span>
                             <div className="min-w-0">
-                                <h3 className="text-sm font-semibold text-slate-900">Cupo base por empleado y ejercicio</h3>
+                                <h3 className="text-sm font-semibold text-slate-900"><TranslatedText>Cupo base por empleado y ejercicio</TranslatedText></h3>
                                 {hasFrozenAllowances ? (
                                     <>
                                         <p className="mt-1 text-sm text-slate-600">
-                                            Ya hay <strong>{frozenEmployees}</strong> empleado{frozenEmployees === 1 ? '' : 's'} con el cupo base de {year} fijado.
+                                            <TranslatedText>Ya hay</TranslatedText> <strong>{frozenEmployees}</strong> <TranslatedText>empleado</TranslatedText>{frozenEmployees === 1 ? '' : 's'} <TranslatedText>con el cupo base de</TranslatedText> {year} <TranslatedText>fijado.</TranslatedText>
                                         </p>
                                         <p className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-slate-500">
                                             <Info size={14} className="mt-0.5 shrink-0" />
-                                            Cambiar ahora los días base por defecto no modifica esos cupos históricos. Para una corrección individual utiliza Ajustes de saldo en la ficha del empleado.
+                                            <TranslatedText>Cambiar ahora los días base por defecto no modifica esos cupos históricos. Para una corrección individual utiliza Ajustes de saldo en la ficha del empleado.</TranslatedText>
                                         </p>
                                     </>
                                 ) : (
                                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                                        Al abrir las solicitudes de {year}, el sistema guardará una fotografía del cupo base actual de cada empleado participante.
+                                        <TranslatedText>Al abrir las solicitudes de</TranslatedText> {year}<TranslatedText>, el sistema guardará una fotografía del cupo base actual de cada empleado participante.</TranslatedText>
                                     </p>
                                 )}
                             </div>
@@ -234,45 +240,45 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                        <ConfigField label="Días base por defecto" helper={hasFrozenAllowances ? `Se aplicará solo a empleados de ${year} que todavía no tengan su cupo anual fijado.` : 'Se usa cuando el empleado no tiene un cupo individual configurado.'}>
+                        <LocalizedElement><ConfigField label="Días base por defecto" helper={hasFrozenAllowances ? `Se aplicará solo a empleados de ${year} que todavía no tengan su cupo anual fijado.` : 'Se usa cuando el empleado no tiene un cupo individual configurado.'}>
                             <input type="number" min="0" max="365" step="0.5" value={config.dias_base_default} onChange={(e) => setConfig((current) => ({ ...current, dias_base_default: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-                        </ConfigField>
-                        <ConfigField label="Antelación mínima" helper="Días naturales de margen antes del inicio.">
+                        </ConfigField></LocalizedElement>
+                        <LocalizedElement><ConfigField label="Antelación mínima" helper="Días naturales de margen antes del inicio.">
                             <div className="relative">
                                 <input type="number" min="0" max="365" value={config.antelacion_minima_dias} onChange={(e) => setConfig((current) => ({ ...current, antelacion_minima_dias: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-14 text-sm" />
-                                <span className="absolute right-3 top-2.5 text-xs text-slate-400">días</span>
+                                <span className="absolute right-3 top-2.5 text-xs text-slate-400"><TranslatedText>días</TranslatedText></span>
                             </div>
-                        </ConfigField>
-                        <ConfigField label="Máximo por solicitud" helper="Máximo de días laborables en una única solicitud.">
+                        </ConfigField></LocalizedElement>
+                        <LocalizedElement><ConfigField label="Máximo por solicitud" helper="Máximo de días laborables en una única solicitud.">
                             <div className="relative">
                                 <input type="number" min="1" max="365" value={config.max_dias_consecutivos} onChange={(e) => setConfig((current) => ({ ...current, max_dias_consecutivos: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-14 text-sm" />
-                                <span className="absolute right-3 top-2.5 text-xs text-slate-400">días</span>
+                                <span className="absolute right-3 top-2.5 text-xs text-slate-400"><TranslatedText>días</TranslatedText></span>
                             </div>
-                        </ConfigField>
+                        </ConfigField></LocalizedElement>
                     </div>
 
                     <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div className="max-w-xl">
-                                <h3 className="text-sm font-semibold text-slate-900">Arrastre al ejercicio siguiente</h3>
-                                <p className="mt-1 text-xs leading-5 text-slate-500">Si está activo, al cerrar {year} el sistema trasladará automáticamente los días no consumidos hasta el máximo indicado y con una fecha límite de uso en {Number(year) + 1}.</p>
+                                <h3 className="text-sm font-semibold text-slate-900"><TranslatedText>Arrastre al ejercicio siguiente</TranslatedText></h3>
+                                <p className="mt-1 text-xs leading-5 text-slate-500"><TranslatedText>Si está activo, al cerrar</TranslatedText> {year} <TranslatedText>el sistema trasladará automáticamente los días no consumidos hasta el máximo indicado y con una fecha límite de uso en</TranslatedText> {Number(year) + 1}.</p>
                             </div>
                             <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-medium text-violet-800">
                                 <input type="checkbox" checked={Boolean(config.arrastre_permitido)} onChange={(e) => setConfig((current) => ({ ...current, arrastre_permitido: e.target.checked }))} />
-                                Permitir arrastre
+                                <TranslatedText>Permitir arrastre</TranslatedText>
                             </label>
                         </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-3">
-                            <ConfigField label="Máximo de días" helper="Límite individual que podrá pasar al año siguiente.">
+                            <LocalizedElement><ConfigField label="Máximo de días" helper="Límite individual que podrá pasar al año siguiente.">
                                 <input type="number" min="0" max="365" step="0.5" disabled={!config.arrastre_permitido} value={config.arrastre_max_dias} onChange={(e) => setConfig((current) => ({ ...current, arrastre_max_dias: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm disabled:bg-slate-100" />
-                            </ConfigField>
-                            <ConfigField label={`Fecha límite en ${Number(year) + 1}`} helper="Después de esta fecha el arrastre pendiente caduca.">
+                            </ConfigField></LocalizedElement>
+                            <LocalizedElement><ConfigField label={`${t("Fecha límite en")} ${Number(year) + 1}`} helper="Después de esta fecha el arrastre pendiente caduca.">
                                 <input type="date" disabled={!config.arrastre_permitido} min={`${Number(year) + 1}-01-01`} max={`${Number(year) + 1}-12-31`} value={`${Number(year) + 1}-${config.arrastre_limite_mmdd || '03-31'}`} onChange={(e) => setConfig((current) => ({ ...current, arrastre_limite_mmdd: e.target.value.slice(5) }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm disabled:bg-slate-100" />
-                            </ConfigField>
+                            </ConfigField></LocalizedElement>
                             <div className="rounded-xl border border-violet-100 bg-white px-3 py-3 text-sm text-slate-600">
-                                <p className="text-xs font-semibold uppercase text-violet-700">Arrastres existentes</p>
-                                <p className="mt-1"><strong>{Number(config.arrastre_entrada?.dias || 0)}</strong> días recibidos en {year}</p>
-                                <p><strong>{Number(config.arrastre_salida?.dias || 0)}</strong> días ya generados desde {year}</p>
+                                <p className="text-xs font-semibold uppercase text-violet-700"><TranslatedText>Arrastres existentes</TranslatedText></p>
+                                <p className="mt-1"><strong>{Number(config.arrastre_entrada?.dias || 0)}</strong> <TranslatedText>días recibidos en</TranslatedText> {year}</p>
+                                <p><strong>{Number(config.arrastre_salida?.dias || 0)}</strong> <TranslatedText>días ya generados desde</TranslatedText> {year}</p>
                             </div>
                         </div>
                     </div>
@@ -280,19 +286,19 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                             <div>
-                                <h3 className="text-sm font-semibold text-slate-900">Días obligatorios de empresa</h3>
-                                <p className="mt-1 text-xs text-slate-500">No pueden seleccionarse y solo descuentan saldo si caen en día laborable y no coinciden con un festivo/no laborable.</p>
+                                <h3 className="text-sm font-semibold text-slate-900"><TranslatedText>Días obligatorios de empresa</TranslatedText></h3>
+                                <p className="mt-1 text-xs text-slate-500"><TranslatedText>No pueden seleccionarse y solo descuentan saldo si caen en día laborable y no coinciden con un festivo/no laborable.</TranslatedText></p>
                             </div>
                             <div className="flex gap-2">
                                 <input type="date" min={`${year}-01-01`} max={`${year}-12-31`} value={newMandatoryDate} onChange={(e) => setNewMandatoryDate(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-                                <button type="button" onClick={addMandatoryDate} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white"><Plus size={15} /> Añadir</button>
+                                <button type="button" onClick={addMandatoryDate} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white"><Plus size={15} /> <TranslatedText>Añadir</TranslatedText></button>
                             </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
-                            {mandatoryDates.length === 0 ? <span className="text-sm text-slate-500">No hay días obligatorios configurados.</span> : mandatoryDates.map((mmdd) => (
+                            {mandatoryDates.length === 0 ? <span className="text-sm text-slate-500"><TranslatedText>No hay días obligatorios configurados.</TranslatedText></span> : mandatoryDates.map((mmdd) => (
                                 <span key={mmdd} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700">
-                                    {new Date(`${toFullDate(year, mmdd)}T12:00:00`).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}
-                                    <button type="button" onClick={() => removeMandatoryDate(mmdd)} className="text-slate-400 hover:text-rose-600" aria-label="Eliminar día obligatorio"><Trash2 size={13} /></button>
+                                    {new Date(`${toFullDate(year, mmdd)}T12:00:00`).toLocaleDateString(getActiveLocale(), { day: '2-digit', month: 'long' })}
+                                    <LocalizedElement><button type="button" onClick={() => removeMandatoryDate(mmdd)} className="text-slate-400 hover:text-rose-600" aria-label="Eliminar día obligatorio"><Trash2 size={13} /></button></LocalizedElement>
                                 </span>
                             ))}
                         </div>
@@ -301,14 +307,14 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                     <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-4">
                         <input type="checkbox" checked={Boolean(config.permitir_solicitudes)} onChange={(e) => setConfig((current) => ({ ...current, permitir_solicitudes: e.target.checked }))} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
                         <span>
-                            <span className="block text-sm font-semibold text-slate-800">Permitir que los empleados envíen solicitudes de {year}</span>
-                            <span className="mt-1 block text-xs leading-5 text-slate-500">{config.permitir_solicitudes ? 'El ejercicio está abierto a nuevas solicitudes. Puedes cerrarlas temporalmente sin cerrar el ejercicio.' : `Al activarlo, se fijará automáticamente el cupo base de los empleados participantes para ${year}.`}</span>
+                            <span className="block text-sm font-semibold text-slate-800"><TranslatedText>Permitir que los empleados envíen solicitudes de</TranslatedText> {year}</span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-500"><TranslatedText>{config.permitir_solicitudes ? 'El ejercicio está abierto a nuevas solicitudes. Puedes cerrarlas temporalmente sin cerrar el ejercicio.' : `Al activarlo, se fijará automáticamente el cupo base de los empleados participantes para ${year}.`}</TranslatedText></span>
                         </span>
                     </label>
 
-                    <ConfigField label="Notas internas de RRHH" helper="Anota criterios o decisiones propias de este ejercicio.">
-                        <textarea rows={3} value={config.notas || ''} onChange={(e) => setConfig((current) => ({ ...current, notas: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Ej.: política aprobada para 2027, cierre de inventario, criterio de verano…" />
-                    </ConfigField>
+                    <LocalizedElement><ConfigField label="Notas internas de RRHH" helper="Anota criterios o decisiones propias de este ejercicio.">
+                        <LocalizedElement><textarea rows={3} value={config.notas || ''} onChange={(e) => setConfig((current) => ({ ...current, notas: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="Ej.: política aprobada para 2027, cierre de inventario, criterio de verano…" /></LocalizedElement>
+                    </ConfigField></LocalizedElement>
 
                     <div className="flex justify-end">
                         <button type="submit" disabled={saving || loading} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {saving ? 'Guardando…' : `Guardar política ${year}`}</button>
@@ -320,9 +326,9 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                         <div>
                             <p className="text-sm font-semibold text-slate-900">{config.cerrado ? `Reabrir ejercicio ${year}` : `Cierre anual de ${year}`}</p>
                             <p className="mt-1 text-xs leading-5 text-slate-600">
-                                {config.cerrado
+                                <TranslatedText>{config.cerrado
                                     ? 'Reabrir deja el ejercicio en modo preparación y mantiene las solicitudes cerradas hasta que RRHH las active de nuevo.'
-                                    : 'El cierre anual solo se permite cuando no queden solicitudes pendientes. Después protege solicitudes, saldos y política frente a cambios accidentales.'}
+                                    : 'El cierre anual solo se permite cuando no queden solicitudes pendientes. Después protege solicitudes, saldos y política frente a cambios accidentales.'}</TranslatedText>
                             </p>
                         </div>
                         <button type="button" disabled={Boolean(yearAction)} onClick={() => runYearAction(config.cerrado ? 'reopen' : 'close')} className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${config.cerrado ? 'bg-sky-700 text-white' : 'bg-amber-600 text-white'}`}>
@@ -332,7 +338,7 @@ export default function VacationYearSettings({ apiBase, token, year, onChanged }
                     </div>
                 </div>
 
-                {loading && <p className="text-sm text-slate-500">Cargando configuración…</p>}
+                {loading && <p className="text-sm text-slate-500"><TranslatedText>Cargando configuración…</TranslatedText></p>}
                 {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
                 {message && <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
             </form>

@@ -1,3 +1,4 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
 // src/components/etiquetasProducto/ProductLabel.jsx
 
 import React from 'react';
@@ -35,7 +36,7 @@ export default function ProductLabel({ product }) {
             <section className="flex min-w-0 flex-col justify-center px-[0.7cm] py-[0.5cm]">
                 <div className="mb-[0.55cm]">
                     <p className="mb-[0.08cm] text-[15px] font-bold uppercase tracking-[0.12em]">
-                        Producto
+                        <TranslatedText>Producto</TranslatedText>
                     </p>
 
                     <h2 className="break-words text-[34px] font-black uppercase leading-[1.02] tracking-[-0.03em]">
@@ -46,7 +47,7 @@ export default function ProductLabel({ product }) {
                 <div className="space-y-[0.2cm]">
                     <div>
                         <p className="text-[14px] font-bold uppercase tracking-[0.08em]">
-                            Tonalidad
+                            <TranslatedText>Tonalidad</TranslatedText>
                         </p>
 
                         <p className="break-words text-[26px] font-extrabold uppercase leading-tight">
@@ -56,7 +57,7 @@ export default function ProductLabel({ product }) {
 
                     <div>
                         <p className="text-[14px] font-bold uppercase tracking-[0.08em]">
-                            Colección
+                            <TranslatedText>Colección</TranslatedText>
                         </p>
 
                         <p className="break-words text-[24px] font-extrabold uppercase leading-tight">
@@ -82,7 +83,7 @@ export default function ProductLabel({ product }) {
                 </div>
 
                 <p className="mt-[0.35cm] text-center text-[13px] font-bold uppercase tracking-[0.08em]">
-                    Código producto
+                    <TranslatedText>Código producto</TranslatedText>
                 </p>
 
                 <p className="mt-[0.08cm] break-all text-center font-mono text-[22px] font-black leading-tight">

@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React from 'react';
 import QRCode from 'react-qr-code';
 import { getCompleteLotStock } from './productLotStock';
@@ -30,14 +32,14 @@ export default function ProductLotLabel({
             }}
         >
             {onRemove && (
-                <button
+                <LocalizedElement><button
                     type="button"
                     onClick={() => onRemove(lot.labelKey)}
                     className="remove-label-button no-print absolute right-1 top-1 rounded bg-red-600 px-2 py-1 text-[9px] font-bold text-white hover:bg-red-700"
                     title="Quitar esta etiqueta"
                 >
                     Quitar
-                </button>
+                </button></LocalizedElement>
             )}
 
             <header className="label-header shrink-0 pb-2 pr-14">
@@ -53,7 +55,7 @@ export default function ProductLotLabel({
             <section className="label-qr-section grid flex-1 grid-cols-2 items-center gap-4">
                 <div className="flex flex-col items-center rounded border border-slate-300 p-1">
                     <p className="mb-1 text-[13px] font-bold uppercase">
-                        Producto
+                        <TranslatedText>Producto</TranslatedText>
                     </p>
 
                     <div className="bg-white p-1">
@@ -82,7 +84,7 @@ export default function ProductLotLabel({
 
             <footer className="label-footer shrink-0 border-t border-slate-300 pt-1 text-[15px] leading-tight text-slate-700">
                 <span className="font-semibold">
-                    Stock Inicial:
+                    <TranslatedText>Stock Inicial:</TranslatedText>
                 </span>{' '}
                 {formatStock(getCompleteLotStock(lot))}
             </footer>

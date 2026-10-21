@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Filter, RefreshCw, RotateCcw, Search } from 'lucide-react';
 
@@ -98,7 +100,7 @@ function SearchableSelect({ label, value, options, placeholder, emptyLabel, load
                             {emptyLabel}
                         </button>
                         {visible.length === 0 && (
-                            <p className="px-3 py-3 text-sm text-slate-400">No hay coincidencias.</p>
+                            <p className="px-3 py-3 text-sm text-slate-400"><TranslatedText>No hay coincidencias.</TranslatedText></p>
                         )}
                         {visible.map((item) => (
                             <button
@@ -158,9 +160,9 @@ function StockControlFilters({
                         <Filter size={19} aria-hidden="true" />
                     </span>
                     <div>
-                        <h2 className="text-base font-semibold text-slate-900">Buscar y acotar productos</h2>
+                        <h2 className="text-base font-semibold text-slate-900"><TranslatedText>Buscar y acotar productos</TranslatedText></h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            Los cambios se aplican al pulsar «Ver resultados» para evitar recargas mientras escribes.
+                            <TranslatedText>Los cambios se aplican al pulsar «Ver resultados» para evitar recargas mientras escribes.</TranslatedText>
                         </p>
                     </div>
                 </div>
@@ -172,13 +174,13 @@ function StockControlFilters({
                     </button>
                     <button type="button" onClick={onApply} className="cjm-primary-button min-h-11" disabled={loading}>
                         {loading ? <RefreshCw size={17} className="animate-spin" aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
-                        Ver resultados
+                        <TranslatedText>Ver resultados</TranslatedText>
                     </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <SearchableSelect
+                <LocalizedElement><SearchableSelect
                     label="Proveedor"
                     value={filters.provider}
                     options={filterOptions.providers}
@@ -186,9 +188,9 @@ function StockControlFilters({
                     emptyLabel="Todos los proveedores"
                     loading={loadingFilters}
                     onChange={(value) => onFilterChange('provider', value)}
-                />
+                /></LocalizedElement>
 
-                <SearchableSelect
+                <LocalizedElement><SearchableSelect
                     label="Familia"
                     value={filters.collection}
                     options={filterOptions.collections}
@@ -196,11 +198,11 @@ function StockControlFilters({
                     emptyLabel="Todas las familias"
                     loading={loadingFilters}
                     onChange={(value) => onFilterChange('collection', value)}
-                />
+                /></LocalizedElement>
 
                 <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium text-slate-700 xl:col-span-1">
-                    Producto o código
-                    <input
+                    <TranslatedText>Producto o código</TranslatedText>
+                    <LocalizedElement><input
                         type="search"
                         value={filters.productName}
                         onChange={(event) => onFilterChange('productName', event.target.value)}
@@ -209,24 +211,24 @@ function StockControlFilters({
                         }}
                         placeholder="Ej. ARE00125 o Lino azul"
                         className="cjm-input min-h-11 w-full rounded-xl px-3 py-2.5"
-                    />
+                    /></LocalizedElement>
                 </label>
 
-                <SelectField
+                <LocalizedElement><SelectField
                     id="stock-months"
                     label="Periodo para calcular consumo"
                     value={filters.monthsBack}
                     options={MONTH_OPTIONS}
                     onChange={(value) => onFilterChange('monthsBack', value)}
-                />
+                /></LocalizedElement>
 
-                <SelectField
+                <LocalizedElement><SelectField
                     id="stock-limit"
                     label="Máximo de resultados"
                     value={filters.limit}
                     options={LIMIT_OPTIONS}
                     onChange={(value) => onFilterChange('limit', value)}
-                />
+                /></LocalizedElement>
             </div>
         </section>
     );

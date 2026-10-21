@@ -1,3 +1,4 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import { FiChevronDown, FiEye, FiEyeOff } from 'react-icons/fi';
 
@@ -21,7 +22,7 @@ export default function ColumnMenu({ allColumns, visibleCols, setVisibleCols }) 
                 onClick={() => setOpen(o => !o)}
                 className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm flex items-center gap-1"
             >
-                Columnas <FiChevronDown />
+                <TranslatedText>Columnas</TranslatedText> <FiChevronDown />
             </button>
             {open && (
                 <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-10">

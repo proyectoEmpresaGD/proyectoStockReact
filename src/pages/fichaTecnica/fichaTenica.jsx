@@ -1,3 +1,4 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/pages/FichaTecnicaPage.jsx
 
 import { useState, useEffect } from "react";
@@ -83,7 +84,7 @@ const FichaTecnicaPage = () => {
     return (
         <div className="p-6 max-w-4xl mx-auto">
             <h1 className="text-xl font-bold mb-4">
-                Buscar ficha técnica
+                <TranslatedText>Buscar ficha técnica</TranslatedText>
             </h1>
 
             <SearchBar

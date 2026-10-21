@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, LayoutDashboard, ListTodo, Plus, ShieldCheck, StickyNote, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -180,7 +183,7 @@ export default function AgendaWorkspace({ initialTab = 'hoy' }) {
             if (action === 'snooze') {
                 await agendaClient.reminderAction(token, reminder.id, 'snooze', { until: new Date(Date.now() + 60 * 60_000).toISOString() });
                 notifiedRef.current.delete(reminder.id);
-                toast.success('Recordatorio pospuesto una hora');
+                toast.success(translateCurrent('Recordatorio pospuesto una hora'));
             } else {
                 await agendaClient.reminderAction(token, reminder.id, action);
             }
@@ -194,23 +197,23 @@ export default function AgendaWorkspace({ initialTab = 'hoy' }) {
         <div className="agenda2-root">
             <section className="agenda2-hero cjm-hero">
                 <div className="relative z-10 min-w-0">
-                    <p className="cjm-kicker">CJM · Relación comercial</p>
-                    <h1>Agenda y seguimientos</h1>
-                    <p>Organiza visitas, notas, recordatorios y próximas acciones desde una única herramienta sincronizada.</p>
+                    <p className="cjm-kicker"><TranslatedText>CJM · Relación comercial</TranslatedText></p>
+                    <h1><TranslatedText>Agenda y seguimientos</TranslatedText></h1>
+                    <p><TranslatedText>Organiza visitas, notas, recordatorios y próximas acciones desde una única herramienta sincronizada.</TranslatedText></p>
                 </div>
                 <div className="relative z-10 flex flex-col gap-2 sm:flex-row">
-                    <button type="button" className="cjm-icon-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium" onClick={() => setNoteForm({ open: true, note: null, visit: null })}><StickyNote size={18} /> Nueva nota</button>
-                    <button type="button" className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold" onClick={() => setVisitForm({ open: true, visit: null, date: null, client: null })}><Plus size={18} /> Nueva visita</button>
+                    <button type="button" className="cjm-icon-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium" onClick={() => setNoteForm({ open: true, note: null, visit: null })}><StickyNote size={18} /> <TranslatedText>Nueva nota</TranslatedText></button>
+                    <button type="button" className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold" onClick={() => setVisitForm({ open: true, visit: null, date: null, client: null })}><Plus size={18} /> <TranslatedText>Nueva visita</TranslatedText></button>
                 </div>
             </section>
 
-            <nav className="agenda2-tabs" aria-label="Secciones de agenda">
+            <LocalizedElement><nav className="agenda2-tabs" aria-label="Secciones de agenda">
                 {visibleTabs.map(({ id, label, description, icon: Icon }) => (
                     <button type="button" key={id} className={activeTab === id ? 'active' : ''} onClick={() => changeTab(id)}>
                         <span><Icon size={18} /></span><span><strong>{label}</strong><small>{description}</small></span>
                     </button>
                 ))}
-            </nav>
+            </nav></LocalizedElement>
 
             <main className="agenda2-main">
                 {activeTab === 'hoy' && <AgendaToday overview={overview} loading={overviewLoading} onVisit={openVisit} onNewVisit={() => setVisitForm({ open: true, visit: null, date: null, client: null })} onNewNote={() => setNoteForm({ open: true, note: null, visit: null })} onOpenTab={changeTab} onReminderAction={reminderAction} />}
@@ -221,8 +224,8 @@ export default function AgendaWorkspace({ initialTab = 'hoy' }) {
             </main>
 
             <div className="agenda2-mobile-fab">
-                {quickMenu && <div className="agenda2-fab-menu"><button type="button" onClick={() => { setQuickMenu(false); setNoteForm({ open: true, note: null, visit: null }); }}><StickyNote size={18} /> Nueva nota</button><button type="button" onClick={() => { setQuickMenu(false); setVisitForm({ open: true, visit: null, date: null, client: null }); }}><CalendarDays size={18} /> Nueva visita</button></div>}
-                <button type="button" aria-label={quickMenu ? 'Cerrar acciones' : 'Crear nuevo'} onClick={() => setQuickMenu((value) => !value)}>{quickMenu ? <X size={22} /> : <Plus size={23} />}</button>
+                {quickMenu && <div className="agenda2-fab-menu"><button type="button" onClick={() => { setQuickMenu(false); setNoteForm({ open: true, note: null, visit: null }); }}><StickyNote size={18} /> <TranslatedText>Nueva nota</TranslatedText></button><button type="button" onClick={() => { setQuickMenu(false); setVisitForm({ open: true, visit: null, date: null, client: null }); }}><CalendarDays size={18} /> <TranslatedText>Nueva visita</TranslatedText></button></div>}
+                <button type="button" aria-label=<TranslatedText><TranslatedText>{quickMenu ? 'Cerrar acciones' : 'Crear nuevo'}</TranslatedText></TranslatedText> onClick={() => setQuickMenu((value) => !value)}>{quickMenu ? <X size={22} /> : <Plus size={23} />}</button>
             </div>
 
             <VisitFormDrawer open={visitForm.open} token={token} users={team} currentUser={user} visit={visitForm.visit} initialDate={visitForm.date} initialClient={visitForm.client} onClose={() => setVisitForm({ open: false, visit: null, date: null, client: null })} onSaved={afterVisitSaved} />

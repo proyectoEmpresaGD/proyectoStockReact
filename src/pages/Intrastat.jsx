@@ -1,3 +1,5 @@
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, ShoppingCart, UploadCloud } from 'lucide-react';
 import PageShell from '../common/PageShell.jsx';
@@ -72,16 +74,16 @@ function Intrastat() {
 
     return (
         <PageShell maxWidth="max-w-6xl">
-            <PageHeader
+            <LocalizedElement><PageHeader
                 eyebrow="Administración · Comercio exterior"
                 title="Generador Intrastat"
                 description="Sube el Excel original, valida las facturas y descarga el fichero generado con el mismo proceso utilizado antes de la actualización visual."
                 icon={FileSpreadsheet}
-            />
+            /></LocalizedElement>
 
             <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <section className="cjm-card rounded-3xl p-4 sm:p-6">
-                    <div className="cjm-segmented grid w-full grid-cols-2" aria-label="Tipo de declaración">
+                    <LocalizedElement><div className="cjm-segmented grid w-full grid-cols-2" aria-label="Tipo de declaración">
                         <button
                             type="button"
                             aria-pressed={tipo === 'ventas'}
@@ -97,11 +99,11 @@ function Intrastat() {
                         >
                             Compras
                         </button>
-                    </div>
+                    </div></LocalizedElement>
 
                     <div className="mt-5 grid gap-5 sm:grid-cols-2">
                         <label className="min-w-0">
-                            <span className="cjm-control-label">Mes Intrastat</span>
+                            <span className="cjm-control-label"><TranslatedText>Mes Intrastat</TranslatedText></span>
                             <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
                                 <input
                                     type="month"
@@ -113,7 +115,7 @@ function Intrastat() {
                         </label>
 
                         <label className="min-w-0">
-                            <span className="cjm-control-label">Archivo Excel</span>
+                            <span className="cjm-control-label"><TranslatedText>Archivo Excel</TranslatedText></span>
                             <span className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-dashed border-[var(--cjm-border-strong)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
                                 <UploadCloud className="h-4 w-4 shrink-0 text-[var(--cjm-primary)]" aria-hidden="true" />
                                 <input
@@ -125,7 +127,7 @@ function Intrastat() {
                             </span>
                             {file && (
                                 <span className="cjm-muted mt-1.5 block truncate text-xs">
-                                    Archivo seleccionado: <strong className="app-text">{file.name}</strong>
+                                    <TranslatedText>Archivo seleccionado:</TranslatedText> <strong className="app-text">{file.name}</strong>
                                 </span>
                             )}
                         </label>
@@ -152,9 +154,9 @@ function Intrastat() {
                     <span className="cjm-icon-tile h-11 w-11 rounded-2xl">
                         <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                     </span>
-                    <h2 className="mt-4 font-semibold app-text">Proceso protegido</h2>
+                    <h2 className="mt-4 font-semibold app-text"><TranslatedText>Proceso protegido</TranslatedText></h2>
                     <p className="cjm-muted mt-3 text-sm leading-6">
-                        La modernización de esta pantalla es únicamente visual. La petición, los parámetros, las validaciones, el Excel generado y la descarga mantienen el flujo anterior.
+                        <TranslatedText>La modernización de esta pantalla es únicamente visual. La petición, los parámetros, las validaciones, el Excel generado y la descarga mantienen el flujo anterior.</TranslatedText>
                     </p>
                 </aside>
             </div>
@@ -165,7 +167,7 @@ function Intrastat() {
                         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
                         <div>
                             <h2 id="iva-results-title" className="font-semibold text-amber-900">
-                                Facturas con IVA incorrecto
+                                <TranslatedText>Facturas con IVA incorrecto</TranslatedText>
                             </h2>
                         </div>
                         <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
@@ -177,7 +179,7 @@ function Intrastat() {
                         <div className="p-4 sm:p-6">
                             <div className="cjm-alert cjm-alert-success flex items-center gap-3">
                                 <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-                                No hay facturas con IVA incorrecto.
+                                <TranslatedText>No hay facturas con IVA incorrecto.</TranslatedText>
                             </div>
                         </div>
                     ) : (
@@ -187,9 +189,9 @@ function Intrastat() {
                                     <table className="cjm-table">
                                         <thead>
                                             <tr>
-                                                <th>Serie</th>
-                                                <th>Factura</th>
-                                                <th>IVA</th>
+                                                <th><TranslatedText>Serie</TranslatedText></th>
+                                                <th><TranslatedText>Factura</TranslatedText></th>
+                                                <th><TranslatedText>IVA</TranslatedText></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -210,16 +212,16 @@ function Intrastat() {
                                     <article className="cjm-data-card" key={i}>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <p className="cjm-data-label">Serie</p>
+                                                <p className="cjm-data-label"><TranslatedText>Serie</TranslatedText></p>
                                                 <p className="mt-1 app-text">{f.codserfacventa}</p>
                                             </div>
                                             <div>
-                                                <p className="cjm-data-label">Factura</p>
+                                                <p className="cjm-data-label"><TranslatedText>Factura</TranslatedText></p>
                                                 <p className="mt-1 app-text">{f.nfacventa}</p>
                                             </div>
                                         </div>
                                         <div className="mt-3 border-t border-[var(--cjm-border)] pt-3">
-                                            <p className="cjm-data-label">IVA</p>
+                                            <p className="cjm-data-label"><TranslatedText>IVA</TranslatedText></p>
                                             <p className="mt-1 font-semibold text-red-600">{f.codigos_iva}</p>
                                         </div>
                                     </article>
@@ -236,7 +238,7 @@ function Intrastat() {
                         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden="true" />
                         <div>
                             <h2 id="difference-results-title" className="font-semibold text-red-900">
-                                Facturas con descuadre
+                                <TranslatedText>Facturas con descuadre</TranslatedText>
                             </h2>
                         </div>
                         <span className="ml-auto rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">
@@ -249,10 +251,10 @@ function Intrastat() {
                             <table className="cjm-table">
                                 <thead>
                                     <tr>
-                                        <th>Factura</th>
-                                        <th className="text-right">Total Excel</th>
-                                        <th className="text-right">Total BD</th>
-                                        <th className="text-right">Diferencia</th>
+                                        <th><TranslatedText>Factura</TranslatedText></th>
+                                        <th className="text-right"><TranslatedText>Total Excel</TranslatedText></th>
+                                        <th className="text-right"><TranslatedText>Total BD</TranslatedText></th>
+                                        <th className="text-right"><TranslatedText>Diferencia</TranslatedText></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -274,20 +276,20 @@ function Intrastat() {
                     <div className="space-y-3 p-4 sm:hidden">
                         {errores.map((error, i) => (
                             <article className="cjm-data-card" key={i}>
-                                <p className="cjm-data-label">Factura</p>
+                                <p className="cjm-data-label"><TranslatedText>Factura</TranslatedText></p>
                                 <p className="mt-1 font-semibold app-text">{error.factura}</p>
                                 <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--cjm-border)] pt-3 text-sm">
                                     <div>
-                                        <dt className="cjm-data-label">Total Excel</dt>
+                                        <dt className="cjm-data-label"><TranslatedText>Total Excel</TranslatedText></dt>
                                         <dd className="mt-1 app-text">{Number(error.totalExcel || 0).toFixed(2)}</dd>
                                     </div>
                                     <div>
-                                        <dt className="cjm-data-label">Total BD</dt>
+                                        <dt className="cjm-data-label"><TranslatedText>Total BD</TranslatedText></dt>
                                         <dd className="mt-1 app-text">{Number(error.totalBD || 0).toFixed(2)}</dd>
                                     </div>
                                 </dl>
                                 <div className="mt-3 border-t border-[var(--cjm-border)] pt-3">
-                                    <p className="cjm-data-label">Diferencia</p>
+                                    <p className="cjm-data-label"><TranslatedText>Diferencia</TranslatedText></p>
                                     <p className="mt-1 font-semibold text-red-600">
                                         {Number(error.diferencia || 0).toFixed(2)}
                                     </p>

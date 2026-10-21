@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CircleMinus, CirclePlus, LockKeyhole, RefreshCw, Trash2, WalletCards } from 'lucide-react';
 
@@ -6,7 +9,7 @@ const emptyForm = { tipo: 'correccion', dias: '', motivo: '' };
 function formatDate(value) {
     if (!value) return '—';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-ES');
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(getActiveLocale());
 }
 
 export default function VacationBalanceAdjustments({ apiBase, token, employee, year, onChanged, disabled = false }) {
@@ -101,7 +104,7 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
     if (!employee) {
         return (
             <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-                Selecciona un empleado para gestionar ajustes de saldo.
+                <TranslatedText>Selecciona un empleado para gestionar ajustes de saldo.</TranslatedText>
             </div>
         );
     }
@@ -116,19 +119,19 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
                         <WalletCards size={18} />
                     </span>
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-900">Ajustes de saldo</h3>
-                        <p className="text-xs text-slate-500">Añade días extra, arrastres o correcciones sin modificar el histórico.</p>
+                        <h3 className="text-sm font-semibold text-slate-900"><TranslatedText>Ajustes de saldo</TranslatedText></h3>
+                        <p className="text-xs text-slate-500"><TranslatedText>Añade días extra, arrastres o correcciones sin modificar el histórico.</TranslatedText></p>
                     </div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                    Ajuste {year}: <strong className={totalAdjustment >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{totalAdjustment > 0 ? '+' : ''}{totalAdjustment}</strong>
+                    <TranslatedText>Ajuste</TranslatedText> {year}: <strong className={totalAdjustment >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{totalAdjustment > 0 ? '+' : ''}{totalAdjustment}</strong>
                 </div>
             </div>
 
             {disabled && (
                 <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600">
                     <LockKeyhole size={16} className="mt-0.5 shrink-0" />
-                    <span>El ejercicio {year} está cerrado. El histórico puede consultarse, pero los ajustes de saldo están bloqueados hasta reabrirlo.</span>
+                    <span><TranslatedText>El ejercicio</TranslatedText> {year} <TranslatedText>está cerrado. El histórico puede consultarse, pero los ajustes de saldo están bloqueados hasta reabrirlo.</TranslatedText></span>
                 </div>
             )}
 
@@ -139,13 +142,13 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
                     onChange={(event) => setForm((current) => ({ ...current, tipo: event.target.value }))}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
                 >
-                    <option value="correccion">Corrección</option>
-                    <option value="extra">Días extra</option>
-                    <option value="arrastre">Arrastre</option>
-                    <option value="otro">Otro</option>
+                    <option value="correccion"><TranslatedText>Corrección</TranslatedText></option>
+                    <option value="extra"><TranslatedText>Días extra</TranslatedText></option>
+                    <option value="arrastre"><TranslatedText>Arrastre</TranslatedText></option>
+                    <option value="otro"><TranslatedText>Otro</TranslatedText></option>
                 </select>
                 <div className="relative">
-                    <input
+                    <LocalizedElement><input
                         required
                         type="number"
                         step="0.5"
@@ -156,16 +159,16 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
                         onChange={(event) => setForm((current) => ({ ...current, dias: event.target.value }))}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
                         placeholder="Ej. +2 / -1"
-                    />
+                    /></LocalizedElement>
                 </div>
-                <input
+                <LocalizedElement><input
                     type="text"
                     value={form.motivo}
                     disabled={disabled}
                     onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
                     placeholder="Motivo del ajuste"
-                />
+                /></LocalizedElement>
                 <button
                     type="submit"
                     disabled={disabled || saving || !form.dias || Number(form.dias) === 0}
@@ -179,16 +182,16 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
 
             <div className="border-t border-slate-200 bg-white">
                 <div className="flex items-center justify-between px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Histórico de ajustes</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400"><TranslatedText>Histórico de ajustes</TranslatedText></p>
                     <button type="button" onClick={load} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
-                        <RefreshCw size={13} /> Actualizar
+                        <RefreshCw size={13} /> <TranslatedText>Actualizar</TranslatedText>
                     </button>
                 </div>
 
                 {loading ? (
-                    <p className="px-4 pb-4 text-sm text-slate-500">Cargando ajustes…</p>
+                    <p className="px-4 pb-4 text-sm text-slate-500"><TranslatedText>Cargando ajustes…</TranslatedText></p>
                 ) : items.length === 0 ? (
-                    <p className="px-4 pb-4 text-sm text-slate-500">No hay ajustes para este empleado en {year}.</p>
+                    <p className="px-4 pb-4 text-sm text-slate-500"><TranslatedText>No hay ajustes para este empleado en</TranslatedText> {year}.</p>
                 ) : (
                     <div className="divide-y divide-slate-100">
                         {items.map((item) => {
@@ -201,13 +204,13 @@ export default function VacationBalanceAdjustments({ apiBase, token, employee, y
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-medium text-slate-800">
-                                            {days > 0 ? '+' : ''}{days} días · {item.tipo || 'ajuste'}
+                                            {days > 0 ? '+' : ''}{days} <TranslatedText>días ·</TranslatedText> {item.tipo || 'ajuste'}
                                         </p>
                                         <p className="truncate text-xs text-slate-500">{item.motivo || 'Sin motivo'} · {formatDate(item.created_at)}</p>
                                     </div>
-                                    <button type="button" disabled={disabled} onClick={() => remove(item.id)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30" aria-label="Eliminar ajuste">
+                                    <LocalizedElement><button type="button" disabled={disabled} onClick={() => remove(item.id)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30" aria-label="Eliminar ajuste">
                                         <Trash2 size={15} />
-                                    </button>
+                                    </button></LocalizedElement>
                                 </div>
                             );
                         })}

@@ -1,3 +1,5 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../../i18n/LocalizedElement.jsx';
 import React, { useMemo } from 'react';
 import { provinces } from '../../../Constants/constants';
 
@@ -60,26 +62,26 @@ export default function InfoTab({ client }) {
     return (
         <div className="clients-info">
             <div className="clients-info__layout">
-                <section className="clients-info__section" aria-label="Datos del cliente">
-                    <h4 className="clients-info__section-head">Datos comerciales</h4>
+                <LocalizedElement><section className="clients-info__section" aria-label="Datos del cliente">
+                    <h4 className="clients-info__section-head"><TranslatedText>Datos comerciales</TranslatedText></h4>
                     <dl>
-                        <Detail title="Cliente">{client?.razclien}</Detail>
-                        <Detail title="Código">{client?.codclien}</Detail>
-                        <Detail title="Tipo de cliente">{getManagementLabel(client?.codgesti)}</Detail>
-                        <Detail title="Tarifa asignada">{getTariffLabel(client?.codtarifa)}</Detail>
+                        <LocalizedElement><Detail title="Cliente">{client?.razclien}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Código">{client?.codclien}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Tipo de cliente">{getManagementLabel(client?.codgesti)}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Tarifa asignada">{getTariffLabel(client?.codtarifa)}</Detail></LocalizedElement>
                     </dl>
-                </section>
-                <section className="clients-info__section" aria-label="Contacto del cliente">
-                    <h4 className="clients-info__section-head">Contacto y ubicación</h4>
+                </section></LocalizedElement>
+                <LocalizedElement><section className="clients-info__section" aria-label="Contacto del cliente">
+                    <h4 className="clients-info__section-head"><TranslatedText>Contacto y ubicación</TranslatedText></h4>
                     <dl>
-                        <Detail title="Teléfono">{telephone ? <a href={`tel:${telephone}`}>{telephone}</a> : null}</Detail>
-                        <Detail title="Correo">{emails.length ? emails.map((email, i) => (
+                        <LocalizedElement><Detail title="Teléfono">{telephone ? <a href={`tel:${telephone}`}>{telephone}</a> : null}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Correo">{emails.length ? emails.map((email, i) => (
                             <React.Fragment key={email}>
                                 {i > 0 ? ', ' : null}<a href={`mailto:${email}`}>{email}</a>
                             </React.Fragment>
-                        )) : null}</Detail>
-                        <Detail title="Dirección">{client?.direccion}</Detail>
-                        <Detail title="Localidad">{client?.localidad}</Detail>
+                        )) : null}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Dirección">{client?.direccion}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Localidad">{client?.localidad}</Detail></LocalizedElement>
                         <Detail title="Provincia">{provinceName}</Detail>
                         <Detail title="País">{client?.codpais}</Detail>
                     </dl>
@@ -87,11 +89,11 @@ export default function InfoTab({ client }) {
                         <div className="clients-info__tip">
                             <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
                                 target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">
-                                Abrir dirección en Google Maps ↗
+                                <TranslatedText>Abrir dirección en Google Maps ↗</TranslatedText>
                             </a>
                         </div>
                     )}
-                </section>
+                </section></LocalizedElement>
             </div>
         </div>
     );

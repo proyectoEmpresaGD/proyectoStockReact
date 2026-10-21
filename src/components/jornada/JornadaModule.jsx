@@ -1,3 +1,7 @@
+import { localeDateTimeFormatter } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
@@ -58,11 +62,11 @@ const eventLabel = {
 };
 
 const formatTime = (value) => value
-    ? new Intl.DateTimeFormat('es-ES', { timeZone: MADRID_ZONE, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(value))
+    ? localeDateTimeFormatter( { timeZone: MADRID_ZONE, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(value))
     : '—';
 
 const formatShortDate = (value) => value
-    ? new Intl.DateTimeFormat('es-ES', { timeZone: MADRID_ZONE, day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00Z`))
+    ? localeDateTimeFormatter( { timeZone: MADRID_ZONE, day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00Z`))
     : '—';
 
 const dateKey = (date = new Date()) => {
@@ -181,7 +185,7 @@ function StatusBadge({ status }) {
 }
 
 function Timeline({ events }) {
-    if (!events.length) return <EmptyState title="Aún no has iniciado la jornada" description="Selecciona tu modalidad y pulsa Iniciar jornada." />;
+    if (!events.length) return <LocalizedElement><EmptyState title="Aún no has iniciado la jornada" description="Selecciona tu modalidad y pulsa Iniciar jornada." /></LocalizedElement>;
 
     return (
         <ol className="space-y-3">
@@ -197,8 +201,8 @@ function Timeline({ events }) {
                         </div>
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                             <span>{modeLabel(event.modalidad)}</span>
-                            {event.pending_sync && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">Pendiente de sincronizar</span>}
-                            {!event.pending_sync && event.source === 'offline' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">Registro offline · revisión</span>}
+                            {event.pending_sync && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"><TranslatedText>Pendiente de sincronizar</TranslatedText></span>}
+                            {!event.pending_sync && event.source === 'offline' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"><TranslatedText>Registro offline · revisión</TranslatedText></span>}
                         </div>
                     </div>
                 </li>
@@ -208,8 +212,8 @@ function Timeline({ events }) {
 }
 
 function TeamPanel({ people, loading }) {
-    if (loading) return <div className="py-8 text-center text-sm text-slate-500">Actualizando equipo…</div>;
-    if (!people.length) return <p className="py-8 text-center text-sm text-slate-500">No hay usuarios disponibles.</p>;
+    if (loading) return <div className="py-8 text-center text-sm text-slate-500"><TranslatedText>Actualizando equipo…</TranslatedText></div>;
+    if (!people.length) return <p className="py-8 text-center text-sm text-slate-500"><TranslatedText>No hay usuarios disponibles.</TranslatedText></p>;
 
     return (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -223,14 +227,14 @@ function TeamPanel({ people, loading }) {
                         <StatusBadge status={person.status} />
                     </div>
                     <div className="mt-4 flex items-center justify-between text-sm">
-                        <span className="text-slate-500">Modalidad</span>
+                        <span className="text-slate-500"><TranslatedText>Modalidad</TranslatedText></span>
                         <span className="font-medium text-slate-800">{modeLabel(person.modalidad)}</span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-sm">
-                        <span className="text-slate-500">Último evento</span>
+                        <span className="text-slate-500"><TranslatedText>Último evento</TranslatedText></span>
                         <span className="font-mono text-slate-800">{formatTime(person.occurred_at)}</span>
                     </div>
-                    {person.requires_review && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Tiene un registro offline pendiente de revisión.</p>}
+                    {person.requires_review && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><TranslatedText>Tiene un registro offline pendiente de revisión.</TranslatedText></p>}
                 </article>
             ))}
         </div>
@@ -272,8 +276,8 @@ export default function JornadaModule() {
 
             if (navigator.onLine) {
                 const syncResult = await syncPendingJornadaEvents({ token, userId: user.id });
-                if (syncResult.synced > 0) toast.success(`${syncResult.synced} registro(s) offline sincronizado(s).`);
-                if (syncResult.errors.length > 0) toast.warning('Hay registros offline que necesitan revisión antes de sincronizarse.');
+                if (syncResult.synced > 0) toast.success(translateCurrent(syncResult.synced === 1 ? 'Un registro sin conexión sincronizado.' : '{count} registros sin conexión sincronizados.', { count: syncResult.synced }));
+                if (syncResult.errors.length > 0) toast.warning(translateCurrent('Hay registros offline que necesitan revisión antes de sincronizarse.'));
             }
 
             const [todayData, historyData, incidentsData] = await Promise.all([
@@ -340,7 +344,7 @@ export default function JornadaModule() {
             const result = await registerJornadaEvent({ token, userId: user.id, tipo, modalidad: activeMode });
             if (result.offline) {
                 setPendingEvents(getPendingJornadaEvents(user.id));
-                toast.warning('Sin conexión: el fichaje se ha guardado en este dispositivo y se sincronizará al recuperar Internet.');
+                toast.warning(translateCurrent('Sin conexión: el fichaje se ha guardado en este dispositivo y se sincronizará al recuperar Internet.'));
             } else {
                 toast.success(eventLabel[tipo] || 'Registro guardado.');
                 await refresh({ quiet: true });
@@ -363,7 +367,7 @@ export default function JornadaModule() {
             });
             setIncidentReason('');
             setShowIncident(false);
-            toast.success('Incidencia registrada. El fichaje original no se ha modificado.');
+            toast.success(translateCurrent('Incidencia registrada. El fichaje original no se ha modificado.'));
             const data = await loadJornadaIncidents(token);
             setIncidents(data.incidents || []);
         } catch (error) {
@@ -378,7 +382,7 @@ export default function JornadaModule() {
     const exportCsv = async (scope = 'self') => {
         try {
             await downloadJornadaCsv(token, { desde: exportFrom, hasta: exportTo, scope });
-            toast.success(scope === 'team' ? 'Exportación del equipo preparada.' : 'Exportación personal preparada.');
+            toast.success(translateCurrent(scope === 'team' ? 'Exportación del equipo preparada.' : 'Exportación personal preparada.'));
         } catch (error) {
             toast.error(error.message || 'No se pudo descargar la exportación.');
         }
@@ -390,9 +394,9 @@ export default function JornadaModule() {
                 <div className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <UserX className="mt-0.5 h-5 w-5 shrink-0 text-slate-600" />
                     <div>
-                        <p className="font-semibold text-slate-900">Usuario no sujeto al registro de jornada</p>
-                        <p className="mt-1 text-sm text-slate-600">No puedes crear nuevos fichajes desde esta fecha. El histórico anterior se conserva y seguirá disponible cuando corresponda.</p>
-                        {participation.assignment?.motivo && <p className="mt-2 text-xs text-slate-500">Motivo registrado: {participation.assignment.motivo}</p>}
+                        <p className="font-semibold text-slate-900"><TranslatedText>Usuario no sujeto al registro de jornada</TranslatedText></p>
+                        <p className="mt-1 text-sm text-slate-600"><TranslatedText>No puedes crear nuevos fichajes desde esta fecha. El histórico anterior se conserva y seguirá disponible cuando corresponda.</TranslatedText></p>
+                        {participation.assignment?.motivo && <p className="mt-2 text-xs text-slate-500"><TranslatedText>Motivo registrado:</TranslatedText> {participation.assignment.motivo}</p>}
                     </div>
                 </div>
             )}
@@ -402,11 +406,11 @@ export default function JornadaModule() {
                     <div className="flex gap-3">
                         <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
                         <div>
-                            <p className="font-semibold text-amber-900">{pendingEvents.length} registro(s) pendiente(s) de sincronizar</p>
-                            <p className="mt-1 text-sm text-amber-800">Se conservan en este dispositivo y quedarán identificados como registros offline.</p>
+                            <p className="font-semibold text-amber-900">{pendingEvents.length} <TranslatedText>registro(s) pendiente(s) de sincronizar</TranslatedText></p>
+                            <p className="mt-1 text-sm text-amber-800"><TranslatedText>Se conservan en este dispositivo y quedarán identificados como registros offline.</TranslatedText></p>
                         </div>
                     </div>
-                    <button type="button" onClick={() => refresh()} className="cjm-secondary-button"><RefreshCw size={16} /> Sincronizar</button>
+                    <button type="button" onClick={() => refresh()} className="cjm-secondary-button"><RefreshCw size={16} /> <TranslatedText>Sincronizar</TranslatedText></button>
                 </div>
             )}
 
@@ -418,24 +422,24 @@ export default function JornadaModule() {
                             <span className="text-sm text-slate-500">{modeLabel(currentMode)}</span>
                         </div>
                         <p className="mt-4 font-mono text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-                            {new Intl.DateTimeFormat('es-ES', { timeZone: MADRID_ZONE, hour: '2-digit', minute: '2-digit' }).format(now)}
+                            {localeDateTimeFormatter( { timeZone: MADRID_ZONE, hour: '2-digit', minute: '2-digit' }).format(now)}
                         </p>
                         <p className="mt-1 text-sm capitalize text-slate-500">
-                            {new Intl.DateTimeFormat('es-ES', { timeZone: MADRID_ZONE, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now)}
+                            {localeDateTimeFormatter( { timeZone: MADRID_ZONE, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now)}
                         </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
-                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Tiempo efectivo</p><p className="mt-1 font-semibold text-slate-900">{minutesLabel(summary.workedMinutes)}</p></div>
-                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Pausas</p><p className="mt-1 font-semibold text-slate-900">{minutesLabel(summary.pauseMinutes)}</p></div>
-                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Primera entrada</p><p className="mt-1 font-mono font-semibold text-slate-900">{formatTime(summary.firstEntry)}</p></div>
-                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Última salida</p><p className="mt-1 font-mono font-semibold text-slate-900">{formatTime(summary.lastExit)}</p></div>
+                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500"><TranslatedText>Tiempo efectivo</TranslatedText></p><p className="mt-1 font-semibold text-slate-900">{minutesLabel(summary.workedMinutes)}</p></div>
+                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500"><TranslatedText>Pausas</TranslatedText></p><p className="mt-1 font-semibold text-slate-900">{minutesLabel(summary.pauseMinutes)}</p></div>
+                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500"><TranslatedText>Primera entrada</TranslatedText></p><p className="mt-1 font-mono font-semibold text-slate-900">{formatTime(summary.firstEntry)}</p></div>
+                        <div className="rounded-2xl bg-slate-50 p-3"><p className="text-xs text-slate-500"><TranslatedText>Última salida</TranslatedText></p><p className="mt-1 font-mono font-semibold text-slate-900">{formatTime(summary.lastExit)}</p></div>
                     </div>
                 </div>
 
                 {summary.status === 'fuera' && participation?.requiresRegistration !== false && (
                     <div className="mt-6 border-t border-slate-100 pt-5">
-                        <p className="mb-3 text-sm font-semibold text-slate-800">¿Desde dónde vas a trabajar?</p>
+                        <p className="mb-3 text-sm font-semibold text-slate-800"><TranslatedText>¿Desde dónde vas a trabajar?</TranslatedText></p>
                         <ModeSelector value={mode} onChange={setMode} disabled={submitting} />
                     </div>
                 )}
@@ -443,23 +447,23 @@ export default function JornadaModule() {
                 <div className="mt-6 flex flex-col gap-2 sm:flex-row">
                     {summary.status === 'fuera' && participation?.requiresRegistration !== false && (
                         <button type="button" onClick={() => register('entrada')} disabled={submitting || loading} className="cjm-primary-button min-h-12 justify-center sm:min-w-48">
-                            <LogIn size={18} /> Iniciar jornada
+                            <LogIn size={18} /> <TranslatedText>Iniciar jornada</TranslatedText>
                         </button>
                     )}
                     {summary.status === 'trabajando' && participation?.requiresRegistration !== false && (
                         <>
-                            <button type="button" onClick={() => register('inicio_pausa')} disabled={submitting} className="cjm-secondary-button min-h-12 justify-center sm:min-w-44"><Coffee size={18} /> Iniciar pausa</button>
-                            <button type="button" onClick={() => register('salida')} disabled={submitting} className="cjm-danger-button min-h-12 justify-center sm:min-w-44"><LogOut size={18} /> Finalizar jornada</button>
+                            <button type="button" onClick={() => register('inicio_pausa')} disabled={submitting} className="cjm-secondary-button min-h-12 justify-center sm:min-w-44"><Coffee size={18} /> <TranslatedText>Iniciar pausa</TranslatedText></button>
+                            <button type="button" onClick={() => register('salida')} disabled={submitting} className="cjm-danger-button min-h-12 justify-center sm:min-w-44"><LogOut size={18} /> <TranslatedText>Finalizar jornada</TranslatedText></button>
                         </>
                     )}
                     {summary.status === 'pausa' && participation?.requiresRegistration !== false && (
                         <>
-                            <button type="button" onClick={() => register('fin_pausa')} disabled={submitting} className="cjm-primary-button min-h-12 justify-center sm:min-w-44"><Play size={18} /> Reanudar</button>
-                            <button type="button" onClick={() => register('salida')} disabled={submitting} className="cjm-danger-button min-h-12 justify-center sm:min-w-44"><LogOut size={18} /> Finalizar jornada</button>
+                            <button type="button" onClick={() => register('fin_pausa')} disabled={submitting} className="cjm-primary-button min-h-12 justify-center sm:min-w-44"><Play size={18} /> <TranslatedText>Reanudar</TranslatedText></button>
+                            <button type="button" onClick={() => register('salida')} disabled={submitting} className="cjm-danger-button min-h-12 justify-center sm:min-w-44"><LogOut size={18} /> <TranslatedText>Finalizar jornada</TranslatedText></button>
                         </>
                     )}
-                    <button type="button" onClick={() => exportCsv('self')} className="cjm-ghost-button min-h-12 justify-center sm:ml-auto"><Download size={17} /> CSV del mes</button>
-                    {participation?.requiresRegistration !== false && <button type="button" onClick={() => setShowIncident((value) => !value)} className="cjm-ghost-button min-h-12 justify-center"><AlertTriangle size={17} /> Comunicar incidencia</button>}
+                    <button type="button" onClick={() => exportCsv('self')} className="cjm-ghost-button min-h-12 justify-center sm:ml-auto"><Download size={17} /> <TranslatedText>CSV del mes</TranslatedText></button>
+                    {participation?.requiresRegistration !== false && <button type="button" onClick={() => setShowIncident((value) => !value)} className="cjm-ghost-button min-h-12 justify-center"><AlertTriangle size={17} /> <TranslatedText>Comunicar incidencia</TranslatedText></button>}
                 </div>
             </section>
 
@@ -468,19 +472,19 @@ export default function JornadaModule() {
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-700" />
                         <div className="flex-1">
-                            <h2 className="font-semibold text-amber-950">Comunicar una incidencia</h2>
-                            <p className="mt-1 text-sm text-amber-800">La incidencia no modifica ni borra el registro original. RRHH podrá revisarla posteriormente.</p>
+                            <h2 className="font-semibold text-amber-950"><TranslatedText>Comunicar una incidencia</TranslatedText></h2>
+                            <p className="mt-1 text-sm text-amber-800"><TranslatedText>La incidencia no modifica ni borra el registro original. RRHH podrá revisarla posteriormente.</TranslatedText></p>
                             <div className="mt-4 grid gap-3 md:grid-cols-[220px_1fr]">
                                 <select value={incidentType} onChange={(e) => setIncidentType(e.target.value)} className="cjm-input">
-                                    <option value="olvido_fichaje">Olvido de fichaje</option>
-                                    <option value="error_hora">Hora incorrecta</option>
-                                    <option value="problema_tecnico">Problema técnico</option>
-                                    <option value="otro">Otro</option>
+                                    <option value="olvido_fichaje"><TranslatedText>Olvido de fichaje</TranslatedText></option>
+                                    <option value="error_hora"><TranslatedText>Hora incorrecta</TranslatedText></option>
+                                    <option value="problema_tecnico"><TranslatedText>Problema técnico</TranslatedText></option>
+                                    <option value="otro"><TranslatedText>Otro</TranslatedText></option>
                                 </select>
-                                <textarea required minLength={5} maxLength={1000} value={incidentReason} onChange={(e) => setIncidentReason(e.target.value)} className="cjm-input min-h-24" placeholder="Explica brevemente qué ha ocurrido…" />
+                                <LocalizedElement><textarea required minLength={5} maxLength={1000} value={incidentReason} onChange={(e) => setIncidentReason(e.target.value)} className="cjm-input min-h-24" placeholder="Explica brevemente qué ha ocurrido…" /></LocalizedElement>
                             </div>
                             <div className="mt-3 flex justify-end">
-                                <button type="submit" className="cjm-primary-button"><Send size={16} /> Enviar incidencia</button>
+                                <button type="submit" className="cjm-primary-button"><Send size={16} /> <TranslatedText>Enviar incidencia</TranslatedText></button>
                             </div>
                         </div>
                     </div>
@@ -490,20 +494,20 @@ export default function JornadaModule() {
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <section className="rounded-3xl border border-slate-200 bg-slate-50/60 p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
-                        <div><h2 className="flex items-center gap-2 font-semibold text-slate-900"><Clock3 size={18} /> Hoy</h2><p className="mt-1 text-sm text-slate-500">Registro exacto de eventos de la jornada.</p></div>
-                        <button type="button" onClick={() => refresh()} disabled={loading} className="cjm-icon-button" aria-label="Actualizar"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button>
+                        <div><h2 className="flex items-center gap-2 font-semibold text-slate-900"><Clock3 size={18} /> <TranslatedText>Hoy</TranslatedText></h2><p className="mt-1 text-sm text-slate-500"><TranslatedText>Registro exacto de eventos de la jornada.</TranslatedText></p></div>
+                        <LocalizedElement><button type="button" onClick={() => refresh()} disabled={loading} className="cjm-icon-button" aria-label="Actualizar"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button></LocalizedElement>
                     </div>
                     <Timeline events={events} />
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-white p-5">
-                    <div className="mb-4"><h2 className="flex items-center gap-2 font-semibold text-slate-900"><History size={18} /> Últimos 30 días</h2><p className="mt-1 text-sm text-slate-500">Resumen de tiempo efectivo registrado.</p></div>
+                    <div className="mb-4"><h2 className="flex items-center gap-2 font-semibold text-slate-900"><History size={18} /> <TranslatedText>Últimos 30 días</TranslatedText></h2><p className="mt-1 text-sm text-slate-500"><TranslatedText>Resumen de tiempo efectivo registrado.</TranslatedText></p></div>
                     <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
-                        {history.length === 0 ? <p className="py-8 text-center text-sm text-slate-500">Todavía no hay histórico en el nuevo módulo.</p> : history.map((day) => (
+                        {history.length === 0 ? <p className="py-8 text-center text-sm text-slate-500"><TranslatedText>Todavía no hay histórico en el nuevo módulo.</TranslatedText></p> : history.map((day) => (
                             <article key={day.date} className="rounded-2xl border border-slate-200 p-3">
                                 <div className="flex items-center justify-between gap-3">
-                                    <div><p className="font-semibold text-slate-900">{formatShortDate(day.date)}</p><p className="mt-1 text-xs text-slate-500">{day.events.length} evento(s)</p></div>
-                                    <div className="text-right"><p className="font-semibold text-slate-900">{minutesLabel(day.summary.workedMinutes)}</p>{day.summary.requiresReview && <p className="mt-1 text-xs text-amber-700">Revisión pendiente</p>}</div>
+                                    <div><p className="font-semibold text-slate-900">{formatShortDate(day.date)}</p><p className="mt-1 text-xs text-slate-500">{day.events.length} <TranslatedText>evento(s)</TranslatedText></p></div>
+                                    <div className="text-right"><p className="font-semibold text-slate-900">{minutesLabel(day.summary.workedMinutes)}</p>{day.summary.requiresReview && <p className="mt-1 text-xs text-amber-700"><TranslatedText>Revisión pendiente</TranslatedText></p>}</div>
                                 </div>
                             </article>
                         ))}
@@ -542,8 +546,8 @@ export default function JornadaModule() {
             )}
 
             <section className="rounded-3xl border border-slate-200 bg-white p-5">
-                <div className="mb-4"><h2 className="flex items-center gap-2 font-semibold text-slate-900"><AlertTriangle size={18} /> Mis incidencias</h2><p className="mt-1 text-sm text-slate-500">Solicitudes y problemas comunicados, conservando siempre el registro original.</p></div>
-                {incidents.length === 0 ? <p className="py-5 text-center text-sm text-slate-500">No tienes incidencias registradas.</p> : (
+                <div className="mb-4"><h2 className="flex items-center gap-2 font-semibold text-slate-900"><AlertTriangle size={18} /> <TranslatedText>Mis incidencias</TranslatedText></h2><p className="mt-1 text-sm text-slate-500"><TranslatedText>Solicitudes y problemas comunicados, conservando siempre el registro original.</TranslatedText></p></div>
+                {incidents.length === 0 ? <p className="py-5 text-center text-sm text-slate-500"><TranslatedText>No tienes incidencias registradas.</TranslatedText></p> : (
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {incidents.slice(0, 12).map((incident) => (
                             <article key={incident.id} className="rounded-2xl border border-slate-200 p-3">
@@ -558,10 +562,10 @@ export default function JornadaModule() {
             {isManager && (
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
-                        <div><h2 className="flex items-center gap-2 font-semibold text-slate-900"><UsersRound size={18} /> Estado del equipo</h2><p className="mt-1 text-sm text-slate-500">Vista rápida para RRHH. No utiliza geolocalización.</p></div>
+                        <div><h2 className="flex items-center gap-2 font-semibold text-slate-900"><UsersRound size={18} /> <TranslatedText>Estado del equipo</TranslatedText></h2><p className="mt-1 text-sm text-slate-500"><TranslatedText>Vista rápida para RRHH. No utiliza geolocalización.</TranslatedText></p></div>
                         <div className="flex items-center gap-2">
-                            <div className="hidden items-center gap-2 text-xs text-emerald-700 sm:flex"><CheckCircle2 size={15} /> Datos del servidor</div>
-                            <button type="button" onClick={() => exportCsv('team')} className="cjm-secondary-button"><Download size={16} /> CSV equipo</button>
+                            <div className="hidden items-center gap-2 text-xs text-emerald-700 sm:flex"><CheckCircle2 size={15} /> <TranslatedText>Datos del servidor</TranslatedText></div>
+                            <button type="button" onClick={() => exportCsv('team')} className="cjm-secondary-button"><Download size={16} /> <TranslatedText>CSV equipo</TranslatedText></button>
                         </div>
                     </div>
                     <TeamPanel people={team} loading={teamLoading} />
@@ -569,13 +573,13 @@ export default function JornadaModule() {
                     <div className="mt-6 border-t border-slate-200 pt-5">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <h3 className="font-semibold text-slate-900">Incidencias comunicadas</h3>
-                                <p className="mt-1 text-sm text-slate-500">Las incidencias generales se conservan como contexto. Las modificaciones de fichajes se tramitan desde Correcciones trazables, sin editar el evento original.</p>
+                                <h3 className="font-semibold text-slate-900"><TranslatedText>Incidencias comunicadas</TranslatedText></h3>
+                                <p className="mt-1 text-sm text-slate-500"><TranslatedText>Las incidencias generales se conservan como contexto. Las modificaciones de fichajes se tramitan desde Correcciones trazables, sin editar el evento original.</TranslatedText></p>
                             </div>
-                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{teamIncidents.filter((item) => item.estado === 'pendiente').length} pendientes</span>
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{teamIncidents.filter((item) => item.estado === 'pendiente').length} <TranslatedText>pendientes</TranslatedText></span>
                         </div>
                         {teamIncidents.length === 0 ? (
-                            <p className="py-5 text-center text-sm text-slate-500">No hay incidencias comunicadas.</p>
+                            <p className="py-5 text-center text-sm text-slate-500"><TranslatedText>No hay incidencias comunicadas.</TranslatedText></p>
                         ) : (
                             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                 {teamIncidents.slice(0, 12).map((incident) => (
@@ -595,7 +599,7 @@ export default function JornadaModule() {
             )}
 
             <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                <div className="flex gap-3"><Smartphone className="mt-0.5 h-5 w-5 shrink-0" /><p>El módulo está preparado para móvil y comerciales en desplazamiento. No registra GPS ni ubicación continua. Los eventos offline se identifican y quedan sujetos a revisión para no confundirlos con una marca horaria del servidor.</p></div>
+                <div className="flex gap-3"><Smartphone className="mt-0.5 h-5 w-5 shrink-0" /><p><TranslatedText>El módulo está preparado para móvil y comerciales en desplazamiento. No registra GPS ni ubicación continua. Los eventos offline se identifican y quedan sujetos a revisión para no confundirlos con una marca horaria del servidor.</TranslatedText></p></div>
             </div>
         </div>
     );

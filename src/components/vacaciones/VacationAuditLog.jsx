@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { History, RefreshCw } from 'lucide-react';
 
@@ -30,7 +33,7 @@ const labels = {
 
 function formatDate(value) {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString(getActiveLocale(), { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function detailText(row) {
@@ -82,11 +85,11 @@ export default function VacationAuditLog({ apiBase, token, year, refreshKey = 0 
                 <div className="flex items-start gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-700"><History size={18} /></span>
                     <div>
-                        <h3 className="text-base font-semibold text-slate-900">Auditoría · {year}</h3>
-                        <p className="mt-1 text-sm text-slate-500">Historial de decisiones y cambios realizados en el módulo. Se conserva aunque una regla o ajuste se elimine.</p>
+                        <h3 className="text-base font-semibold text-slate-900"><TranslatedText>Auditoría ·</TranslatedText> {year}</h3>
+                        <p className="mt-1 text-sm text-slate-500"><TranslatedText>Historial de decisiones y cambios realizados en el módulo. Se conserva aunque una regla o ajuste se elimine.</TranslatedText></p>
                     </div>
                 </div>
-                <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-50" aria-label="Actualizar auditoría"><RefreshCw size={15} /></button>
+                <LocalizedElement><button type="button" onClick={load} disabled={loading} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-50" aria-label="Actualizar auditoría"><RefreshCw size={15} /></button></LocalizedElement>
             </div>
 
             {error && <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -95,11 +98,11 @@ export default function VacationAuditLog({ apiBase, token, year, refreshKey = 0 
                 <table className="min-w-full text-left text-sm">
                     <thead className="text-xs uppercase tracking-wide text-slate-500">
                         <tr>
-                            <th className="px-3 py-2">Fecha</th>
-                            <th className="px-3 py-2">Acción</th>
-                            <th className="px-3 py-2">Realizado por</th>
-                            <th className="px-3 py-2">Empleado</th>
-                            <th className="px-3 py-2">Detalle</th>
+                            <th className="px-3 py-2"><TranslatedText>Fecha</TranslatedText></th>
+                            <th className="px-3 py-2"><TranslatedText>Acción</TranslatedText></th>
+                            <th className="px-3 py-2"><TranslatedText>Realizado por</TranslatedText></th>
+                            <th className="px-3 py-2"><TranslatedText>Empleado</TranslatedText></th>
+                            <th className="px-3 py-2"><TranslatedText>Detalle</TranslatedText></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,8 +117,8 @@ export default function VacationAuditLog({ apiBase, token, year, refreshKey = 0 
                         ))}
                     </tbody>
                 </table>
-                {!loading && visibleRows.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500">Todavía no hay actividad registrada para {year}.</p>}
-                {loading && <p className="px-3 py-8 text-center text-sm text-slate-500">Cargando actividad…</p>}
+                {!loading && visibleRows.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>Todavía no hay actividad registrada para</TranslatedText> {year}.</p>}
+                {loading && <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>Cargando actividad…</TranslatedText></p>}
             </div>
         </section>
     );

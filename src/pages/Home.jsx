@@ -1,3 +1,4 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -13,9 +14,11 @@ import {
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { userCanAccessRoute } from '../utils/roleAccessConfig.js';
 import useVacationModuleAccess from '../hooks/useVacationModuleAccess.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 function Home() {
     const navigate = useNavigate();
+    const { language, t } = useLanguage();
     const { token, logout, user } = useAuthContext();
     const { canAccess: canAccessVacations } = useVacationModuleAccess();
     const rolesWithoutKpis = ['comercial', 'decoandyou'];
@@ -36,13 +39,13 @@ function Home() {
         : 'Equipo';
 
     const currentDate = useMemo(
-        () => new Intl.DateTimeFormat('es-ES', {
+        () => new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'es-ES', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric',
         }).format(new Date()),
-        []
+        [language]
     );
 
     useEffect(() => {
@@ -119,40 +122,40 @@ function Home() {
     const shortcutCards = [
         ...(userCanAccessRoute(user?.role, '/clients', user?.route_access)
             ? [{
-                title: 'Clientes',
-                eyebrow: 'Área comercial',
-                description: 'Consulta clientes, historial, contactos y seguimiento desde un único lugar.',
+                title: t('Clientes'),
+                eyebrow: t('Área comercial'),
+                description: t('Consulta clientes, historial, contactos y seguimiento desde un único lugar.'),
                 to: '/clients',
                 icon: <AiOutlineUser size={27} />,
             }]
             : []),
         ...(userCanAccessRoute(user?.role, '/stock', user?.route_access)
             ? [{
-                title: 'Stock',
-                eyebrow: 'Área de almacén',
-                description: 'Revisa disponibilidad, lotes, reservas y movimientos de inventario.',
+                title: t('Stock'),
+                eyebrow: t('Área de almacén'),
+                description: t('Revisa disponibilidad, lotes, reservas y movimientos de inventario.'),
                 to: '/stock',
                 icon: <AiOutlineStock size={27} />,
             }]
             : []),
         ...(String(user?.role || '').toLowerCase() === 'almacen' && userCanAccessRoute(user?.role, '/sga', user?.route_access)
             ? [{
-                title: 'SGA · Almacén',
-                eyebrow: 'Tablet · Modo simulación',
-                description: 'Entradas, salidas con merma y regularizaciones. Sin modificar existencias.',
+                title: t('SGA · Almacén'),
+                eyebrow: t('Tablet · Modo simulación'),
+                description: t('Entradas, salidas con merma y regularizaciones. Sin modificar existencias.'),
                 to: '/sga',
                 icon: <AiOutlineInbox size={27} />,
             }]
             : []),
         {
-            title: 'Operaciones',
-            eyebrow: 'Gestión interna',
-            description: 'Accede desde el menú a pedidos, documentos, etiquetas y utilidades.',
+            title: t('Operaciones'),
+            eyebrow: t('Gestión interna'),
+            description: t('Accede desde el menú a pedidos, documentos, etiquetas y utilidades.'),
             icon: <AiOutlineFile size={27} />,
         },
         ...(userCanAccessRoute(user?.role, '/rrhh/vacaciones', user?.route_access) && canAccessVacations
             ? [{
-                title: 'Vacaciones',
+                title: t('Vacaciones'),
                 eyebrow: ['admin', 'rrhh'].includes(String(user?.role || '').toLowerCase()) ? 'Recursos Humanos' : 'Mi calendario',
                 description: ['admin', 'rrhh'].includes(String(user?.role || '').toLowerCase())
                     ? 'Gestiona solicitudes, calendario, bloqueos y límites de ocupación.'
@@ -165,27 +168,27 @@ function Home() {
 
     const kpis = [
         {
-            label: 'Clientes',
+            label: t('Clientes'),
             value: totalClients,
-            helper: 'Registros disponibles',
+            helper: t('Registros disponibles'),
             icon: <AiOutlineTeam size={22} />,
         },
         {
-            label: 'Productos',
+            label: t('Productos'),
             value: totalProducts,
-            helper: 'Referencias gestionadas',
+            helper: t('Referencias gestionadas'),
             icon: <AiOutlineAppstore size={22} />,
         },
         {
-            label: 'Stock total',
+            label: t('Stock total'),
             value: totalStock,
-            helper: 'Unidades en inventario',
+            helper: t('Unidades en inventario'),
             icon: <AiOutlineStock size={22} />,
         },
         {
-            label: 'Pedidos',
+            label: t('Pedidos'),
             value: totalOrders,
-            helper: 'Pedidos únicos',
+            helper: t('Pedidos únicos'),
             icon: <AiOutlineFile size={22} />,
         },
     ];
@@ -200,19 +203,18 @@ function Home() {
                                 <span className="cjm-brand-dot" />
                                 Sesión activa
                             </div>
-                            <p className="cjm-kicker mt-6">CJM Group · Panel operativo</p>
+                            <p className="cjm-kicker mt-6">{t('CJM Group · Panel operativo')}</p>
                             <h1 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-                                Bienvenido, {displayName}
+                                {t('Bienvenido, {name}', { name: displayName })}
                             </h1>
                             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
-                                Un punto central para gestionar clientes, productos, inventario y procesos internos
-                                con una visión clara y ordenada.
+                                {t('Un punto central para gestionar clientes, productos, inventario y procesos internos con una visión clara y ordenada.')}
                             </p>
                         </div>
 
                         <div className="rounded-2xl border border-slate-200 bg-white/75 px-4 py-3 backdrop-blur-sm lg:min-w-64">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                Fecha de trabajo
+                                <TranslatedText>Fecha de trabajo</TranslatedText>
                             </p>
                             <p className="mt-1 text-sm font-medium capitalize text-slate-700">{currentDate}</p>
                         </div>
@@ -222,12 +224,12 @@ function Home() {
                 <section>
                     <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
                         <div>
-                            <p className="cjm-kicker">Accesos principales</p>
+                            <p className="cjm-kicker">{t('Accesos principales')}</p>
                             <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
                                 Continúa tu trabajo
                             </h2>
                         </div>
-                        <p className="text-sm text-slate-400">Los módulos disponibles dependen de tu perfil.</p>
+                        <p className="text-sm text-slate-400">{t('Los módulos disponibles dependen de tu perfil.')}</p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -242,16 +244,16 @@ function Home() {
                                             <AiOutlineArrowRight className="mt-1 text-xl text-slate-300 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-slate-500" />
                                         )}
                                     </div>
-                                    <p className="cjm-kicker mt-5 text-[10px]">{card.eyebrow}</p>
-                                    <h3 className="mt-1.5 text-lg font-semibold text-slate-900">{card.title}</h3>
-                                    <p className="mt-2 text-sm leading-6 text-slate-500">{card.description}</p>
+                                    <p className="cjm-kicker mt-5 text-[10px]">{t(card.eyebrow)}</p>
+                                    <h3 className="mt-1.5 text-lg font-semibold text-slate-900">{t(card.title)}</h3>
+                                    <p className="mt-2 text-sm leading-6 text-slate-500">{t(card.description)}</p>
                                 </>
                             );
 
                             if (card.to) {
                                 return (
                                     <Link
-                                        key={card.title}
+                                        key={card.to || card.title}
                                         to={card.to}
                                         className="cjm-card cjm-card-interactive group rounded-3xl p-5 sm:p-6"
                                     >
@@ -261,7 +263,7 @@ function Home() {
                             }
 
                             return (
-                                <div key={card.title} className="cjm-card rounded-3xl p-5 sm:p-6">
+                                <div key={card.to || card.title} className="cjm-card rounded-3xl p-5 sm:p-6">
                                     {cardContent}
                                 </div>
                             );
@@ -273,9 +275,9 @@ function Home() {
                     <section className="cjm-panel rounded-3xl p-5 sm:p-6 lg:p-7">
                         <div className="mb-5 flex items-center justify-between gap-4">
                             <div>
-                                <p className="cjm-kicker">Resumen general</p>
+                                <p className="cjm-kicker">{t('Resumen general')}</p>
                                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-                                    Indicadores de la aplicación
+                                    <TranslatedText>Indicadores de la aplicación</TranslatedText>
                                 </h2>
                             </div>
                             <span className="cjm-brand-chip hidden px-3 py-1.5 text-xs font-medium sm:inline-flex">
@@ -289,7 +291,7 @@ function Home() {
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
                                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                                {kpi.label}
+                                                {t(kpi.label)}
                                             </p>
                                             <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
                                                 {isLoading ? '···' : kpi.value}
@@ -299,7 +301,7 @@ function Home() {
                                             {kpi.icon}
                                         </span>
                                     </div>
-                                    <p className="mt-3 text-sm text-slate-500">{kpi.helper}</p>
+                                    <p className="mt-3 text-sm text-slate-500">{t(kpi.helper)}</p>
                                 </article>
                             ))}
                         </div>

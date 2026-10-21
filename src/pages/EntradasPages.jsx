@@ -1,3 +1,7 @@
+import { translateCurrent } from '../i18n/translations.js';
+import { getActiveLocale } from '../i18n/locale.js';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, PackageCheck, RefreshCw, Warehouse } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -46,7 +50,7 @@ export default function EntradasPage() {
                 const previous = previousRowsRef.current;
                 const newProducts = rows.filter((item) => !previous.some((old) => old.codprodu === item.codprodu));
                 if (newProducts.length) {
-                    toast.info(`${newProducts.length} producto${newProducts.length === 1 ? '' : 's'} nuevo${newProducts.length === 1 ? '' : 's'} en almacén.`);
+                    toast.info(translateCurrent(newProducts.length === 1 ? 'Un producto nuevo en almacén.' : '{count} productos nuevos en almacén.', { count: newProducts.length }));
                 }
             }
 
@@ -83,29 +87,29 @@ export default function EntradasPage() {
 
     return (
         <PageShell maxWidth="max-w-6xl">
-            <PageHeader
+            <LocalizedElement><PageHeader
                 eyebrow="Almacén · Seguimiento"
                 title="Entradas de productos"
                 description="Consulta las cantidades recibidas por fecha. La pantalla se actualiza automáticamente cada minuto."
                 icon={Warehouse}
                 actions={(
                     <button type="button" onClick={() => fetchEntradas({ silent: true })} disabled={loading || refreshing} className="cjm-ghost-button">
-                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />Actualizar
+                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" /><TranslatedText>Actualizar</TranslatedText>
                     </button>
                 )}
-            />
+            /></LocalizedElement>
 
             <section className="cjm-toolbar mt-6">
                 <div className="grid gap-4 sm:grid-cols-[minmax(0,260px)_1fr] sm:items-end">
                     <label>
-                        <span className="cjm-control-label">Fecha de entrada</span>
+                        <span className="cjm-control-label"><TranslatedText>Fecha de entrada</TranslatedText></span>
                         <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-3 py-2.5">
                             <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none" />
                         </span>
                     </label>
                     <div className="grid grid-cols-2 gap-3 sm:justify-self-end sm:min-w-[340px]">
-                        <article className="cjm-metric-card"><p className="cjm-data-label">Referencias</p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{entradas.length}</p></article>
-                        <article className="cjm-metric-card"><p className="cjm-data-label">Cantidad total</p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{totalQuantity.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</p></article>
+                        <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Referencias</TranslatedText></p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{entradas.length}</p></article>
+                        <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Cantidad total</TranslatedText></p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{totalQuantity.toLocaleString(getActiveLocale(), { maximumFractionDigits: 2 })}</p></article>
                     </div>
                 </div>
             </section>
@@ -114,22 +118,22 @@ export default function EntradasPage() {
 
             <section className="mt-5" aria-live="polite">
                 {loading ? (
-                    <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm">Cargando entradas…</p></div>
+                    <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm"><TranslatedText>Cargando entradas…</TranslatedText></p></div>
                 ) : entradas.length === 0 ? (
-                    <EmptyState icon={CalendarDays} title="No hay entradas para esta fecha" description="Selecciona otro día o pulsa Actualizar para consultar de nuevo." />
+                    <LocalizedElement><EmptyState icon={CalendarDays} title="No hay entradas para esta fecha" description="Selecciona otro día o pulsa Actualizar para consultar de nuevo." /></LocalizedElement>
                 ) : (
                     <>
                         <div className="hidden md:block">
                             <div className="cjm-table-shell">
                                 <div className="cjm-table-scroller">
                                     <table className="cjm-table">
-                                        <thead><tr><th>Código</th><th>Descripción</th><th className="text-right">Cantidad entrante</th></tr></thead>
+                                        <thead><tr><th><TranslatedText>Código</TranslatedText></th><th><TranslatedText>Descripción</TranslatedText></th><th className="text-right"><TranslatedText>Cantidad entrante</TranslatedText></th></tr></thead>
                                         <tbody>
                                             {entradas.map((entry, index) => (
                                                 <tr key={`${entry.codprodu || 'entrada'}-${index}`}>
                                                     <td><span className="cjm-badge">{entry.codprodu || '—'}</span></td>
                                                     <td className="font-semibold">{entry.desprodu || 'Sin descripción'}</td>
-                                                    <td className="text-right text-base font-semibold tabular-nums">{Number(entry.cancompra || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="text-right text-base font-semibold tabular-nums">{Number(entry.cancompra || 0).toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -149,8 +153,8 @@ export default function EntradasPage() {
                                         <span className="cjm-icon-tile h-10 w-10 shrink-0 rounded-xl"><PackageCheck className="h-5 w-5" aria-hidden="true" /></span>
                                     </div>
                                     <div className="mt-4 flex items-end justify-between border-t border-[var(--cjm-border)] pt-3">
-                                        <span className="cjm-muted text-sm">Cantidad entrante</span>
-                                        <strong className="text-xl tabular-nums app-text">{Number(entry.cancompra || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                        <span className="cjm-muted text-sm"><TranslatedText>Cantidad entrante</TranslatedText></span>
+                                        <strong className="text-xl tabular-nums app-text">{Number(entry.cancompra || 0).toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                                     </div>
                                 </article>
                             ))}

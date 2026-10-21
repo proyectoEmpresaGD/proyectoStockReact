@@ -1,7 +1,11 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { addDays, endOfMonth, format, getDay, parse, startOfDay, startOfMonth, startOfWeek, subDays } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { es, enGB } from 'date-fns/locale';
+import { useLanguage } from '../../i18n/LanguageContext.jsx';
 import { CalendarDays, ChevronLeft, ChevronRight, Info, SlidersHorizontal, Users, X } from 'lucide-react';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './VacacionesCalendar.css';
@@ -13,10 +17,10 @@ const localizer = dateFnsLocalizer({
     parse,
     startOfWeek: (date) => startOfWeek(date, { weekStartsOn: 1 }),
     getDay,
-    locales: { es }
+    locales: { es, en: enGB }
 });
 
-const messages = {
+const spanishMessages = {
     allDay: 'Todo el día',
     previous: 'Anterior',
     next: 'Siguiente',
@@ -31,6 +35,12 @@ const messages = {
     noEventsInRange: 'No hay vacaciones en este periodo.'
 };
 
+const englishMessages = {
+  allDay: 'All day', previous: 'Previous', next: 'Next', today: 'Today',
+  month: 'Month', week: 'Week', day: 'Day', agenda: 'Agenda', date: 'Date',
+  time: 'Time', event: 'Event', noEventsInRange: 'No leave during this period.',
+};
+
 function parseDate(value) {
     if (!value) return null;
     const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
@@ -42,9 +52,9 @@ function toIso(date) {
     return format(date, 'yyyy-MM-dd');
 }
 
-function formatDate(value) {
+function formatDate(value, language = 'es') {
     const parsed = parseDate(value);
-    return parsed ? format(parsed, 'dd/MM/yyyy') : '—';
+    return parsed ? format(parsed, language === 'en' ? 'dd/MM/yyyy' : 'dd/MM/yyyy') : '—';
 }
 
 function eventStyle(event) {
@@ -61,6 +71,7 @@ function eventStyle(event) {
 }
 
 export default function VacacionesCalendar({ apiBase, token, isManager, onSelectRange, refreshKey = 0, year = null, requestMutation = null }) {
+    const { language, t } = useLanguage();
     const [currentDate, setCurrentDate] = useState(() => year && Number(year) !== new Date().getFullYear() ? new Date(Number(year), 0, 1) : new Date());
     const [availability, setAvailability] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -230,21 +241,21 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
     const handleSelectSlot = useCallback(({ start, end }) => {
         if (isManager || !onSelectRange) return;
         if (!yearConfig.permitir_solicitudes) {
-            setError(`Las solicitudes de ${currentDate.getFullYear()} están cerradas temporalmente por RRHH.`);
+            setError(t('Las solicitudes de {year} están cerradas temporalmente por RRHH.', { year: currentDate.getFullYear() }));
             return;
         }
 
         const finalDate = subDays(end, 1);
         if (isWeekendDate(start) || isWeekendDate(finalDate)) {
-            setError(`La jornada de la empresa es ${COMPANY_WORK_SCHEDULE.label}. Las vacaciones deben empezar y terminar en un día laborable.`);
+            setError(t('La jornada de la empresa es {schedule}. Las vacaciones deben empezar y terminar en un día laborable.', { schedule: COMPANY_WORK_SCHEDULE.label }));
             return;
         }
         if (start.getFullYear() !== finalDate.getFullYear()) {
-            setError('Selecciona un rango dentro del mismo año. Si tus vacaciones cruzan de año, crea dos solicitudes.');
+            setError(translateCurrent('Selecciona un rango dentro del mismo año. Si tus vacaciones cruzan de año, crea dos solicitudes.'));
             return;
         }
         if (start < minimumRequestDate) {
-            setError(`Las vacaciones deben solicitarse con al menos ${yearConfig.antelacion_minima_dias || 0} días de antelación.`);
+            setError(t('Las vacaciones deben solicitarse con al menos {days} días de antelación.', { days: yearConfig.antelacion_minima_dias || 0 }));
             return;
         }
 
@@ -260,7 +271,7 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
         }
 
         if (!selectable) {
-            setError('El rango contiene días bloqueados o sin cupo. Selecciona otro periodo.');
+            setError(translateCurrent('El rango contiene días bloqueados o sin cupo. Selecciona otro periodo.'));
             return;
         }
 
@@ -292,7 +303,7 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
         setCurrentDate(new Date(scopedYear, 0, 1));
     };
 
-    const monthLabel = format(currentDate, 'MMMM yyyy', { locale: es });
+    const monthLabel = format(currentDate, 'MMMM yyyy', { locale: language === 'en' ? enGB : es });
 
     return (
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm shadow-slate-200/50">
@@ -303,26 +314,26 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
                             <CalendarDays size={19} />
                         </span>
                         <div>
-                            <h2 className="text-lg font-semibold">Calendario de vacaciones</h2>
+                            <h2 className="text-lg font-semibold"><TranslatedText>Calendario de vacaciones</TranslatedText></h2>
                             <p className="mt-0.5 text-sm text-slate-500">
-                                {isManager
+                                <TranslatedText>{isManager
                                     ? 'Calendario global del equipo y control visual de cobertura.'
-                                    : 'Marca un rango directamente en el calendario para preparar tu solicitud.'}
+                                    : 'Marca un rango directamente en el calendario para preparar tu solicitud.'}</TranslatedText>
                             </p>
-                            <p className="mt-1 text-xs font-medium text-slate-400">Jornada: {COMPANY_WORK_SCHEDULE.label} · fines de semana no laborables</p>
+                            <p className="mt-1 text-xs font-medium text-slate-400"><TranslatedText>Jornada:</TranslatedText> {COMPANY_WORK_SCHEDULE.label} <TranslatedText>· fines de semana no laborables</TranslatedText></p>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" disabled={!canGoPrevious} onClick={() => navigateMonth(-1)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Mes anterior">
+                    <LocalizedElement><button type="button" disabled={!canGoPrevious} onClick={() => navigateMonth(-1)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Mes anterior">
                         <ChevronLeft size={18} />
-                    </button>
+                    </button></LocalizedElement>
                     <div className="min-w-40 rounded-xl bg-slate-50 px-3 py-2.5 text-center text-sm font-semibold capitalize text-slate-800">{monthLabel}</div>
-                    <button type="button" disabled={!canGoNext} onClick={() => navigateMonth(1)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Mes siguiente">
+                    <LocalizedElement><button type="button" disabled={!canGoNext} onClick={() => navigateMonth(1)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Mes siguiente">
                         <ChevronRight size={18} />
-                    </button>
-                    <button type="button" onClick={goToReferenceDate} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">{scopedYear != null && scopedYear !== currentRealYear ? 'Enero' : 'Hoy'}</button>
+                    </button></LocalizedElement>
+                    <button type="button" onClick={goToReferenceDate} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">{t(scopedYear != null && scopedYear !== currentRealYear ? 'Enero' : 'Hoy')}</button>
                 </div>
             </div>
 
@@ -330,14 +341,14 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
                 <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                            <SlidersHorizontal size={16} /> Vista de cobertura
+                            <SlidersHorizontal size={16} /> <TranslatedText>Vista de cobertura</TranslatedText>
                         </div>
                         <select
                             value={scope.departamento}
                             onChange={(e) => setScope((current) => ({ ...current, departamento: e.target.value }))}
                             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
                         >
-                            <option value="">Todos los departamentos</option>
+                            <option value=""><TranslatedText>Todos los departamentos</TranslatedText></option>
                             {groups.departamentos.map((item) => <option key={item} value={item}>{item}</option>)}
                         </select>
                         <select
@@ -345,27 +356,27 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
                             onChange={(e) => setScope((current) => ({ ...current, role: e.target.value }))}
                             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
                         >
-                            <option value="">Todos los roles</option>
+                            <option value=""><TranslatedText>Todos los roles</TranslatedText></option>
                             {groups.roles.map((item) => <option key={item} value={item}>{item}</option>)}
                         </select>
                         <p className="text-xs text-slate-500 lg:ml-auto">
-                            Selecciona un grupo para pintar en verde los días con hueco y en naranja los días sin cupo.
+                            <TranslatedText>Selecciona un grupo para pintar en verde los días con hueco y en naranja los días sin cupo.</TranslatedText>
                         </p>
                     </div>
                 </div>
             )}
 
             <div className="grid gap-2 border-b border-slate-100 bg-white px-5 py-3 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
-                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-200" /> Disponible</span>
-                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-orange-100 ring-1 ring-orange-200" /> Cupo completo / no disponible</span>
-                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-rose-100 ring-1 ring-rose-200" /> Bloqueado por RRHH</span>
-                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-slate-100 ring-1 ring-slate-200" /> Festivo / fin de semana</span>
+                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-200" /> <TranslatedText>Disponible</TranslatedText></span>
+                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-orange-100 ring-1 ring-orange-200" /> <TranslatedText>Cupo completo / no disponible</TranslatedText></span>
+                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-rose-100 ring-1 ring-rose-200" /> <TranslatedText>Bloqueado por RRHH</TranslatedText></span>
+                <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded bg-slate-100 ring-1 ring-slate-200" /> <TranslatedText>Festivo / fin de semana</TranslatedText></span>
             </div>
 
             <div className="px-3 py-4 sm:px-5">
-                {loading && <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">Actualizando calendario…</div>}
+                {loading && <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500"><TranslatedText>Actualizando calendario…</TranslatedText></div>}
                 {error && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
-                {!isManager && !yearConfig.permitir_solicitudes && <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">RRHH ha cerrado temporalmente las solicitudes de {currentDate.getFullYear()}. Puedes consultar el calendario, pero no enviar nuevas solicitudes.</div>}
+                {!isManager && !yearConfig.permitir_solicitudes && <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"><TranslatedText>RRHH ha cerrado temporalmente las solicitudes de</TranslatedText> {currentDate.getFullYear()}<TranslatedText>. Puedes consultar el calendario, pero no enviar nuevas solicitudes.</TranslatedText></div>}
                 <div className="overflow-x-auto rounded-2xl">
                     <div className="vacaciones-calendar h-[620px]">
                         <Calendar
@@ -384,8 +395,8 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
                             onSelectEvent={(event) => event.kind !== 'selection' && setSelectedEvent(event.resource || null)}
                             dayPropGetter={dayPropGetter}
                             eventPropGetter={(event) => ({ style: eventStyle(event) })}
-                            messages={messages}
-                            culture="es"
+                            messages={language === 'en' ? englishMessages : spanishMessages}
+                            culture={language}
                             toolbar={false}
                             popup
                         />
@@ -397,24 +408,24 @@ export default function VacacionesCalendar({ apiBase, token, isManager, onSelect
                 <div className="border-t border-slate-100 bg-slate-50 px-5 py-4">
                     <div className="flex items-start justify-between gap-4">
                         <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                            {isManager && <InfoItem label="Empleado" value={selectedEvent.empleado_nombre || '—'} />}
-                            {isManager && <InfoItem label="Departamento" value={selectedEvent.departamento || '—'} />}
-                            <InfoItem label="Fechas" value={`${formatDate(selectedEvent.fecha_inicio)} – ${formatDate(selectedEvent.fecha_fin)}`} />
-                            <InfoItem label="Días" value={selectedEvent.dias_solicitados ?? '—'} />
-                            <InfoItem label="Estado" value={selectedEvent.estado || '—'} />
-                            {selectedEvent.motivo && <InfoItem label="Motivo" value={selectedEvent.motivo} />}
+                            {isManager && <LocalizedElement><InfoItem label="Empleado" value={selectedEvent.empleado_nombre || '—'} /></LocalizedElement>}
+                            {isManager && <LocalizedElement><InfoItem label="Departamento" value={selectedEvent.departamento || '—'} /></LocalizedElement>}
+                            <LocalizedElement><InfoItem label="Fechas" value={`${formatDate(selectedEvent.fecha_inicio, language)} – ${formatDate(selectedEvent.fecha_fin, language)}`} /></LocalizedElement>
+                            <LocalizedElement><InfoItem label="Días" value={selectedEvent.dias_solicitados ?? '—'} /></LocalizedElement>
+                            <LocalizedElement><InfoItem label="Estado" value={selectedEvent.estado || '—'} /></LocalizedElement>
+                            {selectedEvent.motivo && <LocalizedElement><InfoItem label="Motivo" value={selectedEvent.motivo} /></LocalizedElement>}
                         </div>
-                        <button type="button" onClick={() => setSelectedEvent(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100" aria-label="Cerrar detalle">
+                        <LocalizedElement><button type="button" onClick={() => setSelectedEvent(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100" aria-label="Cerrar detalle">
                             <X size={15} />
-                        </button>
+                        </button></LocalizedElement>
                     </div>
                 </div>
             )}
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1.5"><Info size={14} /> Departamento: <strong className="text-slate-700">{meta.departamento || (isManager ? 'Toda la empresa' : 'General')}</strong></span>
-                <span className="inline-flex items-center gap-1.5"><Users size={14} /> Rol: <strong className="text-slate-700">{meta.role || (isManager ? 'Todos' : '—')}</strong></span>
-                {!isManager && <span className="ml-auto">Antelación mínima: {yearConfig.antelacion_minima_dias || 0} días · verde = puedes solicitar.</span>}
+                <span className="inline-flex items-center gap-1.5"><Info size={14} /> <TranslatedText>Departamento:</TranslatedText> <strong className="text-slate-700">{meta.departamento || (isManager ? 'Toda la empresa' : 'General')}</strong></span>
+                <span className="inline-flex items-center gap-1.5"><Users size={14} /> <TranslatedText>Rol:</TranslatedText> <strong className="text-slate-700">{meta.role || (isManager ? 'Todos' : '—')}</strong></span>
+                {!isManager && <span className="ml-auto"><TranslatedText>Antelación mínima:</TranslatedText> {yearConfig.antelacion_minima_dias || 0} <TranslatedText>días · verde = puedes solicitar.</TranslatedText></span>}
             </div>
         </section>
     );

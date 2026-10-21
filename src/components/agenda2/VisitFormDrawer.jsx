@@ -1,3 +1,7 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     BellRing,
@@ -114,7 +118,7 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
         const start = new Date(form.fecha);
         if (Number.isNaN(start.getTime())) return '';
         const end = new Date(start.getTime() + (Number(form.duracion_minutos) || 60) * 60_000);
-        return end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        return end.toLocaleTimeString(getActiveLocale(), { hour: '2-digit', minute: '2-digit' });
     }, [form.duracion_minutos, form.fecha]);
 
     const setField = (name, value) => setForm((current) => ({ ...current, [name]: value }));
@@ -131,28 +135,28 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
 
     const handleSubmit = async () => {
         setError('');
-        if (!client?.codclien) return setError('Selecciona un cliente de la lista.');
-        if (!form.titulo?.trim()) return setError('Escribe un objetivo o título para la visita.');
-        if (!form.fecha) return setError('Selecciona la fecha y la hora.');
-        if (!form.assigned_to) return setError('Selecciona el responsable de la visita.');
+        if (!client?.codclien) return setError(translateCurrent('Selecciona un cliente de la lista.'));
+        if (!form.titulo?.trim()) return setError(translateCurrent('Escribe un objetivo o título para la visita.'));
+        if (!form.fecha) return setError(translateCurrent('Selecciona la fecha y la hora.'));
+        if (!form.assigned_to) return setError(translateCurrent('Selecciona el responsable de la visita.'));
 
         const start = new Date(form.fecha);
-        if (Number.isNaN(start.getTime())) return setError('La fecha seleccionada no es válida.');
+        if (Number.isNaN(start.getTime())) return setError(translateCurrent('La fecha seleccionada no es válida.'));
         const now = Date.now();
         if (!editing && !recordCompleted && start.getTime() < now - 5 * 60_000) {
-            return setError('La fecha ya ha pasado. Marca “Registrar una visita ya realizada” para guardarla directamente en el historial.');
+            return setError(translateCurrent('La fecha ya ha pasado. Marca “Registrar una visita ya realizada” para guardarla directamente en el historial.'));
         }
         if (!editing && recordCompleted && start.getTime() > now + 5 * 60_000) {
-            return setError('Una visita ya realizada no puede tener una fecha futura.');
+            return setError(translateCurrent('Una visita ya realizada no puede tener una fecha futura.'));
         }
         if (!editing && recordCompleted && !completedResult.trim()) {
-            return setError('Escribe brevemente el resultado de la visita realizada.');
+            return setError(translateCurrent('Escribe brevemente el resultado de la visita realizada.'));
         }
 
         const hasNextAction = Boolean(form.proxima_accion?.trim());
         const hasNextDate = Boolean(form.fecha_proxima_accion);
         if (hasNextAction !== hasNextDate) {
-            return setError('Para crear un seguimiento debes indicar tanto la próxima acción como su fecha.');
+            return setError(translateCurrent('Para crear un seguimiento debes indicar tanto la próxima acción como su fecha.'));
         }
 
         const duration = Number(form.duracion_minutos) || 60;
@@ -174,9 +178,9 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
             let reminderDate;
             if (reminderMode === 'custom') reminderDate = customReminder ? new Date(customReminder) : null;
             else reminderDate = new Date(start.getTime() - Number(reminderMode) * 60_000);
-            if (!reminderDate || Number.isNaN(reminderDate.getTime())) return setError('Selecciona una fecha válida para el recordatorio.');
-            if (reminderDate >= start) return setError('El recordatorio debe producirse antes de la visita.');
-            if (reminderDate <= new Date()) return setError('El recordatorio debe estar en el futuro. Selecciona otro aviso o elige “Sin recordatorio”.');
+            if (!reminderDate || Number.isNaN(reminderDate.getTime())) return setError(translateCurrent('Selecciona una fecha válida para el recordatorio.'));
+            if (reminderDate >= start) return setError(translateCurrent('El recordatorio debe producirse antes de la visita.'));
+            if (reminderDate <= new Date()) return setError(translateCurrent('El recordatorio debe estar en el futuro. Selecciona otro aviso o elige “Sin recordatorio”.'));
             visitPayload.recordatorio_fecha = reminderDate.toISOString();
         }
 
@@ -207,7 +211,7 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
 
     const footer = (
         <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="cjm-icon-button min-h-11 rounded-xl px-5 font-medium" disabled={saving}>Cancelar</button>
+            <button type="button" onClick={onClose} className="cjm-icon-button min-h-11 rounded-xl px-5 font-medium" disabled={saving}><TranslatedText>Cancelar</TranslatedText></button>
             <button type="button" onClick={handleSubmit} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 font-semibold" disabled={saving}>
                 {recordCompleted && !editing ? <CheckCircle2 size={17} /> : <Save size={17} />}
                 {saving ? 'Guardando…' : editing ? 'Guardar cambios' : recordCompleted ? 'Registrar visita realizada' : 'Crear visita'}
@@ -216,7 +220,7 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
     );
 
     return (
-        <AgendaDrawer open={open} onClose={onClose} title={editing ? 'Editar visita' : 'Nueva visita'} eyebrow="Agenda comercial" footer={footer} size="xl">
+        <LocalizedElement><AgendaDrawer open={open} onClose={onClose} title={editing ? 'Editar visita' : 'Nueva visita'} eyebrow="Agenda comercial" footer={footer} size="xl">
             <div className="agenda2-form-grid">
                 {!editing && (
                     <section className="agenda2-form-section sm:col-span-2 agenda2-completed-toggle-section">
@@ -229,7 +233,7 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
                             setError('');
                         }} aria-pressed={recordCompleted}>
                             <span><CalendarCheck2 size={20} /></span>
-                            <span><strong>Registrar una visita ya realizada</strong><small>Úsalo cuando la visita ya ocurrió y quieres incorporarla directamente al historial del cliente.</small></span>
+                            <span><strong><TranslatedText>Registrar una visita ya realizada</TranslatedText></strong><small><TranslatedText>Úsalo cuando la visita ya ocurrió y quieres incorporarla directamente al historial del cliente.</TranslatedText></small></span>
                         </button>
                     </section>
                 )}
@@ -237,79 +241,79 @@ export default function VisitFormDrawer({ open, token, users, currentUser, visit
                 <section className="agenda2-form-section sm:col-span-2">
                     <div className="agenda2-section-heading">
                         <span><CalendarPlus2 size={19} /></span>
-                        <div><h3>Información principal</h3><p>Selecciona el cliente y resume claramente el objetivo.</p></div>
+                        <div><h3><TranslatedText>Información principal</TranslatedText></h3><p><TranslatedText>Selecciona el cliente y resume claramente el objetivo.</TranslatedText></p></div>
                     </div>
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                         <ClientPicker token={token} value={client} onChange={setClient} disabled={saving} />
                         <label className="agenda2-field">
-                            <span>Objetivo o título</span>
-                            <input className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.titulo || ''} onChange={(event) => setField('titulo', event.target.value)} maxLength={160} placeholder="Ej. Presentación de nueva colección" disabled={saving} />
+                            <span><TranslatedText>Objetivo o título</TranslatedText></span>
+                            <LocalizedElement><input className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.titulo || ''} onChange={(event) => setField('titulo', event.target.value)} maxLength={160} placeholder="Ej. Presentación de nueva colección" disabled={saving} /></LocalizedElement>
                         </label>
                         <div className="agenda2-objective-suggestions sm:col-span-2">
-                            <span><Sparkles size={14} /> Objetivos frecuentes</span>
+                            <span><Sparkles size={14} /> <TranslatedText>Objetivos frecuentes</TranslatedText></span>
                             <div>{objectiveSuggestions.map((label) => <button type="button" key={label} onClick={() => setField('titulo', label)} disabled={saving}>{label}</button>)}</div>
                         </div>
                         <label className="agenda2-field sm:col-span-2">
-                            <span>Descripción y preparación</span>
-                            <textarea className="cjm-input min-h-28 rounded-xl px-3 py-3 text-base" value={form.descripcion || ''} onChange={(event) => setField('descripcion', event.target.value)} placeholder="Temas a tratar, muestras necesarias, personas de contacto…" disabled={saving} />
+                            <span><TranslatedText>Descripción y preparación</TranslatedText></span>
+                            <LocalizedElement><textarea className="cjm-input min-h-28 rounded-xl px-3 py-3 text-base" value={form.descripcion || ''} onChange={(event) => setField('descripcion', event.target.value)} placeholder="Temas a tratar, muestras necesarias, personas de contacto…" disabled={saving} /></LocalizedElement>
                         </label>
                     </div>
                 </section>
 
                 <section className="agenda2-form-section">
-                    <div className="agenda2-section-heading"><span><Clock3 size={19} /></span><div><h3>{recordCompleted ? 'Cuándo se realizó' : 'Fecha y duración'}</h3><p>{recordCompleted ? 'Indica la fecha real para ordenar correctamente el historial.' : 'El final se calcula automáticamente.'}</p></div></div>
+                    <div className="agenda2-section-heading"><span><Clock3 size={19} /></span><div><h3><TranslatedText>{recordCompleted ? 'Cuándo se realizó' : 'Fecha y duración'}</TranslatedText></h3><p><TranslatedText>{recordCompleted ? 'Indica la fecha real para ordenar correctamente el historial.' : 'El final se calcula automáticamente.'}</TranslatedText></p></div></div>
                     <div className="mt-5 grid gap-4">
                         {!recordCompleted && (
                             <div className="agenda2-date-shortcuts">
-                                <button type="button" onClick={() => setQuickDate(defaultStart())}>Próximo hueco</button>
-                                <button type="button" onClick={() => setQuickDate(tomorrowAt())}>Mañana 10:00</button>
-                                <button type="button" onClick={() => setQuickDate(nextMondayAt())}>Próximo lunes</button>
+                                <button type="button" onClick={() => setQuickDate(defaultStart())}><TranslatedText>Próximo hueco</TranslatedText></button>
+                                <button type="button" onClick={() => setQuickDate(tomorrowAt())}><TranslatedText>Mañana 10:00</TranslatedText></button>
+                                <button type="button" onClick={() => setQuickDate(nextMondayAt())}><TranslatedText>Próximo lunes</TranslatedText></button>
                             </div>
                         )}
                         <label className="agenda2-field">
-                            <span>Inicio</span>
+                            <span><TranslatedText>Inicio</TranslatedText></span>
                             <div className="agenda2-native-date"><input type="datetime-local" value={form.fecha || ''} onChange={(event) => changeStart(event.target.value)} disabled={saving} /></div>
                         </label>
                         <label className="agenda2-field">
-                            <span>Duración</span>
+                            <span><TranslatedText>Duración</TranslatedText></span>
                             <select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.duracion_minutos || 60} onChange={(event) => setField('duracion_minutos', Number(event.target.value))} disabled={saving}>
                                 {[30, 45, 60, 90, 120, 180, 240].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} h`}</option>)}
                             </select>
-                            {form.fecha && <small className="cjm-muted">Final previsto: {endLabel}</small>}
+                            {form.fecha && <small className="cjm-muted"><TranslatedText>Final previsto:</TranslatedText> {endLabel}</small>}
                         </label>
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <label className="agenda2-field"><span>Tipo</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.tipo || 'visita'} onChange={(event) => setField('tipo', event.target.value)} disabled={saving}>{VISIT_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                            <label className="agenda2-field"><span>Prioridad</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.prioridad || 'media'} onChange={(event) => setField('prioridad', event.target.value)} disabled={saving}>{PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                            <label className="agenda2-field"><span><TranslatedText>Tipo</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.tipo || 'visita'} onChange={(event) => setField('tipo', event.target.value)} disabled={saving}>{VISIT_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                            <label className="agenda2-field"><span><TranslatedText>Prioridad</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={form.prioridad || 'media'} onChange={(event) => setField('prioridad', event.target.value)} disabled={saving}>{PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
                         </div>
                         <TeamSelect users={users} value={form.assigned_to} onChange={(value) => setField('assigned_to', value)} disabled={saving} allowEmpty={false} />
                     </div>
                 </section>
 
                 <section className="agenda2-form-section">
-                    <div className="agenda2-section-heading"><span>{recordCompleted ? <CheckCircle2 size={19} /> : <BellRing size={19} />}</span><div><h3>{recordCompleted ? 'Resultado y seguimiento' : 'Aviso y seguimiento'}</h3><p>{recordCompleted ? 'Deja registrado qué ocurrió y cuál es el siguiente paso.' : 'Configura un aviso y añade una próxima acción solo cuando sea necesaria.'}</p></div></div>
+                    <div className="agenda2-section-heading"><span>{recordCompleted ? <CheckCircle2 size={19} /> : <BellRing size={19} />}</span><div><h3>{recordCompleted ? 'Resultado y seguimiento' : 'Aviso y seguimiento'}</h3><p><TranslatedText>{recordCompleted ? 'Deja registrado qué ocurrió y cuál es el siguiente paso.' : 'Configura un aviso y añade una próxima acción solo cuando sea necesaria.'}</TranslatedText></p></div></div>
                     <div className="mt-5 grid gap-4">
                         {recordCompleted && !editing && (
-                            <label className="agenda2-field"><span>Resultado de la visita</span><textarea className="cjm-input min-h-28 rounded-xl px-3 py-3 text-base" value={completedResult} onChange={(event) => setCompletedResult(event.target.value)} placeholder="Qué se habló, qué necesita el cliente y qué se acordó" disabled={saving} /></label>
+                            <label className="agenda2-field"><span><TranslatedText>Resultado de la visita</TranslatedText></span><LocalizedElement><textarea className="cjm-input min-h-28 rounded-xl px-3 py-3 text-base" value={completedResult} onChange={(event) => setCompletedResult(event.target.value)} placeholder="Qué se habló, qué necesita el cliente y qué se acordó" disabled={saving} /></LocalizedElement></label>
                         )}
                         {!editing && !recordCompleted && (
                             <>
-                                <label className="agenda2-field"><span>Recordatorio</span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={reminderMode} onChange={(event) => { setReminderMode(event.target.value); setReminderTouched(true); }} disabled={saving}>{reminderOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                                {reminderMode === 'custom' && <label className="agenda2-field"><span>Fecha del aviso</span><div className="agenda2-native-date"><input type="datetime-local" value={customReminder} onChange={(event) => setCustomReminder(event.target.value)} disabled={saving} /></div></label>}
+                                <label className="agenda2-field"><span><TranslatedText>Recordatorio</TranslatedText></span><select className="cjm-input min-h-11 rounded-xl px-3 text-base" value={reminderMode} onChange={(event) => { setReminderMode(event.target.value); setReminderTouched(true); }} disabled={saving}>{reminderOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                                {reminderMode === 'custom' && <label className="agenda2-field"><span><TranslatedText>Fecha del aviso</TranslatedText></span><div className="agenda2-native-date"><input type="datetime-local" value={customReminder} onChange={(event) => setCustomReminder(event.target.value)} disabled={saving} /></div></label>}
                             </>
                         )}
                         <button type="button" className={`agenda2-followup-toggle ${showFollowUp ? 'active' : ''}`} onClick={() => setShowFollowUp((value) => !value)} aria-expanded={showFollowUp}>
-                            <span><strong>{showFollowUp ? 'Ocultar próxima acción' : 'Añadir próxima acción'}</strong><small>La acción y la fecha aparecerán juntas en Seguimientos.</small></span><ChevronDown size={18} />
+                            <span><strong><TranslatedText>{showFollowUp ? 'Ocultar próxima acción' : 'Añadir próxima acción'}</TranslatedText></strong><small><TranslatedText>La acción y la fecha aparecerán juntas en Seguimientos.</TranslatedText></small></span><ChevronDown size={18} />
                         </button>
                         {showFollowUp && (
                             <div className="grid gap-4 agenda2-followup-fields">
-                                <label className="agenda2-field"><span>Próxima acción</span><textarea className="cjm-input min-h-20 rounded-xl px-3 py-3 text-base" value={form.proxima_accion || ''} onChange={(event) => setField('proxima_accion', event.target.value)} placeholder="Ej. Llamar para confirmar el pedido" disabled={saving} /></label>
-                                <label className="agenda2-field"><span>Fecha de seguimiento</span><div className="agenda2-native-date"><input type="datetime-local" value={form.fecha_proxima_accion || ''} onChange={(event) => setField('fecha_proxima_accion', event.target.value)} disabled={saving} /></div></label>
+                                <label className="agenda2-field"><span><TranslatedText>Próxima acción</TranslatedText></span><LocalizedElement><textarea className="cjm-input min-h-20 rounded-xl px-3 py-3 text-base" value={form.proxima_accion || ''} onChange={(event) => setField('proxima_accion', event.target.value)} placeholder="Ej. Llamar para confirmar el pedido" disabled={saving} /></LocalizedElement></label>
+                                <label className="agenda2-field"><span><TranslatedText>Fecha de seguimiento</TranslatedText></span><div className="agenda2-native-date"><input type="datetime-local" value={form.fecha_proxima_accion || ''} onChange={(event) => setField('fecha_proxima_accion', event.target.value)} disabled={saving} /></div></label>
                             </div>
                         )}
                     </div>
                 </section>
             </div>
             {error && <div className="agenda2-error mt-5" role="alert">{error}</div>}
-        </AgendaDrawer>
+        </AgendaDrawer></LocalizedElement>
     );
 }

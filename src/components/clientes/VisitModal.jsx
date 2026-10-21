@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarPlus2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -96,14 +98,14 @@ export default function VisitModal({
 
     const footer = (
         <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={closeModal} className="cjm-icon-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium"><X size={17} /> Cerrar</button>
-            <button type="button" onClick={() => setVisitForm({ open: true, visit: null })} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold"><CalendarPlus2 size={17} /> Nueva visita</button>
+            <button type="button" onClick={closeModal} className="cjm-icon-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium"><X size={17} /> <TranslatedText>Cerrar</TranslatedText></button>
+            <button type="button" onClick={() => setVisitForm({ open: true, visit: null })} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold"><CalendarPlus2 size={17} /> <TranslatedText>Nueva visita</TranslatedText></button>
         </div>
     );
 
     return (
         <>
-            <AgendaDrawer
+            <LocalizedElement><AgendaDrawer
                 open={modalVisible}
                 onClose={closeModal}
                 title={client.razclien || `Cliente ${client.codclien}`}
@@ -120,7 +122,7 @@ export default function VisitModal({
                     onNewVisit={() => { setVisitDetail({ open: false, visit: null }); setVisitForm({ open: true, visit: null }); }}
                     onLoaded={setAvailableVisits}
                 />
-            </AgendaDrawer>
+            </AgendaDrawer></LocalizedElement>
 
             <VisitFormDrawer
                 open={visitForm.open}

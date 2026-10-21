@@ -1,0 +1,1140 @@
+/* Stock+ SGA: tema operativo específico, compatible con data-theme de Stock+.
+   El layout y estados se declaran principalmente con Tailwind en React.
+   Esta capa solo recoge tokens cromáticos, contrastes, impresión y compatibilidad
+   de widgets heredados que aún usan CSS propio. Se importa AL FINAL. */
+.sga-w-page {
+  --sga-ink: #18354a;
+  --sga-muted: #506879;
+  --sga-surface: #ffffff;
+  --sga-surface-soft: #f3f7f9;
+  --sga-border: #cedce3;
+  --sga-accent: #126d64;
+  --sga-accent-strong: #08554d;
+  --sga-accent-ink: #07594e;
+  --sga-accent-pale: #e7f7f1;
+  --sga-accent-border: #81bfb1;
+  --sga-success: #176042;
+  --sga-success-pale: #eaf7ed;
+  --sga-warn: #80520a;
+  --sga-warn-pale: #fff5e1;
+  --sga-warn-border: #d7b576;
+  --sga-danger: #9a3028;
+  --sga-danger-pale: #fff1ee;
+  --sga-danger-border: #e7b0aa;
+  --sga-input: #ffffff;
+  --sga-input-border: #a5bac7;
+  color: var(--sga-ink);
+}
+:root[data-theme='dark'] .sga-w-page {
+  color-scheme: dark;
+  --sga-ink: #edf4fa;
+  --sga-muted: #b6c8d7;
+  --sga-surface: #111e30;
+  --sga-surface-soft: #1b2b3e;
+  --sga-border: #435970;
+  --sga-accent: #6bd3bd;
+  --sga-accent-strong: #8fe8d3;
+  --sga-accent-ink: #b3f6e4;
+  --sga-accent-pale: #173a3b;
+  --sga-accent-border: #459f91;
+  --sga-success: #9be9b6;
+  --sga-success-pale: #173d31;
+  --sga-warn: #ffdb9b;
+  --sga-warn-pale: #45351e;
+  --sga-warn-border: #b58a3c;
+  --sga-danger: #ffd0c9;
+  --sga-danger-pale: #49282c;
+  --sga-danger-border: #b26b72;
+  --sga-input: #111e30;
+  --sga-input-border: #648096;
+}
+/* Tejidos / lotes / cantidades: la misma jerarquía visual en entrada y salida. */
+.sga-w-page .sga-task-line {
+  border-color: var(--sga-border);
+  background: var(--sga-surface);
+  color: var(--sga-ink);
+  min-height: 126px;
+  position: static;
+  max-width: none;
+  box-shadow: none;
+  scroll-snap-align: none;
+}
+.sga-w-page .sga-task-line:hover:not(.is-active) {
+  border-color: var(--sga-accent-border);
+  background: var(--sga-surface-soft);
+}
+.sga-w-page .sga-task-line.is-active {
+  border: 2px solid var(--sga-accent-border);
+  border-left: 5px solid var(--sga-accent);
+  background: var(--sga-accent-pale);
+}
+.sga-w-page .sga-task-line.is-finished:not(.is-active) {
+  border-color: var(--sga-success);
+  background: var(--sga-success-pale);
+}
+.sga-w-page .sga-task-code, .sga-w-page .sga-task-label, .sga-w-page .sga-task-muted {
+  color: var(--sga-muted);
+}
+.sga-w-page .sga-task-remaining { color: var(--sga-accent-ink); }
+.sga-w-page .sga-task-done { color: var(--sga-success); }
+.sga-w-page .sga-task-active-tag { color: var(--sga-accent-ink); background: var(--sga-surface); }
+.sga-w-page .sga-task-warning { color: var(--sga-warn); }
+.sga-w-page .sga-task-track { background: var(--sga-border); }
+.sga-w-page .sga-task-bar { background: var(--sga-accent); }
+.sga-w-page .sga-task-review-link, .sga-w-page .sga-ops-fill-button {
+  background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+  color: var(--sga-accent-ink);
+}
+.sga-w-page :is(.sga-task-review-link,.sga-ops-fill-button):hover:not(:disabled) {
+  background: var(--sga-surface-soft);
+}
+.sga-w-page .sga-task-section-heading { color: var(--sga-ink); }
+.sga-w-page .sga-order-lines, .sga-w-page .sga-receiving-lines {
+  position: static; overflow: visible; max-height: none; min-width: 0;
+  background: var(--sga-surface); border-color: var(--sga-border);
+}
+.sga-w-page .sga-receiving-lines > .sga-task-line-grid,
+.sga-w-page .sga-order-lines > .sga-order-line-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  width: 100%;
+  overflow: visible;
+}
+.sga-w-page .sga-receiving-lines > .sga-task-line-grid > .sga-task-line {
+  display: flex; flex: none; width: 100%; max-width: none;
+  text-align: left; align-items: stretch; gap: 8px;
+}
+.sga-w-page .sga-receiving-lines > .sga-task-section-heading h3 { display: block; color: var(--sga-ink); }
+.sga-w-page .sga-order-main, .sga-w-page .sga-receiving-form {
+  min-width: 0;
+  color: var(--sga-ink);
+  background: var(--sga-surface);
+  border-color: var(--sga-border);
+}
+.sga-w-page .sga-order-workspace, .sga-w-page .sga-receiving-workspace {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  align-items: start;
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .sga-w-page .sga-order-workspace, .sga-w-page .sga-receiving-workspace {
+    grid-template-columns: minmax(255px, 29%) minmax(0, 1fr);
+  }
+}
+@media (min-width: 700px) and (max-width: 1023px) {
+  .sga-w-page .sga-order-line-list,
+  .sga-w-page .sga-receiving-lines > .sga-task-line-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+@media (max-width: 699px) {
+  .sga-w-page .sga-receiving-lines { padding: 12px; }
+  .sga-w-page .sga-task-line { min-height: 117px; padding: 11px; }
+  .sga-w-page .sga-order-quickstats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sga-w-page .sga-order-quickstats > .is-key { grid-column: 1/-1; }
+  .sga-w-page .sga-order-bottom { position: static; }
+}
+/* El dato más importante es lo pendiente, no la decoración. */
+.sga-w-page .sga-order-quickstats > div,
+.sga-w-page .sga-receiving-remaining,
+.sga-w-page .sga-order-impact {
+  border-color: var(--sga-border);
+  background: var(--sga-surface-soft);
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-order-quickstats > div.is-key,
+.sga-w-page .sga-receiving-remaining {
+  background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+}
+.sga-w-page .sga-order-quickstats b,
+.sga-w-page .sga-receiving-remaining strong {
+  font-size: clamp(21px, 2.35vw, 30px);
+  line-height: 1.25;
+  color: var(--sga-ink);
+  font-variant-numeric: tabular-nums;
+}
+.sga-w-page .sga-order-quickstats .is-key b,
+.sga-w-page .sga-receiving-remaining strong { color: var(--sga-accent-ink); }
+.sga-w-page :is(.sga-ops-line-progress,.sga-ops-line-progress strong,.sga-ops-line-progress > div > span) { color: var(--sga-muted); }
+.sga-w-page .sga-ops-line-track, .sga-w-page .sga-ops-step-progress { background: var(--sga-border); }
+/* Compatibilidad del CSS tradicional: superficies, textos y bordes. */
+.sga-w-page :is(
+  .sga-w-home-action,.sga-ops-workload > div,.sga-w-card,.sga-order-panel,
+  .sga-receiving-form,.sga-order-lines,.sga-receiving-lines,.sga-order-main,
+  .sga-w-guide,.sga-w-tools,.sga-audit-card,.sga-w-products button,
+  .sga-order-list > button,.sga-order-review-list > div,.sga-order-reviewstats > div,
+  .sga-order-picks,.sga-order-scan-section,.sga-order-qty-area,
+  .sga-receiving-lotbox,.sga-receiving-review > div,.sga-receiving-receipts,
+  .sga-receiving-added,.sga-receiving-label-dialog,.sga-order-dialog
+) { background: var(--sga-surface); border-color: var(--sga-border); color: var(--sga-ink); }
+.sga-w-page :is(
+ .sga-w-action-name strong,.sga-ops-kpi-label,.sga-ops-workload strong,.sga-ops-section-heading h2,
+ .sga-w-step-header h2,.sga-order-context h2,.sga-receiving-context h2,
+ .sga-order-product-head h2,.sga-receiving-form h2,.sga-receiving-lotheader strong,
+ .sga-order-reviewstats b,.sga-order-review-list strong,.sga-order-review-list b,
+ .sga-order-scan-section h3,.sga-order-qty-area h3,.sga-order-active-lot strong,
+ .sga-receiving-remaining strong,.sga-order-context strong,.sga-w-qty input,
+ .sga-w-field input,.sga-w-field select,.sga-w-summary-item strong,.sga-order-fixed-waste strong,
+ .sga-receiving-lines h3,.sga-order-lines h3
+) { color: var(--sga-ink); }
+.sga-w-page :is(
+ .sga-w-action-name small,.sga-ops-workload small,.sga-w-step-header p,
+ .sga-order-context p,.sga-receiving-context p,.sga-order-list small,
+ .sga-order-review-list small,.sga-order-quickstats span,.sga-order-product-head p,
+ .sga-w-field small,.sga-receiving-helper,.sga-receiving-lotheader small,
+ .sga-suggest label,.sga-order-fixed-waste small,.sga-w-subnote
+) { color: var(--sga-muted); }
+.sga-w-page :is(
+ .sga-order-context,.sga-receiving-context,.sga-ops-audit-panel,
+ .sga-w-confirm,.sga-w-summary-important,.sga-order-active-lot,
+ .sga-receiving-remaining,.sga-receiving-eq-confirm,.sga-receiving-nolot,
+ .sga-receiving-auto,.sga-order-review-adjustments
+) { background: var(--sga-accent-pale); border-color: var(--sga-accent-border); color: var(--sga-ink); }
+.sga-w-page :is(
+ .sga-order-steps > span,.sga-w-steps > .sga-w-step,.sga-order-fixed-waste,
+ .sga-order-picks > div,.sga-receiving-added > div,.sga-order-reviewstats > div
+) { background: var(--sga-surface-soft); border-color: var(--sga-border); color: var(--sga-ink); }
+.sga-w-page :is(.sga-order-steps > span.is-current,.sga-w-step.is-current) {
+  background: var(--sga-accent-pale); border-color: var(--sga-accent-border); color: var(--sga-accent-ink);
+}
+.sga-w-page :is(.sga-order-steps > span.is-past,.sga-w-step.is-past) {
+  background: var(--sga-success-pale); border-color: var(--sga-border); color: var(--sga-success);
+}
+.sga-w-page :is(.sga-order-steps > span.is-current b,.sga-w-step.is-current > span,.sga-order-instruction-index,.sga-receiving-piece-step > b) {
+  background: #16685f; color: #fff;
+}
+.sga-w-page :is(.sga-order-scan-section > p,.sga-order-qty-area > p,.sga-w-guide p,.sga-w-step-header span) {
+  color: var(--sga-muted);
+}
+.sga-w-page :is(.sga-suggest-input,.sga-order-scanner,.sga-w-search,.sga-w-field > select,
+ .sga-w-field > input,.sga-w-qty,.sga-order-qty-fields label > div,
+ .sga-receiving-field-grid select,.sga-receiving-qty input) {
+  background: var(--sga-input); border-color: var(--sga-input-border); color: var(--sga-ink);
+}
+.sga-w-page :is(input,select,textarea) { color: var(--sga-ink); }
+.sga-w-page :is(input,textarea)::placeholder { color: var(--sga-muted); opacity: 1; }
+.sga-w-page .sga-w-qty > b { background: var(--sga-accent-pale); color: var(--sga-accent-ink); }
+.sga-w-page :is(.sga-suggest-options,.sga-suggest-options button,.sga-order-manual-lots button,
+ .sga-w-document-types button,.sga-order-remainder-choices button,.sga-receiving-choice button) {
+  background: var(--sga-surface); border-color: var(--sga-border); color: var(--sga-ink);
+}
+.sga-w-page :is(.sga-suggest-options button:hover,.sga-suggest-options button.is-highlighted,
+ .sga-order-manual-lots button.is-selected,.sga-w-document-types button[aria-pressed='true'],
+ .sga-receiving-choice button.is-selected) {
+  background: var(--sga-accent-pale); border-color: var(--sga-accent-border); color: var(--sga-accent-ink);
+}
+.sga-w-page :is(.sga-w-primary,.sga-order-add-cut,.sga-receiving-add,.sga-order-scanner > button) {
+  background: #12665f; border-color: #12665f; color: #fff;
+}
+.sga-w-page :is(.sga-w-primary,.sga-order-add-cut,.sga-receiving-add,.sga-order-scanner > button):hover:not(:disabled) {
+  background: #0c504b; border-color: #0c504b;
+}
+.sga-w-page :is(.sga-w-secondary,.sga-w-trail > button) {
+  background: var(--sga-surface); border-color: var(--sga-border); color: var(--sga-ink);
+}
+.sga-w-page :is(.sga-w-secondary,.sga-w-trail > button):hover:not(:disabled) { background: var(--sga-surface-soft); }
+.sga-w-page :is(.sga-w-error,.sga-order-small-remainder-alert,.sga-receiving-remainder-warning) {
+  background: var(--sga-danger-pale); border-color: var(--sga-danger-border); color: var(--sga-danger);
+}
+.sga-w-page :is(.sga-w-clarity,.sga-order-remainder-warning,.sga-order-pending-button,.sga-w-simulation) {
+  background: var(--sga-warn-pale); border-color: var(--sga-warn-border); color: var(--sga-warn);
+}
+.sga-w-page :is(.sga-order-success,.sga-receiving-success,.sga-order-complete-line) {
+  background: var(--sga-success-pale); border-color: var(--sga-border); color: var(--sga-success);
+}
+.sga-w-page .sga-ops-audit-panel { background: var(--sga-surface-soft); border-color: var(--sga-border); }
+.sga-w-page .sga-ops-audit-panel :is(strong,p) { color: var(--sga-ink); }
+.sga-w-page .sga-ops-audit-icon { background: var(--sga-surface); border-color: var(--sga-border); color: var(--sga-accent-ink); }
+.sga-w-page .sga-w-home-primary { background: var(--sga-accent-pale); border-color: var(--sga-accent-border); }
+.sga-w-page .sga-w-home-primary .sga-w-icon { background: #155e59; color: #fff; }
+.sga-w-page .sga-w-home-action .sga-w-action-name em { color: var(--sga-accent-ink); }
+.sga-w-page .sga-ops-hero, .sga-w-page .sga-ops-hero h2,
+.sga-w-page .sga-ops-hero p, .sga-w-page .sga-ops-hero :is(strong,small,span) { color: #f5fdff; }
+.sga-w-page .sga-w-brand h1 { color: var(--sga-ink); }
+.sga-w-page .sga-w-brand small, .sga-w-page .sga-w-operator,
+.sga-w-page .sga-w-eyebrow { color: var(--sga-muted); }
+.sga-w-page .sga-w-top { border-color: var(--sga-border); }
+.sga-w-page :is(.sga-w-actions,.sga-order-sticky-actions) {
+  position: static; box-shadow: none; background: transparent;
+  border-color: var(--sga-border);
+}
+.sga-w-page :is(button,a,summary,input,select,textarea):focus-visible {
+  outline: 3px solid var(--sga-accent-border); outline-offset: 3px;
+}
+.sga-w-page button:disabled { opacity: .55; cursor: not-allowed; }
+/* En modo oscuro el documento imprimible sigue siendo una hoja física blanca,
+   incluso dentro de los diálogos y del tema global. */
+:root[data-theme='dark'] .sga-w-page .sga-w-printable,
+:root[data-theme='dark'] .sga-w-page .sga-receipt-piece-label {
+  color-scheme: light; background: #fff; color: #17243b; border-color: #d5dce6;
+}
+:root[data-theme='dark'] .sga-w-page .sga-w-printable :is(strong,b,h3,h4),
+:root[data-theme='dark'] .sga-w-page .sga-receipt-piece-label :is(strong,b,h3,h4) {
+  color: #17243b;
+}
+:root[data-theme='dark'] .sga-w-page .sga-w-printable :is(p,small,span),
+:root[data-theme='dark'] .sga-w-page .sga-receipt-piece-label :is(p,small,span) { color: #394c63; }
+@media print {
+  .sga-w-page, .sga-w-page .sga-w-printable, .sga-w-page .sga-receipt-piece-label { color-scheme: light !important; }
+  .sga-w-page .sga-w-printable, .sga-w-page .sga-receipt-piece-label { background: white !important; color: #17243b !important; }
+  .sga-w-page .sga-task-line-grid, .sga-w-page .sga-order-line-list { display: none !important; }
+}
+/* Detalles heredados específicos: sin colores claros fijados en tema oscuro. */
+.sga-w-page .sga-receiving-flow {
+  --sgr-ink: var(--sga-ink);
+  --sgr-muted: var(--sga-muted);
+  --sgr-border: var(--sga-border);
+  color: var(--sga-ink);
+}
+.sga-w-page :is(.sga-order-context small,.sga-receiving-context small,
+ .sga-order-context span,.sga-receiving-context span,
+ .sga-ops-session-line,.sga-order-fixed-waste span,.sga-order-impact span) {
+  color: var(--sga-muted);
+}
+.sga-w-page .sga-receiving-metrics > span {
+  color: var(--sga-muted);
+  background: var(--sga-surface);
+  border: 1px solid var(--sga-border);
+}
+.sga-w-page .sga-receiving-metrics > span strong { color: var(--sga-ink); }
+.sga-w-page .sga-receiving-lotbox { background: var(--sga-surface-soft); border-color: var(--sga-border); }
+.sga-w-page .sga-receiving-lotheader > svg,
+.sga-w-page :is(.sga-receiving-done,.sga-receiving-eq-confirm > svg) { color: var(--sga-success); }
+.sga-w-page :is(.sga-receiving-step-label,.sga-receiving-added h3,.sga-receiving-receipts h3,
+ .sga-receiving-review strong,.sga-receiving-added strong,.sga-receiving-auto strong) { color: var(--sga-ink); }
+.sga-w-page :is(.sga-receiving-label-link,.sga-receiving-label-actions > button,
+ .sga-receiving-added > div button) {
+  color: var(--sga-accent-ink);
+  background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+}
+.sga-w-page :is(.sga-receiving-added > div,.sga-receiving-receipts > div,
+ .sga-receiving-review > div,.sga-order-picks > div) { border-color: var(--sga-border); }
+.sga-w-page :is(.sga-receiving-receipts small,.sga-receiving-review small,
+ .sga-receiving-auto small,.sga-receiving-auto span,.sga-receiving-added small) { color: var(--sga-muted); }
+.sga-w-page :is(.sga-order-scanner input,.sga-suggest-input input,.sga-w-search input,
+ .sga-order-qty-fields input,.sga-w-qty input) {
+  background: var(--sga-input);
+  color: var(--sga-ink);
+}
+.sga-w-page :is(.sga-order-active-lot,.sga-receiving-eq-confirm) :is(span,small,b) { color: var(--sga-ink); }
+.sga-w-page .sga-order-progress-track { background: var(--sga-border); }
+.sga-w-page .sga-order-progress-track > i { background: var(--sga-accent); }
+.sga-w-page :is(.sga-order-selected-badge,.sga-receiving-selected-badge) {
+  color: var(--sga-accent-ink); background: var(--sga-accent-pale);
+}
+.sga-w-page .sga-receiving-label-actions > h2,
+.sga-w-page .sga-order-dialog > h2 { color: var(--sga-ink); }
+/* El selector de equivalencia y el selector manual no deben necesitar hover para identificar foco. */
+.sga-w-page :is(.sga-receiving-piece-actions button[aria-pressed="true"],
+ .sga-order-manual-lots button[aria-pressed="true"]) {
+  color: var(--sga-accent-ink); background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+}
+.sga-w-page .sga-w-printable {
+  color-scheme: light; background: #fff; color: #17243b;
+}
+
+/* Ajustes operativos 2026-10-19:
+   - el escaneo debe sentirse automático, no como un formulario pesado;
+   - los campos activos y la escritura deben destacar claramente;
+   - los lotes manuales deben leerse como tarjetas táctiles independientes. */
+.sga-w-page .sga-order-scan-section {
+  display: grid;
+  gap: 12px;
+}
+.sga-w-page .sga-order-scanner {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-width: 2px;
+  border-radius: 14px;
+}
+.sga-w-page .sga-order-scanner > svg {
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-scanner > input,
+.sga-w-page .sga-order-scan-input {
+  min-width: 0;
+  min-height: 52px;
+  padding: 10px 2px;
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.sga-w-page .sga-order-scanner > button,
+.sga-w-page .sga-order-scan-submit {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: .96rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: var(--sga-surface-soft);
+  border: 1px solid var(--sga-accent-border);
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-scanner > button:hover:not(:disabled),
+.sga-w-page .sga-order-scan-submit:hover:not(:disabled) {
+  background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-scan-tip {
+  margin: -2px 0 2px;
+  font-size: .92rem;
+  line-height: 1.45;
+  color: var(--sga-muted);
+}
+.sga-w-page .sga-order-scan-tip strong { color: var(--sga-accent-ink); }
+.sga-w-page .sga-order-manual-lots > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.sga-w-page .sga-order-manual-lots button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+}
+.sga-w-page .sga-order-manual-lots button small {
+  display: block;
+  font-size: .86rem;
+  color: var(--sga-muted);
+}
+.sga-w-page .sga-order-active-lot {
+  border-width: 2px;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.sga-w-page .sga-order-qty-fields label > div {
+  min-height: 70px;
+  border-width: 2px;
+  border-radius: 14px;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.sga-w-page .sga-order-qty-fields label > div:focus-within,
+.sga-w-page .sga-order-scanner:focus-within {
+  border-color: var(--sga-accent-border);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sga-accent-border) 24%, transparent);
+  background: color-mix(in srgb, var(--sga-accent-pale) 35%, var(--sga-input));
+}
+.sga-w-page .sga-order-qty-fields input,
+.sga-w-page .sga-order-qty-input {
+  min-height: 56px;
+  font-size: clamp(1.65rem, 2.6vw, 2rem);
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.sga-w-page .sga-order-qty-fields label > span {
+  font-size: .9rem;
+  font-weight: 800;
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-order-pending-button {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+  font-weight: 700;
+}
+@media (max-width: 820px) {
+  .sga-w-page .sga-order-scanner {
+    grid-template-columns: auto minmax(0,1fr);
+  }
+  .sga-w-page .sga-order-scanner > button,
+  .sga-w-page .sga-order-scan-submit {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+
+/* SGA | Operario 2026: última capa funcional para tablets, compartida entre
+   preparación, recepción, regularización y el tema oscuro de Stock+. */
+.sga-w-page {
+  accent-color: var(--sga-accent-strong);
+}
+.sga-w-page .sga-operator-count {
+  background: var(--sga-surface-soft); color: var(--sga-muted);
+  border: 1px solid var(--sga-border);
+}
+.sga-w-page .sga-operator-line-toggle { display: none; }
+/* Una tablet vertical debe mostrar antes el formulario de trabajo, no una lista
+   grande de productos. El selector desplegable sigue disponible al operario. */
+@media (max-width: 1023px) {
+  .sga-w-page .sga-operator-line-toggle {
+    display: flex; color: var(--sga-ink); background: var(--sga-accent-pale);
+    border-color: var(--sga-accent-border);
+  }
+  .sga-w-page .sga-order-workspace,
+  .sga-w-page .sga-receiving-workspace { gap: 12px; }
+  .sga-w-page .sga-order-lines, .sga-w-page .sga-receiving-lines {
+    padding: 12px; gap: 8px;
+  }
+  .sga-w-page .sga-operator-line-list { display: none !important; }
+  .sga-w-page .sga-operator-line-list.is-expanded { display: grid !important; }
+  .sga-w-page .sga-order-line-footer,
+  .sga-w-page .sga-receiving-lines > .sga-task-review-link { display: none; }
+}
+@media (min-width: 1024px) {
+  .sga-w-page .sga-operator-line-list { display: grid !important; }
+}
+.sga-w-page .sga-task-line {
+  min-height: 0; padding: 12px 13px; border-radius: 12px;
+}
+.sga-w-page .sga-order-lines, .sga-w-page .sga-receiving-lines,
+.sga-w-page .sga-order-main, .sga-w-page .sga-receiving-form {
+  border-radius: 16px;
+}
+.sga-w-page .sga-ops-session-line,
+.sga-w-page .sga-ops-session-line > span,
+.sga-w-page .sga-ops-line-progress :is(strong,span) { color: var(--sga-muted) !important; }
+.sga-w-page .sga-ops-line-progress [role='progressbar'] > span,
+.sga-w-page .sga-ops-step-progress > span { background: var(--sga-accent); }
+.sga-w-page :is(.sga-w-field > input,.sga-w-field > select,
+  .sga-w-field textarea,.sga-receiving-field-grid select,
+  .sga-suggest-input,.sga-order-scanner,.sga-w-search,
+  .sga-w-qty,.sga-order-qty-fields label > div) {
+  background: var(--sga-input); border: 2px solid var(--sga-input-border);
+  border-radius: 12px; color: var(--sga-ink);
+  min-height: 54px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.sga-w-page :is(.sga-w-field > input,.sga-w-field > select,
+  .sga-w-field textarea,.sga-receiving-field-grid select,
+  .sga-suggest-input,.sga-order-scanner,.sga-w-search,
+  .sga-w-qty,.sga-order-qty-fields label > div):focus-within,
+.sga-w-page :is(.sga-w-field > input,.sga-w-field > select,
+  .sga-w-field textarea,.sga-receiving-field-grid select):focus {
+  border-color: var(--sga-accent);
+  background: var(--sga-input);
+  box-shadow: 0 0 0 4px var(--sga-accent-pale);
+}
+.sga-w-page :is(.sga-w-field,.sga-receiving-qty,.sga-order-qty-fields label):focus-within > span {
+  color: var(--sga-accent-ink); font-weight: 800;
+}
+.sga-w-page :is(.sga-w-qty input,.sga-order-qty-fields input) {
+  min-height: 52px; font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.sga-w-page .sga-order-scanner {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 9px 12px;
+}
+.sga-w-page .sga-order-scanner > input {
+  flex: 1 1 160px; min-width: 0; width: auto;
+}
+.sga-w-page .sga-order-scanner > button,
+.sga-w-page .sga-order-scan-submit {
+  min-height: 48px; width: auto; max-width: none; white-space: nowrap;
+  background: var(--sga-accent-pale); color: var(--sga-accent-ink);
+  border: 1px solid var(--sga-accent-border); border-radius: 10px;
+  font-size: .94rem; font-weight: 800;
+}
+.sga-w-page .sga-order-scanner > button:hover:not(:disabled) {
+  color: var(--sga-accent-ink); background: var(--sga-surface-soft);
+}
+.sga-w-page .sga-order-manual-lots > div {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(185px,1fr));
+  gap: 10px; margin-top: 12px;
+}
+.sga-w-page .sga-order-manual-lots button {
+  display: flex; flex-direction: column; align-items: flex-start;
+  min-height: 70px; text-align: left;
+}
+.sga-w-page .sga-order-manual-lots button small { color: var(--sga-muted); }
+.sga-w-page .sga-w-primary,
+.sga-w-page .sga-order-add-cut,.sga-w-page .sga-receiving-add {
+  min-height: 56px; font-weight: 800; border-radius: 12px;
+}
+.sga-w-page :is(button,select,input,textarea):focus-visible {
+  outline: 3px solid var(--sga-accent); outline-offset: 3px;
+}
+.sga-w-page button:disabled { cursor: not-allowed; opacity: .55; }
+.sga-w-page .sga-w-error[role='alert'],
+.sga-w-page .sga-receiving-success,
+.sga-w-page .sga-order-success[role='status'] {
+  border-width: 2px; font-weight: 650; line-height: 1.5;
+}
+.sga-w-page .sga-order-pending-button {
+  display: inline-flex; width: auto; max-width: 100%;
+  min-height: 46px; align-items: center; justify-content: center;
+  padding: 10px 13px; font-weight: 700;
+  background: var(--sga-warn-pale); color: var(--sga-warn);
+  border: 1px solid var(--sga-warn-border);
+}
+@media (max-width: 620px) {
+  .sga-w-page .sga-order-scanner > input { flex-basis: calc(100% - 48px); }
+  .sga-w-page .sga-order-scanner > button { width: 100%; }
+  .sga-w-page .sga-order-quickstats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sga-w-page .sga-order-quickstats .is-key { grid-column: 1/-1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sga-w-page *, .sga-w-page *::before, .sga-w-page *::after {
+    transition-duration: .01ms !important; animation-duration: .01ms !important;
+  }
+}
+
+/* Recuento: diferencia visible mientras se introducen cantidades. */
+.sga-w-page .sga-operator-count-preview {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  grid-column: 1/-1; gap: 10px; padding: 12px;
+  background: var(--sga-surface-soft); border: 1px solid var(--sga-border);
+  border-radius: 13px;
+}
+.sga-w-page .sga-operator-count-preview > span {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: .87rem; color: var(--sga-muted); padding: 8px;
+}
+.sga-w-page .sga-operator-count-preview strong {
+  font-size: 1.35rem; font-variant-numeric: tabular-nums;
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-operator-count-preview .is-difference {
+  background: var(--sga-accent-pale); border-radius: 10px;
+}
+.sga-w-page .sga-operator-count-preview .is-difference strong {
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-operator-count-preview p {
+  grid-column: 1/-1; margin: 0; font-weight: 700;
+  color: var(--sga-success);
+}
+/* Descripciones, enlaces de acceso y asistentes con contraste coherente. */
+.sga-w-page :is(.sga-ops-action-eyebrow,.sga-w-demo-foot,
+  .sga-ops-kpi-label,.sga-w-action-name small,.sga-w-action-name em,
+  .sga-ops-section-heading p,.sga-w-subnote) { color: var(--sga-muted); }
+.sga-w-page :is(.sga-w-home-action,.sga-w-tools,.sga-ops-audit-panel,
+  .sga-w-card,.sga-w-guide,.sga-w-products button) { border-color: var(--sga-border); }
+.sga-w-page .sga-ops-action-arrow {
+  color: var(--sga-accent-ink); background: var(--sga-accent-pale);
+}
+.sga-w-page .sga-w-steps { position: static; }
+:root[data-theme='dark'] .sga-w-page .sga-w-products button.is-selected {
+  background: var(--sga-accent-pale); border-color: var(--sga-accent-border);
+  color: var(--sga-ink);
+}
+
+/* Verificado en Chrome: forzamos la tinta de la capa raíz en oscuro.
+   Varias hojas anteriores usan colores fijos que, sin esta regla más específica,
+   pueden dejar negro sobre azul noche. Los componentes con estado conservan
+   sus propios tokens de contraste (avisos, botones, etc.). */
+:root[data-theme='dark'] .sga-w-page { color: var(--sga-ink) !important; }
+:root[data-theme='dark'] .sga-w-page :is(.sga-task-line,.sga-w-home-action,
+  .sga-order-panel,.sga-order-lines,.sga-order-main,.sga-receiving-lines,
+  .sga-receiving-form,.sga-w-card,.sga-order-scanner,.sga-w-products button,
+  .sga-w-qty input,.sga-order-qty-fields input) {
+  color: var(--sga-ink);
+}
+:root[data-theme='dark'] .sga-w-page :is(.sga-task-line small,
+  .sga-task-line .sga-task-code,.sga-task-line .sga-task-label,
+  .sga-order-quickstats span,.sga-receiving-helper) { color: var(--sga-muted); }
+:root[data-theme='dark'] .sga-w-page .sga-task-line.is-active {
+  color: var(--sga-ink);
+  border-color: var(--sga-accent-border);
+}
+
+/* Ajuste visual 2026-10-19 — evitar textos y números pegados
+   en métricas de preparación y en la selección inicial de pedidos. */
+.sga-w-page .sga-order-quickstats {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.sga-w-page .sga-order-quickstats > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 72px;
+  padding: 14px 16px;
+}
+.sga-w-page .sga-order-quickstats > div > span {
+  display: block;
+  margin: 0;
+  line-height: 1.25;
+}
+.sga-w-page .sga-order-quickstats > div > b {
+  display: block;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -.01em;
+}
+/* Base reutilizable del autocompletado: también la usa recepción. */
+.sga-w-page .sga-search-autocomplete {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  width: 100%;
+  padding: 0 14px;
+  border: 2px solid var(--sga-input-border);
+  border-radius: 12px;
+  background: var(--sga-input);
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-input > svg {
+  flex: 0 0 22px;
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-input > input {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 8px 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sga-ink);
+  outline: none;
+  box-shadow: none;
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-input:focus-within {
+  border-color: var(--sga-accent-border);
+  box-shadow: 0 0 0 3px var(--sga-accent-pale);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-options,
+.sga-w-page .sga-search-autocomplete .sga-suggest-empty {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--sga-surface);
+  border: 1px solid var(--sga-border);
+  color: var(--sga-ink);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 38, 52, .20);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-options {
+  max-height: min(340px, 46vh);
+  overflow-y: auto;
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-options button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 4px;
+  padding: 11px 14px;
+  text-align: left;
+  background: var(--sga-surface);
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-options button:is(:hover,.is-highlighted) {
+  background: var(--sga-accent-pale);
+}
+.sga-w-page .sga-search-autocomplete .sga-suggest-options button small { color: var(--sga-muted); }
+
+/* Búsqueda de pedidos: un solo campo, sin flecha de desplegable, con
+   sugerencias al escribir y lectura clara en ambos temas de Stock+. */
+.sga-w-page .sga-order-search {
+  position: relative;
+  z-index: 15;
+  margin-block: 18px 24px;
+}
+.sga-w-page .sga-order-search .sga-suggest { position: relative; width: 100%; min-width: 0; }
+.sga-w-page .sga-order-search .sga-suggest > label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: .98rem;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-order-search .sga-suggest-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 62px;
+  gap: 12px;
+  padding: 0 16px;
+  border: 2px solid var(--sga-input-border);
+  border-radius: 14px;
+  background: var(--sga-input);
+  color: var(--sga-ink);
+  box-shadow: none;
+}
+.sga-w-page .sga-order-search .sga-suggest-input:focus-within {
+  border-color: var(--sga-accent-border);
+  box-shadow: 0 0 0 3px var(--sga-accent-pale);
+}
+.sga-w-page .sga-order-search .sga-suggest-input > svg {
+  display: block;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-search .sga-suggest-input > input {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  margin: 0;
+  padding: 9px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sga-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: none;
+  outline: none;
+  appearance: none;
+}
+.sga-w-page .sga-order-search .sga-suggest-input > input:focus {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+.sga-w-page .sga-order-search .sga-suggest-input > input::placeholder {
+  color: var(--sga-muted);
+  opacity: 1;
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results,
+.sga-w-page .sga-order-search .sga-search-autocomplete-empty {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--sga-border);
+  border-radius: 14px;
+  background: var(--sga-surface);
+  color: var(--sga-ink);
+  box-shadow: 0 12px 32px rgba(15, 38, 52, .20);
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results {
+  max-height: min(340px, 46vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 64px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--sga-surface);
+  color: var(--sga-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results > button + button {
+  border-top: 1px solid var(--sga-border);
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results > button strong {
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--sga-ink);
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results > button small {
+  font-size: .86rem;
+  line-height: 1.35;
+  color: var(--sga-muted);
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-results > button:is(:hover,.is-highlighted,[aria-selected='true']) {
+  background: var(--sga-accent-pale);
+}
+.sga-w-page .sga-order-search .sga-search-autocomplete-empty {
+  padding: 15px 18px;
+  font-size: .95rem;
+}
+
+/* Listado de pedidos: título, cliente y metadatos en filas separadas.
+   El contador ocupa una píldora propia; nunca se pega a la fecha. */
+.sga-w-page .sga-order-list-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 18px 0 14px;
+}
+.sga-w-page .sga-order-list-heading > strong { color: var(--sga-ink); font-size: 1.07rem; }
+.sga-w-page .sga-order-list-heading > span { color: var(--sga-muted); font-size: .87rem; }
+.sga-w-page .sga-order-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 14px;
+  margin-top: 0;
+}
+.sga-w-page .sga-order-list > button.sga-order-list-button {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 152px;
+  padding: 20px;
+  border: 1px solid var(--sga-border);
+  border-radius: 16px;
+  background: var(--sga-surface);
+  color: var(--sga-ink);
+  text-align: left;
+  box-shadow: none;
+}
+.sga-w-page .sga-order-list > button.sga-order-list-button:hover:not(:disabled),
+.sga-w-page .sga-order-list > button.sga-order-list-button:focus-visible {
+  border-color: var(--sga-accent-border);
+  background: var(--sga-surface-soft);
+}
+.sga-w-page .sga-order-list > button.sga-order-list-button:disabled { opacity: .78; cursor: not-allowed; }
+.sga-w-page .sga-order-list-button .sga-order-list-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: var(--sga-accent-pale);
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-list-button .sga-order-list-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  font-size: clamp(1rem, 1.4vw, 1.22rem);
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--sga-ink);
+  overflow-wrap: anywhere;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-client {
+  display: block;
+  width: 100%;
+  font-size: .94rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--sga-muted);
+  overflow-wrap: anywhere;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 3px;
+  width: 100%;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  color: var(--sga-muted);
+  font-size: .84rem;
+  font-weight: 550;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--sga-accent-pale);
+  color: var(--sga-accent-ink);
+  font-size: .81rem;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-lock {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--sga-warn);
+  font-size: .85rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.sga-w-page .sga-order-list-button .sga-order-list-arrow {
+  display: block;
+  align-self: center;
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-list > button.sga-order-unlock-button {
+  grid-column: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 12px;
+  border: 1px solid var(--sga-warn-border);
+  border-radius: 10px;
+  background: var(--sga-warn-pale);
+  color: var(--sga-warn);
+  font-weight: 750;
+}
+@media (max-width: 880px) {
+  .sga-w-page .sga-order-list { grid-template-columns: 1fr; }
+  .sga-w-page .sga-order-list > button.sga-order-list-button { min-height: 135px; }
+}
+@media (max-width: 520px) {
+  .sga-w-page .sga-order-list > button.sga-order-list-button {
+    grid-template-columns: 36px minmax(0, 1fr) 16px;
+    gap: 10px;
+    padding: 16px 12px;
+  }
+  .sga-w-page .sga-order-list-button .sga-order-list-icon { width: 36px; height: 36px; }
+  .sga-w-page .sga-order-list-button .sga-order-list-meta { align-items: flex-start; flex-direction: column; }
+  .sga-w-page .sga-order-search .sga-suggest-input { min-height: 56px; padding: 0 12px; }
+  .sga-w-page .sga-order-search .sga-suggest-input > input { font-size: .95rem; }
+}
+
+/* SGA · barra de progreso de cuatro pasos (salidas y recepciones).
+   Es una cuadrícula real: el marcador no puede salirse ni pegarse a la etiqueta.
+   Esta regla se carga al final y sustituye la distribución incompleta heredada. */
+.sga-w-page .sga-order-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sga-w-page .sga-order-steps > span {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 10px 14px;
+  margin: 0;
+  border: 1px solid var(--sga-border);
+  border-radius: 12px;
+  background: var(--sga-surface-soft);
+  color: var(--sga-muted);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sga-w-page .sga-order-steps > span > b {
+  display: inline-flex;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 9px;
+  background: var(--sga-surface);
+  color: var(--sga-muted);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1;
+}
+.sga-w-page .sga-order-steps > span > b > svg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.sga-w-page .sga-order-steps > span.is-current {
+  background: var(--sga-accent-pale);
+  border-color: var(--sga-accent-border);
+  color: var(--sga-accent-ink);
+}
+.sga-w-page .sga-order-steps > span.is-current > b {
+  background: #16685f;
+  color: #fff;
+}
+.sga-w-page .sga-order-steps > span.is-past {
+  background: var(--sga-success-pale);
+  border-color: var(--sga-border);
+  color: var(--sga-success);
+}
+.sga-w-page .sga-order-steps > span.is-past > b {
+  background: var(--sga-success-pale);
+  color: var(--sga-success);
+}
+/* La barra de avance queda separada, nunca oculta los pasos. */
+.sga-w-page .sga-order-steps + .sga-ops-step-progress {
+  display: block;
+  margin-top: 11px;
+}
+@media (max-width: 900px) {
+  .sga-w-page .sga-order-steps { gap: 8px; }
+  .sga-w-page .sga-order-steps > span {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 6px;
+    min-height: 76px;
+    text-align: center;
+    font-size: 12px;
+  }
+}
+@media (max-width: 540px) {
+  .sga-w-page .sga-order-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .sga-w-page .sga-order-steps > span {
+    flex-direction: row;
+    justify-content: center;
+    min-height: 48px;
+    padding: 8px 10px;
+    gap: 8px;
+    text-align: left;
+    font-size: 12px;
+  }
+  .sga-w-page .sga-order-steps > span > b {
+    flex-basis: 27px;
+    width: 27px;
+    height: 27px;
+    font-size: 12px;
+  }
+}

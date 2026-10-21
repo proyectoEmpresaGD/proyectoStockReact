@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React from 'react';
 import { AlertTriangle, Boxes, CalendarClock, CircleCheckBig, PackageX } from 'lucide-react';
 import { STOCK_STATUS, formatQuantity } from './stockControlUtils';
@@ -31,7 +33,7 @@ const CARD_CONFIG = [
 
 function StockControlSummary({ summary, activeStatus, onStatusChange, horizonLabel }) {
     return (
-        <section aria-label="Resumen de necesidades de compra" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <LocalizedElement><section aria-label="Resumen de necesidades de compra" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {CARD_CONFIG.map(({ key, label, helper, icon: Icon, valueClass, cardClass }) => {
                 const active = activeStatus === key;
                 return (
@@ -61,11 +63,11 @@ function StockControlSummary({ summary, activeStatus, onStatusChange, horizonLab
             <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className="text-sm font-medium text-slate-600">Unidades sugeridas</p>
+                        <p className="text-sm font-medium text-slate-600"><TranslatedText>Unidades sugeridas</TranslatedText></p>
                         <p className="mt-2 text-3xl font-semibold tabular-nums text-blue-700">
                             {formatQuantity(summary.suggestedUnits || 0, 0)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">Horizonte: {horizonLabel}</p>
+                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Horizonte:</TranslatedText> {horizonLabel}</p>
                     </div>
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 text-blue-700 ring-1 ring-black/5">
                         <Boxes size={20} aria-hidden="true" />
@@ -81,18 +83,18 @@ function StockControlSummary({ summary, activeStatus, onStatusChange, horizonLab
             >
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className="text-sm font-medium text-slate-600">Sin proveedor</p>
+                        <p className="text-sm font-medium text-slate-600"><TranslatedText>Sin proveedor</TranslatedText></p>
                         <p className="mt-2 text-3xl font-semibold tabular-nums text-slate-900">
                             {summary.withoutSupplier || 0}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">Requieren revisión manual</p>
+                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Requieren revisión manual</TranslatedText></p>
                     </div>
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                         <PackageX size={20} aria-hidden="true" />
                     </span>
                 </div>
             </button>
-        </section>
+        </section></LocalizedElement>
     );
 }
 

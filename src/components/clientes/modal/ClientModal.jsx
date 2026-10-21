@@ -1,3 +1,5 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../../i18n/LocalizedElement.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tab } from '@headlessui/react';
 import {
@@ -84,42 +86,42 @@ export default function ClientModal({
                             {String(selectedClientDetails?.razclien || 'C').trim().charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                            <p className="clients-workspace__eyebrow">Ficha de cliente</p>
+                            <p className="clients-workspace__eyebrow"><TranslatedText>Ficha de cliente</TranslatedText></p>
                             <h2 id="client-detail-title" className="clients-workspace__name">
                                 {selectedClientDetails?.razclien || 'Detalle del cliente'}
                             </h2>
                             <p className="clients-workspace__meta">
-                                <span>Código {selectedClientDetails?.codclien || '—'}</span>
+                                <span><TranslatedText>Código</TranslatedText> {selectedClientDetails?.codclien || '—'}</span>
                                 {selectedClientDetails?.localidad && <><span aria-hidden="true">·</span><span>{selectedClientDetails.localidad}</span></>}
                             </p>
                         </div>
                     </div>
-                    <div className="clients-workspace__actions" aria-label="Acciones de contacto">
+                    <LocalizedElement><div className="clients-workspace__actions" aria-label="Acciones de contacto">
                         {phone && (
                             <a href={`tel:${phone}`} className="clients-workspace__action clients-workspace__action--primary" title={`Llamar a ${phone}`}>
-                                <FiPhone aria-hidden="true"/><span>Llamar</span>
+                                <FiPhone aria-hidden="true"/><span><TranslatedText>Llamar</TranslatedText></span>
                             </a>
                         )}
                         {email && (
                             <a href={`mailto:${email}`} className="clients-workspace__action" title={`Enviar correo a ${email}`}>
-                                <FiMail aria-hidden="true"/><span>Correo</span>
+                                <FiMail aria-hidden="true"/><span><TranslatedText>Correo</TranslatedText></span>
                             </a>
                         )}
                         {address && (
-                            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                            <LocalizedElement><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
                                 target="_blank" rel="noopener noreferrer" className="clients-workspace__action" title="Ver dirección en Google Maps">
-                                <FiMapPin aria-hidden="true"/><span>Mapa</span>
-                            </a>
+                                <FiMapPin aria-hidden="true"/><span><TranslatedText>Mapa</TranslatedText></span>
+                            </a></LocalizedElement>
                         )}
-                        <button type="button" onClick={closeModal} className="clients-workspace__close" aria-label="Cerrar la ficha de cliente" title="Cerrar ficha">
+                        <LocalizedElement><button type="button" onClick={closeModal} className="clients-workspace__close" aria-label="Cerrar la ficha de cliente" title="Cerrar ficha">
                             <FiX aria-hidden="true" size={22}/>
-                        </button>
-                    </div>
+                        </button></LocalizedElement>
+                    </div></LocalizedElement>
                 </header>
 
                 <Tab.Group as="div" className="clients-workspace__layout" selectedIndex={selectedIndex} onChange={changeSection}>
-                    <nav className="clients-workspace__nav" aria-label="Secciones de la ficha">
-                        <p className="clients-workspace__nav-heading">CONSULTAS</p>
+                    <LocalizedElement><nav className="clients-workspace__nav" aria-label="Secciones de la ficha">
+                        <p className="clients-workspace__nav-heading"><TranslatedText>CONSULTAS</TranslatedText></p>
                         <Tab.List className="clients-workspace__tabs">
                             {SECTIONS.map(({ id, title, subtitle, icon: Icon }) => (
                                 <Tab key={id} className={({ selected }) =>
@@ -137,7 +139,7 @@ export default function ClientModal({
                             <strong>{selectedClientDetails?.codgesti || 'Sin código de gestión'}</strong>
                             <span>{selectedClientDetails?.codtarifa ? `Tarifa ${selectedClientDetails.codtarifa}` : 'Tarifa no indicada'}</span>
                         </div>
-                    </nav>
+                    </nav></LocalizedElement>
 
                     <main className="clients-workspace__main">
                         <div className="clients-workspace__section-bar">

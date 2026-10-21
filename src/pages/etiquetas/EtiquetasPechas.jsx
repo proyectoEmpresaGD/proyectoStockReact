@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // Para prueba
 import { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
@@ -268,11 +270,11 @@ function EtiquetaPerchas() {
                         {/* Contenedor de la flecha y el texto */}
                         <div className="flex items-center">
                             {/* Imagen de la flecha con tamaño fijo */}
-                            <img
+                            <LocalizedElement><img
                                 src={getFlechaUrl('flechaAbajo')}
                                 alt="Flecha"
                                 className="w-[18px] h-[60px] pt-2"
-                            />
+                            /></LocalizedElement>
                             {/* Contenedor del texto */}
                             <div>
                                 <p className="font-extrabold flex items-center w-[210px]">
@@ -307,7 +309,7 @@ function EtiquetaPerchas() {
                         <p className="font-extrabold flex items-center">
                             Width: <span className="font-light ml-1 mb-[3px]">{selectedProduct.ancho}</span>
                         </p>
-                        <p className="font-extrabold flex break-words items-center">Composition: </p>
+                        <p className="font-extrabold flex break-words items-center"><TranslatedText>Composition:</TranslatedText> </p>
                         <span className="font-light items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
@@ -322,14 +324,14 @@ function EtiquetaPerchas() {
 
                 <div>
                     <div className="text-content relative right-[52px] text-[10px]">
-                        <h3 className="text-[10px]"><strong>Usages:</strong></h3>
+                        <h3 className="text-[10px]"><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                         <div className="flex w-4 h-4 mt-[3px] mb-[0px]">{getUsoImages(selectedProduct.uso)}</div>
-                        <h3 className="text-[10px]"><strong>Cares:</strong></h3>
+                        <h3 className="text-[10px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                         <div className="flex w-4 h-4 mt-[3px]">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                     </div>
                 </div>
                 <div className="relative left-[10px] top-[5px]">
-                    <img
+                    <LocalizedElement><img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
                         className={`h-auto ${{
@@ -340,7 +342,7 @@ function EtiquetaPerchas() {
                             FLA: "w-[130px] relative left-[-5px]",
                             CTL: "w-[140px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div className=' relative top-[6px]'>
                     <QRCode value={encryptProductId(selectedProduct.codprodu)} size={46} />
@@ -405,7 +407,7 @@ function EtiquetaPerchas() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Perchas</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta de Perchas</TranslatedText></h1>
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}

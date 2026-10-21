@@ -576,6 +576,8 @@ export class AuthController {
             codrepre,
             codrepres,
             route_access,
+            idioma,
+            tema,
         } = req.body;
 
         if (!isAdmin) {
@@ -618,6 +620,18 @@ export class AuthController {
         if (codrepre !== undefined) dataToUpdate.codrepre = codrepre;
         if (codrepres !== undefined) dataToUpdate.codrepres = normalizeCodrepres(codrepres);
         if (route_access !== undefined && isAdmin) dataToUpdate.route_access = route_access;
+        if (idioma !== undefined) {
+            if (!['es', 'en'].includes(idioma)) {
+                return res.status(400).json({ message: 'Idioma no válido' });
+            }
+            dataToUpdate.idioma = idioma;
+        }
+        if (tema !== undefined) {
+            if (!['light', 'dark'].includes(tema)) {
+                return res.status(400).json({ message: 'Tema no válido' });
+            }
+            dataToUpdate.tema = tema;
+        }
 
         if (Object.keys(dataToUpdate).length === 0) {
             return res.status(400).json({

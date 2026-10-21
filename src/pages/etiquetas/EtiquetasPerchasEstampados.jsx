@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -270,14 +272,14 @@ function EtiquetaPerchasEstampados() {
             style={{ width: '14cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
+                    <LocalizedElement><img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} /></LocalizedElement>
                 </div>
                 <div className='flex justify-end items-start gap-2 relative left-[23px]'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
@@ -300,7 +302,7 @@ function EtiquetaPerchasEstampados() {
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
                     {/* Composition como el 1º: título + línea siguiente */}
-                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <p className="font-extrabold flex items-center"><TranslatedText>Composition:</TranslatedText></p>
                     <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
@@ -319,9 +321,9 @@ function EtiquetaPerchasEstampados() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[13.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[13.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[13.5px] mt-[13.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[13.5px] mt-[13.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="flex justify-end mt-[5px]">
@@ -336,14 +338,14 @@ function EtiquetaPerchasEstampados() {
             style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
+                    <LocalizedElement><img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -369,7 +371,7 @@ function EtiquetaPerchasEstampados() {
                     </p>
                     {/* Igual que el 1º Formato 2 */}
                     <p className="mb-[1px] leading-tight text-justify">
-                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span>{' '}
                         <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -394,9 +396,9 @@ function EtiquetaPerchasEstampados() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -411,14 +413,14 @@ function EtiquetaPerchasEstampados() {
             style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
+                    <LocalizedElement><img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -442,7 +444,7 @@ function EtiquetaPerchasEstampados() {
                     </p>
                     {/* Igual que el 1º Formato 3 */}
                     <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
-                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                        <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span> {selectedProduct.composicion}
                     </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
@@ -467,9 +469,9 @@ function EtiquetaPerchasEstampados() {
 
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -484,14 +486,14 @@ function EtiquetaPerchasEstampados() {
             style={{ width: '15cm', height: '4cm', fontSize: '6px', boxSizing: 'border-box', color: 'black', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', textAlign: 'start' }}>
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
+                    <LocalizedElement><img src={brandLogos[selectedProduct.codmarca]} alt="Logo de Marca"
                         className={`h-auto ${{
                             BAS: "w-[80px] relative left-[-1px]",
                             HAR: "w-[135px] relative left-[-6px]",
                             CJM: "w-[50px] relative left-[-1px]",
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
-                        }[selectedProduct.codmarca] || "w-[90px]"}`} />
+                        }[selectedProduct.codmarca] || "w-[90px]"}`} /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -516,7 +518,7 @@ function EtiquetaPerchasEstampados() {
                     </p>
                     {/* Igual que el 1º Formato 4 */}
                     <p className="font-light mb-[2px] text-justify pl-[11ch] indent-[-11ch] leading-tight">
-                        <span className="font-extrabold">Composition:</span> {selectedProduct.composicion}
+                        <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span> {selectedProduct.composicion}
                     </p>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
@@ -537,9 +539,9 @@ function EtiquetaPerchasEstampados() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -562,7 +564,7 @@ function EtiquetaPerchasEstampados() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de percha estampado</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta de percha estampado</TranslatedText></h1>
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}
@@ -579,7 +581,7 @@ function EtiquetaPerchasEstampados() {
 
             <button onClick={handlePrint}
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">
-                Descargar Etiqueta de percha
+                <TranslatedText>Descargar Etiqueta de percha</TranslatedText>
             </button>
             <button onClick={handleExportAsJPGDirect}
                 className="mt-6 bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition duration-200">

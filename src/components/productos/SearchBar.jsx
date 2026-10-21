@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AiOutlineSearch } from 'react-icons/ai';
 import { FiBox } from 'react-icons/fi';
@@ -112,7 +114,7 @@ const SearchBar = ({
             className="relative w-full"
         >
             <label className="cjm-control-label" htmlFor="product-stock-search">
-                Producto o referencia
+                <TranslatedText>Producto o referencia</TranslatedText>
             </label>
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -121,7 +123,7 @@ const SearchBar = ({
                         className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]"
                         aria-hidden="true"
                     />
-                    <input
+                    <LocalizedElement><input
                         id="product-stock-search"
                         type="search"
                         value={localTerm}
@@ -134,7 +136,7 @@ const SearchBar = ({
                         aria-activedescendant={suggestions.length > 0 ? `product-search-option-${highlightedIndex}` : undefined}
                         className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-4 uppercase"
                         placeholder="Ej. OM, DAMASCO o una referencia"
-                    />
+                    /></LocalizedElement>
                 </div>
 
                 <button
@@ -149,7 +151,7 @@ const SearchBar = ({
             </div>
 
             <p className="cjm-muted mt-2 text-xs leading-5">
-                Pulsa Enter o selecciona una coincidencia. En móvil puedes usar el botón Buscar.
+                <TranslatedText>Pulsa Enter o selecciona una coincidencia. En móvil puedes usar el botón Buscar.</TranslatedText>
             </p>
 
             {suggestions.length > 0 && (
@@ -183,7 +185,7 @@ const SearchBar = ({
                                 </span>
                                 {suggestion.codprodu && (
                                     <span className="cjm-muted mt-0.5 block text-xs">
-                                        Ref. {suggestion.codprodu}
+                                        <TranslatedText>Ref.</TranslatedText> {suggestion.codprodu}
                                     </span>
                                 )}
                             </li>

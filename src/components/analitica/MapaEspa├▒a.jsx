@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ComposableMap,
@@ -40,14 +43,14 @@ const provinceCodeByName = createProvinceMapping();
 const normalizeAmount = (value) => Number(value || 0);
 
 const formatCurrency = (value) =>
-  normalizeAmount(value).toLocaleString("es-ES", {
+  normalizeAmount(value).toLocaleString(getActiveLocale(), {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
   });
 
 const formatNumber = (value) =>
-  normalizeAmount(value).toLocaleString("es-ES", {
+  normalizeAmount(value).toLocaleString(getActiveLocale(), {
     maximumFractionDigits: 0,
   });
 
@@ -56,7 +59,7 @@ const formatPercent = (value) => {
     return "Sin dato";
   }
 
-  return `${Number(value).toLocaleString("es-ES", {
+  return `${Number(value).toLocaleString(getActiveLocale(), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })}%`;
@@ -173,7 +176,7 @@ const MapLegend = ({ metric }) => {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Leyenda</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><TranslatedText>Leyenda</TranslatedText></p>
       <div className="grid gap-2">
         {items.map((item) => (
           <div key={item.label} className="flex items-center gap-2 text-xs text-slate-700">
@@ -376,19 +379,19 @@ export default function MapaEspaña({
 
       {loading ? (
         <div role="status" aria-live="polite" className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          Actualizando facturación del mapa según el modo seleccionado…
+          <TranslatedText>Actualizando facturación del mapa según el modo seleccionado…</TranslatedText>
         </div>
       ) : null}
 
       {!loading && !error && (
       <>
       <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label={amountMode === "total" ? "Facturación con IVA y portes" : "Facturación sin IVA ni portes"} value={formatCurrency(totals.facturacion)} helper={`Vs ${previousYear}: ${formatPercent(totals.variacion)}`} />
-        <StatCard label="Tejido / No Contract" value={formatCurrency(totals.tejido)} helper="Series seleccionadas no Contract" />
-        <StatCard label="Contract / Proyectos" value={formatCurrency(totals.contract)} helper="Series H y HH" />
-        <StatCard label="Clientes activos" value={formatNumber(totals.clientes)} helper="Clientes con facturas" />
-        <StatCard label="Ticket medio" value={formatCurrency(totals.ticketMedio)} helper="Facturación / clientes" />
-        <StatCard label="Provincias con movimiento" value={formatNumber(provinceRows.length)} helper="Según filtros actuales" />
+        <LocalizedElement><StatCard label={amountMode === "total" ? "Facturación con IVA y portes" : "Facturación sin IVA ni portes"} value={formatCurrency(totals.facturacion)} helper={`Vs ${previousYear}: ${formatPercent(totals.variacion)}`} /></LocalizedElement>
+        <LocalizedElement><StatCard label="Tejido / No Contract" value={formatCurrency(totals.tejido)} helper="Series seleccionadas no Contract" /></LocalizedElement>
+        <LocalizedElement><StatCard label="Contract / Proyectos" value={formatCurrency(totals.contract)} helper="Series H y HH" /></LocalizedElement>
+        <LocalizedElement><StatCard label="Clientes activos" value={formatNumber(totals.clientes)} helper="Clientes con facturas" /></LocalizedElement>
+        <LocalizedElement><StatCard label="Ticket medio" value={formatCurrency(totals.ticketMedio)} helper="Facturación / clientes" /></LocalizedElement>
+        <LocalizedElement><StatCard label="Provincias con movimiento" value={formatNumber(provinceRows.length)} helper="Según filtros actuales" /></LocalizedElement>
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -406,21 +409,21 @@ export default function MapaEspaña({
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Mapa provincial</h2>
+              <h2 className="text-lg font-bold text-slate-900"><TranslatedText>Mapa provincial</TranslatedText></h2>
               <p className="text-sm text-slate-500">
-                Métrica activa: {metricOptions.find((option) => option.key === metric)?.label}
+                <TranslatedText>Métrica activa:</TranslatedText> {metricOptions.find((option) => option.key === metric)?.label}
               </p>
             </div>
 
             <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
               <div className="relative w-full lg:w-80">
-                <input
+                <LocalizedElement><input
                 type="text"
                 placeholder="Buscar provincia..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-              />
+              /></LocalizedElement>
               {searchTerm && (
                 <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
                   {filteredProvinces.length > 0 ? (
@@ -435,7 +438,7 @@ export default function MapaEspaña({
                       </button>
                     ))
                   ) : (
-                    <p className="px-4 py-3 text-sm text-slate-500">No se encontraron provincias</p>
+                    <p className="px-4 py-3 text-sm text-slate-500"><TranslatedText>No se encontraron provincias</TranslatedText></p>
                   )}
                 </div>
               )}
@@ -445,7 +448,7 @@ export default function MapaEspaña({
                 onClick={resetMap}
                 className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
               >
-                Restablecer
+                <TranslatedText>Restablecer</TranslatedText>
               </button>
             </div>
           </div>
@@ -529,11 +532,11 @@ export default function MapaEspaña({
               >
                 <p className="font-bold">{tooltip.row.name}</p>
                 <div className="mt-2 grid gap-1 text-xs text-slate-200">
-                  <span>Facturación: {formatCurrency(tooltip.row.facturacion_total)}</span>
-                  <span>Tejido: {formatCurrency(tooltip.row.facturacion_tejido)}</span>
-                  <span>Contract: {formatCurrency(tooltip.row.facturacion_contract)}</span>
-                  <span>Clientes: {formatNumber(tooltip.row.clientes)}</span>
-                  <span>Ticket medio: {formatCurrency(tooltip.row.ticket_medio)}</span>
+                  <span><TranslatedText>Facturación:</TranslatedText> {formatCurrency(tooltip.row.facturacion_total)}</span>
+                  <span><TranslatedText>Tejido:</TranslatedText> {formatCurrency(tooltip.row.facturacion_tejido)}</span>
+                  <span><TranslatedText>Contract:</TranslatedText> {formatCurrency(tooltip.row.facturacion_contract)}</span>
+                  <span><TranslatedText>Clientes:</TranslatedText> {formatNumber(tooltip.row.clientes)}</span>
+                  <span><TranslatedText>Ticket medio:</TranslatedText> {formatCurrency(tooltip.row.ticket_medio)}</span>
                   <span>Vs {previousYear}: {formatPercent(tooltip.row.variacion_pct)}</span>
                 </div>
               </div>
@@ -542,12 +545,12 @@ export default function MapaEspaña({
 
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
             <div className="grid grid-cols-7 gap-2 bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <span className="col-span-2">Provincia</span>
-              <span className="text-right">Total</span>
-              <span className="text-right">Tejido</span>
+              <span className="col-span-2"><TranslatedText>Provincia</TranslatedText></span>
+              <span className="text-right"><TranslatedText>Total</TranslatedText></span>
+              <span className="text-right"><TranslatedText>Tejido</TranslatedText></span>
               <span className="text-right">Contract</span>
-              <span className="text-right">Clientes</span>
-              <span className="text-right">Variación</span>
+              <span className="text-right"><TranslatedText>Clientes</TranslatedText></span>
+              <span className="text-right"><TranslatedText>Variación</TranslatedText></span>
             </div>
             {topRows.map((row) => (
               <button
@@ -569,16 +572,16 @@ export default function MapaEspaña({
 
         <aside className="grid content-start gap-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Detalle seleccionado</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500"><TranslatedText>Detalle seleccionado</TranslatedText></p>
             {selectedRow ? (
               <div className="mt-3">
                 <h3 className="text-2xl font-bold text-slate-900">{selectedRow.name}</h3>
                 <div className="mt-4 grid gap-3">
-                  <StatCard label="Facturación" value={formatCurrency(selectedRow.facturacion_total)} />
-                  <StatCard label="Tejido / No Contract" value={formatCurrency(selectedRow.facturacion_tejido)} />
-                  <StatCard label="Contract / Proyectos" value={formatCurrency(selectedRow.facturacion_contract)} />
-                  <StatCard label="Clientes" value={formatNumber(selectedRow.clientes)} />
-                  <StatCard label="Ticket medio" value={formatCurrency(selectedRow.ticket_medio)} />
+                  <LocalizedElement><StatCard label="Facturación" value={formatCurrency(selectedRow.facturacion_total)} /></LocalizedElement>
+                  <LocalizedElement><StatCard label="Tejido / No Contract" value={formatCurrency(selectedRow.facturacion_tejido)} /></LocalizedElement>
+                  <LocalizedElement><StatCard label="Contract / Proyectos" value={formatCurrency(selectedRow.facturacion_contract)} /></LocalizedElement>
+                  <LocalizedElement><StatCard label="Clientes" value={formatNumber(selectedRow.clientes)} /></LocalizedElement>
+                  <LocalizedElement><StatCard label="Ticket medio" value={formatCurrency(selectedRow.ticket_medio)} /></LocalizedElement>
                   <StatCard label={`Vs ${previousYear}`} value={formatPercent(selectedRow.variacion_pct)} helper={`Diferencia: ${formatCurrency(selectedRow.delta)}`} />
                 </div>
                 <button
@@ -586,18 +589,18 @@ export default function MapaEspaña({
                   onClick={() => goToClients(selectedRow)}
                   className="mt-4 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  Ver clientes de la provincia
+                  <TranslatedText>Ver clientes de la provincia</TranslatedText>
                 </button>
               </div>
             ) : (
               <p className="mt-3 text-sm text-slate-500">
-                Haz clic sobre una provincia para ver su detalle, ranking y acceso directo a clientes filtrados.
+                <TranslatedText>Haz clic sobre una provincia para ver su detalle, ranking y acceso directo a clientes filtrados.</TranslatedText>
               </p>
             )}
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Top por métrica activa</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600"><TranslatedText>Top por métrica activa</TranslatedText></h3>
             <div className="mt-3 grid gap-2">
               {topRows.slice(0, 5).map((row, index) => (
                 <button
@@ -616,8 +619,8 @@ export default function MapaEspaña({
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Oportunidades</h3>
-            <p className="mt-1 text-xs text-slate-500">Zonas con mayor ticket medio.</p>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600"><TranslatedText>Oportunidades</TranslatedText></h3>
+            <p className="mt-1 text-xs text-slate-500"><TranslatedText>Zonas con mayor ticket medio.</TranslatedText></p>
             <div className="mt-3 grid gap-2">
               {opportunityRows.map((row) => (
                 <button
@@ -634,8 +637,8 @@ export default function MapaEspaña({
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Riesgos</h3>
-            <p className="mt-1 text-xs text-slate-500">Provincias con caída frente al año anterior.</p>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600"><TranslatedText>Riesgos</TranslatedText></h3>
+            <p className="mt-1 text-xs text-slate-500"><TranslatedText>Provincias con caída frente al año anterior.</TranslatedText></p>
             <div className="mt-3 grid gap-2">
               {riskRows.length > 0 ? (
                 riskRows.map((row) => (
@@ -651,7 +654,7 @@ export default function MapaEspaña({
                 ))
               ) : (
                 <p className="rounded-2xl bg-slate-50 px-3 py-3 text-sm text-slate-500">
-                  No hay caídas relevantes con los datos actuales.
+                  <TranslatedText>No hay caídas relevantes con los datos actuales.</TranslatedText>
                 </p>
               )}
             </div>

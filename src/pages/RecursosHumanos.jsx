@@ -1,3 +1,7 @@
+import { getActiveLocale } from '../i18n/locale.js';
+import { translateCurrent } from '../i18n/translations.js';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, ListChecks, LockKeyhole, PlaneTakeoff, RefreshCw, Settings2, ShieldCheck, UserCircle2, UsersRound, XCircle } from 'lucide-react';
 import { useAuthContext } from '../Auth/AuthContext';
@@ -50,7 +54,7 @@ function formatDate(dateValue) {
     if (!dateValue) return '—';
     const d = new Date(dateValue);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('es-ES');
+    return d.toLocaleDateString(getActiveLocale());
 }
 
 function getDaysLabel(days) {
@@ -542,8 +546,8 @@ function RecursosHumanosContent() {
         return (
             <PageShell maxWidth="max-w-5xl">
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
-                    <h2 className="text-xl font-semibold">Acceso no autorizado</h2>
-                    <p className="mt-2 text-sm">Debes iniciar sesión para acceder al módulo de RRHH / Vacaciones.</p>
+                    <h2 className="text-xl font-semibold"><TranslatedText>Acceso no autorizado</TranslatedText></h2>
+                    <p className="mt-2 text-sm"><TranslatedText>Debes iniciar sesión para acceder al módulo de RRHH / Vacaciones.</TranslatedText></p>
                 </div>
             </PageShell>
         );
@@ -559,19 +563,19 @@ function RecursosHumanosContent() {
                     <div className="max-w-3xl">
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">
-                                <CalendarDays size={14} /> Recursos Humanos
+                                <CalendarDays size={14} /> <TranslatedText>Recursos Humanos</TranslatedText>
                             </span>
                             {isManager && (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                                    <ShieldCheck size={13} /> Modo gestión activo
+                                    <ShieldCheck size={13} /> <TranslatedText>Modo gestión activo</TranslatedText>
                                 </span>
                             )}
                         </div>
-                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Vacaciones y ausencias</h1>
+                        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl"><TranslatedText>Vacaciones y ausencias</TranslatedText></h1>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-                            {isManager
+                            <TranslatedText>{isManager
                                 ? 'Controla solicitudes, disponibilidad, bloqueos, festivos y límites de personas desde un único calendario.'
-                                : 'Consulta tu saldo, comprueba la disponibilidad y solicita tus vacaciones directamente desde el calendario.'}
+                                : 'Consulta tu saldo, comprueba la disponibilidad y solicita tus vacaciones directamente desde el calendario.'}</TranslatedText>
                         </p>
                     </div>
 
@@ -598,7 +602,7 @@ function RecursosHumanosContent() {
                             onClick={fetchData}
                             className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
                         >
-                            <RefreshCw size={15} /> Actualizar datos
+                            <RefreshCw size={15} /> <TranslatedText>Actualizar datos</TranslatedText>
                         </button>
                     </div>
                 </div>
@@ -609,7 +613,7 @@ function RecursosHumanosContent() {
                         onClick={() => setActiveTab('usuario')}
                         className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${activeTab === 'usuario' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                        <UserCircle2 size={16} /> Mi espacio
+                        <UserCircle2 size={16} /> <TranslatedText>Mi espacio</TranslatedText>
                     </button>
                     {isManager && (
                         <button
@@ -617,7 +621,7 @@ function RecursosHumanosContent() {
                             onClick={() => setActiveTab('rrhh')}
                             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${activeTab === 'rrhh' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <UsersRound size={16} /> Panel RRHH
+                            <UsersRound size={16} /> <TranslatedText>Panel RRHH</TranslatedText>
                         </button>
                     )}
                 </div>
@@ -626,10 +630,10 @@ function RecursosHumanosContent() {
             {activeTab === 'usuario' && (
                 <>
                     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                        <StatCard icon={<Clock3 size={18} />} label="Pendientes" value={stats.pendientes || 0} />
-                        <StatCard icon={<CheckCircle2 size={18} />} label="Aprobadas" value={stats.aprobadas || 0} />
-                        <StatCard icon={<XCircle size={18} />} label="Rechazadas" value={stats.rechazadas || 0} />
-                        <StatCard icon={<PlaneTakeoff size={18} />} label="Días aprobados" value={stats.dias_aprobados || 0} />
+                        <LocalizedElement><StatCard icon={<Clock3 size={18} />} label="Pendientes" value={stats.pendientes || 0} /></LocalizedElement>
+                        <LocalizedElement><StatCard icon={<CheckCircle2 size={18} />} label="Aprobadas" value={stats.aprobadas || 0} /></LocalizedElement>
+                        <LocalizedElement><StatCard icon={<XCircle size={18} />} label="Rechazadas" value={stats.rechazadas || 0} /></LocalizedElement>
+                        <LocalizedElement><StatCard icon={<PlaneTakeoff size={18} />} label="Días aprobados" value={stats.dias_aprobados || 0} /></LocalizedElement>
                         <StatCard icon={<UserCircle2 size={18} />} label={`Mi saldo ${balance.year || ''}`} value={balance.dias_disponibles ?? 0} />
                     </div>
 
@@ -637,24 +641,24 @@ function RecursosHumanosContent() {
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Mi saldo anual {balance.year || ''}</p>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"><TranslatedText>Mi saldo anual</TranslatedText> {balance.year || ''}</p>
                                     <select value={personalYear} onChange={(e) => setPersonalYear(Number(e.target.value))} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
                                         {yearOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                                     </select>
                                 </div>
                                 <p className="mt-1 text-sm text-slate-600">
-                                    <strong className="text-slate-900">{balance.dias_disponibles ?? 0} días disponibles</strong> de {balance.dias_libres ?? Math.max((balance.allowance ?? 24) - (balance.dias_obligatorios ?? 2), 0)} de libre elección.
+                                    <strong className="text-slate-900">{balance.dias_disponibles ?? 0} <TranslatedText>días disponibles</TranslatedText></strong> <TranslatedText>de</TranslatedText> {balance.dias_libres ?? Math.max((balance.allowance ?? 24) - (balance.dias_obligatorios ?? 2), 0)} <TranslatedText>de libre elección.</TranslatedText>
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                                <span>Total efectivo <strong className="text-slate-700">{balance.allowance_efectivo ?? balance.allowance ?? 24}</strong></span>
-                                {Number(balance.ajustes || 0) !== 0 && <span>Ajustes <strong className={Number(balance.ajustes) > 0 ? 'text-emerald-700' : 'text-rose-700'}>{Number(balance.ajustes) > 0 ? '+' : ''}{Number(balance.ajustes)}</strong></span>}
-                                <span>Obligatorios <strong className="text-slate-700">{balance.dias_obligatorios ?? 2}</strong></span>
+                                <span><TranslatedText>Total efectivo</TranslatedText> <strong className="text-slate-700">{balance.allowance_efectivo ?? balance.allowance ?? 24}</strong></span>
+                                {Number(balance.ajustes || 0) !== 0 && <span><TranslatedText>Ajustes</TranslatedText> <strong className={Number(balance.ajustes) > 0 ? 'text-emerald-700' : 'text-rose-700'}>{Number(balance.ajustes) > 0 ? '+' : ''}{Number(balance.ajustes)}</strong></span>}
+                                <span><TranslatedText>Obligatorios</TranslatedText> <strong className="text-slate-700">{balance.dias_obligatorios ?? 2}</strong></span>
                                 {Number(balance.dias_arrastre || 0) > 0 && (
-                                    <span>Arrastre <strong className="text-violet-700">+{Number(balance.dias_arrastre_disponibles ?? balance.dias_arrastre)}</strong>{balance.arrastre_limite_fecha ? ` hasta ${formatDate(balance.arrastre_limite_fecha)}` : ''}</span>
+                                    <span><TranslatedText>Arrastre</TranslatedText> <strong className="text-violet-700">+{Number(balance.dias_arrastre_disponibles ?? balance.dias_arrastre)}</strong>{balance.arrastre_limite_fecha ? ` hasta ${formatDate(balance.arrastre_limite_fecha)}` : ''}</span>
                                 )}
-                                <span>Pendientes <strong className="text-amber-700">{balance.dias_pendientes ?? 0}</strong></span>
-                                <span>Aprobados <strong className="text-emerald-700">{balance.dias_aprobados ?? 0}</strong></span>
+                                <span><TranslatedText>Pendientes</TranslatedText> <strong className="text-amber-700">{balance.dias_pendientes ?? 0}</strong></span>
+                                <span><TranslatedText>Aprobados</TranslatedText> <strong className="text-emerald-700">{balance.dias_aprobados ?? 0}</strong></span>
                             </div>
                         </div>
                         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -680,11 +684,11 @@ function RecursosHumanosContent() {
                     />
                     <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
                     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                        <h2 className="text-lg font-semibold text-slate-900">Nueva solicitud</h2>
-                        <p className="mt-1 text-xs text-slate-500">Política {selectedYear}: mínimo {balance.configuracion?.antelacion_minima_dias ?? 21} días de antelación y hasta {balance.configuracion?.max_dias_consecutivos ?? 30} días laborables por solicitud.</p>
-                        <p className="mt-1 text-xs font-medium text-slate-600">Jornada habitual: {COMPANY_WORK_SCHEDULE.label}. Sábados y domingos no se pueden usar como inicio o fin y nunca consumen vacaciones.</p>
+                        <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Nueva solicitud</TranslatedText></h2>
+                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Política</TranslatedText> {selectedYear}<TranslatedText>: mínimo</TranslatedText> {balance.configuracion?.antelacion_minima_dias ?? 21} <TranslatedText>días de antelación y hasta</TranslatedText> {balance.configuracion?.max_dias_consecutivos ?? 30} <TranslatedText>días laborables por solicitud.</TranslatedText></p>
+                        <p className="mt-1 text-xs font-medium text-slate-600"><TranslatedText>Jornada habitual:</TranslatedText> {COMPANY_WORK_SCHEDULE.label}<TranslatedText>. Sábados y domingos no se pueden usar como inicio o fin y nunca consumen vacaciones.</TranslatedText></p>
                         <form id="vacaciones-request-form" className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                            <Field label="Fecha inicio">
+                            <LocalizedElement><Field label="Fecha inicio">
                                 <input
                                     type="date"
                                     required
@@ -695,7 +699,7 @@ function RecursosHumanosContent() {
                                     onChange={(e) => {
                                         const value = e.target.value;
                                         if (value && isWeekendDate(value)) {
-                                            setError('La fecha de inicio debe ser de lunes a viernes. Sábados y domingos no son laborables.');
+                                            setError(translateCurrent('La fecha de inicio debe ser de lunes a viernes. Sábados y domingos no son laborables.'));
                                             setForm((p) => ({ ...p, fecha_inicio: '' }));
                                             return;
                                         }
@@ -704,8 +708,8 @@ function RecursosHumanosContent() {
                                     }}
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                                 />
-                            </Field>
-                            <Field label="Fecha fin">
+                            </Field></LocalizedElement>
+                            <LocalizedElement><Field label="Fecha fin">
                                 <input
                                     type="date"
                                     required
@@ -716,7 +720,7 @@ function RecursosHumanosContent() {
                                     onChange={(e) => {
                                         const value = e.target.value;
                                         if (value && isWeekendDate(value)) {
-                                            setError('La fecha de fin debe ser de lunes a viernes. Sábados y domingos no son laborables.');
+                                            setError(translateCurrent('La fecha de fin debe ser de lunes a viernes. Sábados y domingos no son laborables.'));
                                             setForm((p) => ({ ...p, fecha_fin: '' }));
                                             return;
                                         }
@@ -725,8 +729,8 @@ function RecursosHumanosContent() {
                                     }}
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                                 />
-                            </Field>
-                            <Field label="Motivo (opcional)">
+                            </Field></LocalizedElement>
+                            <LocalizedElement><Field label="Motivo (opcional)">
                                 <textarea
                                     rows={3}
                                     value={form.motivo}
@@ -734,7 +738,7 @@ function RecursosHumanosContent() {
                                     onChange={(e) => setForm((p) => ({ ...p, motivo: e.target.value }))}
                                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                                 />
-                            </Field>
+                            </Field></LocalizedElement>
                             {balance.configuracion?.permitir_solicitudes === false && (
                                 <p className={`rounded-xl border px-3 py-2 text-xs leading-5 ${isSelectedYearClosed ? 'border-slate-300 bg-slate-100 text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
                                     {isSelectedYearClosed
@@ -743,14 +747,14 @@ function RecursosHumanosContent() {
                                 </p>
                             )}
                             <button type="submit" disabled={balance.configuracion?.permitir_solicitudes === false} className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                                Enviar solicitud
+                                <TranslatedText>Enviar solicitud</TranslatedText>
                             </button>
                         </form>
 
                         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                            <h3 className="font-semibold text-slate-800">Próximas vacaciones aprobadas</h3>
+                            <h3 className="font-semibold text-slate-800"><TranslatedText>Próximas vacaciones aprobadas</TranslatedText></h3>
                             {myNextVacations.length === 0 ? (
-                                <p className="mt-2 text-slate-500">No tienes vacaciones aprobadas próximas.</p>
+                                <p className="mt-2 text-slate-500"><TranslatedText>No tienes vacaciones aprobadas próximas.</TranslatedText></p>
                             ) : (
                                 <ul className="mt-2 space-y-2">
                                     {myNextVacations.map((item) => (
@@ -794,8 +798,8 @@ function RecursosHumanosContent() {
                     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Gestión de vacaciones</p>
-                                <h2 className="mt-1 text-lg font-semibold text-slate-900">Panel RRHH · {selectedYear}</h2>
+                                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400"><TranslatedText>Gestión de vacaciones</TranslatedText></p>
+                                <h2 className="mt-1 text-lg font-semibold text-slate-900"><TranslatedText>Panel RRHH ·</TranslatedText> {selectedYear}</h2>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <select
@@ -810,17 +814,17 @@ function RecursosHumanosContent() {
                                     onClick={() => setShowGuide(true)}
                                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                                 >
-                                    Guía de uso RRHH
+                                    <TranslatedText>Guía de uso RRHH</TranslatedText>
                                 </button>
                             </div>
                         </div>
 
                         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                            <ManagerSectionButton icon={<LayoutDashboard size={16} />} label="Resumen" active={managerSection === 'resumen'} onClick={() => setManagerSection('resumen')} />
-                            <ManagerSectionButton icon={<CalendarDays size={16} />} label="Calendario" active={managerSection === 'calendario'} onClick={() => setManagerSection('calendario')} />
+                            <LocalizedElement><ManagerSectionButton icon={<LayoutDashboard size={16} />} label="Resumen" active={managerSection === 'resumen'} onClick={() => setManagerSection('resumen')} /></LocalizedElement>
+                            <LocalizedElement><ManagerSectionButton icon={<CalendarDays size={16} />} label="Calendario" active={managerSection === 'calendario'} onClick={() => setManagerSection('calendario')} /></LocalizedElement>
                             <ManagerSectionButton icon={<ListChecks size={16} />} label={`Solicitudes (${stats.pendientes || 0})`} active={managerSection === 'solicitudes'} onClick={() => setManagerSection('solicitudes')} />
-                            <ManagerSectionButton icon={<UsersRound size={16} />} label="Empleados" active={managerSection === 'empleados'} onClick={() => setManagerSection('empleados')} />
-                            <ManagerSectionButton icon={<Settings2 size={16} />} label="Configuración" active={managerSection === 'configuracion'} onClick={() => setManagerSection('configuracion')} />
+                            <LocalizedElement><ManagerSectionButton icon={<UsersRound size={16} />} label="Empleados" active={managerSection === 'empleados'} onClick={() => setManagerSection('empleados')} /></LocalizedElement>
+                            <LocalizedElement><ManagerSectionButton icon={<Settings2 size={16} />} label="Configuración" active={managerSection === 'configuracion'} onClick={() => setManagerSection('configuracion')} /></LocalizedElement>
                         </div>
                     </section>
 
@@ -889,18 +893,18 @@ function RecursosHumanosContent() {
                         <div className="space-y-6">
                         <VacationParticipantsPanel apiBase={API_BASE} token={token} onChanged={fetchData} />
                         <section id="rrhh-empleados" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5">
-                        <h2 className="text-lg font-semibold text-slate-900">Consulta de vacaciones por empleado</h2>
+                        <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Consulta de vacaciones por empleado</TranslatedText></h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            RRHH puede revisar el resumen anual y el historial detallado de cada trabajador.
+                            <TranslatedText>RRHH puede revisar el resumen anual y el historial detallado de cada trabajador.</TranslatedText>
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">Empleados detectados: <strong>{employeesSummary.length}</strong> · Se incluyen aunque aún no tengan solicitudes.</p>
+                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Empleados detectados:</TranslatedText> <strong>{employeesSummary.length}</strong> <TranslatedText>· Se incluyen aunque aún no tengan solicitudes.</TranslatedText></p>
                         <div className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr]">
                             <select
                                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 value={selectedEmployeeId}
                                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                             >
-                                <option value="">Selecciona un empleado</option>
+                                <option value=""><TranslatedText>Selecciona un empleado</TranslatedText></option>
                                 {employeesSummary.map((emp) => (
                                     <option key={emp.empleado_id} value={emp.empleado_id}>
                                         {emp.empleado_nombre || `Empleado ${emp.empleado_id}`} · {emp.departamento || '—'} · {emp.role || 'user'}
@@ -908,7 +912,7 @@ function RecursosHumanosContent() {
                                 ))}
                             </select>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                                Año analizado: <strong>{selectedYear}</strong>
+                                <TranslatedText>Año analizado:</TranslatedText> <strong>{selectedYear}</strong>
                             </div>
                         </div>
 
@@ -923,39 +927,39 @@ function RecursosHumanosContent() {
                                     </span>
                                 </div>
                                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-                                    <MiniStat label="Cupo anual" value={Number(selectedEmployeeSummary.allowance || 24)} />
-                                    <MiniStat label="Disponibles" value={Number(selectedEmployeeSummary.dias_disponibles || 0)} />
-                                    <MiniStat label="Solicitudes" value={selectedEmployeeSummary.total_solicitudes || 0} />
-                                    <MiniStat label="Días aprobados" value={selectedEmployeeSummary.dias_aprobados || 0} />
-                                    <MiniStat label="Días pendientes" value={selectedEmployeeSummary.dias_pendientes || 0} />
-                                    <MiniStat label="Días rechazados" value={selectedEmployeeSummary.dias_rechazados || 0} />
-                                    <MiniStat label="Días cancelados" value={selectedEmployeeSummary.dias_cancelados || 0} />
-                                    <MiniStat label="Ajuste saldo" value={`${Number(selectedEmployeeSummary.dias_ajuste || 0) > 0 ? '+' : ''}${Number(selectedEmployeeSummary.dias_ajuste || 0)}`} />
-                                    {Number(selectedEmployeeSummary.dias_arrastre || 0) > 0 && <MiniStat label="Arrastre" value={`+${Number(selectedEmployeeSummary.dias_arrastre_disponibles || 0)}/${Number(selectedEmployeeSummary.dias_arrastre || 0)}`} />}
+                                    <LocalizedElement><MiniStat label="Cupo anual" value={Number(selectedEmployeeSummary.allowance || 24)} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Disponibles" value={Number(selectedEmployeeSummary.dias_disponibles || 0)} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Solicitudes" value={selectedEmployeeSummary.total_solicitudes || 0} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Días aprobados" value={selectedEmployeeSummary.dias_aprobados || 0} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Días pendientes" value={selectedEmployeeSummary.dias_pendientes || 0} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Días rechazados" value={selectedEmployeeSummary.dias_rechazados || 0} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Días cancelados" value={selectedEmployeeSummary.dias_cancelados || 0} /></LocalizedElement>
+                                    <LocalizedElement><MiniStat label="Ajuste saldo" value={`${Number(selectedEmployeeSummary.dias_ajuste || 0) > 0 ? '+' : ''}${Number(selectedEmployeeSummary.dias_ajuste || 0)}`} /></LocalizedElement>
+                                    {Number(selectedEmployeeSummary.dias_arrastre || 0) > 0 && <LocalizedElement><MiniStat label="Arrastre" value={`+${Number(selectedEmployeeSummary.dias_arrastre_disponibles || 0)}/${Number(selectedEmployeeSummary.dias_arrastre || 0)}`} /></LocalizedElement>}
                                 </div>
 
                                 <div className="mt-4 overflow-x-auto">
                                     <table className="min-w-full text-left text-sm">
                                         <thead className="text-xs uppercase tracking-wide text-slate-500">
                                             <tr>
-                                                <th className="px-3 py-2">Rango</th>
-                                                <th className="px-3 py-2">Días</th>
-                                                <th className="px-3 py-2">Estado</th>
-                                                <th className="px-3 py-2">Motivo</th>
-                                                <th className="px-3 py-2">Comentario RRHH</th>
+                                                <th className="px-3 py-2"><TranslatedText>Rango</TranslatedText></th>
+                                                <th className="px-3 py-2"><TranslatedText>Días</TranslatedText></th>
+                                                <th className="px-3 py-2"><TranslatedText>Estado</TranslatedText></th>
+                                                <th className="px-3 py-2"><TranslatedText>Motivo</TranslatedText></th>
+                                                <th className="px-3 py-2"><TranslatedText>Comentario RRHH</TranslatedText></th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {employeeTimelineLoading ? (
                                                 <tr>
                                                     <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
-                                                        Cargando historial...
+                                                        <TranslatedText>Cargando historial...</TranslatedText>
                                                     </td>
                                                 </tr>
                                             ) : employeeTimeline.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={5} className="px-3 py-8 text-center text-slate-500">
-                                                        No hay solicitudes para este empleado en el año seleccionado.
+                                                        <TranslatedText>No hay solicitudes para este empleado en el año seleccionado.</TranslatedText>
                                                     </td>
                                                 </tr>
                                             ) : (
@@ -983,7 +987,7 @@ function RecursosHumanosContent() {
                                 </div>
                             </>
                         ) : (
-                            <p className="mt-4 text-sm text-slate-500">Selecciona un empleado para consultar su estado de vacaciones.</p>
+                            <p className="mt-4 text-sm text-slate-500"><TranslatedText>Selecciona un empleado para consultar su estado de vacaciones.</TranslatedText></p>
                         )}
 
                         <VacationBalanceAdjustments
@@ -1008,14 +1012,14 @@ function RecursosHumanosContent() {
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-5">
                         <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-slate-900">
-                            <LockKeyhole size={18} /> Semanas bloqueadas
+                            <LockKeyhole size={18} /> <TranslatedText>Semanas bloqueadas</TranslatedText>
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            Configura periodos en los que no se puedan solicitar vacaciones por departamento o para toda la empresa.
+                            <TranslatedText>Configura periodos en los que no se puedan solicitar vacaciones por departamento o para toda la empresa.</TranslatedText>
                         </p>
 
                         {isSelectedYearClosed && (
-                            <p className="mt-4 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600">El ejercicio {selectedYear} está cerrado. Los bloqueos quedan protegidos hasta reabrirlo.</p>
+                            <p className="mt-4 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600"><TranslatedText>El ejercicio</TranslatedText> {selectedYear} <TranslatedText>está cerrado. Los bloqueos quedan protegidos hasta reabrirlo.</TranslatedText></p>
                         )}
 
                         <fieldset disabled={isSelectedYearClosed} className="disabled:opacity-60">
@@ -1025,7 +1029,7 @@ function RecursosHumanosContent() {
                                 value={blockedWeekForm.departamento}
                                 onChange={(e) => setBlockedWeekForm((p) => ({ ...p, departamento: e.target.value }))}
                             >
-                                <option value="">Toda la empresa</option>
+                                <option value=""><TranslatedText>Toda la empresa</TranslatedText></option>
                                 {departmentOptions.map((department) => (
                                     <option key={department} value={department}>{department}</option>
                                 ))}
@@ -1048,15 +1052,15 @@ function RecursosHumanosContent() {
                                 max={`${selectedYear}-12-31`}
                                 onChange={(e) => setBlockedWeekForm((p) => ({ ...p, fecha_fin: e.target.value }))}
                             />
-                            <input
+                            <LocalizedElement><input
                                 type="text"
                                 placeholder="Motivo"
                                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 value={blockedWeekForm.motivo}
                                 onChange={(e) => setBlockedWeekForm((p) => ({ ...p, motivo: e.target.value }))}
-                            />
+                            /></LocalizedElement>
                             <button type="submit" className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white md:col-span-4">
-                                Crear bloqueo
+                                <TranslatedText>Crear bloqueo</TranslatedText>
                             </button>
                         </form>
                         </fieldset>
@@ -1065,11 +1069,11 @@ function RecursosHumanosContent() {
                             <table className="min-w-full text-left text-sm">
                                 <thead className="text-xs uppercase tracking-wide text-slate-500">
                                     <tr>
-                                        <th className="px-3 py-2">Departamento</th>
-                                        <th className="px-3 py-2">Rango</th>
-                                        <th className="px-3 py-2">Motivo</th>
-                                        <th className="px-3 py-2">Estado</th>
-                                        <th className="px-3 py-2">Acciones</th>
+                                        <th className="px-3 py-2"><TranslatedText>Departamento</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Rango</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Motivo</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Estado</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Acciones</TranslatedText></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1087,7 +1091,7 @@ function RecursosHumanosContent() {
                                                         {item.activa ? 'Desactivar' : 'Activar'}
                                                     </button>
                                                     <button type="button" disabled={isSelectedYearClosed} className="text-rose-700 underline disabled:cursor-not-allowed disabled:opacity-40" onClick={() => deleteBlockedWeek(item.id)}>
-                                                        Eliminar
+                                                        <TranslatedText>Eliminar</TranslatedText>
                                                     </button>
                                                 </div>
                                             </td>
@@ -1096,17 +1100,17 @@ function RecursosHumanosContent() {
                                 </tbody>
                             </table>
                             {blockedWeeks.length === 0 && (
-                                <p className="px-3 py-8 text-center text-sm text-slate-500">No hay semanas bloqueadas configuradas.</p>
+                                <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>No hay semanas bloqueadas configuradas.</TranslatedText></p>
                             )}
                         </div>
                     </section>
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                        <h2 className="text-lg font-semibold text-slate-900">Días no laborables (Montilla, Córdoba)</h2>
-                        <p className="mt-1 text-sm text-slate-500">Estos días se excluyen automáticamente del cálculo de días de vacaciones.</p>
+                        <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Días no laborables (Montilla, Córdoba)</TranslatedText></h2>
+                        <p className="mt-1 text-sm text-slate-500"><TranslatedText>Estos días se excluyen automáticamente del cálculo de días de vacaciones.</TranslatedText></p>
 
                         {isSelectedYearClosed && (
-                            <p className="mt-4 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600">El ejercicio {selectedYear} está cerrado. Los días no laborables quedan protegidos hasta reabrirlo.</p>
+                            <p className="mt-4 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600"><TranslatedText>El ejercicio</TranslatedText> {selectedYear} <TranslatedText>está cerrado. Los días no laborables quedan protegidos hasta reabrirlo.</TranslatedText></p>
                         )}
 
                         <fieldset disabled={isSelectedYearClosed} className="disabled:opacity-60">
@@ -1120,22 +1124,22 @@ function RecursosHumanosContent() {
                                 max={`${selectedYear}-12-31`}
                                 onChange={(e) => setNonWorkingDayForm((p) => ({ ...p, fecha: e.target.value }))}
                             />
-                            <input
+                            <LocalizedElement><input
                                 type="text"
                                 placeholder="Descripción"
                                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 value={nonWorkingDayForm.descripcion}
                                 onChange={(e) => setNonWorkingDayForm((p) => ({ ...p, descripcion: e.target.value }))}
-                            />
-                            <input
+                            /></LocalizedElement>
+                            <LocalizedElement><input
                                 type="text"
                                 placeholder="Ámbito"
                                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 value={nonWorkingDayForm.ambito}
                                 onChange={(e) => setNonWorkingDayForm((p) => ({ ...p, ambito: e.target.value }))}
-                            />
+                            /></LocalizedElement>
                             <button type="submit" className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white">
-                                Guardar día
+                                <TranslatedText>Guardar día</TranslatedText>
                             </button>
                         </form>
                         </fieldset>
@@ -1144,11 +1148,11 @@ function RecursosHumanosContent() {
                             <table className="min-w-full text-left text-sm">
                                 <thead className="text-xs uppercase tracking-wide text-slate-500">
                                     <tr>
-                                        <th className="px-3 py-2">Fecha</th>
-                                        <th className="px-3 py-2">Descripción</th>
-                                        <th className="px-3 py-2">Ámbito</th>
-                                        <th className="px-3 py-2">Estado</th>
-                                        <th className="px-3 py-2">Acciones</th>
+                                        <th className="px-3 py-2"><TranslatedText>Fecha</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Descripción</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Ámbito</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Estado</TranslatedText></th>
+                                        <th className="px-3 py-2"><TranslatedText>Acciones</TranslatedText></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1164,7 +1168,7 @@ function RecursosHumanosContent() {
                                                         {item.activa ? 'Desactivar' : 'Activar'}
                                                     </button>
                                                     <button type="button" disabled={isSelectedYearClosed} className="text-rose-700 underline disabled:cursor-not-allowed disabled:opacity-40" onClick={() => deleteNonWorkingDay(item.id)}>
-                                                        Eliminar
+                                                        <TranslatedText>Eliminar</TranslatedText>
                                                     </button>
                                                 </div>
                                             </td>
@@ -1173,7 +1177,7 @@ function RecursosHumanosContent() {
                                 </tbody>
                             </table>
                             {nonWorkingDays.length === 0 && (
-                                <p className="px-3 py-8 text-center text-sm text-slate-500">No hay días no laborables configurados.</p>
+                                <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>No hay días no laborables configurados.</TranslatedText></p>
                             )}
                         </div>
                     </section>
@@ -1185,20 +1189,20 @@ function RecursosHumanosContent() {
             {showGuide && (
                 <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 p-4">
                     <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                        <h3 className="text-lg font-semibold text-slate-900">Guía rápida de uso del módulo RRHH</h3>
+                        <h3 className="text-lg font-semibold text-slate-900"><TranslatedText>Guía rápida de uso del módulo RRHH</TranslatedText></h3>
                         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-600">
-                            <li>Empieza por la <strong>política anual</strong>: días base, antelación, máximo por solicitud y días obligatorios de empresa.</li>
-                            <li>Configura los <strong>días no laborables</strong> para que festivos y cierres no consuman días de vacaciones.</li>
-                            <li>Crea <strong>límites simultáneos</strong> por rol o departamento cuando necesites garantizar cobertura mínima.</li>
-                            <li>Usa los <strong>periodos bloqueados</strong> para cierres, inventarios, campañas o semanas críticas.</li>
-                            <li>Revisa las solicitudes pendientes desde el calendario o la tabla y aprueba/rechaza con comentario de RRHH.</li>
-                            <li>En la ficha de cada empleado puedes consultar su historial y aplicar <strong>ajustes de saldo</strong> positivos o negativos.</li>
-                            <li>La vista de cobertura del calendario permite seleccionar un departamento y/o rol para comprobar visualmente los días con cupo.</li>
-                            <li>En departamentos unipersonales (CEO, Compras, Marketing y Confección) se mantiene la excepción automática si no creas una regla específica.</li>
+                            <li><TranslatedText>Empieza por la</TranslatedText> <strong><TranslatedText>política anual</TranslatedText></strong><TranslatedText>: días base, antelación, máximo por solicitud y días obligatorios de empresa.</TranslatedText></li>
+                            <li><TranslatedText>Configura los</TranslatedText> <strong><TranslatedText>días no laborables</TranslatedText></strong> <TranslatedText>para que festivos y cierres no consuman días de vacaciones.</TranslatedText></li>
+                            <li><TranslatedText>Crea</TranslatedText> <strong><TranslatedText>límites simultáneos</TranslatedText></strong> <TranslatedText>por rol o departamento cuando necesites garantizar cobertura mínima.</TranslatedText></li>
+                            <li><TranslatedText>Usa los</TranslatedText> <strong><TranslatedText>periodos bloqueados</TranslatedText></strong> <TranslatedText>para cierres, inventarios, campañas o semanas críticas.</TranslatedText></li>
+                            <li><TranslatedText>Revisa las solicitudes pendientes desde el calendario o la tabla y aprueba/rechaza con comentario de RRHH.</TranslatedText></li>
+                            <li><TranslatedText>En la ficha de cada empleado puedes consultar su historial y aplicar</TranslatedText> <strong><TranslatedText>ajustes de saldo</TranslatedText></strong> <TranslatedText>positivos o negativos.</TranslatedText></li>
+                            <li><TranslatedText>La vista de cobertura del calendario permite seleccionar un departamento y/o rol para comprobar visualmente los días con cupo.</TranslatedText></li>
+                            <li><TranslatedText>En departamentos unipersonales (CEO, Compras, Marketing y Confección) se mantiene la excepción automática si no creas una regla específica.</TranslatedText></li>
                         </ol>
                         <div className="mt-4 flex justify-end">
                             <button type="button" onClick={() => setShowGuide(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                Cerrar guía
+                                <TranslatedText>Cerrar guía</TranslatedText>
                             </button>
                         </div>
                     </div>
@@ -1208,25 +1212,25 @@ function RecursosHumanosContent() {
             {decision.id && (
                 <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 p-4">
                     <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-                        <h3 className="text-lg font-semibold text-slate-900">Resolver solicitud #{decision.id}</h3>
+                        <h3 className="text-lg font-semibold text-slate-900"><TranslatedText>Resolver solicitud #</TranslatedText>{decision.id}</h3>
                         <div className="mt-4 space-y-3">
                             <select
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
                                 value={decision.estado}
                                 onChange={(e) => setDecision((p) => ({ ...p, estado: e.target.value }))}
                             >
-                                <option value="pendiente">Pendiente</option>
-                                <option value="aprobada">Aprobada</option>
-                                <option value="rechazada">Rechazada</option>
-                                <option value="cancelada">Cancelada por RRHH</option>
+                                <option value="pendiente"><TranslatedText>Pendiente</TranslatedText></option>
+                                <option value="aprobada"><TranslatedText>Aprobada</TranslatedText></option>
+                                <option value="rechazada"><TranslatedText>Rechazada</TranslatedText></option>
+                                <option value="cancelada"><TranslatedText>Cancelada por RRHH</TranslatedText></option>
                             </select>
-                            <textarea
+                            <LocalizedElement><textarea
                                 rows={3}
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2"
                                 placeholder="Comentario RRHH"
                                 value={decision.comentario_rrhh}
                                 onChange={(e) => setDecision((p) => ({ ...p, comentario_rrhh: e.target.value }))}
-                            />
+                            /></LocalizedElement>
                             {decision.estado === 'aprobada' && (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                                     <label className="flex items-center gap-2 text-sm font-semibold text-amber-800">
@@ -1235,18 +1239,18 @@ function RecursosHumanosContent() {
                                             checked={Boolean(decision.forzar_excepcion)}
                                             onChange={(e) => setDecision((p) => ({ ...p, forzar_excepcion: e.target.checked }))}
                                         />
-                                        Autorizar excepción de cupo si fuera necesaria
+                                        <TranslatedText>Autorizar excepción de cupo si fuera necesaria</TranslatedText>
                                     </label>
                                     {decision.forzar_excepcion && (
-                                        <input
+                                        <LocalizedElement><input
                                             className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm"
                                             placeholder="Motivo obligatorio de la excepción"
                                             value={decision.motivo_excepcion || ''}
                                             onChange={(e) => setDecision((p) => ({ ...p, motivo_excepcion: e.target.value }))}
-                                        />
+                                        /></LocalizedElement>
                                     )}
                                     <p className="mt-2 text-xs leading-5 text-amber-700">
-                                        Solo permite superar límites de cobertura. Nunca omite bloqueos, saldo insuficiente ni el cierre del ejercicio.
+                                        <TranslatedText>Solo permite superar límites de cobertura. Nunca omite bloqueos, saldo insuficiente ni el cierre del ejercicio.</TranslatedText>
                                     </p>
                                 </div>
                             )}
@@ -1256,14 +1260,14 @@ function RecursosHumanosContent() {
                                     onClick={() => setDecision({ id: null, estado: 'aprobada', comentario_rrhh: '', forzar_excepcion: false, motivo_excepcion: '' })}
                                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 >
-                                    Cerrar
+                                    <TranslatedText>Cerrar</TranslatedText>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleDecision}
                                     className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
                                 >
-                                    Guardar
+                                    <TranslatedText>Guardar</TranslatedText>
                                 </button>
                             </div>
                         </div>
@@ -1274,35 +1278,35 @@ function RecursosHumanosContent() {
             {changeRequest.item && (
                 <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 p-4">
                     <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-                        <h3 className="text-lg font-semibold text-slate-900">Cambiar vacaciones aprobadas</h3>
+                        <h3 className="text-lg font-semibold text-slate-900"><TranslatedText>Cambiar vacaciones aprobadas</TranslatedText></h3>
                         <p className="mt-1 text-sm text-slate-500">
-                            Vacaciones actuales: {formatDate(changeRequest.item.fecha_inicio)} - {formatDate(changeRequest.item.fecha_fin)}
+                            <TranslatedText>Vacaciones actuales:</TranslatedText> {formatDate(changeRequest.item.fecha_inicio)} - {formatDate(changeRequest.item.fecha_fin)}
                         </p>
                         <div className="mt-4 space-y-3">
                             <label className="block">
-                                <span className="mb-1 block text-sm font-medium text-slate-700">Qué necesitas</span>
+                                <span className="mb-1 block text-sm font-medium text-slate-700"><TranslatedText>Qué necesitas</TranslatedText></span>
                                 <select
                                     value={changeRequest.tipo}
                                     onChange={(e) => setChangeRequest((p) => ({ ...p, tipo: e.target.value }))}
                                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                 >
-                                    <option value="modificacion">Cambiar las fechas</option>
-                                    <option value="cancelacion">Cancelar estas vacaciones</option>
+                                    <option value="modificacion"><TranslatedText>Cambiar las fechas</TranslatedText></option>
+                                    <option value="cancelacion"><TranslatedText>Cancelar estas vacaciones</TranslatedText></option>
                                 </select>
                             </label>
                             {changeRequest.tipo === 'modificacion' && (
                                 <div className="grid gap-3 sm:grid-cols-2">
-                                    <label><span className="mb-1 block text-sm font-medium text-slate-700">Nuevo inicio</span><input type="date" min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} value={changeRequest.fecha_inicio_nueva} onChange={(e) => { const value = e.target.value; if (value && isWeekendDate(value)) { setError('El nuevo inicio debe ser de lunes a viernes.'); setChangeRequest((p) => ({ ...p, fecha_inicio_nueva: '' })); return; } setError(''); setChangeRequest((p) => ({ ...p, fecha_inicio_nueva: value })); }} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
-                                    <label><span className="mb-1 block text-sm font-medium text-slate-700">Nuevo fin</span><input type="date" min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} value={changeRequest.fecha_fin_nueva} onChange={(e) => { const value = e.target.value; if (value && isWeekendDate(value)) { setError('El nuevo fin debe ser de lunes a viernes.'); setChangeRequest((p) => ({ ...p, fecha_fin_nueva: '' })); return; } setError(''); setChangeRequest((p) => ({ ...p, fecha_fin_nueva: value })); }} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
+                                    <label><span className="mb-1 block text-sm font-medium text-slate-700"><TranslatedText>Nuevo inicio</TranslatedText></span><input type="date" min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} value={changeRequest.fecha_inicio_nueva} onChange={(e) => { const value = e.target.value; if (value && isWeekendDate(value)) { setError(translateCurrent('El nuevo inicio debe ser de lunes a viernes.')); setChangeRequest((p) => ({ ...p, fecha_inicio_nueva: '' })); return; } setError(''); setChangeRequest((p) => ({ ...p, fecha_inicio_nueva: value })); }} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
+                                    <label><span className="mb-1 block text-sm font-medium text-slate-700"><TranslatedText>Nuevo fin</TranslatedText></span><input type="date" min={`${selectedYear}-01-01`} max={`${selectedYear}-12-31`} value={changeRequest.fecha_fin_nueva} onChange={(e) => { const value = e.target.value; if (value && isWeekendDate(value)) { setError(translateCurrent('El nuevo fin debe ser de lunes a viernes.')); setChangeRequest((p) => ({ ...p, fecha_fin_nueva: '' })); return; } setError(''); setChangeRequest((p) => ({ ...p, fecha_fin_nueva: value })); }} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
                                 </div>
                             )}
                             <label className="block">
-                                <span className="mb-1 block text-sm font-medium text-slate-700">Motivo</span>
-                                <textarea rows={3} value={changeRequest.motivo} onChange={(e) => setChangeRequest((p) => ({ ...p, motivo: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Explica brevemente por qué necesitas el cambio." />
+                                <span className="mb-1 block text-sm font-medium text-slate-700"><TranslatedText>Motivo</TranslatedText></span>
+                                <LocalizedElement><textarea rows={3} value={changeRequest.motivo} onChange={(e) => setChangeRequest((p) => ({ ...p, motivo: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Explica brevemente por qué necesitas el cambio." /></LocalizedElement>
                             </label>
                             <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => setChangeRequest({ item: null, tipo: 'modificacion', fecha_inicio_nueva: '', fecha_fin_nueva: '', motivo: '' })} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Cerrar</button>
-                                <button type="button" onClick={submitChangeRequest} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Enviar a RRHH</button>
+                                <button type="button" onClick={() => setChangeRequest({ item: null, tipo: 'modificacion', fecha_inicio_nueva: '', fecha_fin_nueva: '', motivo: '' })} className="rounded-xl border border-slate-200 px-3 py-2 text-sm"><TranslatedText>Cerrar</TranslatedText></button>
+                                <button type="button" onClick={submitChangeRequest} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"><TranslatedText>Enviar a RRHH</TranslatedText></button>
                             </div>
                         </div>
                     </div>
@@ -1335,11 +1339,11 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                     value={filtros.estado}
                     onChange={(e) => setFiltros((p) => ({ ...p, estado: e.target.value }))}
                 >
-                    <option value="">Todos</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="aprobada">Aprobada</option>
-                    <option value="rechazada">Rechazada</option>
-                    <option value="cancelada">Cancelada</option>
+                    <option value=""><TranslatedText>Todos</TranslatedText></option>
+                    <option value="pendiente"><TranslatedText>Pendiente</TranslatedText></option>
+                    <option value="aprobada"><TranslatedText>Aprobada</TranslatedText></option>
+                    <option value="rechazada"><TranslatedText>Rechazada</TranslatedText></option>
+                    <option value="cancelada"><TranslatedText>Cancelada</TranslatedText></option>
                 </select>
                 <input
                     type="month"
@@ -1350,29 +1354,29 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                     onChange={(e) => setFiltros((p) => ({ ...p, month: e.target.value }))}
                 />
                 {isManager && (
-                    <input
+                    <LocalizedElement><input
                         type="text"
                         placeholder="Filtrar por empleado"
                         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                         value={filtros.empleado}
                         onChange={(e) => setFiltros((p) => ({ ...p, empleado: e.target.value }))}
-                    />
+                    /></LocalizedElement>
                 )}
             </div>
 
             {isLoading ? (
-                <div className="py-10 text-center text-sm text-slate-500">Cargando solicitudes...</div>
+                <div className="py-10 text-center text-sm text-slate-500"><TranslatedText>Cargando solicitudes...</TranslatedText></div>
             ) : (
                 <div className="mt-4 overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
                         <thead className="text-xs uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th className="px-3 py-2">Empleado</th>
-                                <th className="px-3 py-2">Rango</th>
-                                <th className="px-3 py-2">Días</th>
-                                <th className="px-3 py-2">Estado</th>
-                                <th className="px-3 py-2">Comentario</th>
-                                <th className="px-3 py-2">Acciones</th>
+                                <th className="px-3 py-2"><TranslatedText>Empleado</TranslatedText></th>
+                                <th className="px-3 py-2"><TranslatedText>Rango</TranslatedText></th>
+                                <th className="px-3 py-2"><TranslatedText>Días</TranslatedText></th>
+                                <th className="px-3 py-2"><TranslatedText>Estado</TranslatedText></th>
+                                <th className="px-3 py-2"><TranslatedText>Comentario</TranslatedText></th>
+                                <th className="px-3 py-2"><TranslatedText>Acciones</TranslatedText></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1398,7 +1402,7 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                                     <td className="px-3 py-3">
                                         {isManager ? (
                                             item.estado !== 'cancelada' && (yearClosed ? (
-                                                <span className="text-xs font-medium text-slate-400">Ejercicio cerrado</span>
+                                                <span className="text-xs font-medium text-slate-400"><TranslatedText>Ejercicio cerrado</TranslatedText></span>
                                             ) : (
                                                 <button
                                                     type="button"
@@ -1413,18 +1417,18 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                                                     }
                                                     className="text-xs font-medium text-slate-700 underline"
                                                 >
-                                                    Gestionar
+                                                    <TranslatedText>Gestionar</TranslatedText>
                                                 </button>
                                             ))
                                         ) : yearClosed ? (
-                                            ['pendiente', 'aprobada'].includes(item.estado) ? <span className="text-xs font-medium text-slate-400">Ejercicio cerrado</span> : null
+                                            ['pendiente', 'aprobada'].includes(item.estado) ? <span className="text-xs font-medium text-slate-400"><TranslatedText>Ejercicio cerrado</TranslatedText></span> : null
                                         ) : item.estado === 'pendiente' ? (
                                             <button
                                                 type="button"
                                                 onClick={() => cancelOwnRequest(item.id)}
                                                 className="text-xs font-medium text-rose-700 underline"
                                             >
-                                                Cancelar
+                                                <TranslatedText>Cancelar</TranslatedText>
                                             </button>
                                         ) : item.estado === 'aprobada' && requestApprovedChange ? (
                                             <button
@@ -1432,7 +1436,7 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                                                 onClick={() => requestApprovedChange(item)}
                                                 className="text-xs font-medium text-sky-700 underline"
                                             >
-                                                Solicitar cambio
+                                                <TranslatedText>Solicitar cambio</TranslatedText>
                                             </button>
                                         ) : null}
                                     </td>
@@ -1441,7 +1445,7 @@ function RequestsTable({ isLoading, solicitudes, filtros, setFiltros, isManager,
                         </tbody>
                     </table>
                     {solicitudes.length === 0 && (
-                        <p className="px-3 py-8 text-center text-sm text-slate-500">No hay solicitudes para los filtros seleccionados.</p>
+                        <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>No hay solicitudes para los filtros seleccionados.</TranslatedText></p>
                     )}
                 </div>
             )}
@@ -1496,9 +1500,9 @@ class VacacionesErrorBoundary extends React.Component {
             return (
                 <PageShell maxWidth="max-w-5xl">
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
-                        <h2 className="text-xl font-semibold text-rose-800">No se pudo cargar el módulo de vacaciones</h2>
+                        <h2 className="text-xl font-semibold text-rose-800"><TranslatedText>No se pudo cargar el módulo de vacaciones</TranslatedText></h2>
                         <p className="mt-2 text-sm text-rose-700">{this.state.message}</p>
-                        <p className="mt-2 text-sm text-rose-700">Recarga la página. Si persiste, revisa API y datos de usuario.</p>
+                        <p className="mt-2 text-sm text-rose-700"><TranslatedText>Recarga la página. Si persiste, revisa API y datos de usuario.</TranslatedText></p>
                     </div>
                 </PageShell>
             );
@@ -1516,7 +1520,7 @@ function RecursosHumanos() {
             <PageShell maxWidth="max-w-5xl">
                 <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
                     <RefreshCw size={24} className="mx-auto animate-spin text-slate-400" />
-                    <p className="mt-3 text-sm text-slate-500">Comprobando acceso al módulo de vacaciones…</p>
+                    <p className="mt-3 text-sm text-slate-500"><TranslatedText>Comprobando acceso al módulo de vacaciones…</TranslatedText></p>
                 </div>
             </PageShell>
         );
@@ -1529,9 +1533,9 @@ function RecursosHumanos() {
                     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-600">
                         <LockKeyhole size={25} />
                     </div>
-                    <h1 className="mt-4 text-xl font-semibold text-slate-900">Vacaciones no está habilitado para tu usuario</h1>
+                    <h1 className="mt-4 text-xl font-semibold text-slate-900"><TranslatedText>Vacaciones no está habilitado para tu usuario</TranslatedText></h1>
                     <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                        El acceso a este módulo se configura individualmente desde Recursos Humanos. Contacta con un administrador si necesitas solicitar o consultar vacaciones.
+                        <TranslatedText>El acceso a este módulo se configura individualmente desde Recursos Humanos. Contacta con un administrador si necesitas solicitar o consultar vacaciones.</TranslatedText>
                     </p>
                     {error && <p className="mx-auto mt-3 max-w-xl text-xs text-amber-700">{error}</p>}
                 </div>
@@ -1546,9 +1550,9 @@ function RecursosHumanos() {
                     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sky-50 text-sky-700">
                         <UserCircle2 size={25} />
                     </div>
-                    <h1 className="mt-4 text-xl font-semibold text-slate-900">Tu usuario no participa actualmente en Vacaciones</h1>
+                    <h1 className="mt-4 text-xl font-semibold text-slate-900"><TranslatedText>Tu usuario no participa actualmente en Vacaciones</TranslatedText></h1>
                     <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                        Puedes tener acceso habilitado al módulo, pero RRHH te ha excluido de los saldos, cupos y solicitudes de vacaciones. Contacta con RRHH si necesitas que te incluyan.
+                        <TranslatedText>Puedes tener acceso habilitado al módulo, pero RRHH te ha excluido de los saldos, cupos y solicitudes de vacaciones. Contacta con RRHH si necesitas que te incluyan.</TranslatedText>
                     </p>
                 </div>
             </PageShell>

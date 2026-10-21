@@ -1,3 +1,4 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { useAuthContext } from '../../../Auth/AuthContext';
@@ -110,7 +111,7 @@ export default function CatalogTab({ client }) {
         <>
             <div className="flex flex-wrap gap-4 mb-4">
                 <div>
-                    <p className="text-sm font-medium mb-1">Marca:</p>
+                    <p className="text-sm font-medium mb-1"><TranslatedText>Marca:</TranslatedText></p>
                     <div className="flex flex-wrap gap-2">
                         {MARCAS.map((marca) => (
                             <button
@@ -132,7 +133,7 @@ export default function CatalogTab({ client }) {
                 </div>
 
                 <div>
-                    <p className="text-sm font-medium mb-1">Tipo:</p>
+                    <p className="text-sm font-medium mb-1"><TranslatedText>Tipo:</TranslatedText></p>
                     <div className="flex flex-wrap gap-2">
                         {FILTERS.map((filterType) => (
                             <button
@@ -157,14 +158,14 @@ export default function CatalogTab({ client }) {
             </div>
 
             <div className="overflow-y-auto max-h-[60vh]">
-                <h3 className="font-medium mb-2">Comprados</h3>
+                <h3 className="font-medium mb-2"><TranslatedText>Comprados</TranslatedText></h3>
 
                 <table className="min-w-full text-sm bg-white mb-6">
                     <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                            <th className="px-3 py-2 text-left">Producto</th>
-                            <th className="px-3 py-2 text-left">Comprado</th>
-                            <th className="px-3 py-2 text-left">Stock</th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Producto</TranslatedText></th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Comprado</TranslatedText></th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Stock</TranslatedText></th>
                         </tr>
                     </thead>
 
@@ -182,7 +183,7 @@ export default function CatalogTab({ client }) {
                                     </td>
 
                                     <td className="px-3 py-2 text-green-600">
-                                        Sí
+                                        <TranslatedText>Sí</TranslatedText>
                                     </td>
 
                                     <td className="px-3 py-2">
@@ -204,21 +205,21 @@ export default function CatalogTab({ client }) {
                                     colSpan={3}
                                     className="px-3 py-4 text-center text-gray-500"
                                 >
-                                    No hay productos comprados.
+                                    <TranslatedText>No hay productos comprados.</TranslatedText>
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
 
-                <h3 className="font-medium mb-2">No Comprados</h3>
+                <h3 className="font-medium mb-2"><TranslatedText>No Comprados</TranslatedText></h3>
 
                 <table className="min-w-full text-sm bg-white mb-4">
                     <thead className="bg-gray-100 sticky top-0">
                         <tr>
-                            <th className="px-3 py-2 text-left">Producto</th>
-                            <th className="px-3 py-2 text-left">Comprado</th>
-                            <th className="px-3 py-2 text-left">Stock</th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Producto</TranslatedText></th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Comprado</TranslatedText></th>
+                            <th className="px-3 py-2 text-left"><TranslatedText>Stock</TranslatedText></th>
                         </tr>
                     </thead>
 
@@ -236,7 +237,7 @@ export default function CatalogTab({ client }) {
                                     </td>
 
                                     <td className="px-3 py-2 text-red-600">
-                                        No
+                                        <TranslatedText>No</TranslatedText>
                                     </td>
 
                                     <td className="px-3 py-2">
@@ -258,7 +259,7 @@ export default function CatalogTab({ client }) {
                                     colSpan={3}
                                     className="px-3 py-4 text-center text-gray-500"
                                 >
-                                    Todos los productos están comprados.
+                                    <TranslatedText>Todos los productos están comprados.</TranslatedText>
                                 </td>
                             </tr>
                         )}
@@ -272,7 +273,7 @@ export default function CatalogTab({ client }) {
                             className="inline-flex items-center px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm"
                         >
                             <FiChevronDown className="mr-2" />
-                            Cargar más
+                            <TranslatedText>Cargar más</TranslatedText>
                         </button>
                     </div>
                 )}

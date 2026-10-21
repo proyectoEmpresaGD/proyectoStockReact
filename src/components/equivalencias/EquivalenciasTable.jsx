@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, History, Search, X } from 'lucide-react';
 import { useAuthContext } from '../../Auth/AuthContext.jsx';
@@ -152,7 +154,7 @@ export default function EquivalenciasTable() {
         <section className="space-y-5">
             <div className="cjm-toolbar">
                 <div className="grid gap-3 md:grid-cols-2">
-                    <SearchField
+                    <LocalizedElement><SearchField
                         label="Referencia o nombre del proveedor"
                         value={supplierTerm}
                         onChange={setSupplierTerm}
@@ -160,8 +162,8 @@ export default function EquivalenciasTable() {
                         suggestions={supplierSuggestions}
                         onSelect={(item) => performSearch('supplier', item.desequiv || item.codequiv)}
                         placeholder="Escribe al menos 3 caracteres"
-                    />
-                    <SearchField
+                    /></LocalizedElement>
+                    <LocalizedElement><SearchField
                         label="Referencia o nombre CJM"
                         value={cjmTerm}
                         onChange={setCjmTerm}
@@ -169,13 +171,13 @@ export default function EquivalenciasTable() {
                         suggestions={cjmSuggestions}
                         onSelect={(item) => performSearch('cjm', item.desprodu || item.codprodu)}
                         placeholder="Buscar producto CJM"
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <p className="cjm-muted text-xs">Pulsa Intro para buscar. Las sugerencias aparecen a partir de 3 caracteres.</p>
+                    <p className="cjm-muted text-xs"><TranslatedText>Pulsa Intro para buscar. Las sugerencias aparecen a partir de 3 caracteres.</TranslatedText></p>
                     {searchState && (
                         <button type="button" onClick={clearSearch} className="cjm-ghost-button min-h-10 px-3 py-2 text-xs">
-                            <X className="h-4 w-4" aria-hidden="true" />Mostrar todas
+                            <X className="h-4 w-4" aria-hidden="true" /><TranslatedText>Mostrar todas</TranslatedText>
                         </button>
                     )}
                 </div>
@@ -184,23 +186,23 @@ export default function EquivalenciasTable() {
             {searchState && (
                 <div className="cjm-alert flex items-center gap-3 border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]">
                     <History className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>Búsqueda activa por {searchState.type === 'supplier' ? 'proveedor' : 'CJM'}: <strong>{searchState.query}</strong></span>
+                    <span><TranslatedText>Búsqueda activa por</TranslatedText> <TranslatedText>{searchState.type === 'supplier' ? 'proveedor' : 'CJM'}</TranslatedText>: <strong>{searchState.query}</strong></span>
                 </div>
             )}
 
             {error && <div className="cjm-alert cjm-alert-error" role="alert">{error}</div>}
 
             {loading ? (
-                <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm">Cargando equivalencias…</p></div>
+                <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm"><TranslatedText>Cargando equivalencias…</TranslatedText></p></div>
             ) : rows.length === 0 ? (
-                <EmptyState icon={Search} title="No se encontraron equivalencias" description="Prueba con otra referencia o limpia los filtros para volver al listado general." />
+                <LocalizedElement><EmptyState icon={Search} title="No se encontraron equivalencias" description="Prueba con otra referencia o limpia los filtros para volver al listado general." /></LocalizedElement>
             ) : (
                 <>
                     <div className="hidden md:block">
                         <div className="cjm-table-shell">
                             <div className="cjm-table-scroller">
                                 <table className="cjm-table">
-                                    <thead><tr><th>Nombre CJM</th><th>Nombre proveedor</th><th>Código equivalencia</th><th>Proveedor</th></tr></thead>
+                                    <thead><tr><th><TranslatedText>Nombre CJM</TranslatedText></th><th><TranslatedText>Nombre proveedor</TranslatedText></th><th><TranslatedText>Código equivalencia</TranslatedText></th><th><TranslatedText>Proveedor</TranslatedText></th></tr></thead>
                                     <tbody>
                                         {rows.map((row, index) => (
                                             <tr key={`${row.codequiv || row.codprodu || 'equiv'}-${index}`}>
@@ -218,15 +220,15 @@ export default function EquivalenciasTable() {
                     <div className="grid gap-3 md:hidden">
                         {rows.map((row, index) => (
                             <article className="cjm-data-card" key={`${row.codequiv || row.codprodu || 'equiv'}-mobile-${index}`}>
-                                <p className="cjm-data-label">Producto CJM</p>
+                                <p className="cjm-data-label"><TranslatedText>Producto CJM</TranslatedText></p>
                                 <h3 className="mt-1 font-semibold app-text">{row.desprodu || '—'}</h3>
                                 <div className="mt-4 border-t border-[var(--cjm-border)] pt-3">
-                                    <p className="cjm-data-label">Referencia proveedor</p>
+                                    <p className="cjm-data-label"><TranslatedText>Referencia proveedor</TranslatedText></p>
                                     <p className="mt-1 text-sm app-text">{row.desequiv || '—'}</p>
                                 </div>
                                 <dl className="mt-3 grid grid-cols-2 gap-3">
-                                    <div><dt className="cjm-data-label">Código</dt><dd className="mt-1 text-sm app-text">{row.codequiv || '—'}</dd></div>
-                                    <div><dt className="cjm-data-label">Proveedor</dt><dd className="mt-1 text-sm app-text">{row.razprove || '—'}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Código</TranslatedText></dt><dd className="mt-1 text-sm app-text">{row.codequiv || '—'}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Proveedor</TranslatedText></dt><dd className="mt-1 text-sm app-text">{row.razprove || '—'}</dd></div>
                                 </dl>
                             </article>
                         ))}
@@ -235,15 +237,15 @@ export default function EquivalenciasTable() {
             )}
 
             {!searchState && (
-                <nav className="flex items-center justify-between gap-3" aria-label="Paginación de equivalencias">
+                <LocalizedElement><nav className="flex items-center justify-between gap-3" aria-label="Paginación de equivalencias">
                     <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1 || loading} className="cjm-ghost-button">
-                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />Anterior
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" /><TranslatedText>Anterior</TranslatedText>
                     </button>
-                    <span className="cjm-muted text-sm">Página <strong className="app-text">{currentPage}</strong></span>
+                    <span className="cjm-muted text-sm"><TranslatedText>Página</TranslatedText> <strong className="app-text">{currentPage}</strong></span>
                     <button type="button" onClick={() => setCurrentPage((page) => page + 1)} disabled={rows.length < ITEMS_PER_PAGE || loading} className="cjm-ghost-button">
-                        Siguiente<ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        <TranslatedText>Siguiente</TranslatedText><ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </button>
-                </nav>
+                </nav></LocalizedElement>
             )}
         </section>
     );

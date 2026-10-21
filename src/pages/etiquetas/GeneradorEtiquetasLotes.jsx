@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useRef, useState } from 'react';
 import html2pdf from 'html2pdf.js';
 import LotLabelAutocomplete from '../../components/etiquetasLotes/LotLabelAutocomplete';
@@ -261,7 +263,7 @@ export default function GeneradorEtiquetasLotes() {
                             content="width=device-width, initial-scale=1"
                         />
 
-                        <title>Preparando impresión</title>
+                        <title><TranslatedText>Preparando impresión</TranslatedText></title>
 
                         <style>
                             * {
@@ -572,7 +574,7 @@ export default function GeneradorEtiquetasLotes() {
 
                                 <div>
                                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-100">
-                                        Generador de etiquetas
+                                        <TranslatedText>Generador de etiquetas</TranslatedText>
                                     </p>
                                     <h2 className="mt-1 text-2xl font-bold">
                                         Preparando impresión
@@ -588,7 +590,7 @@ export default function GeneradorEtiquetasLotes() {
                                         {documentStage}
                                     </p>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Procesando {visibleLots.length} {visibleLots.length === 1 ? 'etiqueta' : 'etiquetas'}. No cierres esta pantalla.
+                                        <TranslatedText>Procesando</TranslatedText> {visibleLots.length} {visibleLots.length === 1 ? 'etiqueta' : 'etiquetas'}<TranslatedText>. No cierres esta pantalla.</TranslatedText>
                                     </p>
                                 </div>
 
@@ -609,7 +611,7 @@ export default function GeneradorEtiquetasLotes() {
                                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                                     <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-600" />
                                 </span>
-                                El documento se abrirá automáticamente cuando esté listo.
+                                <TranslatedText>El documento se abrirá automáticamente cuando esté listo.</TranslatedText>
                             </div>
                         </div>
                     </div>
@@ -963,13 +965,13 @@ export default function GeneradorEtiquetasLotes() {
 
             <section className="no-print cjm-panel mb-6 rounded-3xl p-4 sm:p-6">
                 <div className="mb-5">
-                    <p className="cjm-kicker">Almacén · Producción</p>
+                    <p className="cjm-kicker"><TranslatedText>Almacén · Producción</TranslatedText></p>
                     <h1 className="mt-1 text-2xl font-semibold tracking-tight app-text sm:text-3xl">
-                        Generador de etiquetas por lote
+                        <TranslatedText>Generador de etiquetas por lote</TranslatedText>
                     </h1>
 
                     <p className="mt-1 text-sm text-slate-600">
-                        Genera etiquetas con dos QR separados: uno para producto y otro para lote.
+                        <TranslatedText>Genera etiquetas con dos QR separados: uno para producto y otro para lote.</TranslatedText>
                     </p>
                 </div>
 
@@ -977,10 +979,10 @@ export default function GeneradorEtiquetasLotes() {
                     <div className="space-y-5">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <h2 className="mb-3 text-sm font-bold uppercase text-slate-700">
-                                1. Producto individual
+                                <TranslatedText>1. Producto individual</TranslatedText>
                             </h2>
 
-                            <LotLabelAutocomplete
+                            <LocalizedElement><LotLabelAutocomplete
                                 value={searchTerm}
                                 suggestions={suggestions}
                                 onChange={fetchSuggestions}
@@ -1009,21 +1011,21 @@ export default function GeneradorEtiquetasLotes() {
 
                                         {product?.codprodu && (
                                             <div className="mt-0.5 text-xs text-slate-500">
-                                                Código: {product.codprodu}
+                                                <TranslatedText>Código:</TranslatedText> {product.codprodu}
                                             </div>
                                         )}
                                     </>
                                 )}
-                            />
+                            /></LocalizedElement>
                         </div>
 
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <h2 className="mb-3 text-sm font-bold uppercase text-slate-700">
-                                2. Todas las referencias por nombre
+                                <TranslatedText>2. Todas las referencias por nombre</TranslatedText>
                             </h2>
 
                             <div className="flex flex-col gap-3 md:flex-row">
-                                <LotLabelAutocomplete
+                                <LocalizedElement><LotLabelAutocomplete
                                     value={nameSearchTerm}
                                     suggestions={nameSuggestions}
                                     onChange={fetchNameSuggestions}
@@ -1036,7 +1038,7 @@ export default function GeneradorEtiquetasLotes() {
                                     minimumCharacters={2}
                                     placeholder="Ejemplo: NANTES, OSAKA, CHENILLA..."
                                     emptyMessage="No se encontraron nombres coincidentes."
-                                />
+                                /></LocalizedElement>
 
                                 <button
                                     type="button"
@@ -1050,23 +1052,23 @@ export default function GeneradorEtiquetasLotes() {
                                         secondaryButtonClassName
                                     }
                                 >
-                                    Cargar nombre
+                                    <TranslatedText>Cargar nombre</TranslatedText>
                                 </button>
                             </div>
 
                             <p className="mt-2 text-xs text-slate-500">
-                                Busca referencias cuyo nombre contenga el texto indicado y genera etiquetas de todos sus lotes.
+                                <TranslatedText>Busca referencias cuyo nombre contenga el texto indicado y genera etiquetas de todos sus lotes.</TranslatedText>
                             </p>
                         </div>
 
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <h2 className="mb-3 text-sm font-bold uppercase text-slate-700">
-                                3. Todas las referencias de una colección
+                                <TranslatedText>3. Todas las referencias de una colección</TranslatedText>
                             </h2>
 
                             <div className="flex flex-col gap-3 md:flex-row">
                                 <div className="w-full">
-                                    <LotLabelAutocomplete
+                                    <LocalizedElement><LotLabelAutocomplete
                                         value={selectedCollection}
                                         suggestions={collectionSuggestions}
                                         onChange={filterCollectionSuggestions}
@@ -1079,7 +1081,7 @@ export default function GeneradorEtiquetasLotes() {
                                         minimumCharacters={1}
                                         placeholder="Escribe el nombre de la colección. Ejemplo: NANTES"
                                         emptyMessage="No se encontraron colecciones coincidentes."
-                                    />
+                                    /></LocalizedElement>
                                 </div>
 
                                 <button
@@ -1095,19 +1097,19 @@ export default function GeneradorEtiquetasLotes() {
                                         secondaryButtonClassName
                                     }
                                 >
-                                    Cargar colección
+                                    <TranslatedText>Cargar colección</TranslatedText>
                                 </button>
                             </div>
 
                             <p className="mt-2 text-xs text-slate-500">
-                                Escribe una colección y se generarán etiquetas de todos los productos que pertenezcan a esa colección, incluyendo todos sus lotes.
+                                <TranslatedText>Escribe una colección y se generarán etiquetas de todos los productos que pertenezcan a esa colección, incluyendo todos sus lotes.</TranslatedText>
                             </p>
                         </div>
 
                         <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
                             <p>
                                 <span className="font-semibold">
-                                    Referencias cargadas:
+                                    <TranslatedText>Referencias cargadas:</TranslatedText>
                                 </span>{' '}
                                 {
                                     loadedProducts.length
@@ -1116,14 +1118,14 @@ export default function GeneradorEtiquetasLotes() {
 
                             <p>
                                 <span className="font-semibold">
-                                    Lotes encontrados:
+                                    <TranslatedText>Lotes encontrados:</TranslatedText>
                                 </span>{' '}
                                 {lots.length}
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    Etiquetas a generar:
+                                    <TranslatedText>Etiquetas a generar:</TranslatedText>
                                 </span>{' '}
                                 {
                                     visibleLots.length
@@ -1132,7 +1134,7 @@ export default function GeneradorEtiquetasLotes() {
 
                             <p>
                                 <span className="font-semibold">
-                                    Etiquetas quitadas manualmente:
+                                    <TranslatedText>Etiquetas quitadas manualmente:</TranslatedText>
                                 </span>{' '}
                                 {
                                     excludedLabelKeys.length
@@ -1148,7 +1150,7 @@ export default function GeneradorEtiquetasLotes() {
 
                         {loading && (
                             <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-                                Cargando etiquetas...
+                                <TranslatedText>Cargando etiquetas...</TranslatedText>
                             </div>
                         )}
                     </div>
@@ -1156,7 +1158,7 @@ export default function GeneradorEtiquetasLotes() {
                     <aside className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <div className="space-y-2">
                             <label className="block text-sm font-semibold text-slate-700">
-                                Modo de impresión
+                                <TranslatedText>Modo de impresión</TranslatedText>
                             </label>
 
                             <select
@@ -1207,14 +1209,14 @@ export default function GeneradorEtiquetasLotes() {
                             </select>
 
                             <p className="text-xs text-slate-500">
-                                Hoja A4 imprime 3 etiquetas por folio. Etiqueta individual imprime una por página.
+                                <TranslatedText>Hoja A4 imprime 3 etiquetas por folio. Etiqueta individual imprime una por página.</TranslatedText>
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Ancho cm
+                                    <TranslatedText>Ancho cm</TranslatedText>
                                 </span>
 
                                 <input
@@ -1245,7 +1247,7 @@ export default function GeneradorEtiquetasLotes() {
 
                             <label className="space-y-1">
                                 <span className="text-sm font-semibold text-slate-700">
-                                    Alto cm
+                                    <TranslatedText>Alto cm</TranslatedText>
                                 </span>
 
                                 <input
@@ -1277,7 +1279,7 @@ export default function GeneradorEtiquetasLotes() {
 
                         <label className="space-y-1">
                             <span className="text-sm font-semibold text-slate-700">
-                                Copias por lote
+                                <TranslatedText>Copias por lote</TranslatedText>
                             </span>
 
                             <input
@@ -1323,20 +1325,20 @@ export default function GeneradorEtiquetasLotes() {
                                 className="h-4 w-4 rounded border-slate-300"
                             />
 
-                            Solo lotes con stock disponible
+                            <TranslatedText>Solo lotes con stock disponible</TranslatedText>
                         </label>
 
                         <div className="rounded-lg bg-white p-3 text-xs text-slate-600">
                             <p className="font-semibold text-slate-700">
-                                Modo de uso:
+                                <TranslatedText>Modo de uso:</TranslatedText>
                             </p>
 
                             <p className="mt-1">
-                                Escanea primero el QR de producto y después el QR de lote.
+                                <TranslatedText>Escanea primero el QR de producto y después el QR de lote.</TranslatedText>
                             </p>
 
                             <p className="mt-2">
-                                En Hoja A4 usa 15 x 9 cm para sacar 3 etiquetas por folio.
+                                <TranslatedText>En Hoja A4 usa 15 x 9 cm para sacar 3 etiquetas por folio.</TranslatedText>
                             </p>
                         </div>
 
@@ -1386,7 +1388,7 @@ export default function GeneradorEtiquetasLotes() {
                                 }
                                 className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                             >
-                                Restaurar quitadas
+                                <TranslatedText>Restaurar quitadas</TranslatedText>
                             </button>
                         </div>
                     </aside>

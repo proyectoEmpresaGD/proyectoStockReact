@@ -1,3 +1,4 @@
+import { translateCurrent } from '../i18n/translations.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     filterProductsByCollection,
@@ -112,7 +113,7 @@ export const useProductLotLabels = ({ token }) => {
                 setLots([]);
                 setSelectedProduct(null);
                 setExcludedLabelKeys([]);
-                setError(`No se encontraron ${modeLabel}.`);
+                setError(translateCurrent('No se encontraron {item}.', { item: translateCurrent(modeLabel) }));
                 return;
             }
 
@@ -342,7 +343,7 @@ export const useProductLotLabels = ({ token }) => {
 
                 await loadLotsForProducts([product], 'producto');
             } catch {
-                setError('Selecciona un producto de la lista o introduce un código de producto válido.');
+                setError(translateCurrent('Selecciona un producto de la lista o introduce un código de producto válido.'));
             } finally {
                 setLoading(false);
             }
@@ -354,7 +355,7 @@ export const useProductLotLabels = ({ token }) => {
         const normalizedName = normalizeText(nameSearchTerm);
 
         if (normalizedName.length < 2) {
-            setError('Escribe al menos 2 caracteres para buscar referencias por nombre.');
+            setError(translateCurrent('Escribe al menos 2 caracteres para buscar referencias por nombre.'));
             return;
         }
 
@@ -383,7 +384,7 @@ export const useProductLotLabels = ({ token }) => {
         const collection = normalizeText(selectedCollection);
 
         if (!collection) {
-            setError('Selecciona una colección.');
+            setError(translateCurrent('Selecciona una colección.'));
             return;
         }
 

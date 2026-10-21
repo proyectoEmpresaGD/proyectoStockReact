@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, CheckCheck, X } from 'lucide-react';
@@ -6,7 +9,7 @@ function formatDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
         ? ''
-        : date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+        : date.toLocaleString(getActiveLocale(), { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function getNotificationPanelPosition(rect, viewportWidth, viewportHeight) {
@@ -182,7 +185,7 @@ export default function VacationNotifications({ apiBase, token, refreshKey = 0, 
                     isolation: 'isolate',
                 }}
             >
-                <div
+                <LocalizedElement><div
                     ref={panelRef}
                     className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/25"
                     style={{
@@ -201,8 +204,8 @@ export default function VacationNotifications({ apiBase, token, refreshKey = 0, 
                 >
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
                     <div>
-                        <p className="text-sm font-semibold text-slate-900">Avisos de vacaciones</p>
-                        <p className="text-xs text-slate-500">{unread} sin leer</p>
+                        <p className="text-sm font-semibold text-slate-900"><TranslatedText>Avisos de vacaciones</TranslatedText></p>
+                        <p className="text-xs text-slate-500">{unread} <TranslatedText>sin leer</TranslatedText></p>
                     </div>
                     <div className="flex items-center gap-1">
                         {unread > 0 && (
@@ -211,17 +214,17 @@ export default function VacationNotifications({ apiBase, token, refreshKey = 0, 
                                 onClick={markAll}
                                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
                             >
-                                <CheckCheck size={14} /> Leer todo
+                                <CheckCheck size={14} /> <TranslatedText>Leer todo</TranslatedText>
                             </button>
                         )}
-                        <button
+                        <LocalizedElement><button
                             type="button"
                             onClick={() => setOpen(false)}
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-50"
                             aria-label="Cerrar avisos"
                         >
                             <X size={15} />
-                        </button>
+                        </button></LocalizedElement>
                     </div>
                 </div>
 
@@ -248,13 +251,13 @@ export default function VacationNotifications({ apiBase, token, refreshKey = 0, 
                         </button>
                     ))}
                     {!loading && rows.length === 0 && (
-                        <p className="px-4 py-8 text-center text-sm text-slate-500">No tienes avisos de vacaciones.</p>
+                        <p className="px-4 py-8 text-center text-sm text-slate-500"><TranslatedText>No tienes avisos de vacaciones.</TranslatedText></p>
                     )}
                     {loading && rows.length === 0 && (
-                        <p className="px-4 py-8 text-center text-sm text-slate-500">Cargando avisos…</p>
+                        <p className="px-4 py-8 text-center text-sm text-slate-500"><TranslatedText>Cargando avisos…</TranslatedText></p>
                     )}
                 </div>
-                </div>
+                </div></LocalizedElement>
             </div>,
             document.body
         )
@@ -271,7 +274,7 @@ export default function VacationNotifications({ apiBase, token, refreshKey = 0, 
                 aria-haspopup="dialog"
             >
                 <Bell size={16} />
-                <span className="hidden sm:inline">Avisos</span>
+                <span className="hidden sm:inline"><TranslatedText>Avisos</TranslatedText></span>
                 {unread > 0 && (
                     <span className="grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
                         {unread > 99 ? '99+' : unread}

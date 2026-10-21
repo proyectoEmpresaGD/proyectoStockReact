@@ -1,3 +1,6 @@
+import { getActiveLocale, localeNumberFormatter } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlane } from '@fortawesome/free-solid-svg-icons';
@@ -6,7 +9,7 @@ import { useAuthContext } from '../../Auth/AuthContext';
 import VisitModal from './VisitModal';
 import EmptyState from '../../common/EmptyState.jsx';
 
-const formatBilling = (value) => new Intl.NumberFormat('es-ES', {
+const formatBilling = (value) => localeNumberFormatter( {
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 2,
@@ -15,7 +18,7 @@ const formatBilling = (value) => new Intl.NumberFormat('es-ES', {
 const formatVisitDate = (value) => {
     if (!value) return 'Sin visitas';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Sin visitas' : date.toLocaleDateString('es-ES');
+    return Number.isNaN(date.getTime()) ? 'Sin visitas' : date.toLocaleDateString(getActiveLocale());
 };
 
 export default function ClientTable({
@@ -59,10 +62,10 @@ export default function ClientTable({
 
     if (!clients.length) {
         return (
-            <EmptyState
+            <LocalizedElement><EmptyState
                 title="No se han encontrado clientes"
                 description="Revisa la búsqueda o elimina alguno de los filtros aplicados."
-            />
+            /></LocalizedElement>
         );
     }
 
@@ -70,26 +73,26 @@ export default function ClientTable({
         <div className="space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p className="text-sm font-semibold app-text">Resultados</p>
+                    <p className="text-sm font-semibold app-text"><TranslatedText>Resultados</TranslatedText></p>
                     <p className="cjm-muted mt-0.5 text-xs">
-                        En modo automático se muestran tarjetas en móvil y tabla en pantallas amplias.
+                        <TranslatedText>En modo automático se muestran tarjetas en móvil y tabla en pantallas amplias.</TranslatedText>
                     </p>
                 </div>
 
-                <div className="cjm-segmented w-full overflow-x-auto sm:w-auto" aria-label="Tipo de vista">
+                <LocalizedElement><div className="cjm-segmented w-full overflow-x-auto sm:w-auto" aria-label="Tipo de vista">
                     <button type="button" aria-pressed={viewMode === 'auto'} onClick={() => setViewMode('auto')}>
                         <FiMonitor aria-hidden="true" />
-                        Auto
+                        <TranslatedText>Auto</TranslatedText>
                     </button>
                     <button type="button" aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
                         <FiTable aria-hidden="true" />
-                        Tabla
+                        <TranslatedText>Tabla</TranslatedText>
                     </button>
                     <button type="button" aria-pressed={viewMode === 'cards'} onClick={() => setViewMode('cards')}>
                         <FiGrid aria-hidden="true" />
-                        Tarjetas
+                        <TranslatedText>Tarjetas</TranslatedText>
                     </button>
-                </div>
+                </div></LocalizedElement>
             </div>
 
             <div className={`${tableVisibility} cjm-table-shell`}>
@@ -97,15 +100,15 @@ export default function ClientTable({
                     <table className="cjm-table min-w-[960px]">
                         <thead className="sticky top-0 z-10">
                             <tr>
-                                <th>Estado</th>
-                                <th>Código</th>
-                                <th>Nombre</th>
-                                <th>Localidad</th>
-                                <th>Última visita</th>
-                                <th className="text-right">Importe de pedidos</th>
-                                <th className="text-center">Ficha</th>
-                                {canViewPendingOrders && <th className="text-center">Pedidos pendientes</th>}
-                                {canManageVisits && <th className="text-center">Visitas</th>}
+                                <th><TranslatedText>Estado</TranslatedText></th>
+                                <th><TranslatedText>Código</TranslatedText></th>
+                                <th><TranslatedText>Nombre</TranslatedText></th>
+                                <th><TranslatedText>Localidad</TranslatedText></th>
+                                <th><TranslatedText>Última visita</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Importe de pedidos</TranslatedText></th>
+                                <th className="text-center"><TranslatedText>Ficha</TranslatedText></th>
+                                {canViewPendingOrders && <th className="text-center"><TranslatedText>Pedidos pendientes</TranslatedText></th>}
+                                {canManageVisits && <th className="text-center"><TranslatedText>Visitas</TranslatedText></th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -146,7 +149,7 @@ export default function ClientTable({
                                         <td className="text-center">
                                             <button type="button" onClick={() => handleClientClick(client.codclien)}
                                                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--cjm-border)] px-3 py-2 text-xs font-semibold app-text">
-                                                <FiUser aria-hidden="true" /> Ver ficha
+                                                <FiUser aria-hidden="true" /> <TranslatedText>Ver ficha</TranslatedText>
                                             </button>
                                         </td>
                                         {canViewPendingOrders && (
@@ -157,7 +160,7 @@ export default function ClientTable({
                                                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-3 py-2 text-xs font-semibold text-[var(--cjm-primary-deep)] hover:brightness-[0.99]"
                                                 >
                                                     <FiClock aria-hidden="true" />
-                                                    Abrir
+                                                    <TranslatedText>Abrir</TranslatedText>
                                                 </button>
                                             </td>
                                         )}
@@ -180,7 +183,7 @@ export default function ClientTable({
                     </table>
                 </div>
                 <p className="cjm-mobile-scroll-hint border-t border-[var(--cjm-border)] px-4 py-2 md:hidden">
-                    Desliza horizontalmente para ver todas las columnas.
+                    <TranslatedText>Desliza horizontalmente para ver todas las columnas.</TranslatedText>
                 </p>
             </div>
 
@@ -201,7 +204,7 @@ export default function ClientTable({
                                             <span className="truncate text-base font-semibold app-text">{client.razclien}</span>
                                         </div>
                                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                                            <span className="cjm-badge">Cliente {client.codclien}</span>
+                                            <span className="cjm-badge"><TranslatedText>Cliente</TranslatedText> {client.codclien}</span>
                                             {client.localidad && <span className="cjm-badge">{client.localidad}</span>}
                                         </div>
                                     </button>
@@ -221,8 +224,8 @@ export default function ClientTable({
 
                             <div className="space-y-4 px-4 py-4">
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm cjm-muted">
-                                    <span>Última visita: <strong className="app-text">{formatVisitDate(client.ultimaVisita)}</strong></span>
-                                    <span>Pedidos: <strong className="app-text">{formatBilling(billing)}</strong></span>
+                                    <span><TranslatedText>Última visita:</TranslatedText> <strong className="app-text">{formatVisitDate(client.ultimaVisita)}</strong></span>
+                                    <span><TranslatedText>Pedidos:</TranslatedText> <strong className="app-text">{formatBilling(billing)}</strong></span>
                                 </div>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
@@ -230,7 +233,7 @@ export default function ClientTable({
                                         onClick={() => handleClientClick(client.codclien)}
                                         className="cjm-primary-button min-h-12 w-full rounded-xl px-4 text-sm font-semibold"
                                     >
-                                        Ver ficha completa
+                                        <TranslatedText>Ver ficha completa</TranslatedText>
                                     </button>
 
                                     {canViewPendingOrders && (
@@ -240,7 +243,7 @@ export default function ClientTable({
                                             className="cjm-secondary-button min-h-12 w-full"
                                         >
                                             <FiClock aria-hidden="true" />
-                                            Ver pedidos pendientes
+                                            <TranslatedText>Ver pedidos pendientes</TranslatedText>
                                         </button>
                                     )}
                                 </div>

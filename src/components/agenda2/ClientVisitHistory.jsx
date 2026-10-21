@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
@@ -101,14 +103,14 @@ export default function ClientVisitHistory({
 
     const visible = showAll ? filtered : filtered.slice(0, compact ? 6 : 15);
 
-    if (loading && !visits.length) return <LoadingPanel label="Cargando historial comercial…" />;
+    if (loading && !visits.length) return <LocalizedElement><LoadingPanel label="Cargando historial comercial…" /></LocalizedElement>;
 
     return (
         <div className="grid gap-5">
             <section className="agenda2-client-summary">
                 <div className="agenda2-client-summary-heading">
                     <div>
-                        <p className="cjm-kicker">Historial del cliente</p>
+                        <p className="cjm-kicker"><TranslatedText>Historial del cliente</TranslatedText></p>
                         <h3>{clientName || clientId || 'Cliente'}</h3>
                     </div>
                     {onNewVisit && (
@@ -120,32 +122,32 @@ export default function ClientVisitHistory({
                 <div className="agenda2-client-summary-grid">
                     <SummaryItem label="Total" value={visits.length} detail="registros" />
                     <SummaryItem label="Pendientes" value={summary.active.length} detail={summary.overdue.length ? `${summary.overdue.length} atrasadas` : 'al día'} tone={summary.overdue.length ? 'danger' : 'brand'} />
-                    <SummaryItem label="Completadas" value={summary.completed.length} detail={summary.lastCompleted ? `Última: ${formatDateTime(summary.lastCompleted.fecha)}` : 'sin visitas realizadas'} tone="success" />
-                    <SummaryItem label="Próxima" value={summary.next ? formatDateTime(summary.next.fecha) : '—'} detail={summary.next?.titulo || 'sin visita planificada'} />
+                    <LocalizedElement><SummaryItem label="Completadas" value={summary.completed.length} detail={summary.lastCompleted ? `Última: ${formatDateTime(summary.lastCompleted.fecha)}` : 'sin visitas realizadas'} tone="success" /></LocalizedElement>
+                    <LocalizedElement><SummaryItem label="Próxima" value={summary.next ? formatDateTime(summary.next.fecha) : '—'} detail={summary.next?.titulo || 'sin visita planificada'} /></LocalizedElement>
                 </div>
                 {summary.lastCompleted?.resultado && (
                     <div className="agenda2-client-last-result">
                         <CheckCircle2 size={18} />
-                        <div><strong>Último resultado registrado</strong><p>{summary.lastCompleted.resultado}</p></div>
+                        <div><strong><TranslatedText>Último resultado registrado</TranslatedText></strong><p>{summary.lastCompleted.resultado}</p></div>
                     </div>
                 )}
             </section>
 
             <section className="agenda2-section-card">
                 <div className="agenda2-card-header agenda2-client-history-toolbar">
-                    <div><p className="cjm-kicker">Actividad</p><h3>Visitas y resultados</h3></div>
+                    <div><p className="cjm-kicker"><TranslatedText>Actividad</TranslatedText></p><h3><TranslatedText>Visitas y resultados</TranslatedText></h3></div>
                     <div className="agenda2-client-history-actions">
                         <label className="agenda2-search-field agenda2-client-history-search">
                             <Search size={15} />
-                            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en el historial" />
+                            <LocalizedElement><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en el historial" /></LocalizedElement>
                         </label>
-                        <button type="button" className="cjm-icon-button inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm" onClick={() => { setQuery(''); setFilter('all'); setShowAll(false); }} aria-label="Restablecer filtros">
+                        <LocalizedElement><button type="button" className="cjm-icon-button inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm" onClick={() => { setQuery(''); setFilter('all'); setShowAll(false); }} aria-label="Restablecer filtros">
                             <RotateCcw size={15} /> Limpiar
-                        </button>
+                        </button></LocalizedElement>
                     </div>
                 </div>
                 <div className="agenda2-card-content">
-                    <div className="agenda2-client-filter-tabs" role="group" aria-label="Filtrar historial del cliente">
+                    <LocalizedElement><div className="agenda2-client-filter-tabs" role="group" aria-label="Filtrar historial del cliente">
                         {[
                             ['all', `Todas (${visits.length})`],
                             ['active', `Pendientes (${summary.active.length})`],
@@ -154,7 +156,7 @@ export default function ClientVisitHistory({
                         ].map(([value, label]) => (
                             <button type="button" key={value} className={filter === value ? 'active' : ''} onClick={() => { setFilter(value); setShowAll(false); }}>{label}</button>
                         ))}
-                    </div>
+                    </div></LocalizedElement>
 
                     {error && <div className="agenda2-error mt-4" role="alert">{error}</div>}
 
@@ -174,9 +176,9 @@ export default function ClientVisitHistory({
                                             </span>
                                             <span className="agenda2-client-history-meta"><Clock3 size={13} /> {formatDateTime(visit.fecha)} · {visitTypeLabel(visit.tipo)}{visit.asignado_a ? ` · ${visit.asignado_nombre || visit.asignado_a}` : ''}{Number(visit.total_notas) > 0 ? ` · ${visit.total_notas} nota${Number(visit.total_notas) === 1 ? '' : 's'}` : ''}</span>
                                             {visit.descripcion && visit.descripcion !== visit.titulo && <span className="agenda2-client-history-description">{visit.descripcion}</span>}
-                                            {visit.resultado && <span className="agenda2-client-history-result"><b>Resultado:</b> {visit.resultado}</span>}
-                                            {visit.proxima_accion && <span className="agenda2-client-history-followup"><b>Próxima acción:</b> {visit.proxima_accion}{visit.fecha_proxima_accion ? ` · ${formatDateTime(visit.fecha_proxima_accion)}` : ''}</span>}
-                                            {visit.estado === 'cancelada' && visit.cancel_reason && <span className="agenda2-client-history-cancel"><b>Motivo:</b> {visit.cancel_reason}</span>}
+                                            {visit.resultado && <span className="agenda2-client-history-result"><b><TranslatedText>Resultado:</TranslatedText></b> {visit.resultado}</span>}
+                                            {visit.proxima_accion && <span className="agenda2-client-history-followup"><b><TranslatedText>Próxima acción:</TranslatedText></b> {visit.proxima_accion}{visit.fecha_proxima_accion ? ` · ${formatDateTime(visit.fecha_proxima_accion)}` : ''}</span>}
+                                            {visit.estado === 'cancelada' && visit.cancel_reason && <span className="agenda2-client-history-cancel"><b><TranslatedText>Motivo:</TranslatedText></b> {visit.cancel_reason}</span>}
                                         </span>
                                         <ChevronRight size={18} className="shrink-0 cjm-muted" />
                                     </button>
@@ -184,11 +186,11 @@ export default function ClientVisitHistory({
                             })}
                         </div>
                     ) : (
-                        <EmptyAgenda icon={History} title="No hay visitas con estos filtros" description="Registra la primera visita o cambia el filtro para consultar el historial completo." />
+                        <LocalizedElement><EmptyAgenda icon={History} title="No hay visitas con estos filtros" description="Registra la primera visita o cambia el filtro para consultar el historial completo." /></LocalizedElement>
                     )}
 
                     {!showAll && filtered.length > visible.length && (
-                        <button type="button" className="agenda2-link-button mt-4" onClick={() => setShowAll(true)}>Ver las {filtered.length} visitas</button>
+                        <button type="button" className="agenda2-link-button mt-4" onClick={() => setShowAll(true)}><TranslatedText>Ver las</TranslatedText> {filtered.length} <TranslatedText>visitas</TranslatedText></button>
                     )}
                 </div>
             </section>

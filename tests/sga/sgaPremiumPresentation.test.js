@@ -17,7 +17,8 @@ test('restaura el estilo original para tablet sin cargar capas Premium posterior
 });
 
 test('preparación conserva selección explícita de línea, lote y formulario', () => {
-  assert.match(picking, /aria-pressed=\{activeLineId === lineKey\(line\)\}/);
+  assert.match(picking, /active=\{activeLineId === lineKey\(line\)\}/);
+  assert.match(picking, /onSelect=\{\(\) => changeLine\(lineKey\(line\)\)\}/);
   assert.match(picking, /aria-pressed=\{selectedLot === item.code\}/);
   assert.match(picking, /sga-order-selected-badge/);
   assert.match(picking, /sga-order-active-lot/);
@@ -26,13 +27,16 @@ test('preparación conserva selección explícita de línea, lote y formulario',
 });
 
 test('texto de merma automático separado y comprensible', () => {
-  assert.match(picking, /<span>Merma automática<\/span><strong>0,10 m por corte<\/strong><small>Fija · No necesitas escribirla<\/small>/);
+  assert.match(picking, /Merma automática/);
+  assert.match(picking, /<strong>(?:<TranslatedText>)?0,10 m por corte(?:<\/TranslatedText>)?<\/strong>/);
+  assert.match(picking, /Fija · No necesitas escribirla/);
   assert.match(css, /sga-order-fixed-waste > strong/);
   assert.doesNotMatch(picking, /<input[^>]*name=["']waste/);
 });
 
 test('entradas por pieza mantienen estados activos de línea y generación de lote', () => {
-  assert.match(receiving, /sga-receiving-selected-badge/);
+  assert.match(receiving, /<SgaTaskLine/);
+  assert.match(receiving, /active=\{activeLineId === item.id\}/);
   assert.match(receiving, /aria-pressed=\{lotMode === LOT_MODE.GENERATED\}/);
   assert.match(receiving, /aria-pressed=\{lotMode === LOT_MODE.MANUAL\}/);
   assert.match(receivingCss, /sga-receiving-lines>button/);

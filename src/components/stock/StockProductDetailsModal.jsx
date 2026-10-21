@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import { CircleHelp, PackageCheck, Truck, X } from 'lucide-react';
 import StockConsumptionChart from './StockConsumptionChart';
@@ -58,9 +61,9 @@ function StockProductDetailsModal({ product, open, horizon, onClose }) {
                             {product.nombre_familia ? ` · ${product.nombre_familia}` : ''}
                         </p>
                     </div>
-                    <button type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Cerrar detalle">
+                    <LocalizedElement><button type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Cerrar detalle">
                         <X size={22} aria-hidden="true" />
-                    </button>
+                    </button></LocalizedElement>
                 </header>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
@@ -71,34 +74,34 @@ function StockProductDetailsModal({ product, open, horizon, onClose }) {
                     )}
 
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <Metric label="Stock actual" value={formatQuantity(product.stockactual)} />
-                        <Metric label="Pendiente de servir" value={formatQuantity(product.canpenservir)} tone={toNumber(product.canpenservir) > 0 ? 'danger' : 'default'} />
-                        <Metric label="Pendiente de recibir" value={formatQuantity(product.canpenrecib)} tone={toNumber(product.canpenrecib) > 0 ? 'success' : 'default'} />
-                        <Metric
+                        <LocalizedElement><Metric label="Stock actual" value={formatQuantity(product.stockactual)} /></LocalizedElement>
+                        <LocalizedElement><Metric label="Pendiente de servir" value={formatQuantity(product.canpenservir)} tone={toNumber(product.canpenservir) > 0 ? 'danger' : 'default'} /></LocalizedElement>
+                        <LocalizedElement><Metric label="Pendiente de recibir" value={formatQuantity(product.canpenrecib)} tone={toNumber(product.canpenrecib) > 0 ? 'success' : 'default'} /></LocalizedElement>
+                        <LocalizedElement><Metric
                             label="Posición prevista"
                             value={formatQuantity(product.stock_projected)}
                             tone={toNumber(product.stock_projected) < 0 ? 'danger' : 'info'}
                             helper="Stock + recibir − servir"
-                        />
-                        <Metric label="Consumo medio mensual" value={formatQuantity(product.avg_monthly_consumption)} />
-                        <Metric label="Cobertura actual" value={formatCoverage(product.current_coverage_months)} />
-                        <Metric label="Cobertura prevista" value={formatCoverage(product.projected_coverage_months)} tone={toNumber(product.projected_coverage_months) < 1 ? 'danger' : 'success'} />
+                        /></LocalizedElement>
+                        <LocalizedElement><Metric label="Consumo medio mensual" value={formatQuantity(product.avg_monthly_consumption)} /></LocalizedElement>
+                        <LocalizedElement><Metric label="Cobertura actual" value={formatCoverage(product.current_coverage_months)} /></LocalizedElement>
+                        <LocalizedElement><Metric label="Cobertura prevista" value={formatCoverage(product.projected_coverage_months)} tone={toNumber(product.projected_coverage_months) < 1 ? 'danger' : 'success'} /></LocalizedElement>
                         <Metric
                             label={`Compra sugerida (${horizonMonths} ${horizonMonths === 1 ? 'mes' : 'meses'})`}
                             value={formatQuantity(suggested, 0)}
                             tone="info"
-                            helper={suggested > recommended ? `Ajustada al mínimo de proveedor (${formatQuantity(product.minimum_order_quantity, 0)})` : 'Según consumo y posición prevista'}
+                            helper=<TranslatedText>{suggested > recommended ? `Ajustada al mínimo de proveedor (${formatQuantity(product.minimum_order_quantity, 0)})` : 'Según consumo y posición prevista'}</TranslatedText>
                         />
                     </div>
 
                     <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h3 className="font-semibold text-slate-900">Evolución del consumo</h3>
-                                <p className="mt-1 text-sm text-slate-500">La media incluye meses sin movimiento para no inflar la necesidad.</p>
+                                <h3 className="font-semibold text-slate-900"><TranslatedText>Evolución del consumo</TranslatedText></h3>
+                                <p className="mt-1 text-sm text-slate-500"><TranslatedText>La media incluye meses sin movimiento para no inflar la necesidad.</TranslatedText></p>
                             </div>
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                                Total periodo: {formatQuantity(product.total_period_consumption)}
+                                <TranslatedText>Total periodo:</TranslatedText> {formatQuantity(product.total_period_consumption)}
                             </span>
                         </div>
                         <StockConsumptionChart product={product} />
@@ -108,26 +111,26 @@ function StockProductDetailsModal({ product, open, horizon, onClose }) {
                         <section className="rounded-2xl border border-slate-200 bg-white p-5">
                             <div className="flex items-center gap-2 text-slate-900">
                                 <Truck size={19} aria-hidden="true" />
-                                <h3 className="font-semibold">Información de compra</h3>
+                                <h3 className="font-semibold"><TranslatedText>Información de compra</TranslatedText></h3>
                             </div>
                             <dl className="mt-4 space-y-3 text-sm">
-                                <div className="flex justify-between gap-4"><dt className="text-slate-500">Proveedor</dt><dd className="text-right font-medium text-slate-900">{product.nombre_proveedor || product.codprove || 'Sin asignar'}</dd></div>
-                                <div className="flex justify-between gap-4"><dt className="text-slate-500">Cantidad mínima</dt><dd className="font-medium text-slate-900">{toNumber(product.minimum_order_quantity) > 0 ? formatQuantity(product.minimum_order_quantity, 0) : 'No informada'}</dd></div>
-                                <div className="flex justify-between gap-4"><dt className="text-slate-500">Plazo de entrega</dt><dd className="font-medium text-slate-900">{toNumber(product.lead_time_days) > 0 ? `${Math.round(toNumber(product.lead_time_days))} días` : 'No informado'}</dd></div>
-                                <div className="flex justify-between gap-4"><dt className="text-slate-500">Recepción prevista</dt><dd className="font-medium text-slate-900">{product.estimated_receipt_date ? new Date(product.estimated_receipt_date).toLocaleDateString('es-ES') : 'Sin fecha'}</dd></div>
+                                <div className="flex justify-between gap-4"><dt className="text-slate-500"><TranslatedText>Proveedor</TranslatedText></dt><dd className="text-right font-medium text-slate-900">{product.nombre_proveedor || product.codprove || 'Sin asignar'}</dd></div>
+                                <div className="flex justify-between gap-4"><dt className="text-slate-500"><TranslatedText>Cantidad mínima</TranslatedText></dt><dd className="font-medium text-slate-900">{toNumber(product.minimum_order_quantity) > 0 ? formatQuantity(product.minimum_order_quantity, 0) : 'No informada'}</dd></div>
+                                <div className="flex justify-between gap-4"><dt className="text-slate-500"><TranslatedText>Plazo de entrega</TranslatedText></dt><dd className="font-medium text-slate-900">{toNumber(product.lead_time_days) > 0 ? `${Math.round(toNumber(product.lead_time_days))} días` : 'No informado'}</dd></div>
+                                <div className="flex justify-between gap-4"><dt className="text-slate-500"><TranslatedText>Recepción prevista</TranslatedText></dt><dd className="font-medium text-slate-900"><TranslatedText>{product.estimated_receipt_date ? new Date(product.estimated_receipt_date).toLocaleDateString(getActiveLocale()) : 'Sin fecha'}</TranslatedText></dd></div>
                             </dl>
                         </section>
 
                         <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
                             <div className="flex items-center gap-2 text-blue-900">
                                 <CircleHelp size={19} aria-hidden="true" />
-                                <h3 className="font-semibold">Cómo se obtiene la sugerencia</h3>
+                                <h3 className="font-semibold"><TranslatedText>Cómo se obtiene la sugerencia</TranslatedText></h3>
                             </div>
                             <ol className="mt-4 space-y-3 text-sm text-blue-900/80">
-                                <li className="flex gap-3"><span className="font-semibold">1.</span><span>Se calcula el consumo medio del periodo seleccionado, incluyendo meses sin ventas.</span></li>
-                                <li className="flex gap-3"><span className="font-semibold">2.</span><span>Se obtiene la posición prevista: stock actual + pendiente de recibir − pendiente de servir.</span></li>
-                                <li className="flex gap-3"><span className="font-semibold">3.</span><span>Se compara esa posición con el consumo objetivo de {horizonMonths} {horizonMonths === 1 ? 'mes' : 'meses'}.</span></li>
-                                <li className="flex gap-3"><span className="font-semibold">4.</span><span>Cuando existe una cantidad mínima de proveedor, la propuesta se eleva hasta ese mínimo.</span></li>
+                                <li className="flex gap-3"><span className="font-semibold">1.</span><span><TranslatedText>Se calcula el consumo medio del periodo seleccionado, incluyendo meses sin ventas.</TranslatedText></span></li>
+                                <li className="flex gap-3"><span className="font-semibold">2.</span><span><TranslatedText>Se obtiene la posición prevista: stock actual + pendiente de recibir − pendiente de servir.</TranslatedText></span></li>
+                                <li className="flex gap-3"><span className="font-semibold">3.</span><span><TranslatedText>Se compara esa posición con el consumo objetivo de</TranslatedText> {horizonMonths} {horizonMonths === 1 ? 'mes' : 'meses'}.</span></li>
+                                <li className="flex gap-3"><span className="font-semibold">4.</span><span><TranslatedText>Cuando existe una cantidad mínima de proveedor, la propuesta se eleva hasta ese mínimo.</TranslatedText></span></li>
                             </ol>
                         </section>
                     </div>
@@ -135,7 +138,7 @@ function StockProductDetailsModal({ product, open, horizon, onClose }) {
 
                 <footer className="flex justify-end border-t border-slate-200 px-4 py-4 sm:px-6">
                     <button type="button" onClick={onClose} className="cjm-primary-button min-h-11">
-                        <PackageCheck size={17} aria-hidden="true" /> Entendido
+                        <PackageCheck size={17} aria-hidden="true" /> <TranslatedText>Entendido</TranslatedText>
                     </button>
                 </footer>
             </section>

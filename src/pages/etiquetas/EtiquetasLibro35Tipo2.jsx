@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -350,7 +352,7 @@ function EtiquetasLibro35Tipo2() {
         >
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
+                    <LocalizedElement><img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
                         className={`h-auto ${{
@@ -360,7 +362,7 @@ function EtiquetasLibro35Tipo2() {
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div className='flex justify-end items-start gap-2 relative left-[34px]'>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.uso)}</div>
@@ -380,7 +382,7 @@ function EtiquetasLibro35Tipo2() {
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
                     <p className="mb-[1px] leading-tight text-justify">
-                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span>{' '}
                         <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -404,9 +406,9 @@ function EtiquetasLibro35Tipo2() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[80px]">
-                    <h3 className='mb-[10.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[10.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[10.5px] mt-[10.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[10.5px] mt-[10.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="flex justify-end">
@@ -433,7 +435,7 @@ function EtiquetasLibro35Tipo2() {
         >
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
+                    <LocalizedElement><img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
                         className={`h-auto ${{
@@ -443,7 +445,7 @@ function EtiquetasLibro35Tipo2() {
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -464,7 +466,7 @@ function EtiquetasLibro35Tipo2() {
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
                     <p className="mb-[1px] leading-tight text-justify">
-                        <span className="font-extrabold">Composition:</span>{' '}
+                        <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span>{' '}
                         <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
                     </p>
                     <p className="font-extrabold flex items-center">
@@ -490,9 +492,9 @@ function EtiquetasLibro35Tipo2() {
 
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -519,7 +521,7 @@ function EtiquetasLibro35Tipo2() {
         >
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
+                    <LocalizedElement><img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
                         className={`h-auto ${{
@@ -529,7 +531,7 @@ function EtiquetasLibro35Tipo2() {
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -549,7 +551,7 @@ function EtiquetasLibro35Tipo2() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <p className="font-extrabold flex items-center"><TranslatedText>Composition:</TranslatedText></p>
                     <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
@@ -573,9 +575,9 @@ function EtiquetasLibro35Tipo2() {
                     </p>
                 </div>
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -602,7 +604,7 @@ function EtiquetasLibro35Tipo2() {
         >
             <div className="grid grid-cols-2 items-center mr-[25px]">
                 <div className="text-left">
-                    <img
+                    <LocalizedElement><img
                         src={brandLogos[selectedProduct.codmarca]}
                         alt="Logo de Marca"
                         className={`h-auto ${{
@@ -612,7 +614,7 @@ function EtiquetasLibro35Tipo2() {
                             ARE: "w-[140px] relative left-[-10px]",
                             FLA: "w-[130px] relative left-[-5px]",
                         }[selectedProduct.codmarca] || "w-[90px]"}`}
-                    />
+                    /></LocalizedElement>
                 </div>
                 <div>
                     <div className="flex flex-wrap justify-end">{getUsoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -632,7 +634,7 @@ function EtiquetasLibro35Tipo2() {
                     <p className="font-extrabold flex items-center">
                         Width: <span className="font-light ml-1 mb-[2px]">{selectedProduct.ancho}</span>
                     </p>
-                    <p className="font-extrabold flex items-center">Composition:</p>
+                    <p className="font-extrabold flex items-center"><TranslatedText>Composition:</TranslatedText></p>
                     <span className="font-light mb-[2px]">{selectedProduct.composicion}</span>
                     <p className="font-extrabold flex items-center">
                         Repeat: H:
@@ -658,9 +660,9 @@ function EtiquetasLibro35Tipo2() {
                 </div>
 
                 <div className="text-content text-[10px] relative left-[40px]">
-                    <h3 className='mb-[14.5px]'><strong>Usages:</strong></h3>
+                    <h3 className='mb-[14.5px]'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong>Cares:</strong></h3>
+                    <h3 className="mb-[14.5px] mt-[14.5px]"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
                 <div className="relative left-[50px] mt-[5px]">
@@ -683,7 +685,7 @@ function EtiquetasLibro35Tipo2() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Libro</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta de Libro</TranslatedText></h1>
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}

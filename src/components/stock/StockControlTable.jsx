@@ -1,3 +1,5 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import { BarChart3, CalendarClock, Check, ShoppingCart, Truck } from 'lucide-react';
 import {
@@ -35,12 +37,12 @@ function PlanControl({ product, horizon, planItem, onTogglePlan, onQuantityChang
                 aria-pressed={selected}
             >
                 {selected ? <Check size={15} aria-hidden="true" /> : <ShoppingCart size={15} aria-hidden="true" />}
-                {selected ? 'Añadido' : 'Añadir'}
+                <TranslatedText>{selected ? 'Añadido' : 'Añadir'}</TranslatedText>
             </button>
 
             {selected && (
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                    <span className={compact ? 'sr-only' : ''}>Cantidad</span>
+                    <span className={compact ? 'sr-only' : ''}><TranslatedText>Cantidad</TranslatedText></span>
                     <input
                         type="number"
                         min="0"
@@ -54,7 +56,7 @@ function PlanControl({ product, horizon, planItem, onTogglePlan, onQuantityChang
             )}
 
             {!selected && !compact && suggested > 0 && (
-                <span className="text-center text-[11px] text-slate-400">Sugerencia: {formatQuantity(suggested, 0)}</span>
+                <span className="text-center text-[11px] text-slate-400"><TranslatedText>Sugerencia:</TranslatedText> {formatQuantity(suggested, 0)}</span>
             )}
         </div>
     );
@@ -97,29 +99,29 @@ function ProductMobileCard({ product, horizon, planItem, onTogglePlan, onQuantit
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Stock actual</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Stock actual</TranslatedText></dt>
                     <dd className="mt-1 font-semibold tabular-nums text-slate-900">{formatQuantity(product.stockactual)}</dd>
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Pendiente servir</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Pendiente servir</TranslatedText></dt>
                     <dd className="mt-1 font-semibold tabular-nums text-slate-900">{formatQuantity(product.canpenservir)}</dd>
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Pendiente recibir</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Pendiente recibir</TranslatedText></dt>
                     <dd className="mt-1 font-semibold tabular-nums text-slate-900">{formatQuantity(product.canpenrecib)}</dd>
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Posición prevista</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Posición prevista</TranslatedText></dt>
                     <dd className={`mt-1 font-semibold tabular-nums ${toNumber(product.stock_projected) < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
                         {formatQuantity(product.stock_projected)}
                     </dd>
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Consumo mensual</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Consumo mensual</TranslatedText></dt>
                     <dd className="mt-1 font-semibold tabular-nums text-slate-900">{formatQuantity(product.avg_monthly_consumption)}</dd>
                 </div>
                 <div className="rounded-xl bg-white/80 p-3">
-                    <dt className="text-xs text-slate-500">Cobertura prevista</dt>
+                    <dt className="text-xs text-slate-500"><TranslatedText>Cobertura prevista</TranslatedText></dt>
                     <dd className="mt-1 font-semibold text-slate-900">{formatCoverage(product.projected_coverage_months)}</dd>
                 </div>
             </dl>
@@ -127,12 +129,12 @@ function ProductMobileCard({ product, horizon, planItem, onTogglePlan, onQuantit
             <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
                 <div className="flex items-end justify-between gap-3">
                     <div>
-                        <p className="text-xs font-medium text-blue-700">Cantidad sugerida</p>
+                        <p className="text-xs font-medium text-blue-700"><TranslatedText>Cantidad sugerida</TranslatedText></p>
                         <p className="mt-1 text-2xl font-semibold tabular-nums text-blue-800">{formatQuantity(suggested, 0)}</p>
                     </div>
                     {toNumber(product.minimum_order_quantity) > 0 && (
                         <p className="text-right text-xs text-blue-700">
-                            Mínimo proveedor<br />
+                            <TranslatedText>Mínimo proveedor</TranslatedText><br />
                             <strong>{formatQuantity(product.minimum_order_quantity, 0)}</strong>
                         </p>
                     )}
@@ -164,8 +166,8 @@ function StockControlTable({
         return (
             <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                 <ShoppingCart className="mx-auto text-slate-400" size={30} aria-hidden="true" />
-                <h3 className="mt-3 font-semibold text-slate-900">No hay productos en esta vista</h3>
-                <p className="mt-1 text-sm text-slate-500">Prueba otro estado o modifica los filtros.</p>
+                <h3 className="mt-3 font-semibold text-slate-900"><TranslatedText>No hay productos en esta vista</TranslatedText></h3>
+                <p className="mt-1 text-sm text-slate-500"><TranslatedText>Prueba otro estado o modifica los filtros.</TranslatedText></p>
             </section>
         );
     }
@@ -191,17 +193,17 @@ function StockControlTable({
                     <table className="cjm-table min-w-[1480px]">
                         <thead>
                             <tr>
-                                <th className="sticky left-0 z-20 min-w-[300px] bg-slate-50 text-left">Producto</th>
-                                <th className="min-w-[190px] text-left">Proveedor</th>
-                                <th className="text-right">Stock</th>
-                                <th className="text-right">Pend. servir</th>
-                                <th className="text-right">Pend. recibir</th>
-                                <th className="text-right">Posición prevista</th>
-                                <th className="text-right">Consumo/mes</th>
-                                <th className="text-center">Cobertura</th>
-                                <th className="text-center">Sugerencia</th>
-                                <th className="text-center">Compra</th>
-                                <th className="text-center">Detalle</th>
+                                <th className="sticky left-0 z-20 min-w-[300px] bg-slate-50 text-left"><TranslatedText>Producto</TranslatedText></th>
+                                <th className="min-w-[190px] text-left"><TranslatedText>Proveedor</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Stock</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Pend. servir</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Pend. recibir</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Posición prevista</TranslatedText></th>
+                                <th className="text-right"><TranslatedText>Consumo/mes</TranslatedText></th>
+                                <th className="text-center"><TranslatedText>Cobertura</TranslatedText></th>
+                                <th className="text-center"><TranslatedText>Sugerencia</TranslatedText></th>
+                                <th className="text-center"><TranslatedText>Compra</TranslatedText></th>
+                                <th className="text-center"><TranslatedText>Detalle</TranslatedText></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -227,7 +229,7 @@ function StockControlTable({
                                                     </p>
                                                     {risk && (
                                                         <p className="mt-2 max-w-[280px] text-xs font-medium text-rose-700" title={risk.description}>
-                                                            {risk.label}: cobertura menor al plazo de entrega
+                                                            {risk.label}<TranslatedText>: cobertura menor al plazo de entrega</TranslatedText>
                                                         </p>
                                                     )}
                                                 </div>
@@ -239,12 +241,12 @@ function StockControlTable({
                                             </p>
                                             {toNumber(product.lead_time_days) > 0 && (
                                                 <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                                                    <CalendarClock size={13} aria-hidden="true" /> {Math.round(toNumber(product.lead_time_days))} días
+                                                    <CalendarClock size={13} aria-hidden="true" /> {Math.round(toNumber(product.lead_time_days))} <TranslatedText>días</TranslatedText>
                                                 </p>
                                             )}
                                             {product.estimated_receipt_date && (
                                                 <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                                                    <Truck size={13} aria-hidden="true" /> {new Date(product.estimated_receipt_date).toLocaleDateString('es-ES')}
+                                                    <Truck size={13} aria-hidden="true" /> {new Date(product.estimated_receipt_date).toLocaleDateString(getActiveLocale())}
                                                 </p>
                                             )}
                                         </td>
@@ -264,7 +266,7 @@ function StockControlTable({
                                             <div className="inline-flex min-w-24 flex-col rounded-xl bg-blue-50 px-3 py-2 text-blue-800 ring-1 ring-blue-200">
                                                 <strong className="text-base tabular-nums">{formatQuantity(suggested, 0)}</strong>
                                                 {toNumber(product.minimum_order_quantity) > 0 && (
-                                                    <span className="text-[10px]">mín. {formatQuantity(product.minimum_order_quantity, 0)}</span>
+                                                    <span className="text-[10px]"><TranslatedText>mín.</TranslatedText> {formatQuantity(product.minimum_order_quantity, 0)}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -284,7 +286,7 @@ function StockControlTable({
                                                 onClick={() => onOpenDetails(product)}
                                                 className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                                             >
-                                                <BarChart3 size={15} aria-hidden="true" /> Ver
+                                                <BarChart3 size={15} aria-hidden="true" /> <TranslatedText>Ver</TranslatedText>
                                             </button>
                                         </td>
                                     </tr>

@@ -1,3 +1,4 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -26,6 +27,7 @@ import { useAuthContext } from '../Auth/AuthContext';
 import { userCanAccessRoute } from '../utils/roleAccessConfig';
 import useVacationModuleAccess from '../hooks/useVacationModuleAccess';
 import { canAccessSgaPreview } from '../sga/sgaPreviewAccess.js';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 // Evita "magic numbers": sidebar fijo 16rem = w-64 / pl-64
 export const SIDEBAR_WIDTH_CLASS = 'md:pl-64';
@@ -36,6 +38,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     const [subDropdownOpen, setSubDropdownOpen] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuthContext();
+    const { t } = useLanguage();
     const { canAccess: canAccessVacations } = useVacationModuleAccess();
     const toggleDropdown = (section) => {
         setDropdownOpen((prev) => (prev === section ? '' : section));
@@ -47,7 +50,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
     };
 
     const matchesSearch = (text) =>
-        (text || '').toLowerCase().includes(searchTerm.toLowerCase());
+        [text || '', t(text || '')].some((candidate) => candidate.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const roleMatchesStaticRoles = (role, allowedRoles) => {
         if (!Array.isArray(allowedRoles)) return true;
@@ -299,22 +302,22 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 <button
                     onClick={closeSidebar}
                     className="cjm-icon-button absolute right-4 top-4 rounded-xl p-2 md:hidden"
-                    aria-label="Cerrar sidebar"
+                    aria-label={t('Cerrar sidebar')}
                 >
                     <FaTimes />
                 </button>
 
                 <div className="shrink-0 border-b border-slate-100 px-4 pb-4 pt-5">
                     <div className="mb-3 pr-10 md:pr-0">
-                        <p className="cjm-kicker">Navegación</p>
-                        <p className="mt-1 text-xs text-slate-400">Acceso rápido a los módulos</p>
+                        <p className="cjm-kicker">{t('Navegación')}</p>
+                        <p className="mt-1 text-xs text-slate-400">{t('Acceso rápido a los módulos')}</p>
                     </div>
                     <label className="relative block">
-                        <span className="sr-only">Buscar en el menú</span>
+                        <span className="sr-only">{t('Buscar en el menú')}</span>
                         <FaSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Buscar módulo..."
+                            placeholder={t('Buscar módulo...')}
                             className="cjm-input rounded-xl py-2.5 pl-10 pr-3 text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -356,7 +359,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                         className="cjm-nav-section flex w-full cursor-pointer items-center rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 sm:px-4"
                                     >
                                         {section.icon}
-                                        <span>{section.label}</span>
+                                        <span>{t(section.label)}</span>
                                         <FaChevronDown
                                             className={`ml-auto transition-transform duration-200 ${dropdownOpen === section.dropdown ? 'rotate-180' : ''
                                                 }`}
@@ -378,7 +381,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 onClick={() => toggleSubDropdown(key)}
                                                                 className="cjm-nav-section flex cursor-pointer select-none items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide"
                                                             >
-                                                                <span>{group.label}</span>
+                                                                <span>{t(group.label)}</span>
                                                                 <FaChevronDown
                                                                     className={`transition-transform duration-200 ${subDropdownOpen === key ? 'rotate-180' : ''
                                                                         }`}
@@ -406,12 +409,12 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                                     onClick={closeSidebar}
                                                                                 >
                                                                                     {sublink.icon}
-                                                                                    {sublink.label}
+                                                                                    {t(sublink.label)}
                                                                                 </NavLink>
                                                                             </li>
                                                                         ))
                                                                     ) : (
-                                                                        <li className="text-gray-600 italic">Sin enlaces disponibles.</li>
+                                                                        <li className="text-gray-600 italic"><TranslatedText>Sin enlaces disponibles.</TranslatedText></li>
                                                                     )}
                                                                 </ul>
                                                             </div>
@@ -430,7 +433,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 onClick={closeSidebar}
                                                             >
                                                                 {link.icon}
-                                                                {link.label}
+                                                                {t(link.label)}
                                                             </a>
                                                         ) : (
                                                             <NavLink
@@ -444,7 +447,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                                                                 onClick={closeSidebar}
                                                             >
                                                                 {link.icon}
-                                                                {link.label}
+                                                                {t(link.label)}
                                                             </NavLink>
                                                         )}
                                                     </li>

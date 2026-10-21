@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -891,7 +893,7 @@ function Etiquetas() {
                                             'center'
                                     }}
                                 >
-                                    <img
+                                    <LocalizedElement><img
                                         src={
                                             brandLogos[
                                             selectedProduct
@@ -919,7 +921,7 @@ function Etiquetas() {
                                             objectFit:
                                                 'contain'
                                         }}
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                             </div>
                         )}
@@ -959,7 +961,7 @@ function Etiquetas() {
                                         '18px'
                                 }}
                             >
-                                <img
+                                <LocalizedElement><img
                                     src={
                                         brandLogos[
                                         selectedProduct
@@ -977,7 +979,7 @@ function Etiquetas() {
                                         objectFit:
                                             'contain'
                                     }}
-                                />
+                                /></LocalizedElement>
                             </div>
 
                             {/* TEXTO DERECHA */}
@@ -1020,7 +1022,7 @@ function Etiquetas() {
 
                                 <p>
                                     <strong>
-                                        Comp:
+                                        <TranslatedText>Comp:</TranslatedText>
                                     </strong>{' '}
                                     {
                                         selectedProduct.composicion
@@ -1101,7 +1103,7 @@ function Etiquetas() {
                                 </p>
 
                                 <p className="font-bold break-words">
-                                    Comp:
+                                    <TranslatedText>Comp:</TranslatedText>
                                     {
                                         selectedProduct.composicion
                                     }
@@ -1161,7 +1163,7 @@ function Etiquetas() {
                     }
                     className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200"
                 >
-                    Descargar JPG
+                    <TranslatedText>Descargar JPG</TranslatedText>
                 </button>
             </div>
         </div>

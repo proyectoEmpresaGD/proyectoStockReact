@@ -1,7 +1,12 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/components/notas/NotasPage.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { format, parseISO, isValid, subDays } from 'date-fns';
-import es from 'date-fns/locale/es';
+import { es, enGB } from 'date-fns/locale';
+import { getActiveLocale } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+const activeDateLocale = () => getActiveLocale() === 'en-GB' ? enGB : es;
 import Select from 'react-select';
 import { Pencil, Trash2 } from 'lucide-react';
 import { AiOutlineClose } from 'react-icons/ai';
@@ -95,9 +100,9 @@ export default function NotasPage() {
     const safeFormat = (iso, fmt) => {
         try {
             const d = parseISO(iso || '');
-            return isValid(d) ? format(d, fmt, { locale: es }) : 'Fecha desconocida';
+            return isValid(d) ? format(d, fmt, { locale: activeDateLocale() }) : translateCurrent('Fecha desconocida');
         } catch {
-            return 'Fecha desconocida';
+            return translateCurrent('Fecha desconocida');
         }
     };
 
@@ -183,8 +188,8 @@ export default function NotasPage() {
                         return {
                             id: String(evt.id),
                             fecha: evt.fecha,
-                            mes: format(f, 'MMMM yyyy', { locale: es }),
-                            label: `${evt.descripcion} – ${format(f, "d 'de' MMMM yyyy", { locale: es })}`,
+                            mes: format(f, 'MMMM yyyy', { locale: activeDateLocale() }),
+                            label: `${evt.descripcion} – ${format(f, getActiveLocale() === 'en-GB' ? 'd MMMM yyyy' : "d 'de' MMMM yyyy", { locale: activeDateLocale() })}`,
                         };
                     });
                 setEvents(evs);
@@ -450,19 +455,19 @@ export default function NotasPage() {
         <div className="relative min-h-screen bg-gray-50 px-3 py-6 sm:px-6 sm:py-10">
             {(loadingNotas || loadingEvents) && (
                 <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-                    Sincronizando notas y visitas relacionadas...
+                    <TranslatedText>Sincronizando notas y visitas relacionadas...</TranslatedText>
                 </div>
             )}
             {(errorNotas || errorEvents) && (
                 <div className="mb-4 space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <p>Ocurrió un problema al actualizar los datos.</p>
+                    <p><TranslatedText>Ocurrió un problema al actualizar los datos.</TranslatedText></p>
                     <div className="flex flex-wrap gap-2">
                         {errorNotas && (
                             <button
                                 onClick={retryNotas}
                                 className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700"
                             >
-                                Reintentar notas
+                                <TranslatedText>Reintentar notas</TranslatedText>
                             </button>
                         )}
                         {errorEvents && (
@@ -470,7 +475,7 @@ export default function NotasPage() {
                                 onClick={retryEventos}
                                 className="rounded-md bg-red-600 px-3 py-1 text-white hover:bg-red-700"
                             >
-                                Reintentar visitas
+                                <TranslatedText>Reintentar visitas</TranslatedText>
                             </button>
                         )}
                     </div>
@@ -490,9 +495,9 @@ export default function NotasPage() {
             {/* Header */}
             <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-5 shadow md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">📝 Mis Notas</h1>
+                    <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900"><TranslatedText>📝 Mis Notas</TranslatedText></h1>
                     <p className="text-sm text-gray-500">
-                        Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.
+                        <TranslatedText>Centraliza acuerdos, ideas y pendientes de cada cliente en un solo lugar.</TranslatedText>
                     </p>
                 </div>
                 <div className="w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end md:w-auto">
@@ -504,7 +509,7 @@ export default function NotasPage() {
                                 : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
-                            🗂️ Tarjetas
+                            <TranslatedText>🗂️ Tarjetas</TranslatedText>
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
@@ -513,7 +518,7 @@ export default function NotasPage() {
                                 : 'text-gray-600 hover:text-indigo-600'
                                 }`}
                         >
-                            📋 Lista
+                            <TranslatedText>📋 Lista</TranslatedText>
                         </button>
                     </div>
                     <button
@@ -521,7 +526,7 @@ export default function NotasPage() {
                         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-center text-white shadow transition hover:bg-indigo-700 sm:mt-0 sm:w-auto"
                     >
                         <span>➕</span>
-                        Nueva nota
+                        <TranslatedText>Nueva nota</TranslatedText>
                     </button>
                 </div>
             </div>
@@ -572,22 +577,22 @@ export default function NotasPage() {
             {/* Filtros */}
             <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
-                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Título</p>
+                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500"><TranslatedText>Título</TranslatedText></p>
                     <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
                         <span role="img" aria-hidden="true">
                             🔍
                         </span>
-                        <input
+                        <LocalizedElement><input
                             type="text"
                             placeholder="Buscar por título"
                             className="flex-1 bg-transparent text-sm outline-none"
                             value={filterName}
                             onChange={(e) => updateFilters({ name: e.target.value })}
-                        />
+                        /></LocalizedElement>
                     </div>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
-                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Fecha de la visita</p>
+                    <p className="mb-1 text-xs font-semibold uppercase text-gray-500"><TranslatedText>Fecha de la visita</TranslatedText></p>
                     <input
                         type="date"
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
@@ -596,9 +601,9 @@ export default function NotasPage() {
                     />
                 </div>
                 <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow">
-                    <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Visibilidad</p>
+                    <p className="mb-2 text-xs font-semibold uppercase text-gray-500"><TranslatedText>Visibilidad</TranslatedText></p>
                     <label className="flex items-center justify-between gap-3 text-sm text-gray-700">
-                        <span>Incluir notas sin cita</span>
+                        <span><TranslatedText>Incluir notas sin cita</TranslatedText></span>
                         <input
                             type="checkbox"
                             checked={showUnlinked}
@@ -608,9 +613,9 @@ export default function NotasPage() {
                     </label>
                 </div>
                 <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 shadow">
-                    <p className="mb-2 text-xs font-semibold uppercase text-indigo-700">Acción rápida</p>
+                    <p className="mb-2 text-xs font-semibold uppercase text-indigo-700"><TranslatedText>Acción rápida</TranslatedText></p>
                     <p className="mb-3 text-sm text-indigo-900">
-                        Restablece los filtros para volver a ver todas tus notas.
+                        <TranslatedText>Restablece los filtros para volver a ver todas tus notas.</TranslatedText>
                     </p>
                     <button
                         className="text-sm font-semibold text-indigo-700 underline"
@@ -618,19 +623,19 @@ export default function NotasPage() {
                             setFilters({ name: '', date: '', showUnlinked: true });
                         }}
                     >
-                        Limpiar filtros
+                        <TranslatedText>Limpiar filtros</TranslatedText>
                     </button>
                 </div>
             </section>
 
             {/* Contenido */}
             {loadingNotas || loadingEvents ? (
-                <div className="animate-pulse py-20 text-center text-gray-400">Cargando…</div>
+                <div className="animate-pulse py-20 text-center text-gray-400"><TranslatedText>Cargando…</TranslatedText></div>
             ) : totalFiltered === 0 ? (
                 <div className="py-20 text-center text-gray-500">
-                    {notas.length === 0
+                    <TranslatedText>{notas.length === 0
                         ? 'Aún no tienes notas. Pulsa "Nueva nota" para crear la primera.'
-                        : 'No hay notas que coincidan con los filtros aplicados.'}
+                        : 'No hay notas que coincidan con los filtros aplicados.'}</TranslatedText>
                 </div>
             ) : viewMode === 'grid' ? (
                 <>
@@ -644,11 +649,11 @@ export default function NotasPage() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
                                         <p className="text-xs text-gray-400">
-                                            Creada el {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}
+                                            <TranslatedText>Creada el</TranslatedText> {safeFormat(n.creado_en, "d 'de' MMMM yyyy")}
                                         </p>
                                         {n.actualizado_en && (
                                             <p className="text-[11px] text-gray-400">
-                                                Actualizada {safeFormat(n.actualizado_en, "d 'de' MMM HH:mm")}
+                                                <TranslatedText>Actualizada</TranslatedText> {safeFormat(n.actualizado_en, "d 'de' MMM HH:mm")}
                                             </p>
                                         )}
                                     </div>
@@ -658,9 +663,9 @@ export default function NotasPage() {
                                             : 'bg-amber-100 text-amber-600'
                                             }`}
                                     >
-                                        {n.eventos.length > 0
+                                        <TranslatedText>{n.eventos.length > 0
                                             ? `${n.eventos.length} ${n.eventos.length === 1 ? 'cita' : 'citas'}`
-                                            : 'Sin visita'}
+                                            : 'Sin visita'}</TranslatedText>
                                     </span>
                                 </div>
 
@@ -687,13 +692,13 @@ export default function NotasPage() {
                                         })}
                                         {n.eventos.length > 3 && (
                                             <span className="text-[11px] text-gray-500">
-                                                +{n.eventos.length - 3} más
+                                                +{n.eventos.length - 3} <TranslatedText>más</TranslatedText>
                                             </span>
                                         )}
                                     </div>
                                 ) : (
                                     <span className="w-max rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-600">
-                                        Sin visita asociada
+                                        <TranslatedText>Sin visita asociada</TranslatedText>
                                     </span>
                                 )}
 
@@ -718,7 +723,7 @@ export default function NotasPage() {
                                         }}
                                         className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
                                     >
-                                        <Pencil size={16} /> Editar
+                                        <Pencil size={16} /> <TranslatedText>Editar</TranslatedText>
                                     </button>
                                     <button
                                         onClick={(e) => {
@@ -727,7 +732,7 @@ export default function NotasPage() {
                                         }}
                                         className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                                     >
-                                        <Trash2 size={16} /> Eliminar
+                                        <Trash2 size={16} /> <TranslatedText>Eliminar</TranslatedText>
                                     </button>
                                 </div>
                             </article>
@@ -740,7 +745,7 @@ export default function NotasPage() {
                                 onClick={() => setVisibleNotas((v) => v + 6)}
                                 className="rounded-full bg-indigo-600 px-5 py-2 text-white shadow transition hover:bg-indigo-700"
                             >
-                                Ver más notas
+                                <TranslatedText>Ver más notas</TranslatedText>
                             </button>
                         </div>
                     )}
@@ -753,13 +758,13 @@ export default function NotasPage() {
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Nota
+                                            <TranslatedText>Nota</TranslatedText>
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Visitas vinculadas
+                                            <TranslatedText>Visitas vinculadas</TranslatedText>
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            Última actualización
+                                            <TranslatedText>Última actualización</TranslatedText>
                                         </th>
                                         <th className="px-6 py-3" />
                                     </tr>
@@ -796,13 +801,13 @@ export default function NotasPage() {
                                                         })}
                                                         {n.eventos.length > 2 && (
                                                             <span className="text-[11px] text-gray-500">
-                                                                +{n.eventos.length - 2} más
+                                                                +{n.eventos.length - 2} <TranslatedText>más</TranslatedText>
                                                             </span>
                                                         )}
                                                     </div>
                                                 ) : (
                                                     <span className="rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-600">
-                                                        Sin visita
+                                                        <TranslatedText>Sin visita</TranslatedText>
                                                     </span>
                                                 )}
                                             </td>
@@ -820,7 +825,7 @@ export default function NotasPage() {
                                                     }}
                                                     className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
                                                 >
-                                                    <Pencil size={16} /> Editar
+                                                    <Pencil size={16} /> <TranslatedText>Editar</TranslatedText>
                                                 </button>
                                                 <button
                                                     onClick={(e) => {
@@ -829,7 +834,7 @@ export default function NotasPage() {
                                                     }}
                                                     className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                                                 >
-                                                    <Trash2 size={16} /> Eliminar
+                                                    <Trash2 size={16} /> <TranslatedText>Eliminar</TranslatedText>
                                                 </button>
                                             </td>
                                         </tr>
@@ -845,7 +850,7 @@ export default function NotasPage() {
                                 onClick={() => setVisibleNotas((v) => v + 10)}
                                 className="rounded-full bg-indigo-600 px-5 py-2 text-white shadow transition hover:bg-indigo-700"
                             >
-                                Ver más resultados
+                                <TranslatedText>Ver más resultados</TranslatedText>
                             </button>
                         </div>
                     )}
@@ -856,13 +861,13 @@ export default function NotasPage() {
             {confirmOpen && (
                 <div className="fixed inset-0 z-50 flex min-h-full items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-4 sm:py-6">
                     <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-2xl">
-                        <p className="mb-4">¿Eliminar esta nota?</p>
+                        <p className="mb-4"><TranslatedText>¿Eliminar esta nota?</TranslatedText></p>
                         <div className="flex justify-end gap-4">
                             <button onClick={() => setConfirmOpen(false)} className="px-4 py-2">
-                                Cancelar
+                                <TranslatedText>Cancelar</TranslatedText>
                             </button>
                             <button onClick={borrar} className="rounded bg-red-500 px-4 py-2 text-white">
-                                Eliminar
+                                <TranslatedText>Eliminar</TranslatedText>
                             </button>
                         </div>
                     </div>
@@ -899,7 +904,7 @@ export default function NotasPage() {
                                 {vistaNota.imagenes.length > 0 && (
                                     <section>
                                         <h3 className="mb-2 text-lg font-medium text-gray-800">
-                                            Imágenes
+                                            <TranslatedText>Imágenes</TranslatedText>
                                         </h3>
                                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                             {vistaNota.imagenes.map((url, i) => (
@@ -917,7 +922,7 @@ export default function NotasPage() {
                                 {vistaNota.eventos.length > 0 && (
                                     <section>
                                         <h3 className="mb-2 text-lg font-medium text-gray-800">
-                                            Citas relacionadas
+                                            <TranslatedText>Citas relacionadas</TranslatedText>
                                         </h3>
                                         <div className="flex flex-wrap gap-2">
                                             {vistaNota.eventos.map((eid) => {
@@ -943,7 +948,7 @@ export default function NotasPage() {
                         </main>
 
                         <footer className="border-t border-gray-200 px-5 py-3 text-right text-sm text-gray-500 sm:px-6">
-                            Creado el{' '}
+                            <TranslatedText>Creado el</TranslatedText>{' '}
                             {safeFormat(
                                 vistaNota.creado_en,
                                 "d 'de' MMMM yyyy, HH:mm:ss"
@@ -964,32 +969,32 @@ export default function NotasPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="mb-4 text-xl font-bold">
-                            {isEditing ? 'Editar nota' : 'Crear nota'}
+                            <TranslatedText>{isEditing ? 'Editar nota' : 'Crear nota'}</TranslatedText>
                         </h2>
 
                         {/* Título */}
-                        <input
+                        <LocalizedElement><input
                             type="text"
                             placeholder="Título"
                             className="mb-4 w-full rounded border px-3 py-2"
                             value={titulo}
                             onChange={(e) => setTitulo(e.target.value)}
                             disabled={subiendo}
-                        />
+                        /></LocalizedElement>
 
                         {/* Contenido */}
-                        <textarea
+                        <LocalizedElement><textarea
                             placeholder="Contenido"
                             className="mb-4 h-24 w-full rounded border px-3 py-2"
                             value={contenido}
                             onChange={(e) => setContenido(e.target.value)}
                             disabled={subiendo}
-                        />
+                        /></LocalizedElement>
 
                         {/* Select citas relacionadas */}
                         <div className="mb-4">
-                            <label className="mb-1 block font-medium">Citas relacionadas</label>
-                            <Select
+                            <label className="mb-1 block font-medium"><TranslatedText>Citas relacionadas</TranslatedText></label>
+                            <LocalizedElement><Select
                                 isMulti
                                 options={selectOptions}
                                 value={events
@@ -1004,13 +1009,13 @@ export default function NotasPage() {
                                 classNamePrefix="react-select"
                                 placeholder="Busca por mes…"
                                 isDisabled={subiendo}
-                            />
+                            /></LocalizedElement>
                         </div>
 
                         {/* Imágenes */}
                         <div className="mb-4">
                             <label className="mb-1 block font-medium">
-                                Imágenes (max 3)
+                                <TranslatedText>Imágenes (max 3)</TranslatedText>
                             </label>
                             <div className="mb-2 flex gap-2">
                                 {/* Cámara (móvil) */}
@@ -1092,7 +1097,7 @@ export default function NotasPage() {
                                                 className="h-16 w-16 rounded object-cover"
                                                 alt=""
                                             />
-                                            <button
+                                            <LocalizedElement><button
                                                 onClick={() => {
                                                     setPreviews((p) =>
                                                         p.filter(
@@ -1110,7 +1115,7 @@ export default function NotasPage() {
                                                 title="Quitar"
                                             >
                                                 ×
-                                            </button>
+                                            </button></LocalizedElement>
                                         </div>
                                     ))}
                                 </div>
@@ -1126,7 +1131,7 @@ export default function NotasPage() {
                                                 className="h-16 w-16 rounded object-cover"
                                                 alt=""
                                             />
-                                            <button
+                                            <LocalizedElement><button
                                                 onClick={() => {
                                                     setExistingImages((e) =>
                                                         e.filter((u) => u !== url)
@@ -1137,7 +1142,7 @@ export default function NotasPage() {
                                                 title="Quitar"
                                             >
                                                 ×
-                                            </button>
+                                            </button></LocalizedElement>
                                         </div>
                                     ))}
                                 </div>
@@ -1151,14 +1156,14 @@ export default function NotasPage() {
                                 className="rounded bg-gray-300 px-4 py-2"
                                 disabled={subiendo}
                             >
-                                Cancelar
+                                <TranslatedText>Cancelar</TranslatedText>
                             </button>
                             <button
                                 onClick={guardar}
                                 className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
                                 disabled={subiendo}
                             >
-                                {isEditing ? 'Actualizar' : 'Guardar'}
+                                <TranslatedText>{isEditing ? 'Actualizar' : 'Guardar'}</TranslatedText>
                             </button>
                         </div>
                     </div>

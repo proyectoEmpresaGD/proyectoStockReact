@@ -1,3 +1,4 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import { useMemo, useLayoutEffect, useState } from 'react';
 
 const PAGE_W_CM = 21;
@@ -261,7 +262,7 @@ const ProductPdfSheet = ({
                             }}
                         >
                             {pdfProductImage && (
-                                <img
+                                <LocalizedElement><img
                                     src={pdfProductImage}
                                     alt="Producto"
                                     style={{
@@ -271,7 +272,7 @@ const ProductPdfSheet = ({
                                         borderRadius: '14px',
                                         display: 'block',
                                     }}
-                                />
+                                /></LocalizedElement>
                             )}
                         </div>
 

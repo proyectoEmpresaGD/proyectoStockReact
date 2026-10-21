@@ -1,3 +1,6 @@
+import { translateCurrent } from '../i18n/translations.js';
+import TranslatedText from '../i18n/TranslatedText.jsx';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
 // src/pages/paginaStock.jsx
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import SearchBar from '../components/productos/SearchBar';
@@ -357,7 +360,7 @@ function Stock() {
                 })
                 .catch((err) => {
                     if (err?.name === 'AbortError') return;
-                    setError('No se ha podido realizar la búsqueda.');
+                    setError(translateCurrent('No se ha podido realizar la búsqueda.'));
                 })
                 .finally(() => setLoadingSearch(false));
         },
@@ -493,12 +496,12 @@ function Stock() {
                         className="cjm-ghost-button w-full sm:w-auto"
                     >
                         <FiHelpCircle className="text-lg" aria-hidden="true" />
-                        Cómo funciona
+                        <TranslatedText>Cómo funciona</TranslatedText>
                     </button>
                 )}
             />
 
-            <section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Buscador de stock">
+            <LocalizedElement><section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Buscador de stock">
                 <div ref={wrapperRef}>
                     <SearchBar
                         searchTerm={searchTerm}
@@ -514,25 +517,25 @@ function Stock() {
                         {loadingSearch && (
                             <span className="cjm-brand-chip px-3 py-1.5 text-xs font-semibold">
                                 <AiOutlineLoading3Quarters className="animate-spin" aria-hidden="true" />
-                                Buscando productos…
+                                <TranslatedText>Buscando productos…</TranslatedText>
                             </span>
                         )}
 
                         {loadingFechas && (
                             <span className="cjm-brand-chip px-3 py-1.5 text-xs font-semibold">
                                 <AiOutlineLoading3Quarters className="animate-spin" aria-hidden="true" />
-                                Actualizando fechas…
+                                <TranslatedText>Actualizando fechas…</TranslatedText>
                             </span>
                         )}
 
                         {!!combinedResults.length && (
                             <span className="cjm-badge sm:ml-auto">
-                                {combinedResults.length} resultado{combinedResults.length === 1 ? '' : 's'}
+                                {combinedResults.length} <TranslatedText>resultado</TranslatedText>{combinedResults.length === 1 ? '' : 's'}
                             </span>
                         )}
                     </div>
                 </div>
-            </section>
+            </section></LocalizedElement>
 
             {error && (
                 <div className="cjm-alert cjm-alert-error mt-4" role="alert">
@@ -545,7 +548,7 @@ function Stock() {
                     <div className="cjm-empty-state flex min-h-44 items-center justify-center">
                         <span className="inline-flex items-center gap-3 text-sm font-semibold app-text">
                             <AiOutlineLoading3Quarters className="animate-spin text-2xl text-[var(--cjm-primary-deep)]" />
-                            Preparando el stock…
+                            <TranslatedText>Preparando el stock…</TranslatedText>
                         </span>
                     </div>
                 ) : (
@@ -575,23 +578,23 @@ function Stock() {
                     >
                         <div className="cjm-modal-header flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
                             <div className="min-w-0">
-                                <p className="cjm-kicker">Guía rápida</p>
+                                <p className="cjm-kicker"><TranslatedText>Guía rápida</TranslatedText></p>
                                 <h2 id="stock-help-title" className="mt-1 text-lg font-semibold app-text sm:text-xl">
-                                    Cómo interpretar el stock
+                                    <TranslatedText>Cómo interpretar el stock</TranslatedText>
                                 </h2>
                                 <p className="cjm-muted mt-1 text-sm">
-                                    Referencia rápida para búsquedas, reservas y lotes.
+                                    <TranslatedText>Referencia rápida para búsquedas, reservas y lotes.</TranslatedText>
                                 </p>
                             </div>
 
-                            <button
+                            <LocalizedElement><button
                                 type="button"
                                 onClick={() => setShowHelpModal(false)}
                                 className="cjm-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                                 aria-label="Cerrar ayuda"
                             >
                                 <FaTimes aria-hidden="true" />
-                            </button>
+                            </button></LocalizedElement>
                         </div>
 
                         <div className="cjm-modal-body space-y-3 px-4 py-5 sm:px-6">

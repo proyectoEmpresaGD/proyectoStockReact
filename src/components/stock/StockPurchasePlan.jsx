@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useMemo, useState } from 'react';
 import { ClipboardList, Download, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -104,23 +106,23 @@ function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNote
                             <ClipboardList size={21} aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
-                            <h2 id="purchase-plan-title" className="text-lg font-semibold text-slate-900">Propuesta de compra</h2>
+                            <h2 id="purchase-plan-title" className="text-lg font-semibold text-slate-900"><TranslatedText>Propuesta de compra</TranslatedText></h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                Borrador guardado en este dispositivo · {items.length} productos · {formatQuantity(totalQuantity, 0)} unidades
+                                <TranslatedText>Borrador guardado en este dispositivo ·</TranslatedText> {items.length} <TranslatedText>productos ·</TranslatedText> {formatQuantity(totalQuantity, 0)} <TranslatedText>unidades</TranslatedText>
                             </p>
                         </div>
                     </div>
-                    <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Cerrar propuesta">
+                    <LocalizedElement><button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="Cerrar propuesta">
                         <X size={22} aria-hidden="true" />
-                    </button>
+                    </button></LocalizedElement>
                 </header>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     {items.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center">
                             <ClipboardList className="mx-auto text-slate-400" size={34} aria-hidden="true" />
-                            <h3 className="mt-3 font-semibold text-slate-900">La propuesta está vacía</h3>
-                            <p className="mt-1 text-sm text-slate-500">Añade productos desde el listado de necesidades.</p>
+                            <h3 className="mt-3 font-semibold text-slate-900"><TranslatedText>La propuesta está vacía</TranslatedText></h3>
+                            <p className="mt-1 text-sm text-slate-500"><TranslatedText>Añade productos desde el listado de necesidades.</TranslatedText></p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -138,16 +140,16 @@ function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNote
                                             </p>
 
                                             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
-                                                <div><dt className="text-slate-500">Posición prevista</dt><dd className="font-semibold text-slate-900">{formatQuantity(item.stock_projected)}</dd></div>
-                                                <div><dt className="text-slate-500">Consumo/mes</dt><dd className="font-semibold text-slate-900">{formatQuantity(item.avg_monthly_consumption)}</dd></div>
-                                                <div><dt className="text-slate-500">Necesidad</dt><dd className="font-semibold text-slate-900">{formatQuantity(item.recommended, 0)}</dd></div>
-                                                <div><dt className="text-slate-500">Mínimo proveedor</dt><dd className="font-semibold text-slate-900">{item.minimum_order_quantity > 0 ? formatQuantity(item.minimum_order_quantity, 0) : '—'}</dd></div>
+                                                <div><dt className="text-slate-500"><TranslatedText>Posición prevista</TranslatedText></dt><dd className="font-semibold text-slate-900">{formatQuantity(item.stock_projected)}</dd></div>
+                                                <div><dt className="text-slate-500"><TranslatedText>Consumo/mes</TranslatedText></dt><dd className="font-semibold text-slate-900">{formatQuantity(item.avg_monthly_consumption)}</dd></div>
+                                                <div><dt className="text-slate-500"><TranslatedText>Necesidad</TranslatedText></dt><dd className="font-semibold text-slate-900">{formatQuantity(item.recommended, 0)}</dd></div>
+                                                <div><dt className="text-slate-500"><TranslatedText>Mínimo proveedor</TranslatedText></dt><dd className="font-semibold text-slate-900">{item.minimum_order_quantity > 0 ? formatQuantity(item.minimum_order_quantity, 0) : '—'}</dd></div>
                                             </dl>
                                         </div>
 
                                         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[140px_minmax(220px,1fr)_auto] xl:w-[520px]">
                                             <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
-                                                Cantidad
+                                                <TranslatedText>Cantidad</TranslatedText>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -158,14 +160,14 @@ function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNote
                                                 />
                                             </label>
                                             <label className="col-span-2 flex flex-col gap-1 text-xs font-medium text-slate-600 sm:col-span-1">
-                                                Observaciones
-                                                <input
+                                                <TranslatedText>Observaciones</TranslatedText>
+                                                <LocalizedElement><input
                                                     type="text"
                                                     value={item.notes || ''}
                                                     onChange={(event) => onChangeNotes(item.codprodu, event.target.value)}
                                                     placeholder="Ej. confirmar color, agrupar pedido..."
                                                     className="cjm-input h-11 rounded-xl px-3"
-                                                />
+                                                /></LocalizedElement>
                                             </label>
                                             <button
                                                 type="button"
@@ -187,24 +189,24 @@ function StockPurchasePlan({ open, plan, onClose, onChangeQuantity, onChangeNote
                     <div>
                         {confirmClear ? (
                             <div className="flex flex-wrap items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                <span>¿Vaciar toda la propuesta?</span>
+                                <span><TranslatedText>¿Vaciar toda la propuesta?</TranslatedText></span>
                                 <button type="button" className="font-semibold underline" onClick={() => {
                                     onClear();
                                     setConfirmClear(false);
-                                }}>Sí, vaciar</button>
-                                <button type="button" className="font-semibold underline" onClick={() => setConfirmClear(false)}>Cancelar</button>
+                                }}><TranslatedText>Sí, vaciar</TranslatedText></button>
+                                <button type="button" className="font-semibold underline" onClick={() => setConfirmClear(false)}><TranslatedText>Cancelar</TranslatedText></button>
                             </div>
                         ) : (
                             <button type="button" onClick={() => setConfirmClear(true)} disabled={!items.length} className="cjm-ghost-button min-h-11 text-rose-700 disabled:opacity-40">
-                                <Trash2 size={17} aria-hidden="true" /> Vaciar propuesta
+                                <Trash2 size={17} aria-hidden="true" /> <TranslatedText>Vaciar propuesta</TranslatedText>
                             </button>
                         )}
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        <button type="button" onClick={onClose} className="cjm-ghost-button min-h-11">Seguir revisando</button>
+                        <button type="button" onClick={onClose} className="cjm-ghost-button min-h-11"><TranslatedText>Seguir revisando</TranslatedText></button>
                         <button type="button" onClick={handleDownload} disabled={!items.length || downloading} className="cjm-primary-button min-h-11 disabled:opacity-40">
-                            <Download size={17} aria-hidden="true" /> {downloading ? 'Comprobando productos…' : 'Descargar CSV para Excel'}
+                            <Download size={17} aria-hidden="true" /> <TranslatedText>{downloading ? 'Comprobando productos…' : 'Descargar CSV para Excel'}</TranslatedText>
                         </button>
                     </div>
                 </footer>

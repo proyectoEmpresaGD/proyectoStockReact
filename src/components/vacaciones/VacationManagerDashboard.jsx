@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarCheck2, CalendarClock, CheckCircle2, CircleDashed, UsersRound } from 'lucide-react';
 
@@ -15,7 +18,7 @@ function dateOnly(value) {
 function formatDate(value) {
     if (!value) return '—';
     const date = new Date(`${dateOnly(value)}T12:00:00`);
-    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(getActiveLocale(), { day: '2-digit', month: 'short' });
 }
 
 export default function VacationManagerDashboard({ apiBase, token, year, employeesSummary, nonWorkingDays, onOpenSection }) {
@@ -127,31 +130,31 @@ export default function VacationManagerDashboard({ apiBase, token, year, employe
     return (
         <div className="space-y-6">
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <DashboardCard
+                <LocalizedElement><DashboardCard
                     icon={<UsersRound size={19} />}
                     label={viewingCurrentYear ? 'De vacaciones hoy' : 'Personas planificadas'}
                     value={viewingCurrentYear ? dashboard.todayAway.length : dashboard.plannedEmployees.length}
                     helper={viewingCurrentYear
                         ? (dashboard.todayAway.length ? dashboard.todayAway.map((item) => item.empleado_nombre).slice(0, 2).join(', ') : 'Cobertura completa hoy')
                         : `Con vacaciones aprobadas o pendientes en ${year}`}
-                />
-                <DashboardCard icon={<CalendarClock size={19} />} label="Pendientes" value={dashboard.pending.length} helper={dashboard.pending.length ? 'Solicitudes por resolver' : 'No hay cola pendiente'} />
-                <DashboardCard icon={<CalendarCheck2 size={19} />} label="Próximas ausencias" value={dashboard.upcomingAll.length} helper="Vacaciones aprobadas próximas" />
-                <DashboardCard icon={<CircleDashed size={19} />} label="Sin planificar" value={dashboard.unplanned.length} helper={`Empleados sin días aprobados/pendientes en ${year}`} />
+                /></LocalizedElement>
+                <LocalizedElement><DashboardCard icon={<CalendarClock size={19} />} label="Pendientes" value={dashboard.pending.length} helper={dashboard.pending.length ? 'Solicitudes por resolver' : 'No hay cola pendiente'} /></LocalizedElement>
+                <LocalizedElement><DashboardCard icon={<CalendarCheck2 size={19} />} label="Próximas ausencias" value={dashboard.upcomingAll.length} helper="Vacaciones aprobadas próximas" /></LocalizedElement>
+                <LocalizedElement><DashboardCard icon={<CircleDashed size={19} />} label="Sin planificar" value={dashboard.unplanned.length} helper={`Empleados sin días aprobados/pendientes en ${year}`} /></LocalizedElement>
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
                 <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <h2 className="text-lg font-semibold text-slate-900">Planificación anual</h2>
-                            <p className="mt-1 text-sm text-slate-500">Días laborables aprobados distribuidos en el mes real de ausencia.</p>
+                            <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Planificación anual</TranslatedText></h2>
+                            <p className="mt-1 text-sm text-slate-500"><TranslatedText>Días laborables aprobados distribuidos en el mes real de ausencia.</TranslatedText></p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{year}</span>
                     </div>
                     <div className="mt-5 grid grid-cols-12 gap-2">
                         {dashboard.monthly.map((item) => {
-                            const label = new Date(year, item.month, 1).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+                            const label = new Date(year, item.month, 1).toLocaleDateString(getActiveLocale(), { month: 'short' }).replace('.', '');
                             const height = Math.max(6, Math.round((item.days / dashboard.maxMonthlyDays) * 100));
                             return (
                                 <div key={item.month} className="flex min-w-0 flex-col items-center gap-2">
@@ -167,10 +170,10 @@ export default function VacationManagerDashboard({ apiBase, token, year, employe
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Preparación {year}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"><TranslatedText>Preparación</TranslatedText> {year}</p>
                     <div className="mt-2 flex items-end gap-2">
                         <span className="text-4xl font-semibold">{readinessDone}/{readiness.length}</span>
-                        <span className="pb-1 text-sm text-slate-300">puntos preparados</span>
+                        <span className="pb-1 text-sm text-slate-300"><TranslatedText>puntos preparados</TranslatedText></span>
                     </div>
                     <div className="mt-5 space-y-2">
                         {readiness.map((item) => (
@@ -181,30 +184,30 @@ export default function VacationManagerDashboard({ apiBase, token, year, employe
                         ))}
                     </div>
                     {yearConfig?.cerrado ? (
-                        <p className="mt-4 rounded-xl border border-sky-300/20 bg-sky-300/10 px-3 py-2 text-xs text-sky-100">El ejercicio {year} está cerrado y protegido frente a cambios. Reábrelo desde Configuración solo si necesitas corregir el histórico.</p>
+                        <p className="mt-4 rounded-xl border border-sky-300/20 bg-sky-300/10 px-3 py-2 text-xs text-sky-100"><TranslatedText>El ejercicio</TranslatedText> {year} <TranslatedText>está cerrado y protegido frente a cambios. Reábrelo desde Configuración solo si necesitas corregir el histórico.</TranslatedText></p>
                     ) : !yearConfig?.permitir_solicitudes && (
-                        <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">Las solicitudes de {year} están cerradas temporalmente. Es útil mientras terminas la preparación.</p>
+                        <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100"><TranslatedText>Las solicitudes de</TranslatedText> {year} <TranslatedText>están cerradas temporalmente. Es útil mientras terminas la preparación.</TranslatedText></p>
                     )}
                 </div>
             </section>
 
             <section className="grid gap-6 xl:grid-cols-3">
                 {viewingCurrentYear ? (
-                    <ListCard title="De vacaciones hoy" empty="Nadie está de vacaciones hoy." items={dashboard.todayAway.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} />
+                    <LocalizedElement><ListCard title="De vacaciones hoy" empty="Nadie está de vacaciones hoy." items={dashboard.todayAway.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} /></LocalizedElement>
                 ) : (
-                    <ListCard title="Pendientes de planificar" empty={`Todo el personal tiene días planificados en ${year}.`} items={dashboard.unplanned.slice(0, 7).map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${Number(item.dias_disponibles || 0)} días disponibles` }))} />
+                    <LocalizedElement><ListCard title="Pendientes de planificar" empty={`Todo el personal tiene días planificados en ${year}.`} items={dashboard.unplanned.slice(0, 7).map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${Number(item.dias_disponibles || 0)} días disponibles` }))} /></LocalizedElement>
                 )}
-                <ListCard title="Próximas vacaciones" empty="No hay vacaciones aprobadas próximas." items={dashboard.upcoming.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} />
-                <ListCard title="Pendientes más antiguas" empty="No hay solicitudes pendientes." items={dashboard.oldestPending.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} />
+                <LocalizedElement><ListCard title="Próximas vacaciones" empty="No hay vacaciones aprobadas próximas." items={dashboard.upcoming.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} /></LocalizedElement>
+                <LocalizedElement><ListCard title="Pendientes más antiguas" empty="No hay solicitudes pendientes." items={dashboard.oldestPending.map((item) => ({ title: item.empleado_nombre, helper: item.departamento || 'Sin departamento', meta: `${formatDate(item.fecha_inicio)} – ${formatDate(item.fecha_fin)}` }))} /></LocalizedElement>
             </section>
 
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900">Planificación por departamento</h2>
-                        <p className="mt-1 text-sm text-slate-500">Cuántas personas tienen ya vacaciones aprobadas o pendientes en {year}.</p>
+                        <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Planificación por departamento</TranslatedText></h2>
+                        <p className="mt-1 text-sm text-slate-500"><TranslatedText>Cuántas personas tienen ya vacaciones aprobadas o pendientes en</TranslatedText> {year}.</p>
                     </div>
-                    <button type="button" onClick={() => onOpenSection?.('calendario')} className="text-sm font-semibold text-slate-700 underline underline-offset-4">Abrir calendario de cobertura</button>
+                    <button type="button" onClick={() => onOpenSection?.('calendario')} className="text-sm font-semibold text-slate-700 underline underline-offset-4"><TranslatedText>Abrir calendario de cobertura</TranslatedText></button>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {dashboard.departments.map((department) => {
@@ -214,12 +217,12 @@ export default function VacationManagerDashboard({ apiBase, token, year, employe
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
                                         <p className="font-semibold text-slate-800">{department.name}</p>
-                                        <p className="mt-0.5 text-xs text-slate-500">{department.planned}/{department.total} personas planificadas</p>
+                                        <p className="mt-0.5 text-xs text-slate-500">{department.planned}/{department.total} <TranslatedText>personas planificadas</TranslatedText></p>
                                     </div>
                                     <span className="text-sm font-semibold text-slate-700">{percent}%</span>
                                 </div>
                                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-900" style={{ width: `${percent}%` }} /></div>
-                                {department.pending > 0 && <p className="mt-2 text-xs text-amber-700">{department.pending} con días pendientes de aprobación</p>}
+                                {department.pending > 0 && <p className="mt-2 text-xs text-amber-700">{department.pending} <TranslatedText>con días pendientes de aprobación</TranslatedText></p>}
                             </div>
                         );
                     })}

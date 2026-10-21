@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import {
     CheckCheck,
@@ -108,7 +111,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
     const saveExcluded = async (person) => {
         const reason = excludeReason.trim();
         if (reason.length < 5) {
-            toast.warning('Indica brevemente por qué esta cuenta no corresponde a una persona trabajadora.');
+            toast.warning(translateCurrent('Indica brevemente por qué esta cuenta no corresponde a una persona trabajadora.'));
             return;
         }
 
@@ -124,7 +127,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
             const assignment = data.assignment || {};
             if (assignment.effective_from_adjusted) {
                 toast.success(
-                    `${personLabel(person)} excluido desde ${String(assignment.effective_from).slice(0, 10)} para conservar sus fichajes anteriores.`
+                    translateCurrent('{person} excluido desde {date} para conservar sus fichajes anteriores.', { person: personLabel(person), date: String(assignment.effective_from).slice(0, 10) })
                 );
             } else if (assignment.no_change) {
                 toast.info(`${personLabel(person)} ya estaba excluido.`);
@@ -149,7 +152,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
     const confirmAllPendingWorkers = async () => {
         const pendingPeople = people.filter((person) => !person.explicit);
         if (!pendingPeople.length) {
-            toast.info('No hay usuarios pendientes de clasificar.');
+            toast.info(translateCurrent('No hay usuarios pendientes de clasificar.'));
             return;
         }
 
@@ -170,8 +173,8 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
             }
         }
 
-        if (ok) toast.success(`${ok} usuario(s) confirmados como trabajadores sujetos al registro.`);
-        if (failures.length) toast.error(`No se pudieron clasificar ${failures.length} usuario(s). Revisa la consola del servidor.`);
+        if (ok) toast.success(translateCurrent(ok === 1 ? 'Un usuario confirmado como trabajador sujeto al registro.' : '{count} usuarios confirmados como trabajadores sujetos al registro.', { count: ok }));
+        if (failures.length) toast.error(translateCurrent('No se pudieron clasificar {count} usuarios. Revisa la consola del servidor.', { count: failures.length }));
         setBulkSaving(false);
         await refreshAll();
     };
@@ -181,11 +184,11 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                        <UsersRound size={18} /> Usuarios y trabajadores
+                        <UsersRound size={18} /> <TranslatedText>Usuarios y trabajadores</TranslatedText>
                     </h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                        Confirma quién debe fichar y excluye únicamente las cuentas que no correspondan a una persona trabajadora.
-                        El histórico anterior nunca se elimina.
+                        <TranslatedText>Confirma quién debe fichar y excluye únicamente las cuentas que no correspondan a una persona trabajadora.
+                        El histórico anterior nunca se elimina.</TranslatedText>
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -198,7 +201,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                         <CheckCheck size={16} />
                         {bulkSaving ? 'Confirmando…' : `Confirmar pendientes como trabajadores (${pending})`}
                     </button>
-                    <button
+                    <LocalizedElement><button
                         type="button"
                         onClick={load}
                         disabled={loading}
@@ -206,38 +209,38 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                         aria-label="Actualizar clasificación"
                     >
                         <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
-                    </button>
+                    </button></LocalizedElement>
                 </div>
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <div className="rounded-2xl bg-emerald-50 p-3">
-                    <p className="text-xs text-emerald-700">Deben fichar</p>
+                    <p className="text-xs text-emerald-700"><TranslatedText>Deben fichar</TranslatedText></p>
                     <p className="mt-1 text-xl font-semibold text-emerald-900">{included}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-100 p-3">
-                    <p className="text-xs text-slate-600">No trabajadores</p>
+                    <p className="text-xs text-slate-600"><TranslatedText>No trabajadores</TranslatedText></p>
                     <p className="mt-1 text-xl font-semibold text-slate-900">{excluded}</p>
                 </div>
                 <div className="rounded-2xl bg-amber-50 p-3">
-                    <p className="text-xs text-amber-700">Pendientes de confirmar</p>
+                    <p className="text-xs text-amber-700"><TranslatedText>Pendientes de confirmar</TranslatedText></p>
                     <p className="mt-1 text-xl font-semibold text-amber-900">{pending}</p>
                 </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
-                Si una cuenta tiene fichajes y la marcas como <strong>No trabajador</strong>, el sistema aplicará la exclusión desde el día posterior al último fichaje cuando sea necesario. Así no tendrás que calcular la fecha manualmente y se conserva toda la trazabilidad.
+                <TranslatedText>Si una cuenta tiene fichajes y la marcas como</TranslatedText> <strong><TranslatedText>No trabajador</TranslatedText></strong><TranslatedText>, el sistema aplicará la exclusión desde el día posterior al último fichaje cuando sea necesario. Así no tendrás que calcular la fecha manualmente y se conserva toda la trazabilidad.</TranslatedText>
             </div>
 
             <div className="relative mt-4">
                 <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
-                <input
+                <LocalizedElement><input
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Buscar por nombre, usuario, departamento o rol…"
                     className="cjm-input w-full pl-10"
-                />
+                /></LocalizedElement>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -254,16 +257,16 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                     <div className="flex flex-wrap items-center gap-2">
                                         <p className="truncate font-semibold text-slate-900">{personLabel(person)}</p>
                                         {isPending && (
-                                            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Pendiente</span>
+                                            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800"><TranslatedText>Pendiente</TranslatedText></span>
                                         )}
                                         {!isPending && !isExcluded && (
                                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                                <UserCheck size={13} /> Ficha
+                                                <UserCheck size={13} /> <TranslatedText>Ficha</TranslatedText>
                                             </span>
                                         )}
                                         {!isPending && isExcluded && (
                                             <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                                <UserX size={13} /> No trabajador
+                                                <UserX size={13} /> <TranslatedText>No trabajador</TranslatedText>
                                             </span>
                                         )}
                                     </div>
@@ -271,10 +274,10 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                         {[person.username, person.role, person.departamento].filter(Boolean).join(' · ')}
                                     </p>
                                     {person.last_event_date && (
-                                        <p className="mt-1 text-xs text-slate-500">Último fichaje: {person.last_event_date}</p>
+                                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Último fichaje:</TranslatedText> {person.last_event_date}</p>
                                     )}
                                     {!isPending && isExcluded && person.motivo && (
-                                        <p className="mt-1 text-xs text-slate-500">Motivo: {person.motivo}</p>
+                                        <p className="mt-1 text-xs text-slate-500"><TranslatedText>Motivo:</TranslatedText> {person.motivo}</p>
                                     )}
                                 </div>
 
@@ -289,7 +292,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                                 : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'
                                         }`}
                                     >
-                                        <UserCheck size={15} /> Trabajador · ficha
+                                        <UserCheck size={15} /> <TranslatedText>Trabajador · ficha</TranslatedText>
                                     </button>
                                     <button
                                         type="button"
@@ -301,25 +304,25 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                                         }`}
                                     >
-                                        <UserX size={15} /> No trabajador
+                                        <UserX size={15} /> <TranslatedText>No trabajador</TranslatedText>
                                     </button>
                                 </div>
                             </div>
 
                             {excluding && (
                                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                                    <p className="text-sm font-semibold text-slate-900">Excluir a {personLabel(person)}</p>
+                                    <p className="text-sm font-semibold text-slate-900"><TranslatedText>Excluir a</TranslatedText> {personLabel(person)}</p>
                                     <p className="mt-1 text-xs text-slate-500">
-                                        Indica el motivo real. Si tiene fichajes recientes, la fecha de exclusión se ajustará automáticamente para conservarlos.
+                                        <TranslatedText>Indica el motivo real. Si tiene fichajes recientes, la fecha de exclusión se ajustará automáticamente para conservarlos.</TranslatedText>
                                     </p>
-                                    <textarea
+                                    <LocalizedElement><textarea
                                         value={excludeReason}
                                         onChange={(event) => setExcludeReason(event.target.value)}
                                         className="cjm-input mt-3 min-h-20 w-full"
                                         maxLength={1000}
                                         placeholder="Ej.: cuenta técnica de integración sin relación laboral."
                                         autoFocus
-                                    />
+                                    /></LocalizedElement>
                                     <div className="mt-3 flex flex-wrap justify-end gap-2">
                                         <button
                                             type="button"
@@ -330,7 +333,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                             }}
                                             disabled={busy}
                                         >
-                                            Cancelar
+                                            <TranslatedText>Cancelar</TranslatedText>
                                         </button>
                                         <button
                                             type="button"
@@ -338,7 +341,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
                                             onClick={() => saveExcluded(person)}
                                             disabled={busy || excludeReason.trim().length < 5}
                                         >
-                                            <UserX size={16} /> {busy ? 'Guardando…' : 'Confirmar exclusión'}
+                                            <UserX size={16} /> <TranslatedText>{busy ? 'Guardando…' : 'Confirmar exclusión'}</TranslatedText>
                                         </button>
                                     </div>
                                 </div>
@@ -349,7 +352,7 @@ export default function JornadaAsignacionesPanel({ token, onChanged }) {
 
                 {!loading && filtered.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                        No hay usuarios que coincidan con la búsqueda.
+                        <TranslatedText>No hay usuarios que coincidan con la búsqueda.</TranslatedText>
                     </div>
                 )}
             </div>

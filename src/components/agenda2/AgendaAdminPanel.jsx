@@ -1,3 +1,7 @@
+import { localeNumberFormatter } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
@@ -70,7 +74,7 @@ const repairs = [
     },
 ];
 
-const number = (value) => new Intl.NumberFormat('es-ES').format(Number(value) || 0);
+const number = (value) => localeNumberFormatter().format(Number(value) || 0);
 
 export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, onChanged }) {
     const [section, setSection] = useState('diagnostico');
@@ -129,7 +133,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
         setWorking(true);
         try {
             const result = await agendaClient.adminRepair(token, pendingRepair.id);
-            toast.success(`${pendingRepair.title}: ${number(result?.affected)} registro${Number(result?.affected) === 1 ? '' : 's'} corregido${Number(result?.affected) === 1 ? '' : 's'}`);
+            toast.success(`${pendingRepair.title}: ${translateCurrent(Number(result?.affected) === 1 ? 'Un registro corregido' : '{count} registros corregidos', { count: number(result?.affected) })}`);
             setPendingRepair(null);
             await load({ silent: true });
             onChanged?.();
@@ -145,7 +149,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
         setWorking(true);
         try {
             await agendaClient.deleteReminder(token, deleteReminderId);
-            toast.success('Recordatorio eliminado definitivamente');
+            toast.success(translateCurrent('Recordatorio eliminado definitivamente'));
             setDeleteReminderId(null);
             await load({ silent: true });
             onChanged?.();
@@ -176,7 +180,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
         'relaciones_desincronizadas',
     ].reduce((total, key) => total + (Number(summary[key]) || 0), 0);
 
-    if (loading && !health) return <LoadingPanel label="Revisando integridad y permisos…" />;
+    if (loading && !health) return <LocalizedElement><LoadingPanel label="Revisando integridad y permisos…" /></LocalizedElement>;
 
     return (
         <div className="agenda2-admin-grid">
@@ -184,33 +188,33 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
                 <div className="flex min-w-0 items-start gap-3">
                     <span className="agenda2-admin-shield"><ShieldCheck size={24} /></span>
                     <div className="min-w-0">
-                        <p className="cjm-kicker">Control administrativo</p>
-                        <h2>Gestión y mantenimiento de Agenda</h2>
-                        <p>Revisa incoherencias, abre cualquier registro y aplica correcciones seguras sin acceder directamente a PostgreSQL.</p>
+                        <p className="cjm-kicker"><TranslatedText>Control administrativo</TranslatedText></p>
+                        <h2><TranslatedText>Gestión y mantenimiento de Agenda</TranslatedText></h2>
+                        <p><TranslatedText>Revisa incoherencias, abre cualquier registro y aplica correcciones seguras sin acceder directamente a PostgreSQL.</TranslatedText></p>
                     </div>
                 </div>
                 <button type="button" className="cjm-icon-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium" onClick={() => load()} disabled={loading}>
-                    <RefreshCw size={17} className={loading ? 'animate-spin' : ''} /> Actualizar revisión
+                    <RefreshCw size={17} className={loading ? 'animate-spin' : ''} /> <TranslatedText>Actualizar revisión</TranslatedText>
                 </button>
             </section>
 
             <div className="agenda2-admin-metrics">
-                <div><CalendarClock size={18} /><span><small>Visitas</small><strong>{number(summary.visitas_total)}</strong></span></div>
-                <div><FileText size={18} /><span><small>Notas</small><strong>{number(summary.notas_total)}</strong></span></div>
-                <div><BellRing size={18} /><span><small>Avisos activos</small><strong>{number(summary.recordatorios_activos)}</strong></span></div>
+                <div><CalendarClock size={18} /><span><small><TranslatedText>Visitas</TranslatedText></small><strong>{number(summary.visitas_total)}</strong></span></div>
+                <div><FileText size={18} /><span><small><TranslatedText>Notas</TranslatedText></small><strong>{number(summary.notas_total)}</strong></span></div>
+                <div><BellRing size={18} /><span><small><TranslatedText>Avisos activos</TranslatedText></small><strong>{number(summary.recordatorios_activos)}</strong></span></div>
                 <div className={issueCount ? 'agenda2-admin-metric-warning' : 'agenda2-admin-metric-ok'}>
                     {issueCount ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-                    <span><small>Incidencias detectadas</small><strong>{number(issueCount)}</strong></span>
+                    <span><small><TranslatedText>Incidencias detectadas</TranslatedText></small><strong>{number(issueCount)}</strong></span>
                 </div>
             </div>
 
-            <nav className="agenda2-admin-tabs" aria-label="Herramientas administrativas">
+            <LocalizedElement><nav className="agenda2-admin-tabs" aria-label="Herramientas administrativas">
                 {sections.map(({ id, label, icon: Icon }) => (
                     <button type="button" key={id} className={section === id ? 'active' : ''} onClick={() => setSection(id)}>
                         <Icon size={17} /> {label}
                     </button>
                 ))}
-            </nav>
+            </nav></LocalizedElement>
 
             {section !== 'diagnostico' && (
                 <label className="agenda2-search-field agenda2-admin-search">
@@ -225,7 +229,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
                 <div className="grid gap-5">
                     <section className="agenda2-admin-repairs">
                         <div className="agenda2-admin-section-title">
-                            <div><h3>Correcciones seguras</h3><p>Solo se modifican registros que cumplen exactamente la incidencia descrita.</p></div>
+                            <div><h3><TranslatedText>Correcciones seguras</TranslatedText></h3><p><TranslatedText>Solo se modifican registros que cumplen exactamente la incidencia descrita.</TranslatedText></p></div>
                         </div>
                         <div className="agenda2-admin-repair-grid">
                             {repairs.map((repair) => {
@@ -243,7 +247,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
 
                     <section className="agenda2-admin-issues">
                         <div className="agenda2-admin-section-title">
-                            <div><h3>Incidencias encontradas</h3><p>Abre el elemento relacionado o ejecuta la corrección recomendada.</p></div>
+                            <div><h3><TranslatedText>Incidencias encontradas</TranslatedText></h3><p><TranslatedText>Abre el elemento relacionado o ejecuta la corrección recomendada.</TranslatedText></p></div>
                             <span className="agenda2-badge">{number(issueCount)}</span>
                         </div>
                         {(health?.issues || []).length ? (
@@ -268,7 +272,7 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
                                     </button>
                                 ))}
                             </div>
-                        ) : <EmptyAgenda icon={CheckCircle2} title="No se han detectado incoherencias" description="Las relaciones, fechas, responsables y recordatorios revisados son coherentes." />}
+                        ) : <LocalizedElement><EmptyAgenda icon={CheckCircle2} title="No se han detectado incoherencias" description="Las relaciones, fechas, responsables y recordatorios revisados son coherentes." /></LocalizedElement>}
                     </section>
                 </div>
             )}
@@ -278,9 +282,9 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
                     <button type="button" key={visit.id} onClick={() => onVisit?.(visit)}>
                         <span className="agenda2-date-tile"><CalendarClock size={18} /></span>
                         <span className="min-w-0 flex-1 text-left"><strong>{visit.titulo || 'Visita comercial'}</strong><small>{visit.cliente_nombre || visit.cliente_id || 'Sin cliente'} · {formatDateTime(visit.fecha)}</small><span className="mt-2 flex flex-wrap gap-2"><StatusBadge status={visit.estado} /><PriorityBadge priority={visit.prioridad} /></span></span>
-                        <span className="agenda2-admin-open">Gestionar</span>
+                        <span className="agenda2-admin-open"><TranslatedText>Gestionar</TranslatedText></span>
                     </button>
-                ))}</div> : <EmptyAgenda title="No hay visitas que coincidan" />
+                ))}</div> : <LocalizedElement><EmptyAgenda title="No hay visitas que coincidan" /></LocalizedElement>
             )}
 
             {section === 'notas' && (
@@ -288,48 +292,48 @@ export default function AgendaAdminPanel({ token, refreshKey, onVisit, onNote, o
                     <button type="button" key={note.id} onClick={() => onNote?.(note)}>
                         <span className="agenda2-date-tile agenda2-date-note"><FileText size={18} /></span>
                         <span className="min-w-0 flex-1 text-left"><strong>{note.titulo || 'Nota'}</strong><small>{note.cliente_nombre || 'Sin cliente'} · {formatDateTime(note.fechaactualizado || note.fechacreado)}</small><span className="mt-2 flex flex-wrap gap-2"><StatusBadge status={note.estado} kind="note" /><PriorityBadge priority={note.prioridad} /></span></span>
-                        <span className="agenda2-admin-open">Gestionar</span>
+                        <span className="agenda2-admin-open"><TranslatedText>Gestionar</TranslatedText></span>
                     </button>
-                ))}</div> : <EmptyAgenda title="No hay notas que coincidan" />
+                ))}</div> : <LocalizedElement><EmptyAgenda title="No hay notas que coincidan" /></LocalizedElement>
             )}
 
             {section === 'avisos' && (
                 filteredReminders.length ? <div className="agenda2-admin-list">{filteredReminders.map((reminder) => (
                     <article key={reminder.id} className="agenda2-admin-reminder">
                         <span className="agenda2-date-tile"><BellRing size={18} /></span>
-                        <span className="min-w-0 flex-1"><strong>{reminder.titulo || reminder.visita_titulo || reminder.nota_titulo || 'Recordatorio'}</strong><small>{reminder.cliente_nombre || 'Sin cliente'} · {formatDateTime(reminder.fecha_efectiva || reminder.fecha_recordatorio)}</small><small>Responsable: {reminder.recordatorio_usuario || reminder.usuario_id}</small></span>
-                        <button type="button" className="agenda2-danger-icon" onClick={() => setDeleteReminderId(reminder.id)} aria-label="Eliminar recordatorio"><Trash2 size={17} /></button>
+                        <span className="min-w-0 flex-1"><strong>{reminder.titulo || reminder.visita_titulo || reminder.nota_titulo || 'Recordatorio'}</strong><small>{reminder.cliente_nombre || 'Sin cliente'} · {formatDateTime(reminder.fecha_efectiva || reminder.fecha_recordatorio)}</small><small><TranslatedText>Responsable:</TranslatedText> {reminder.recordatorio_usuario || reminder.usuario_id}</small></span>
+                        <LocalizedElement><button type="button" className="agenda2-danger-icon" onClick={() => setDeleteReminderId(reminder.id)} aria-label="Eliminar recordatorio"><Trash2 size={17} /></button></LocalizedElement>
                     </article>
-                ))}</div> : <EmptyAgenda icon={BellRing} title="No hay recordatorios activos" />
+                ))}</div> : <LocalizedElement><EmptyAgenda icon={BellRing} title="No hay recordatorios activos" /></LocalizedElement>
             )}
 
             {pendingRepair && (
-                <div className="agenda2-admin-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmar mantenimiento">
+                <LocalizedElement><div className="agenda2-admin-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmar mantenimiento">
                     <div>
                         <span><Wrench size={22} /></span>
                         <h3>{pendingRepair.title}</h3>
                         <p>{pendingRepair.description}</p>
-                        <p className="mt-2 text-sm cjm-muted">La operación quedará registrada en el historial administrativo.</p>
+                        <p className="mt-2 text-sm cjm-muted"><TranslatedText>La operación quedará registrada en el historial administrativo.</TranslatedText></p>
                         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                            <button type="button" className="cjm-icon-button min-h-11 rounded-xl px-4" onClick={() => setPendingRepair(null)} disabled={working}>Cancelar</button>
+                            <button type="button" className="cjm-icon-button min-h-11 rounded-xl px-4" onClick={() => setPendingRepair(null)} disabled={working}><TranslatedText>Cancelar</TranslatedText></button>
                             <button type="button" className="cjm-primary-button min-h-11 rounded-xl px-5 font-semibold" onClick={runRepair} disabled={working}>{working ? 'Corrigiendo…' : 'Aplicar corrección'}</button>
                         </div>
                     </div>
-                </div>
+                </div></LocalizedElement>
             )}
 
             {deleteReminderId && (
-                <div className="agenda2-admin-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmar eliminación">
+                <LocalizedElement><div className="agenda2-admin-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmar eliminación">
                     <div>
                         <span className="agenda2-admin-danger"><Trash2 size={22} /></span>
-                        <h3>Eliminar recordatorio definitivamente</h3>
-                        <p>Se eliminará únicamente este aviso. La visita o nota relacionada se conservará.</p>
+                        <h3><TranslatedText>Eliminar recordatorio definitivamente</TranslatedText></h3>
+                        <p><TranslatedText>Se eliminará únicamente este aviso. La visita o nota relacionada se conservará.</TranslatedText></p>
                         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                            <button type="button" className="cjm-icon-button min-h-11 rounded-xl px-4" onClick={() => setDeleteReminderId(null)} disabled={working}>Cancelar</button>
+                            <button type="button" className="cjm-icon-button min-h-11 rounded-xl px-4" onClick={() => setDeleteReminderId(null)} disabled={working}><TranslatedText>Cancelar</TranslatedText></button>
                             <button type="button" className="agenda2-danger-button min-h-11 rounded-xl px-5 font-semibold" onClick={removeReminder} disabled={working}>{working ? 'Eliminando…' : 'Eliminar aviso'}</button>
                         </div>
                     </div>
-                </div>
+                </div></LocalizedElement>
             )}
         </div>
     );

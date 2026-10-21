@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, RefreshCw, Save } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -93,7 +96,7 @@ export default function JornadaConfiguracionPanel({ token, onChanged }) {
                 })),
                 observaciones: notes.trim() || null,
             });
-            toast.success('Nueva versión del horario guardada sin alterar el histórico.');
+            toast.success(translateCurrent('Nueva versión del horario guardada sin alterar el histórico.'));
             await load();
             await onChanged?.();
         } catch (error) {
@@ -107,41 +110,41 @@ export default function JornadaConfiguracionPanel({ token, onChanged }) {
         <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="flex items-center gap-2 font-semibold text-slate-900"><CalendarClock size={18} /> Horarios y jornada prevista</h2>
-                    <p className="mt-1 text-sm text-slate-500">Cada cambio crea una versión nueva con fecha de entrada en vigor; el histórico no se sobrescribe.</p>
+                    <h2 className="flex items-center gap-2 font-semibold text-slate-900"><CalendarClock size={18} /> <TranslatedText>Horarios y jornada prevista</TranslatedText></h2>
+                    <p className="mt-1 text-sm text-slate-500"><TranslatedText>Cada cambio crea una versión nueva con fecha de entrada en vigor; el histórico no se sobrescribe.</TranslatedText></p>
                 </div>
-                <button type="button" onClick={load} disabled={loading} className="cjm-icon-button" aria-label="Actualizar horarios">
+                <LocalizedElement><button type="button" onClick={load} disabled={loading} className="cjm-icon-button" aria-label="Actualizar horarios">
                     <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
-                </button>
+                </button></LocalizedElement>
             </div>
 
             <form onSubmit={save} className="mt-5 space-y-5">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <label className="text-sm text-slate-700">
-                        <span className="mb-1 block font-medium">Trabajador</span>
+                        <span className="mb-1 block font-medium"><TranslatedText>Trabajador</TranslatedText></span>
                         <select className="cjm-input w-full" value={selectedId} onChange={(e) => setSelectedId(e.target.value)} required>
-                            <option value="">Selecciona…</option>
+                            <option value=""><TranslatedText>Selecciona…</TranslatedText></option>
                             {people.map((person) => <option key={person.id} value={person.id}>{personLabel(person)} · {person.role}</option>)}
                         </select>
                     </label>
                     <label className="text-sm text-slate-700">
-                        <span className="mb-1 block font-medium">En vigor desde</span>
+                        <span className="mb-1 block font-medium"><TranslatedText>En vigor desde</TranslatedText></span>
                         <input type="date" className="cjm-input w-full" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} required />
                     </label>
                     <label className="text-sm text-slate-700">
-                        <span className="mb-1 block font-medium">Modalidad habitual</span>
+                        <span className="mb-1 block font-medium"><TranslatedText>Modalidad habitual</TranslatedText></span>
                         <select className="cjm-input w-full" value={defaultMode} onChange={(e) => setDefaultMode(e.target.value)}>
-                            <option value="presencial">Presencial</option>
-                            <option value="teletrabajo">Teletrabajo</option>
-                            <option value="movilidad">Movilidad / comercial</option>
+                            <option value="presencial"><TranslatedText>Presencial</TranslatedText></option>
+                            <option value="teletrabajo"><TranslatedText>Teletrabajo</TranslatedText></option>
+                            <option value="movilidad"><TranslatedText>Movilidad / comercial</TranslatedText></option>
                         </select>
                     </label>
                     <label className="text-sm text-slate-700">
-                        <span className="mb-1 block font-medium">Tipo de horario</span>
+                        <span className="mb-1 block font-medium"><TranslatedText>Tipo de horario</TranslatedText></span>
                         <select className="cjm-input w-full" value={scheduleType} onChange={(e) => setScheduleType(e.target.value)}>
-                            <option value="fijo">Fijo</option>
-                            <option value="flexible">Flexible</option>
-                            <option value="movilidad">Movilidad</option>
+                            <option value="fijo"><TranslatedText>Fijo</TranslatedText></option>
+                            <option value="flexible"><TranslatedText>Flexible</TranslatedText></option>
+                            <option value="movilidad"><TranslatedText>Movilidad</TranslatedText></option>
                         </select>
                     </label>
                 </div>
@@ -149,7 +152,7 @@ export default function JornadaConfiguracionPanel({ token, onChanged }) {
                 <div className="overflow-x-auto rounded-2xl border border-slate-200">
                     <table className="min-w-[760px] w-full text-sm">
                         <thead className="bg-slate-50 text-left text-slate-600">
-                            <tr><th className="p-3">Día</th><th className="p-3">Laborable</th><th className="p-3">Objetivo (min)</th><th className="p-3">Inicio orientativo</th><th className="p-3">Fin orientativo</th></tr>
+                            <tr><th className="p-3"><TranslatedText>Día</TranslatedText></th><th className="p-3"><TranslatedText>Laborable</TranslatedText></th><th className="p-3"><TranslatedText>Objetivo (min)</TranslatedText></th><th className="p-3"><TranslatedText>Inicio orientativo</TranslatedText></th><th className="p-3"><TranslatedText>Fin orientativo</TranslatedText></th></tr>
                         </thead>
                         <tbody>
                             {plan.map((day) => {
@@ -169,8 +172,8 @@ export default function JornadaConfiguracionPanel({ token, onChanged }) {
                 </div>
 
                 <label className="block text-sm text-slate-700">
-                    <span className="mb-1 block font-medium">Observaciones contractuales / de organización</span>
-                    <textarea className="cjm-input min-h-20 w-full" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1500} placeholder="Ej.: horario flexible con presencia obligatoria de 09:00 a 13:00." />
+                    <span className="mb-1 block font-medium"><TranslatedText>Observaciones contractuales / de organización</TranslatedText></span>
+                    <LocalizedElement><textarea className="cjm-input min-h-20 w-full" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1500} placeholder="Ej.: horario flexible con presencia obligatoria de 09:00 a 13:00." /></LocalizedElement>
                 </label>
 
                 <div className="flex justify-end">

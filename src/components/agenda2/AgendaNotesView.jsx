@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, FileText, Filter, Image as ImageIcon, Link2, Plus, Search, Star, UserRound } from 'lucide-react';
 import { agendaClient } from '../../services/agendaClient';
@@ -50,17 +52,17 @@ export default function AgendaNotesView({ token, refreshKey, onNote, onNewNote }
     return (
         <div className="grid gap-5">
             <section className="agenda2-filter-bar agenda2-notes-filter">
-                <label className="agenda2-search-field"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en títulos, contenido o clientes" /></label>
-                <label><Filter size={16} /><select value={type} onChange={(event) => setType(event.target.value)}><option value="">Todos los tipos</option>{NOTE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                <label><select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="">Cualquier prioridad</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></label>
-                <label><select value={state} onChange={(event) => setState(event.target.value)}><option value="">Todos los estados</option><option value="activa">Activa</option><option value="pendiente">Pendiente</option><option value="completada">Completada</option><option value="archivada">Archivada</option></select></label>
-                <label className="agenda2-filter-check"><input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} /><Star size={15} /> Destacadas</label>
-                <label className="agenda2-filter-check"><input type="checkbox" checked={followUp} onChange={(event) => setFollowUp(event.target.checked)} /><CalendarClock size={15} /> Con seguimiento</label>
-                <button type="button" onClick={onNewNote} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold"><Plus size={18} /> Nueva nota</button>
+                <label className="agenda2-search-field"><Search size={17} /><LocalizedElement><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en títulos, contenido o clientes" /></LocalizedElement></label>
+                <label><Filter size={16} /><select value={type} onChange={(event) => setType(event.target.value)}><option value=""><TranslatedText>Todos los tipos</TranslatedText></option>{NOTE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                <label><select value={priority} onChange={(event) => setPriority(event.target.value)}><option value=""><TranslatedText>Cualquier prioridad</TranslatedText></option><option value="baja"><TranslatedText>Baja</TranslatedText></option><option value="media"><TranslatedText>Media</TranslatedText></option><option value="alta"><TranslatedText>Alta</TranslatedText></option><option value="urgente"><TranslatedText>Urgente</TranslatedText></option></select></label>
+                <label><select value={state} onChange={(event) => setState(event.target.value)}><option value=""><TranslatedText>Todos los estados</TranslatedText></option><option value="activa"><TranslatedText>Activa</TranslatedText></option><option value="pendiente"><TranslatedText>Pendiente</TranslatedText></option><option value="completada"><TranslatedText>Completada</TranslatedText></option><option value="archivada"><TranslatedText>Archivada</TranslatedText></option></select></label>
+                <label className="agenda2-filter-check"><input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} /><Star size={15} /> <TranslatedText>Destacadas</TranslatedText></label>
+                <label className="agenda2-filter-check"><input type="checkbox" checked={followUp} onChange={(event) => setFollowUp(event.target.checked)} /><CalendarClock size={15} /> <TranslatedText>Con seguimiento</TranslatedText></label>
+                <button type="button" onClick={onNewNote} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-semibold"><Plus size={18} /> <TranslatedText>Nueva nota</TranslatedText></button>
             </section>
 
             {error && <div className="agenda2-error">{error}</div>}
-            {loading ? <LoadingPanel label="Cargando notas…" /> : items.length ? (
+            {loading ? <LocalizedElement><LoadingPanel label="Cargando notas…" /></LocalizedElement> : items.length ? (
                 <>
                     <section className="agenda2-notes-grid">
                         {items.map((note) => (
@@ -75,20 +77,20 @@ export default function AgendaNotesView({ token, refreshKey, onNote, onNewNote }
                                 <div className="agenda2-note-meta">
                                     {note.cliente_nombre && <span><UserRound size={13} /> {note.cliente_nombre}</span>}
                                     {note.fecha_seguimiento && <span><CalendarClock size={13} /> {formatDateTime(note.fecha_seguimiento)}</span>}
-                                    {note.eventos?.length > 0 && <span><Link2 size={13} /> {note.eventos.length} visita{note.eventos.length > 1 ? 's' : ''}</span>}
-                                    {note.imagenes?.length > 0 && <span><ImageIcon size={13} /> {note.imagenes.length} imagen{note.imagenes.length > 1 ? 'es' : ''}</span>}
+                                    {note.eventos?.length > 0 && <span><Link2 size={13} /> {note.eventos.length} <TranslatedText>visita</TranslatedText>{note.eventos.length > 1 ? 's' : ''}</span>}
+                                    {note.imagenes?.length > 0 && <span><ImageIcon size={13} /> {note.imagenes.length} <TranslatedText>imagen</TranslatedText>{note.imagenes.length > 1 ? 'es' : ''}</span>}
                                 </div>
-                                <small>Actualizada {formatDateTime(note.fechaactualizado || note.fechacreado)}</small>
+                                <small><TranslatedText>Actualizada</TranslatedText> {formatDateTime(note.fechaactualizado || note.fechacreado)}</small>
                             </button>
                         ))}
                     </section>
                     <div className="agenda2-pagination">
-                        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Anterior</button>
-                        <span>Página {page} de {pages} · {total} notas</span>
-                        <button type="button" disabled={page >= pages} onClick={() => setPage((current) => current + 1)}>Siguiente</button>
+                        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}><TranslatedText>Anterior</TranslatedText></button>
+                        <span>Página {page} <TranslatedText>de</TranslatedText> {pages} · {total} <TranslatedText>notas</TranslatedText></span>
+                        <button type="button" disabled={page >= pages} onClick={() => setPage((current) => current + 1)}><TranslatedText>Siguiente</TranslatedText></button>
                     </div>
                 </>
-            ) : <EmptyAgenda icon={FileText} title="No hay notas con estos filtros" description="Crea una nota para registrar acuerdos, llamadas, incidencias o próximas acciones." action={<button type="button" onClick={onNewNote} className="cjm-primary-button min-h-11 rounded-xl px-4 font-semibold">Crear nota</button>} />}
+            ) : <LocalizedElement><EmptyAgenda icon={FileText} title="No hay notas con estos filtros" description="Crea una nota para registrar acuerdos, llamadas, incidencias o próximas acciones." action={<button type="button" onClick={onNewNote} className="cjm-primary-button min-h-11 rounded-xl px-4 font-semibold"><TranslatedText>Crear nota</TranslatedText></button>} /></LocalizedElement>}
         </div>
     );
 }

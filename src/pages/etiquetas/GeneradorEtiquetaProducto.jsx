@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/pages/etiquetas/GeneradorEtiquetaProducto.jsx
 
 import React, { useRef } from 'react';
@@ -293,24 +295,24 @@ export default function GeneradorEtiquetaProducto() {
             <section className="no-print cjm-panel mb-6 rounded-3xl p-4 sm:p-6">
                 <div className="mb-6">
                     <p className="cjm-kicker">
-                        Almacén · Productos
+                        <TranslatedText>Almacén · Productos</TranslatedText>
                     </p>
 
                     <h1 className="mt-1 text-2xl font-semibold tracking-tight app-text sm:text-3xl">
-                        Generador de etiquetas de producto
+                        <TranslatedText>Generador de etiquetas de producto</TranslatedText>
                     </h1>
 
                     <p className="mt-2 text-sm text-slate-600">
-                        Busca por código o nombre de producto.
+                        <TranslatedText>Busca por código o nombre de producto.
                         Si buscas por nombre se generará una
-                        etiqueta para cada referencia encontrada.
+                        etiqueta para cada referencia encontrada.</TranslatedText>
                     </p>
                 </div>
 
                 <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <h2 className="mb-3 text-sm font-bold uppercase text-slate-700">
-                            Buscar producto
+                            <TranslatedText>Buscar producto</TranslatedText>
                         </h2>
 
                         <form
@@ -318,7 +320,7 @@ export default function GeneradorEtiquetaProducto() {
                             className="flex flex-col gap-3 sm:flex-row"
                         >
                             <div className="relative flex-1">
-                                <input
+                                <LocalizedElement><input
                                     type="text"
                                     value={searchTerm}
                                     onChange={(event) =>
@@ -329,11 +331,11 @@ export default function GeneradorEtiquetaProducto() {
                                     placeholder="Ejemplo: DUNE o código de producto..."
                                     autoComplete="off"
                                     className={inputClassName}
-                                />
+                                /></LocalizedElement>
 
                                 {loadingSuggestions && (
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500">
-                                        Buscando...
+                                        <TranslatedText>Buscando...</TranslatedText>
                                     </div>
                                 )}
 
@@ -364,7 +366,7 @@ export default function GeneradorEtiquetaProducto() {
 
                                                     {product.codprodu && (
                                                         <div className="mt-1 text-xs text-slate-500">
-                                                            Código:{' '}
+                                                            <TranslatedText>Código:</TranslatedText>{' '}
                                                             {
                                                                 product.codprodu
                                                             }
@@ -374,7 +376,7 @@ export default function GeneradorEtiquetaProducto() {
                                                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
                                                         {product.tonalidad && (
                                                             <span>
-                                                                Tonalidad:{' '}
+                                                                <TranslatedText>Tonalidad:</TranslatedText>{' '}
                                                                 {
                                                                     product.tonalidad
                                                                 }
@@ -383,7 +385,7 @@ export default function GeneradorEtiquetaProducto() {
 
                                                         {product.coleccion && (
                                                             <span>
-                                                                Colección:{' '}
+                                                                <TranslatedText>Colección:</TranslatedText>{' '}
                                                                 {
                                                                     product.coleccion
                                                                 }
@@ -392,7 +394,7 @@ export default function GeneradorEtiquetaProducto() {
 
                                                         {product.ancho && (
                                                             <span>
-                                                                Ancho:{' '}
+                                                                <TranslatedText>Ancho:</TranslatedText>{' '}
                                                                 {
                                                                     product.ancho
                                                                 }
@@ -457,7 +459,7 @@ export default function GeneradorEtiquetaProducto() {
                                         <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
                                             <p>
                                                 <span className="font-semibold">
-                                                    Tonalidad:
+                                                    <TranslatedText>Tonalidad:</TranslatedText>
                                                 </span>{' '}
                                                 {selectedProducts[0]
                                                     .tonalidad ||
@@ -466,7 +468,7 @@ export default function GeneradorEtiquetaProducto() {
 
                                             <p>
                                                 <span className="font-semibold">
-                                                    Colección:
+                                                    <TranslatedText>Colección:</TranslatedText>
                                                 </span>{' '}
                                                 {selectedProducts[0]
                                                     .coleccion ||
@@ -475,7 +477,7 @@ export default function GeneradorEtiquetaProducto() {
 
                                             <p>
                                                 <span className="font-semibold">
-                                                    Ancho:
+                                                    <TranslatedText>Ancho:</TranslatedText>
                                                 </span>{' '}
                                                 {selectedProducts[0]
                                                     .ancho ||
@@ -485,9 +487,9 @@ export default function GeneradorEtiquetaProducto() {
                                     </>
                                 ) : (
                                     <p className="mt-2 text-sm text-slate-600">
-                                        Se generará una etiqueta
+                                        <TranslatedText>Se generará una etiqueta
                                         para cada producto
-                                        encontrado con "
+                                        encontrado con "</TranslatedText>
                                         {searchTerm}".
                                     </p>
                                 )}
@@ -503,42 +505,42 @@ export default function GeneradorEtiquetaProducto() {
                         <div className="mt-4 space-y-2 text-sm text-slate-600">
                             <p>
                                 <span className="font-semibold">
-                                    Tamaño etiqueta:
+                                    <TranslatedText>Tamaño etiqueta:</TranslatedText>
                                 </span>{' '}
                                 18 × 10,5 cm
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    Papel:
+                                    <TranslatedText>Papel:</TranslatedText>
                                 </span>{' '}
-                                A4 vertical
+                                <TranslatedText>A4 vertical</TranslatedText>
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    Por folio:
+                                    <TranslatedText>Por folio:</TranslatedText>
                                 </span>{' '}
-                                2 etiquetas
+                                <TranslatedText>2 etiquetas</TranslatedText>
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    QR:
+                                    <TranslatedText>QR:</TranslatedText>
                                 </span>{' '}
-                                Código de producto
+                                <TranslatedText>Código de producto</TranslatedText>
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    Etiquetas:
+                                    <TranslatedText>Etiquetas:</TranslatedText>
                                 </span>{' '}
                                 {selectedProducts.length}
                             </p>
 
                             <p>
                                 <span className="font-semibold">
-                                    Folios:
+                                    <TranslatedText>Folios:</TranslatedText>
                                 </span>{' '}
                                 {productPages.length}
                             </p>

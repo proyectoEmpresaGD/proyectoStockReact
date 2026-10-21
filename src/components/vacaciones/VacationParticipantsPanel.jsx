@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LockKeyhole, Search, UserCheck, UserMinus, UsersRound } from 'lucide-react';
 
@@ -79,28 +81,28 @@ export default function VacationParticipantsPanel({ apiBase, token, onChanged })
                 <div className="flex items-start gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-700"><UsersRound size={18} /></span>
                     <div>
-                        <h3 className="text-base font-semibold text-slate-900">Acceso y participación de usuarios</h3>
+                        <h3 className="text-base font-semibold text-slate-900"><TranslatedText>Acceso y participación de usuarios</TranslatedText></h3>
                         <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-                            <strong>Acceso al módulo</strong> decide quién puede abrir Vacaciones. <strong>Participa</strong> decide quién forma parte de saldos, cupos y planificación. Son controles independientes y no modifican los roles generales de la aplicación.
+                            <strong><TranslatedText>Acceso al módulo</TranslatedText></strong> <TranslatedText>decide quién puede abrir Vacaciones.</TranslatedText> <strong><TranslatedText>Participa</TranslatedText></strong> <TranslatedText>decide quién forma parte de saldos, cupos y planificación. Son controles independientes y no modifican los roles generales de la aplicación.</TranslatedText>
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{accessCount} con acceso</span>
-                            <span className="rounded-full bg-sky-50 px-2.5 py-1 font-semibold text-sky-700">{participantCount} participantes</span>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{rows.length} usuarios totales</span>
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{accessCount} <TranslatedText>con acceso</TranslatedText></span>
+                            <span className="rounded-full bg-sky-50 px-2.5 py-1 font-semibold text-sky-700">{participantCount} <TranslatedText>participantes</TranslatedText></span>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{rows.length} <TranslatedText>usuarios totales</TranslatedText></span>
                         </div>
                     </div>
                 </div>
                 <select value={filter} onChange={(event) => setFilter(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                    <option value="todos">Todos los usuarios</option>
-                    <option value="acceso-activo">Con acceso</option>
-                    <option value="sin-acceso">Sin acceso</option>
-                    <option value="no-participa">No participan</option>
+                    <option value="todos"><TranslatedText>Todos los usuarios</TranslatedText></option>
+                    <option value="acceso-activo"><TranslatedText>Con acceso</TranslatedText></option>
+                    <option value="sin-acceso"><TranslatedText>Sin acceso</TranslatedText></option>
+                    <option value="no-participa"><TranslatedText>No participan</TranslatedText></option>
                 </select>
             </div>
 
             <div className="relative mt-4">
                 <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre, departamento, rol o email" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm" />
+                <LocalizedElement><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre, departamento, rol o email" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm" /></LocalizedElement>
             </div>
 
             {error && <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -109,11 +111,11 @@ export default function VacationParticipantsPanel({ apiBase, token, onChanged })
                 <table className="min-w-full text-left text-sm">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                         <tr>
-                            <th className="px-3 py-3">Usuario</th>
-                            <th className="px-3 py-3">Departamento</th>
-                            <th className="px-3 py-3">Rol</th>
-                            <th className="px-3 py-3">Acceso al módulo</th>
-                            <th className="px-3 py-3">Participa</th>
+                            <th className="px-3 py-3"><TranslatedText>Usuario</TranslatedText></th>
+                            <th className="px-3 py-3"><TranslatedText>Departamento</TranslatedText></th>
+                            <th className="px-3 py-3"><TranslatedText>Rol</TranslatedText></th>
+                            <th className="px-3 py-3"><TranslatedText>Acceso al módulo</TranslatedText></th>
+                            <th className="px-3 py-3"><TranslatedText>Participa</TranslatedText></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -171,12 +173,12 @@ export default function VacationParticipantsPanel({ apiBase, token, onChanged })
                         })}
                     </tbody>
                 </table>
-                {!loading && filtered.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500">No hay usuarios que coincidan con el filtro.</p>}
-                {loading && <p className="px-3 py-8 text-center text-sm text-slate-500">Cargando usuarios…</p>}
+                {!loading && filtered.length === 0 && <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>No hay usuarios que coincidan con el filtro.</TranslatedText></p>}
+                {loading && <p className="px-3 py-8 text-center text-sm text-slate-500"><TranslatedText>Cargando usuarios…</TranslatedText></p>}
             </div>
 
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                Los administradores conservan siempre el acceso al módulo para evitar un bloqueo total de la configuración. Excluir a una persona de la participación puede requerir resolver antes sus solicitudes pendientes o vacaciones futuras aprobadas.
+                <TranslatedText>Los administradores conservan siempre el acceso al módulo para evitar un bloqueo total de la configuración. Excluir a una persona de la participación puede requerir resolver antes sus solicitudes pendientes o vacaciones futuras aprobadas.</TranslatedText>
             </div>
         </section>
     );

@@ -1,7 +1,10 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { addMonths, addWeeks, endOfMonth, endOfWeek, format, getDay, parse, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns';
-import es from 'date-fns/locale/es';
+import { es, enGB } from 'date-fns/locale';
+import { useLanguage } from '../../i18n/LanguageContext.jsx';
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, Plus, Search } from 'lucide-react';
 import { agendaClient } from '../../services/agendaClient';
 import { EmptyAgenda, LoadingPanel } from './AgendaUI';
@@ -9,17 +12,23 @@ import { getUserLabel, visitToCalendarEvent } from './agendaUtils';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = dateFnsLocalizer({
-    format: (date, pattern) => format(date, pattern, { locale: es }),
-    parse: (value, pattern) => parse(value, pattern, new Date(), { locale: es }),
+    format: (date, pattern, culture) => format(date, pattern, { locale: culture === 'en' ? enGB : es }),
+    parse: (value, pattern, culture) => parse(value, pattern, new Date(), { locale: culture === 'en' ? enGB : es }),
     startOfWeek: (date) => startOfWeek(date, { weekStartsOn: 1 }),
     getDay,
-    locales: { es },
+    locales: { es, en: enGB },
 });
 
-const messages = {
+const spanishMessages = {
     today: 'Hoy', previous: 'Anterior', next: 'Siguiente', month: 'Mes', week: 'Semana', day: 'Día', agenda: 'Agenda',
     date: 'Fecha', time: 'Hora', event: 'Actividad', allDay: 'Todo el día', noEventsInRange: 'No hay actividad en este periodo',
     showMore: (total) => `+${total} más`,
+};
+
+const englishMessages = {
+    today: 'Today', previous: 'Previous', next: 'Next', month: 'Month', week: 'Week', day: 'Day', agenda: 'Agenda',
+    date: 'Date', time: 'Time', event: 'Event', allDay: 'All day', noEventsInRange: 'No activity during this period',
+    showMore: (total) => `+${total} more`,
 };
 
 function getWindow(date, view) {
@@ -31,6 +40,7 @@ function getWindow(date, view) {
 }
 
 export default function AgendaCalendarView({ token, users, onVisit, onNewVisit, onLoaded }) {
+    const { language } = useLanguage();
     const [mobile, setMobile] = useState(() => window.innerWidth < 768);
     const [view, setView] = useState(() => window.innerWidth < 768 ? Views.DAY : Views.MONTH);
     const [date, setDate] = useState(new Date());
@@ -102,37 +112,37 @@ export default function AgendaCalendarView({ token, users, onVisit, onNewVisit, 
             <section className="agenda2-calendar-controls">
                 <div className="agenda2-calendar-navigation">
                     <div className="agenda2-calendar-nav-row">
-                        <button type="button" onClick={() => navigate('TODAY')} className="cjm-primary-button min-h-11 rounded-xl px-4 text-sm font-semibold">Hoy</button>
-                        <button type="button" onClick={() => navigate('PREV')} className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Periodo anterior"><ChevronLeft size={19} /></button>
-                        <button type="button" onClick={() => navigate('NEXT')} className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Periodo siguiente"><ChevronRight size={19} /></button>
-                        <label className="agenda2-date-jump" title="Ir directamente a una fecha">
+                        <button type="button" onClick={() => navigate('TODAY')} className="cjm-primary-button min-h-11 rounded-xl px-4 text-sm font-semibold"><TranslatedText>Hoy</TranslatedText></button>
+                        <LocalizedElement><button type="button" onClick={() => navigate('PREV')} className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Periodo anterior"><ChevronLeft size={19} /></button></LocalizedElement>
+                        <LocalizedElement><button type="button" onClick={() => navigate('NEXT')} className="cjm-icon-button flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Periodo siguiente"><ChevronRight size={19} /></button></LocalizedElement>
+                        <LocalizedElement><label className="agenda2-date-jump" title="Ir directamente a una fecha">
                             <CalendarDays size={17} aria-hidden="true" />
-                            <span>Ir a fecha</span>
-                            <input
+                            <span><TranslatedText>Ir a fecha</TranslatedText></span>
+                            <LocalizedElement><input
                                 type="date"
                                 value={format(date, 'yyyy-MM-dd')}
                                 onChange={handleDateJump}
                                 aria-label="Seleccionar una fecha del calendario"
-                            />
-                        </label>
+                            /></LocalizedElement>
+                        </label></LocalizedElement>
                     </div>
-                    <h2 className="agenda2-calendar-period-title text-lg font-semibold capitalize app-text sm:text-xl">{format(date, view === Views.DAY ? "EEEE d 'de' MMMM 'de' yyyy" : view === Views.WEEK ? "'Semana del' d 'de' MMMM 'de' yyyy" : 'MMMM yyyy', { locale: es })}</h2>
+                    <h2 className="agenda2-calendar-period-title text-lg font-semibold capitalize app-text sm:text-xl">{format(date, language === 'en' ? (view === Views.DAY ? 'EEEE d MMMM yyyy' : view === Views.WEEK ? "'Week of' d MMMM yyyy" : 'MMMM yyyy') : (view === Views.DAY ? "EEEE d 'de' MMMM 'de' yyyy" : view === Views.WEEK ? "'Semana del' d 'de' MMMM 'de' yyyy" : 'MMMM yyyy'), { locale: language === 'en' ? enGB : es })}</h2>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                    <div className="agenda2-view-switch">{[Views.MONTH, Views.WEEK, Views.DAY].filter((item) => !(mobile && item === Views.MONTH)).map((item) => <button key={item} type="button" className={view === item ? 'active' : ''} onClick={() => setView(item)}>{item === Views.MONTH ? 'Mes' : item === Views.WEEK ? 'Semana' : 'Día'}</button>)}</div>
-                    <button type="button" onClick={() => onNewVisit?.(date)} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"><Plus size={18} /> Nueva visita</button>
+                    <div className="agenda2-view-switch">{[Views.MONTH, Views.WEEK, Views.DAY].filter((item) => !(mobile && item === Views.MONTH)).map((item) => <button key={item} type="button" className={view === item ? 'active' : ''} onClick={() => setView(item)}><TranslatedText>{item === Views.MONTH ? 'Mes' : item === Views.WEEK ? 'Semana' : 'Día'}</TranslatedText></button>)}</div>
+                    <button type="button" onClick={() => onNewVisit?.(date)} className="cjm-primary-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold"><Plus size={18} /> <TranslatedText>Nueva visita</TranslatedText></button>
                 </div>
             </section>
 
             <section className="agenda2-filter-bar">
-                <label className="agenda2-search-field"><Search size={17} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, objetivo o descripción" /></label>
-                <label><Filter size={16} /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="pendiente,en_curso">Pendientes</option><option value="completada">Completadas</option><option value="cancelada">Canceladas</option></select></label>
-                <label><select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)}><option value="">Todo el equipo</option>{users.map((user) => <option key={user.id} value={user.id}>{getUserLabel(user)}</option>)}</select></label>
+                <label className="agenda2-search-field"><Search size={17} /><LocalizedElement><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente, objetivo o descripción" /></LocalizedElement></label>
+                <label><Filter size={16} /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value=""><TranslatedText>Todos los estados</TranslatedText></option><option value="pendiente,en_curso"><TranslatedText>Pendientes</TranslatedText></option><option value="completada"><TranslatedText>Completadas</TranslatedText></option><option value="cancelada"><TranslatedText>Canceladas</TranslatedText></option></select></label>
+                <label><select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)}><option value=""><TranslatedText>Todo el equipo</TranslatedText></option>{users.map((user) => <option key={user.id} value={user.id}>{getUserLabel(user)}</option>)}</select></label>
             </section>
 
             {error && <div className="agenda2-error">{error}</div>}
             <section className="agenda2-calendar-shell">
-                {loading && !events.length ? <LoadingPanel label="Cargando calendario…" /> : events.length || !query ? (
+                {loading && !events.length ? <LocalizedElement><LoadingPanel label="Cargando calendario…" /></LocalizedElement> : events.length || !query ? (
                     <Calendar
                         localizer={localizer}
                         events={events}
@@ -146,8 +156,8 @@ export default function AgendaCalendarView({ token, users, onVisit, onNewVisit, 
                         selectable
                         startAccessor="start"
                         endAccessor="end"
-                        messages={messages}
-                        culture="es"
+                        messages={language === 'en' ? englishMessages : spanishMessages}
+                        culture={language}
                         toolbar={false}
                         eventPropGetter={eventPropGetter}
                         min={new Date(1970, 1, 1, 7, 0)}
@@ -158,7 +168,7 @@ export default function AgendaCalendarView({ token, users, onVisit, onNewVisit, 
                         dayLayoutAlgorithm="no-overlap"
                         style={{ minHeight: mobile ? 620 : 760 }}
                     />
-                ) : <EmptyAgenda icon={CalendarDays} title="No hay resultados" description="Prueba con otros filtros o crea una nueva visita." />}
+                ) : <LocalizedElement><EmptyAgenda icon={CalendarDays} title="No hay resultados" description="Prueba con otros filtros o crea una nueva visita." /></LocalizedElement>}
             </section>
         </div>
     );

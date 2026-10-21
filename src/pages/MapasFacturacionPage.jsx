@@ -1,3 +1,5 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PageShell from '../common/PageShell.jsx';
@@ -65,10 +67,10 @@ export default function MapasFacturacionPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-200">
                 Analítica geográfica
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-white">Mapas de facturación</h1>
+              <h1 className="mt-2 text-3xl font-bold text-white"><TranslatedText>Mapas de facturación</TranslatedText></h1>
               <p className="mt-2 max-w-3xl text-sm text-slate-200">
-                Consulta la misma facturación por provincias de España o por países. El año,
-                las series y la métrica seleccionada se mantienen al cambiar de mapa.
+                <TranslatedText>Consulta la misma facturación por provincias de España o por países. El año,
+                las series y la métrica seleccionada se mantienen al cambiar de mapa.</TranslatedText>
               </p>
             </div>
 
@@ -92,7 +94,7 @@ export default function MapasFacturacionPage() {
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex self-start rounded-2xl border border-white/20 bg-white/10 p-1" role="tablist" aria-label="Tipo de mapa">
+            <LocalizedElement><div className="inline-flex self-start rounded-2xl border border-white/20 bg-white/10 p-1" role="tablist" aria-label="Tipo de mapa">
               <button
                 type="button"
                 role="tab"
@@ -104,7 +106,7 @@ export default function MapasFacturacionPage() {
                     : 'text-slate-100 hover:bg-white/10'
                 }`}
               >
-                España
+                <TranslatedText>España</TranslatedText>
               </button>
               <button
                 type="button"
@@ -117,9 +119,9 @@ export default function MapasFacturacionPage() {
                     : 'text-slate-100 hover:bg-white/10'
                 }`}
               >
-                Global
+                <TranslatedText>Global</TranslatedText>
               </button>
-            </div>
+            </div></LocalizedElement>
 
             <button
               type="button"
@@ -156,7 +158,7 @@ export default function MapasFacturacionPage() {
 
         {filtersError && (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            {filtersError}. El mapa continuará mostrando todas las series.
+            {filtersError}<TranslatedText>. El mapa continuará mostrando todas las series.</TranslatedText>
           </div>
         )}
 

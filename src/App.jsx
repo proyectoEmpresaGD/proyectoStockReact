@@ -1,8 +1,10 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuthContext } from './Auth/AuthContext.jsx';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext.jsx';
+import { ThemeProvider, useThemePreference } from './theme/ThemeContext.jsx';
 import { userCanAccessRoute } from './utils/roleAccessConfig.js';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Sidebar from './components/navbar';
@@ -51,7 +53,9 @@ const NotFoundPage = lazy(() => import('./common/NotFoundPage.jsx'));
 const EtiquetaLibroIconos = lazy(() =>
   import('./pages/etiquetas/ProductLabelIconosDistribuidos.jsx')
 );
-const PageLoader = () => (
+const PageLoader = () => {
+  const { t } = useLanguage();
+  return (
   <div className="flex min-h-[60vh] items-center justify-center px-4" role="status" aria-live="polite">
     <div className="cjm-panel cjm-hero w-full max-w-sm rounded-3xl px-8 py-8 text-center">
       <img
@@ -60,11 +64,12 @@ const PageLoader = () => (
         className="cjm-logo-adaptive mx-auto h-10 w-auto object-contain"
       />
       <div className="mx-auto mt-6 h-9 w-9 animate-spin rounded-full border-[3px] border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" aria-hidden="true" />
-      <h2 className="mt-5 text-lg font-semibold tracking-tight app-text">Preparando el módulo</h2>
+      <h2 className="mt-5 text-lg font-semibold tracking-tight app-text">{t('Preparando el módulo')}</h2>
       <p className="cjm-muted mt-2 text-sm">CJM Stock &amp; Operations</p>
     </div>
   </div>
 );
+};
 
 function WarehouseLanding() {
   const { user } = useAuthContext();
@@ -75,27 +80,15 @@ function WarehouseLanding() {
   return <Home />;
 }
 
-function App() {
+function AppContent() {
+  const { theme } = useThemePreference();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme ? savedTheme === 'dark' : false;
-  });
-
-  useEffect(() => {
-    const theme = isDarkMode ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.style.colorScheme = theme;
-    localStorage.setItem('theme', theme);
-  }, [isDarkMode]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
   const closeSidebar = () => setSidebarOpen(false);
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthProvider>
+    <>
         <ToastContainer
           position="bottom-right"
           autoClose={4500}
@@ -104,7 +97,7 @@ function App() {
           pauseOnFocusLoss
           pauseOnHover
           draggable
-          theme={isDarkMode ? 'dark' : 'light'}
+          theme={theme}
           toastClassName="cjm-toast"
           limit={4}
         />
@@ -121,8 +114,6 @@ function App() {
                   <div className="h-screen min-w-0 flex-1 overflow-y-auto app-bg pt-20 md:pl-64">
                     <Header
                       toggleSidebar={toggleSidebar}
-                      isDarkMode={isDarkMode}
-                      toggleDarkMode={toggleDarkMode}
                     />
 
                     <main id="main-content" tabIndex="-1">
@@ -195,9 +186,18 @@ function App() {
             }
           />
         </Routes>
-      </AuthProvider>
-    </Router>
+    </>
   );
+}
+
+function App() {
+  return <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <AuthProvider>
+      <LanguageProvider>
+        <ThemeProvider><AppContent /></ThemeProvider>
+      </LanguageProvider>
+    </AuthProvider>
+  </Router>;
 }
 
 export default App;

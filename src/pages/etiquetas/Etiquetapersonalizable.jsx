@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/pages/etiquetas/EtiquetaPersonalizable.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import html2pdf from "html2pdf.js";
@@ -604,7 +606,7 @@ export default function EtiquetaPersonalizable() {
                     </h1>
                     <div className="flex flex-wrap items-center gap-2">
                         <button className={btnGhost} onClick={() => setShowHelp(true)}>
-                            ¿Cómo funciona?
+                            <TranslatedText>¿Cómo funciona?</TranslatedText>
                         </button>
                         <button
                             className={`${btn} bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100`}
@@ -658,7 +660,7 @@ export default function EtiquetaPersonalizable() {
                         </div>
 
                         <div className="mt-3 text-[12px] text-slate-500">
-                            Actual: <b>{wCm} cm × {hCm} cm</b> · Fuente base: <b>{baseFont}px</b>
+                            <TranslatedText>Actual:</TranslatedText> <b>{wCm} cm × {hCm} cm</b> <TranslatedText>· Fuente base:</TranslatedText> <b>{baseFont}px</b>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -697,7 +699,7 @@ export default function EtiquetaPersonalizable() {
                                     setBaseFont(DEFAULT_FONT);
                                 }}
                             >
-                                Etiqueta predeterminada (8 × 4.8 cm)
+                                <TranslatedText>Etiqueta predeterminada (8 × 4.8 cm)</TranslatedText>
                             </button>
                             <label className="inline-flex items-center gap-2 text-sm">
                                 <input
@@ -721,18 +723,18 @@ export default function EtiquetaPersonalizable() {
                                     checked={showGrid}
                                     onChange={(e) => setShowGrid(e.target.checked)}
                                 />
-                                Rejilla
+                                <TranslatedText>Rejilla</TranslatedText>
                             </label>
                         </div>
 
                         {/* Paleta */}
                         <div className="mt-6">
-                            <h3 className="font-semibold text-slate-700 mb-2">Elementos</h3>
+                            <h3 className="font-semibold text-slate-700 mb-2"><TranslatedText>Elementos</TranslatedText></h3>
 
                             {Object.keys(brands).length > 0 && (
                                 <div className="mb-4">
                                     <div className="text-[12px] font-semibold text-slate-600 mb-2">
-                                        Marcas
+                                        <TranslatedText>Marcas</TranslatedText>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {Object.entries(brands).map(([k, src]) => (
@@ -757,7 +759,7 @@ export default function EtiquetaPersonalizable() {
                             {Object.keys(care).length > 0 && (
                                 <div className="mb-4">
                                     <div className="text-[12px] font-semibold text-slate-600 mb-2">
-                                        Mantenimiento
+                                        <TranslatedText>Mantenimiento</TranslatedText>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {Object.entries(care).map(([k, src]) => (
@@ -781,7 +783,7 @@ export default function EtiquetaPersonalizable() {
 
                             {Object.keys(uses).length > 0 && (
                                 <div className="mb-4">
-                                    <div className="text-[12px] font-semibold text-slate-600 mb-2">Usos</div>
+                                    <div className="text-[12px] font-semibold text-slate-600 mb-2"><TranslatedText>Usos</TranslatedText></div>
                                     <div className="flex flex-wrap gap-2">
                                         {Object.entries(uses).map(([k, src]) => (
                                             <button
@@ -803,7 +805,7 @@ export default function EtiquetaPersonalizable() {
                             )}
 
                             <div className="mb-2">
-                                <div className="text-[12px] font-semibold text-slate-600 mb-2">Texto</div>
+                                <div className="text-[12px] font-semibold text-slate-600 mb-2"><TranslatedText>Texto</TranslatedText></div>
                                 <button className={btnGhost} onClick={handleAddTextCentered}>
                                     Agregar texto (centrado)
                                 </button>
@@ -818,7 +820,7 @@ export default function EtiquetaPersonalizable() {
                             <div className="flex flex-wrap items-center gap-2 mb-3">
                                 {selected.type === "text" && !selected.editing && (
                                     <button className={btnGhost} onClick={startEditSelected}>
-                                        Editar texto
+                                        <TranslatedText>Editar texto</TranslatedText>
                                     </button>
                                 )}
                                 <button className={btnGhost} onClick={duplicateSelected}>
@@ -828,19 +830,19 @@ export default function EtiquetaPersonalizable() {
                                     {selected.locked ? "Desbloquear" : "Bloquear"}
                                 </button>
 
-                                <span className="ml-2 text-sm text-slate-500">Alinear:</span>
-                                <button className={btnGhost} onClick={alignLeft}>Izquierda</button>
-                                <button className={btnGhost} onClick={centerHorizontally}>Centro X</button>
-                                <button className={btnGhost} onClick={alignRight}>Derecha</button>
-                                <button className={btnGhost} onClick={alignTop}>Arriba</button>
-                                <button className={btnGhost} onClick={centerVertically}>Centro Y</button>
-                                <button className={btnGhost} onClick={alignBottom}>Abajo</button>
+                                <span className="ml-2 text-sm text-slate-500"><TranslatedText>Alinear:</TranslatedText></span>
+                                <button className={btnGhost} onClick={alignLeft}><TranslatedText>Izquierda</TranslatedText></button>
+                                <button className={btnGhost} onClick={centerHorizontally}><TranslatedText>Centro X</TranslatedText></button>
+                                <button className={btnGhost} onClick={alignRight}><TranslatedText>Derecha</TranslatedText></button>
+                                <button className={btnGhost} onClick={alignTop}><TranslatedText>Arriba</TranslatedText></button>
+                                <button className={btnGhost} onClick={centerVertically}><TranslatedText>Centro Y</TranslatedText></button>
+                                <button className={btnGhost} onClick={alignBottom}><TranslatedText>Abajo</TranslatedText></button>
 
                                 <button className={btnGhost} onClick={() => bringToFront(selected.id)}>
-                                    Al frente
+                                    <TranslatedText>Al frente</TranslatedText>
                                 </button>
                                 <button className={btnGhost} onClick={() => sendToBack(selected.id)}>
-                                    Al fondo
+                                    <TranslatedText>Al fondo</TranslatedText>
                                 </button>
 
                                 <button
@@ -1017,13 +1019,13 @@ export default function EtiquetaPersonalizable() {
             </div>
 
             {/* Ayuda */}
-            <button
+            <LocalizedElement><button
                 aria-label="Ayuda"
                 className="fixed bottom-5 right-5 h-11 w-11 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700"
                 onClick={() => setShowHelp(true)}
             >
                 ?
-            </button>
+            </button></LocalizedElement>
 
             {showHelp && (
                 <div
@@ -1034,62 +1036,62 @@ export default function EtiquetaPersonalizable() {
                         className="bg-white rounded-2xl shadow-xl max-w-xl w-[92%] p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 className="text-xl font-bold mb-2">Cómo usar el generador</h2>
+                        <h2 className="text-xl font-bold mb-2"><TranslatedText>Cómo usar el generador</TranslatedText></h2>
 
                         <ol className="list-decimal ml-5 space-y-2 text-sm text-slate-700">
                             <li>
-                                Ajusta <b>ancho</b> y <b>alto</b> en cm. El PDF se genera en una <b>sola página</b> con ese tamaño físico exacto.
+                                <TranslatedText>Ajusta</TranslatedText> <b><TranslatedText>ancho</TranslatedText></b> <TranslatedText>y</TranslatedText> <b><TranslatedText>alto</TranslatedText></b> <TranslatedText>en cm. El PDF se genera en una</TranslatedText> <b><TranslatedText>sola página</TranslatedText></b> <TranslatedText>con ese tamaño físico exacto.</TranslatedText>
                             </li>
                             <li>
-                                Define el <b>tamaño de fuente base</b> (afecta a los textos nuevos y a la vista).
+                                <TranslatedText>Define el</TranslatedText> <b><TranslatedText>tamaño de fuente base</TranslatedText></b> <TranslatedText>(afecta a los textos nuevos y a la vista).</TranslatedText>
                             </li>
                             <li>
-                                Añade elementos: <b>Marcas / Mantenimiento / Usos</b> o pulsa <b>Agregar texto (centrado)</b>.
+                                <TranslatedText>Añade elementos:</TranslatedText> <b><TranslatedText>Marcas / Mantenimiento / Usos</TranslatedText></b> <TranslatedText>o pulsa</TranslatedText> <b><TranslatedText>Agregar texto (centrado)</TranslatedText></b>.
                             </li>
                             <li>
-                                <b>Mover:</b> clic y arrastra cualquier bloque. Con <b>Imán a rejilla</b> activo, se ajusta a cuadrícula; con <b>Guías</b> se centra.
+                                <b><TranslatedText>Mover:</TranslatedText></b> <TranslatedText>clic y arrastra cualquier bloque. Con</TranslatedText> <b><TranslatedText>Imán a rejilla</TranslatedText></b> <TranslatedText>activo, se ajusta a cuadrícula; con</TranslatedText> <b><TranslatedText>Guías</TranslatedText></b> <TranslatedText>se centra.</TranslatedText>
                             </li>
                             <li>
-                                <b>Editar texto:</b> <u>doble clic</u> sobre el bloque o pulsa <b>Enter</b> con el bloque seleccionado. Pulsa <b>Esc</b> o haz clic fuera para salir.
+                                <b><TranslatedText>Editar texto:</TranslatedText></b> <u><TranslatedText>doble clic</TranslatedText></u> <TranslatedText>sobre el bloque o pulsa</TranslatedText> <b>Enter</b> <TranslatedText>con el bloque seleccionado. Pulsa</TranslatedText> <b>Esc</b> <TranslatedText>o haz clic fuera para salir.</TranslatedText>
                             </li>
                             <li>
-                                <b>Redimensionar:</b> arrastra las esquinas; mantén <b>Shift</b> para conservar proporción.
+                                <b><TranslatedText>Redimensionar:</TranslatedText></b> <TranslatedText>arrastra las esquinas; mantén</TranslatedText> <b>Shift</b> <TranslatedText>para conservar proporción.</TranslatedText>
                             </li>
                             <li>
-                                <b>Alinear al lienzo:</b> usa la barra del elemento (Izquierda/Centro X/Derecha y Arriba/Centro Y/Abajo). Si activas <b>Margen seguridad</b>, las alineaciones respetan ese margen.
+                                <b><TranslatedText>Alinear al lienzo:</TranslatedText></b> <TranslatedText>usa la barra del elemento (Izquierda/Centro X/Derecha y Arriba/Centro Y/Abajo). Si activas</TranslatedText> <b><TranslatedText>Margen seguridad</TranslatedText></b><TranslatedText>, las alineaciones respetan ese margen.</TranslatedText>
                             </li>
                             <li>
-                                <b>Orden/Z-index:</b> Al frente / Al fondo. <b>Duplicar</b> crea una copia desplazada. <b>Bloquear</b> evita mover/editar.
+                                <b><TranslatedText>Orden/Z-index:</TranslatedText></b> <TranslatedText>Al frente / Al fondo.</TranslatedText> <b><TranslatedText>Duplicar</TranslatedText></b> <TranslatedText>crea una copia desplazada.</TranslatedText> <b><TranslatedText>Bloquear</TranslatedText></b> <TranslatedText>evita mover/editar.</TranslatedText>
                             </li>
                             <li>
-                                <b>Borrar:</b> botón <i>Borrar</i> o tecla <b>Supr/Backspace</b>. <b>Limpiar lienzo</b> borra todo.
+                                <b><TranslatedText>Borrar:</TranslatedText></b> <TranslatedText>botón</TranslatedText> <i><TranslatedText>Borrar</TranslatedText></i> <TranslatedText>o tecla</TranslatedText> <b><TranslatedText>Supr/Backspace</TranslatedText></b>. <b><TranslatedText>Limpiar lienzo</TranslatedText></b> <TranslatedText>borra todo.</TranslatedText>
                             </li>
                             <li>
-                                <b>Exportar PDF:</b> “Descargar PDF” genera una sola etiqueta, sin rejilla/guías/margen y con alta nitidez. Ajusta
-                                <i> Nitidez exportación (scale)</i> (recomendado 3–6). Las fuentes e imágenes se cargan antes de exportar para máxima fidelidad.
+                                <b><TranslatedText>Exportar PDF:</TranslatedText></b> <TranslatedText>“Descargar PDF” genera una sola etiqueta, sin rejilla/guías/margen y con alta nitidez. Ajusta</TranslatedText>
+                                <i> <TranslatedText>Nitidez exportación (scale)</TranslatedText></i> <TranslatedText>(recomendado 3–6). Las fuentes e imágenes se cargan antes de exportar para máxima fidelidad.</TranslatedText>
                             </li>
                             <li>
-                                <b>Guardado automático:</b> tus cambios se guardan en este navegador (localStorage).
+                                <b><TranslatedText>Guardado automático:</TranslatedText></b> <TranslatedText>tus cambios se guardan en este navegador (localStorage).</TranslatedText>
                             </li>
                         </ol>
 
                         <div className="mt-4">
-                            <div className="text-sm font-semibold text-slate-700 mb-1">Atajos útiles</div>
+                            <div className="text-sm font-semibold text-slate-700 mb-1"><TranslatedText>Atajos útiles</TranslatedText></div>
                             <ul className="list-disc ml-5 space-y-1 text-sm text-slate-700">
-                                <li><b>Flechas</b>: mover 1 px · <b>Shift + Flechas</b>: mover 5 px</li>
-                                <li><b>Enter</b> (con texto seleccionado): entrar a edición</li>
-                                <li><b>Esc</b> (en edición): salir de edición</li>
-                                <li><b>Shift</b> (mientras redimensionas): mantener proporción</li>
-                                <li><b>Supr/Backspace</b>: borrar el elemento seleccionado</li>
+                                <li><b><TranslatedText>Flechas</TranslatedText></b><TranslatedText>: mover 1 px ·</TranslatedText> <b><TranslatedText>Shift + Flechas</TranslatedText></b><TranslatedText>: mover 5 px</TranslatedText></li>
+                                <li><b>Enter</b> <TranslatedText>(con texto seleccionado): entrar a edición</TranslatedText></li>
+                                <li><b>Esc</b> <TranslatedText>(en edición): salir de edición</TranslatedText></li>
+                                <li><b>Shift</b> <TranslatedText>(mientras redimensionas): mantener proporción</TranslatedText></li>
+                                <li><b><TranslatedText>Supr/Backspace</TranslatedText></b><TranslatedText>: borrar el elemento seleccionado</TranslatedText></li>
                             </ul>
                         </div>
 
                         <div className="mt-4 flex justify-end gap-2">
                             <button className={btnGhost} onClick={() => setShowHelp(false)}>
-                                Cerrar
+                                <TranslatedText>Cerrar</TranslatedText>
                             </button>
                             <button className={btnPrimary} onClick={() => setShowHelp(false)}>
-                                ¡Entendido!
+                                <TranslatedText>¡Entendido!</TranslatedText>
                             </button>
                         </div>
                     </div>

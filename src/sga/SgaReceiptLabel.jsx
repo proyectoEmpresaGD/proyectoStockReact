@@ -1,3 +1,5 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
 import React from 'react';
 import QRCode from 'react-qr-code';
 import { qtyText } from './sgaRules.js';
@@ -7,14 +9,14 @@ import { qtyText } from './sgaRules.js';
  */
 export default function SgaReceiptLabel({ receipt }) {
     if (!receipt?.lotCode) return null;
-    return <article className="sga-receipt-piece-label" aria-label="Etiqueta de prueba de una pieza">
-        <header><strong>CJM · ETIQUETA DE PIEZA</strong><b>SIMULACIÓN · NO UTILIZAR</b></header>
+    return <LocalizedElement><article className="sga-receipt-piece-label" aria-label="Etiqueta de prueba de una pieza">
+        <header><strong><TranslatedText>CJM · ETIQUETA DE PIEZA</TranslatedText></strong><b><TranslatedText>SIMULACIÓN · NO UTILIZAR</TranslatedText></b></header>
         <h3>{receipt.description}</h3>
-        <p><b>Equivalencia seleccionada:</b> {receipt.equivalenceCode} · {receipt.equivalenceDescription}</p>
+        <p><b><TranslatedText>Equivalencia seleccionada:</TranslatedText></b> {receipt.equivalenceCode} · {receipt.equivalenceDescription}</p>
         <div className="sga-receipt-piece-qr-grid">
-            <div><span>PRODUCTO CJM</span><QRCode value={receipt.productCode} size={110}/><strong>{receipt.productCode}</strong></div>
-            <div><span>LOTE / PIEZA</span><QRCode value={receipt.lotCode} size={110}/><strong>{receipt.lotCode}</strong></div>
+            <div><span><TranslatedText>PRODUCTO CJM</TranslatedText></span><QRCode value={receipt.productCode} size={110}/><strong>{receipt.productCode}</strong></div>
+            <div><span><TranslatedText>LOTE / PIEZA</TranslatedText></span><QRCode value={receipt.lotCode} size={110}/><strong>{receipt.lotCode}</strong></div>
         </div>
-        <footer><span>Metros de la pieza: <b>{qtyText(receipt.quantity)} m</b></span><span>{receipt.warehouse} · {receipt.location}</span></footer>
-    </article>;
+        <footer><span><TranslatedText>Metros de la pieza:</TranslatedText> <b>{qtyText(receipt.quantity)} m</b></span><span>{receipt.warehouse} · {receipt.location}</span></footer>
+    </article></LocalizedElement>;
 }

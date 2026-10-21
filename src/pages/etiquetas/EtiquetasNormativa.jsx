@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -289,7 +291,7 @@ function EtiquetaNormativa() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Libro</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta de Libro</TranslatedText></h1>
             <div className="flex justify-center mb-8">
                 <SearchBar
                     searchTerm={searchTerm}
@@ -319,7 +321,7 @@ function EtiquetaNormativa() {
                 >
                     <div className="grid grid-cols-2 items-center mr-[25px]">
                         <div className="text-left">
-                            <img
+                            <LocalizedElement><img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
                                 className={`h-auto ${{
@@ -329,7 +331,7 @@ function EtiquetaNormativa() {
                                     ARE: "w-[140px] relative left-[-10px]",
                                     FLA: "w-[130px] relative left-[-5px]",
                                 }[selectedProduct.codmarca] || "w-[90px]"}`}
-                            />
+                            /></LocalizedElement>
                         </div>
                         <div className="">
                             <div className="flex flex-wrap justify-end">{getMantenimientoImagesImportantes(selectedProduct.mantenimiento)}</div>
@@ -339,22 +341,22 @@ function EtiquetaNormativa() {
 
                     <div className="text-content text-[9px] grid grid-cols-4 ">
                         <div>
-                            <p><strong>Pattern:</strong> {selectedProduct.nombre}</p>
-                            <p><strong>Shade:</strong> {selectedProduct.tonalidad}</p>
-                            <p><strong>Weight:</strong> {formatNumber(selectedProduct.gramaje)} g/m²</p>
-                            <p><strong>Compositión:</strong> {selectedProduct.composicion}</p>
-                            <p><strong>Horizontal Repeat:</strong> {formatNumber(selectedProduct.repminhor)} cm</p>
-                            <p><strong>Vertical Repeat:</strong> {formatNumber(selectedProduct.repminver)} cm</p>
+                            <p><strong><TranslatedText>Pattern:</TranslatedText></strong> {selectedProduct.nombre}</p>
+                            <p><strong><TranslatedText>Shade:</TranslatedText></strong> {selectedProduct.tonalidad}</p>
+                            <p><strong><TranslatedText>Weight:</TranslatedText></strong> {formatNumber(selectedProduct.gramaje)} g/m²</p>
+                            <p><strong><TranslatedText>Compositión:</TranslatedText></strong> {selectedProduct.composicion}</p>
+                            <p><strong><TranslatedText>Horizontal Repeat:</TranslatedText></strong> {formatNumber(selectedProduct.repminhor)} cm</p>
+                            <p><strong><TranslatedText>Vertical Repeat:</TranslatedText></strong> {formatNumber(selectedProduct.repminver)} cm</p>
                         </div>
                         <div className="text-content text-[11px]">
-                            <h3 className='mb-1'><strong>Usages:</strong></h3>
+                            <h3 className='mb-1'><strong><TranslatedText>Usages:</TranslatedText></strong></h3>
                             <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
-                            <h3 className="mt-1 mb-1"><strong>Cares:</strong></h3>
+                            <h3 className="mt-1 mb-1"><strong><TranslatedText>Cares:</TranslatedText></strong></h3>
                             <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
 
                         </div>
                         <div className='text-[8px]'>
-                            <p><strong>Regulations: </strong>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                            <p><strong><TranslatedText>Regulations:</TranslatedText> </strong>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
                         </div>
                         <div className="flex flex-col items-center mt-1">
                             <QRCode value={encryptProductId(selectedProduct.codprodu)} size={80} />

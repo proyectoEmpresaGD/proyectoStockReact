@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -129,7 +131,7 @@ function EtiquetaCameo() {
 
     return (
         <div className="container mx-auto p-4 max-w-3xl">
-            <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800">Generador de Etiquetas de Productos</h1>
+            <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800"><TranslatedText>Generador de Etiquetas de Productos</TranslatedText></h1>
 
             <div className="flex justify-center mb-8">
                 <SearchBar
@@ -161,7 +163,7 @@ function EtiquetaCameo() {
                 >
                     <div className="w-[80%]">
                         <div className="logo-section" style={{ marginTop: '4px', justifyItems: "center" }}>
-                            <img
+                            <LocalizedElement><img
                                 src={proxyUrl}
                                 alt="Logo de Marca"
                                 style={{
@@ -169,7 +171,7 @@ function EtiquetaCameo() {
                                     maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
                                     objectFit: 'contain'
                                 }}
-                            />
+                            /></LocalizedElement>
 
                         </div>
                     </div>

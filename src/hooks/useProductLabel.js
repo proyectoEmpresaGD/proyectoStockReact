@@ -1,3 +1,4 @@
+import { translateCurrent } from '../i18n/translations.js';
 // src/hooks/useProductLabel.js
 
 import {
@@ -225,7 +226,7 @@ export const useProductLabel = ({ token }) => {
                 setSuggestions([]);
 
                 setError(
-                    'Introduce un código o nombre de producto.'
+                    translateCurrent('Introduce un código o nombre de producto.')
                 );
 
                 return;
@@ -252,7 +253,7 @@ export const useProductLabel = ({ token }) => {
                     setSuggestions([]);
 
                     setError(
-                        `No se encontraron productos para "${searchValue}".`
+                        translateCurrent('No se encontraron productos para {query}.', { query: searchValue })
                     );
 
                     return;

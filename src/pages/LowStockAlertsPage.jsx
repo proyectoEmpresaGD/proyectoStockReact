@@ -1,3 +1,7 @@
+import { getActiveLocale } from '../i18n/locale.js';
+import { translateCurrent } from '../i18n/translations.js';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ArrowDownUp,
@@ -172,7 +176,7 @@ function LowStockAlertsPage() {
             setPurchasePlan(validPlan);
             setPlanOpen(true);
         } catch {
-            toast.error('No se pudo comprobar la vigencia de los productos de la propuesta.');
+            toast.error(translateCurrent('No se pudo comprobar la vigencia de los productos de la propuesta.'));
         } finally {
             setPlanChecking(false);
         }
@@ -184,7 +188,7 @@ function LowStockAlertsPage() {
 
     const togglePlanProduct = (product) => {
         if (!planHydrated || planChecking) {
-            toast.info('La propuesta se está comprobando. Inténtalo de nuevo.');
+            toast.info(translateCurrent('La propuesta se está comprobando. Inténtalo de nuevo.'));
             return;
         }
         setPurchasePlan((current) => {
@@ -196,7 +200,7 @@ function LowStockAlertsPage() {
 
             const item = buildPurchasePlanItem(product, horizon);
             if (item.quantity <= 0) {
-                toast.info('Este producto aparece como cubierto. Se añadirá con cantidad 0 para que la indiques manualmente.');
+                toast.info(translateCurrent('Este producto aparece como cubierto. Se añadirá con cantidad 0 para que la indiques manualmente.'));
             }
 
             return { ...current, [product.codprodu]: item };
@@ -205,13 +209,13 @@ function LowStockAlertsPage() {
 
     const addVisibleProducts = () => {
         if (!planHydrated || planChecking) {
-            toast.info('La propuesta se está comprobando. Inténtalo de nuevo.');
+            toast.info(translateCurrent('La propuesta se está comprobando. Inténtalo de nuevo.'));
             return;
         }
         const productsToAdd = visibleRows.filter((product) => getSuggestedOrder(product, horizon) > 0);
 
         if (!productsToAdd.length) {
-            toast.info('No hay productos con cantidad sugerida en la vista actual.');
+            toast.info(translateCurrent('No hay productos con cantidad sugerida en la vista actual.'));
             return;
         }
 
@@ -225,7 +229,7 @@ function LowStockAlertsPage() {
             return next;
         });
 
-        toast.success(`${productsToAdd.length} productos añadidos a la propuesta.`);
+        toast.success(translateCurrent('Productos añadidos a la propuesta: {count}.', { count: productsToAdd.length }));
     };
 
     const changePlanQuantity = (code, value) => {
@@ -257,7 +261,7 @@ function LowStockAlertsPage() {
 
     return (
         <PageShell maxWidth="max-w-[1700px]" className="stock-control-modern">
-            <PageHeader
+            <LocalizedElement><PageHeader
                 eyebrow="Compras · Planificación"
                 title="Control y planificación de stock"
                 description="Prioriza qué comprar, revisa la cobertura real y crea una propuesta para Excel sin depender de correos automáticos."
@@ -265,10 +269,10 @@ function LowStockAlertsPage() {
                 actions={(
                     <button type="button" onClick={openPurchasePlan} disabled={!planHydrated || planChecking} className="cjm-primary-button min-h-11 disabled:opacity-50">
                         <ClipboardList size={18} aria-hidden="true" />
-                        Propuesta ({planItems.length})
+                        <TranslatedText>Propuesta (</TranslatedText>{planItems.length})
                     </button>
                 )}
-            />
+            /></LocalizedElement>
 
             <div className="mt-6 space-y-5">
                 <StockControlFilters
@@ -283,26 +287,26 @@ function LowStockAlertsPage() {
 
                 {planError && (
                     <div className="cjm-alert-error" role="alert">
-                        <strong>No se ha podido revisar la propuesta de compra guardada.</strong>
-                        <span>El borrador sigue conservado en este navegador, pero se oculta para evitar que aparezcan productos obsoletos.</span>
+                        <strong><TranslatedText>No se ha podido revisar la propuesta de compra guardada.</TranslatedText></strong>
+                        <span><TranslatedText>El borrador sigue conservado en este navegador, pero se oculta para evitar que aparezcan productos obsoletos.</TranslatedText></span>
                         <button type="button" onClick={() => setPlanReloadCount((n) => n + 1)} className="cjm-ghost-button min-h-10">
-                            <RefreshCw size={16} aria-hidden="true" /> Reintentar comprobación
+                            <RefreshCw size={16} aria-hidden="true" /> <TranslatedText>Reintentar comprobación</TranslatedText>
                         </button>
                     </div>
                 )}
 
                 {hasPendingChanges && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        Has cambiado los filtros. Pulsa <strong>Ver resultados</strong> para aplicarlos.
+                        <TranslatedText>Has cambiado los filtros. Pulsa</TranslatedText> <strong><TranslatedText>Ver resultados</TranslatedText></strong> <TranslatedText>para aplicarlos.</TranslatedText>
                     </div>
                 )}
 
                 {error && (
                     <div className="cjm-alert-error" role="alert">
-                        <strong>No se ha podido cargar el control de stock.</strong>
+                        <strong><TranslatedText>No se ha podido cargar el control de stock.</TranslatedText></strong>
                         <span>{error}</span>
                         <button type="button" onClick={() => reload()} className="cjm-ghost-button min-h-10">
-                            <RefreshCw size={16} aria-hidden="true" /> Reintentar
+                            <RefreshCw size={16} aria-hidden="true" /> <TranslatedText>Reintentar</TranslatedText>
                         </button>
                     </div>
                 )}
@@ -319,35 +323,35 @@ function LowStockAlertsPage() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                         <div>
-                            <h2 className="text-lg font-semibold text-slate-900">Necesidades de compra</h2>
+                            <h2 className="text-lg font-semibold text-slate-900"><TranslatedText>Necesidades de compra</TranslatedText></h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                {loading ? 'Actualizando información...' : `${visibleRows.length} productos visibles de ${rows.length} analizados.`}
+                                <TranslatedText>{loading ? 'Actualizando información...' : `${visibleRows.length} productos visibles de ${rows.length} analizados.`}</TranslatedText>
                             </p>
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-2 xl:flex xl:items-end">
                             <fieldset>
-                                <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Horizonte de compra</legend>
+                                <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><TranslatedText>Horizonte de compra</TranslatedText></legend>
                                 <div className="grid grid-cols-2 rounded-xl border border-slate-300 bg-slate-50 p-1">
                                     <button
                                         type="button"
                                         onClick={() => setHorizon(HORIZONS.month)}
                                         className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition ${horizon === HORIZONS.month ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
                                     >
-                                        1 mes
+                                        <TranslatedText>1 mes</TranslatedText>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setHorizon(HORIZONS.quarter)}
                                         className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition ${horizon === HORIZONS.quarter ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
                                     >
-                                        3 meses
+                                        <TranslatedText>3 meses</TranslatedText>
                                     </button>
                                 </div>
                             </fieldset>
 
                             <label className="flex min-w-[220px] flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                <span className="flex items-center gap-1.5"><ArrowDownUp size={14} aria-hidden="true" /> Ordenar por</span>
+                                <span className="flex items-center gap-1.5"><ArrowDownUp size={14} aria-hidden="true" /> <TranslatedText>Ordenar por</TranslatedText></span>
                                 <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 text-sm font-medium normal-case tracking-normal text-slate-700">
                                     {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                                 </select>
@@ -370,7 +374,7 @@ function LowStockAlertsPage() {
                         </div>
 
                         <button type="button" onClick={addVisibleProducts} className="cjm-ghost-button min-h-11 shrink-0">
-                            <ListPlus size={17} aria-hidden="true" /> Añadir necesidades visibles
+                            <ListPlus size={17} aria-hidden="true" /> <TranslatedText>Añadir necesidades visibles</TranslatedText>
                         </button>
                     </div>
                 </section>
@@ -378,7 +382,7 @@ function LowStockAlertsPage() {
                 {loading ? (
                     <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
                         <RefreshCw className="mx-auto animate-spin" size={28} aria-hidden="true" />
-                        <p className="mt-3 font-medium">Calculando stock, consumo y compras pendientes…</p>
+                        <p className="mt-3 font-medium"><TranslatedText>Calculando stock, consumo y compras pendientes…</TranslatedText></p>
                     </div>
                 ) : !error && (
                     <StockControlTable
@@ -395,9 +399,9 @@ function LowStockAlertsPage() {
                     <div className="flex items-start gap-3">
                         <CircleHelp className="mt-0.5 shrink-0 text-blue-700" size={20} aria-hidden="true" />
                         <div className="text-sm text-blue-900/80">
-                            <h2 className="font-semibold text-blue-900">Lectura rápida</h2>
+                            <h2 className="font-semibold text-blue-900"><TranslatedText>Lectura rápida</TranslatedText></h2>
                             <p className="mt-1 leading-6">
-                                <strong>Posición prevista</strong> = stock actual + pendiente de recibir − pendiente de servir. La sugerencia compara esa posición con el consumo medio del periodo y respeta la cantidad mínima del proveedor cuando está informada.
+                                <strong><TranslatedText>Posición prevista</TranslatedText></strong> <TranslatedText>= stock actual + pendiente de recibir − pendiente de servir. La sugerencia compara esa posición con el consumo medio del periodo y respeta la cantidad mínima del proveedor cuando está informada.</TranslatedText>
                             </p>
                         </div>
                     </div>
@@ -413,8 +417,8 @@ function LowStockAlertsPage() {
                 >
                     <ShoppingCart size={20} aria-hidden="true" />
                     <span>
-                        <strong className="block text-sm">{planItems.length} productos</strong>
-                        <span className="block text-xs text-white/70">{planQuantity.toLocaleString('es-ES', { maximumFractionDigits: 0 })} unidades</span>
+                        <strong className="block text-sm">{planItems.length} <TranslatedText>productos</TranslatedText></strong>
+                        <span className="block text-xs text-white/70">{planQuantity.toLocaleString(getActiveLocale(), { maximumFractionDigits: 0 })} <TranslatedText>unidades</TranslatedText></span>
                     </span>
                 </button>
             )}

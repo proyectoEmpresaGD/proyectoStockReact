@@ -1,3 +1,4 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import { FiMapPin, FiCalendar } from 'react-icons/fi';
 
@@ -24,14 +25,14 @@ export default function ClientCard({ client, billing, colorClass, onClick }) {
                 <div className="flex items-center text-sm text-gray-600 gap-1">
                     <FiCalendar />{' '}
                     <span>
-                        {client.ultimaVisita
+                        <TranslatedText>{client.ultimaVisita
                             ? new Date(client.ultimaVisita).toLocaleDateString()
-                            : 'Sin visitas'}
+                            : 'Sin visitas'}</TranslatedText>
                     </span>
                 </div>
             </div>
             <div className="bg-gray-50 px-4 py-2 text-sm text-right text-gray-700">
-                Facturación: <span className="font-medium">€{billing.toFixed(2)}</span>
+                <TranslatedText>Facturación:</TranslatedText> <span className="font-medium">€{billing.toFixed(2)}</span>
             </div>
         </div>
     );

@@ -1,3 +1,5 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
 import React from 'react';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
@@ -28,8 +30,8 @@ const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
     if (safeTotalPages <= 1) return null;
 
     return (
-        <nav className="mt-5 flex w-full items-center justify-center gap-2" aria-label="Paginación">
-            <button
+        <LocalizedElement><nav className="mt-5 flex w-full items-center justify-center gap-2" aria-label="Paginación">
+            <LocalizedElement><button
                 type="button"
                 onClick={() => changePage(safeCurrentPage - 1)}
                 disabled={safeCurrentPage === 1}
@@ -37,10 +39,10 @@ const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
                 aria-label="Página anterior"
             >
                 <FaChevronLeft aria-hidden="true" />
-            </button>
+            </button></LocalizedElement>
 
             <div className="flex min-w-0 flex-1 items-center justify-center sm:hidden">
-                <label className="sr-only" htmlFor="cjm-mobile-page-select">Página actual</label>
+                <label className="sr-only" htmlFor="cjm-mobile-page-select"><TranslatedText>Página actual</TranslatedText></label>
                 <select
                     id="cjm-mobile-page-select"
                     value={safeCurrentPage}
@@ -49,7 +51,7 @@ const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
                 >
                     {Array.from({ length: safeTotalPages }, (_, index) => index + 1).map((page) => (
                         <option key={page} value={page}>
-                            Página {page} de {safeTotalPages}
+                            Página {page} <TranslatedText>de</TranslatedText> {safeTotalPages}
                         </option>
                     ))}
                 </select>
@@ -102,7 +104,7 @@ const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
                 )}
             </div>
 
-            <button
+            <LocalizedElement><button
                 type="button"
                 onClick={() => changePage(safeCurrentPage + 1)}
                 disabled={safeCurrentPage === safeTotalPages}
@@ -110,8 +112,8 @@ const PaginationControls = ({ currentPage, totalPages, handlePageChange }) => {
                 aria-label="Página siguiente"
             >
                 <FaChevronRight aria-hidden="true" />
-            </button>
-        </nav>
+            </button></LocalizedElement>
+        </nav></LocalizedElement>
     );
 };
 

@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertTriangle,
@@ -38,9 +40,9 @@ export function AgendaDrawer({ open, onClose, title, eyebrow, children, footer, 
                         {eyebrow && <p className="cjm-kicker">{eyebrow}</p>}
                         <h2 className="mt-1 truncate text-xl font-semibold app-text sm:text-2xl">{title}</h2>
                     </div>
-                    <button type="button" onClick={onClose} className="cjm-icon-button flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" aria-label="Cerrar">
+                    <LocalizedElement><button type="button" onClick={onClose} className="cjm-icon-button flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" aria-label="Cerrar">
                         <X size={20} />
-                    </button>
+                    </button></LocalizedElement>
                 </header>
                 <div className="agenda2-drawer-body">{children}</div>
                 {footer && <footer className="agenda2-drawer-footer">{footer}</footer>}
@@ -179,7 +181,7 @@ export function ClientPicker({ token, value, onChange, disabled = false, label =
             <span>{label}</span>
             <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 cjm-muted" size={17} />
-                <input
+                <LocalizedElement><input
                     type="search"
                     value={query}
                     onChange={(event) => {
@@ -193,7 +195,7 @@ export function ClientPicker({ token, value, onChange, disabled = false, label =
                     className="cjm-input min-h-11 rounded-xl py-2 pl-10 pr-10 text-base"
                     disabled={disabled}
                     autoComplete="off"
-                />
+                /></LocalizedElement>
                 {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin cjm-muted" size={17} />}
             </div>
             {open && items.length > 0 && (
@@ -225,7 +227,7 @@ export function TeamSelect({ users = [], value, onChange, disabled, label = 'Res
         <label className="agenda2-field">
             <span>{label}</span>
             <select value={value || ''} onChange={(event) => onChange?.(event.target.value ? Number(event.target.value) : null)} className="cjm-input min-h-11 rounded-xl px-3 text-base" disabled={disabled}>
-                {allowEmpty && <option value="">Sin asignar</option>}
+                {allowEmpty && <option value=""><TranslatedText>Sin asignar</TranslatedText></option>}
                 {options.map((user) => <option key={user.id} value={user.id}>{user.label}</option>)}
             </select>
         </label>

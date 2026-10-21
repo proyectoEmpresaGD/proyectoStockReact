@@ -1,3 +1,6 @@
+import { getActiveLocale } from '../i18n/locale.js';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, ClipboardList, RefreshCw, AlertTriangle, Clock3 } from 'lucide-react';
 import { sgaAuditGateway } from './sgaAuditGateway.js';
@@ -12,7 +15,7 @@ const LABELS = {
     RECEPCION_DOCUMENTO: 'Documento de entrada preparado',
     REGULARIZACION_DOCUMENTO: 'Regularización revisada',
 };
-const fmt = (n) => Number.isFinite(Number(n)) ? Number(n).toLocaleString('es-ES', { maximumFractionDigits: 2 }) : '—';
+const fmt = (n) => Number.isFinite(Number(n)) ? Number(n).toLocaleString(getActiveLocale(), { maximumFractionDigits: 2 }) : '—';
 const details = (event) => {
     const d = event.detail || {};
     const bits = [];
@@ -50,44 +53,44 @@ export default function SgaAuditHistory({ token, onBack }) {
     }, [token, search, action, offset, reload]);
     useEffect(() => { void load(); }, [load]);
 
-    return <section className="sga-order-panel" aria-label="Historial de operaciones del SGA">
-        <button type="button" className="sga-w-secondary" onClick={onBack}><ArrowLeft size={19}/> Volver a Mi almacén</button>
+    return <LocalizedElement><section className="sga-order-panel" aria-label="Historial de operaciones del SGA">
+        <button type="button" className="sga-w-secondary" onClick={onBack}><ArrowLeft size={19}/> <TranslatedText>Volver a Mi almacén</TranslatedText></button>
         <div className="sga-w-step-header sga-audit-heading">
-            <span>CONSULTA ADMINISTRADOR</span>
-            <h2><ClipboardList size={25} style={{ display: 'inline', verticalAlign: 'middle' }}/> Historial de operaciones</h2>
-            <p>Quién realizó cada corte, recepción, ajuste o corrección y cuándo lo hizo. Todos estos registros son <strong>simulaciones</strong>: no representan movimientos reales de stock.</p>
+            <span><TranslatedText>CONSULTA ADMINISTRADOR</TranslatedText></span>
+            <h2><ClipboardList size={25} style={{ display: 'inline', verticalAlign: 'middle' }}/> <TranslatedText>Historial de operaciones</TranslatedText></h2>
+            <p><TranslatedText>Quién realizó cada corte, recepción, ajuste o corrección y cuándo lo hizo. Todos estos registros son</TranslatedText> <strong><TranslatedText>simulaciones</TranslatedText></strong><TranslatedText>: no representan movimientos reales de stock.</TranslatedText></p>
         </div>
         <div className="sga-w-fields sga-audit-filters">
-            <label className="sga-w-field"><span>Buscar pedido, producto o referencia</span>
-                <input aria-label="Buscar documento del historial" value={search} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} placeholder="Número del documento" autoComplete="off"/>
+            <label className="sga-w-field"><span><TranslatedText>Buscar pedido, producto o referencia</TranslatedText></span>
+                <LocalizedElement><input aria-label="Buscar documento del historial" value={search} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} placeholder="Número del documento" autoComplete="off"/></LocalizedElement>
             </label>
-            <label className="sga-w-field"><span>Tipo de operación</span><select value={action} onChange={(e) => { setAction(e.target.value); setOffset(0); }}>
-                <option value="">Todas las operaciones</option>
+            <label className="sga-w-field"><span><TranslatedText>Tipo de operación</TranslatedText></span><select value={action} onChange={(e) => { setAction(e.target.value); setOffset(0); }}>
+                <option value=""><TranslatedText>Todas las operaciones</TranslatedText></option>
                 {Object.entries(LABELS).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
             </select></label>
         </div>
-        <button type="button" className="sga-w-secondary" disabled={loading} onClick={() => setReload((n) => n + 1)}><RefreshCw size={19}/> Actualizar historial</button>
+        <button type="button" className="sga-w-secondary" disabled={loading} onClick={() => setReload((n) => n + 1)}><RefreshCw size={19}/> <TranslatedText>Actualizar historial</TranslatedText></button>
         {error && <div className="sga-w-error" role="alert" style={{ marginTop: 12 }}><AlertTriangle size={20}/>{error}</div>}
-        {loading ? <p className="sga-w-message" role="status">Consultando el historial…</p>
+        {loading ? <p className="sga-w-message" role="status"><TranslatedText>Consultando el historial…</TranslatedText></p>
             : <div className="sga-audit-list">
                 {events.map((event) => <article key={event.id} className="sga-audit-card">
                     <header className="sga-audit-event-header">
                         <div className="sga-audit-event-title"><strong>{LABELS[event.action] || event.action}</strong>
-                            <span>Documento: {event.reference}</span></div>
-                        <span className="sga-audit-demo-label">SIMULACIÓN</span>
+                            <span><TranslatedText>Documento:</TranslatedText> {event.reference}</span></div>
+                        <span className="sga-audit-demo-label"><TranslatedText>SIMULACIÓN</TranslatedText></span>
                     </header>
                     <p className="sga-audit-event-description">{details(event)}</p>
                     <footer className="sga-audit-event-meta">
-                        <span><strong>Usuario:</strong> {event.operator} (ID {event.operatorId})</span>
-                        <time dateTime={event.createdAt}><Clock3 size={15} aria-hidden="true"/> {new Date(event.createdAt).toLocaleString('es-ES')}</time>
+                        <span><strong><TranslatedText>Usuario:</TranslatedText></strong> {event.operator} (ID {event.operatorId})</span>
+                        <time dateTime={event.createdAt}><Clock3 size={15} aria-hidden="true"/> {new Date(event.createdAt).toLocaleString(getActiveLocale())}</time>
                     </footer>
                 </article>)}
-                {!events.length && !error && <p className="sga-w-message">No se han registrado operaciones de prueba con estos filtros.</p>}
+                {!events.length && !error && <p className="sga-w-message"><TranslatedText>No se han registrado operaciones de prueba con estos filtros.</TranslatedText></p>}
             </div>}
         <div className="sga-audit-pagination">
-            <button type="button" className="sga-w-secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 30))}>Anterior</button>
-            <span>Registros {events.length ? offset + 1 : 0}–{offset + events.length}</span>
-            <button type="button" className="sga-w-secondary" disabled={loading || events.length < 30} onClick={() => setOffset(offset + 30)}>Siguiente</button>
+            <button type="button" className="sga-w-secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 30))}><TranslatedText>Anterior</TranslatedText></button>
+            <span><TranslatedText>Registros</TranslatedText> {events.length ? offset + 1 : 0}–{offset + events.length}</span>
+            <button type="button" className="sga-w-secondary" disabled={loading || events.length < 30} onClick={() => setOffset(offset + 30)}><TranslatedText>Siguiente</TranslatedText></button>
         </div>
-    </section>;
+    </section></LocalizedElement>;
 }

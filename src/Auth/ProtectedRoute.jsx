@@ -1,3 +1,4 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from './AuthContext';
 import { decodeJwtPayload } from '../utils/jwt';
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
         // Un rol personalizado necesita el catálogo asíncrono antes de navegar.
         // Nunca mostramos contenido sin permisos ni expulsamos al usuario antes de cargarlo.
         if (roleCatalogLoading && !getRoleDefinition(normalizedRole)) {
-            return <div role="status" className="p-6 text-center app-text">Comprobando permisos de acceso…</div>;
+            return <div role="status" className="p-6 text-center app-text"><TranslatedText>Comprobando permisos de acceso…</TranslatedText></div>;
         }
         const canAccessCurrentRoute = userCanAccessRoute(
             normalizedRole,

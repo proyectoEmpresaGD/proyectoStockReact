@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, { useEffect, useState } from 'react';
 import {
     FiAlertTriangle,
@@ -78,7 +81,7 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
         const cleanQuery = query.trim();
 
         if (cleanQuery.replace(/[^a-zA-Z0-9À-ÿ]/g, '').length < 3) {
-            setError('Escribe al menos 3 caracteres del nombre, CIF/NIF o código del cliente.');
+            setError(translateCurrent('Escribe al menos 3 caracteres del nombre, CIF/NIF o código del cliente.'));
             setResults(null);
             return;
         }
@@ -125,34 +128,34 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
                     <div className="min-w-0">
                         <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--cjm-primary-deep)]">
                             <FiShield aria-hidden="true" />
-                            Control de cartera
+                            <TranslatedText>Control de cartera</TranslatedText>
                         </div>
                         <h2 id="client-ownership-title" className="text-xl font-bold app-text sm:text-2xl">
-                            Comprobar cliente antes de visitar
+                            <TranslatedText>Comprobar cliente antes de visitar</TranslatedText>
                         </h2>
                         <p className="cjm-muted mt-1 text-sm">
-                            Busca en toda la base para saber si el cliente ya pertenece a otro comercial.
+                            <TranslatedText>Busca en toda la base para saber si el cliente ya pertenece a otro comercial.</TranslatedText>
                         </p>
                     </div>
 
-                    <button
+                    <LocalizedElement><button
                         type="button"
                         onClick={onClose}
                         className="cjm-icon-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                         aria-label="Cerrar comprobación"
                     >
                         <FiX className="text-lg" aria-hidden="true" />
-                    </button>
+                    </button></LocalizedElement>
                 </div>
 
                 <div className="overflow-y-auto px-4 py-5 sm:px-6">
                     <form onSubmit={handleSubmit} className="rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-4">
                         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.55fr)_auto] md:items-end">
                             <label className="block min-w-0">
-                                <span className="cjm-control-label">Nombre, CIF/NIF o código</span>
+                                <span className="cjm-control-label"><TranslatedText>Nombre, CIF/NIF o código</TranslatedText></span>
                                 <div className="relative">
                                     <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" aria-hidden="true" />
-                                    <input
+                                    <LocalizedElement><input
                                         autoFocus
                                         type="search"
                                         value={query}
@@ -160,33 +163,33 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
                                         placeholder="Ej. Decoraciones Martínez"
                                         className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-3"
                                         autoComplete="off"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                             </label>
 
                             <label className="block min-w-0">
-                                <span className="cjm-control-label">Localidad (opcional)</span>
+                                <span className="cjm-control-label"><TranslatedText>Localidad (opcional)</TranslatedText></span>
                                 <div className="relative">
                                     <FiMapPin className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" aria-hidden="true" />
-                                    <input
+                                    <LocalizedElement><input
                                         type="search"
                                         value={localidad}
                                         onChange={(event) => setLocalidad(event.target.value)}
                                         placeholder="Ej. Córdoba"
                                         className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-3"
                                         autoComplete="off"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                             </label>
 
                             <button type="submit" disabled={loading} className="cjm-primary-button min-h-12 w-full rounded-xl px-5 md:w-auto">
                                 {loading ? <FiLoader className="animate-spin" aria-hidden="true" /> : <FiSearch aria-hidden="true" />}
-                                Comprobar
+                                <TranslatedText>Comprobar</TranslatedText>
                             </button>
                         </div>
 
                         <p className="cjm-muted mt-3 text-xs">
-                            Para proteger las carteras, esta consulta no muestra teléfonos, emails, facturación, tarifas ni notas de clientes ajenos.
+                            <TranslatedText>Para proteger las carteras, esta consulta no muestra teléfonos, emails, facturación, tarifas ni notas de clientes ajenos.</TranslatedText>
                         </p>
                     </form>
 
@@ -199,8 +202,8 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
                     {results !== null && !loading && (
                         <div className="mt-5 space-y-3" aria-live="polite">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-bold app-text">Resultado de la comprobación</h3>
-                                <span className="cjm-badge">{results.length} coincidencia{results.length === 1 ? '' : 's'}</span>
+                                <h3 className="text-sm font-bold app-text"><TranslatedText>Resultado de la comprobación</TranslatedText></h3>
+                                <span className="cjm-badge">{results.length} <TranslatedText>coincidencia</TranslatedText>{results.length === 1 ? '' : 's'}</span>
                             </div>
 
                             {results.length === 0 ? (
@@ -208,9 +211,9 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
                                     <div className="flex items-start gap-3">
                                         <FiCheckCircle className="mt-0.5 shrink-0 text-xl" aria-hidden="true" />
                                         <div>
-                                            <strong className="block">No hemos encontrado un cliente activo con esos datos.</strong>
+                                            <strong className="block"><TranslatedText>No hemos encontrado un cliente activo con esos datos.</TranslatedText></strong>
                                             <p className="mt-1 text-sm opacity-80">
-                                                Puedes continuar con la visita, aunque conviene comprobar que el nombre esté escrito correctamente.
+                                                <TranslatedText>Puedes continuar con la visita, aunque conviene comprobar que el nombre esté escrito correctamente.</TranslatedText>
                                             </p>
                                         </div>
                                     </div>
@@ -247,7 +250,7 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
 
                                                     {client.commercialName && client.ownership !== 'UNASSIGNED' && (
                                                         <p className="mt-2 text-sm">
-                                                            Comercial: <strong>{client.commercialName}</strong>
+                                                            <TranslatedText>Comercial:</TranslatedText> <strong>{client.commercialName}</strong>
                                                         </p>
                                                     )}
 
@@ -258,7 +261,7 @@ export default function ClientOwnershipCheck({ open, onClose, onOpenOwnClient })
                                                             onClick={() => onOpenOwnClient?.(client.openClientCode)}
                                                         >
                                                             <FiUser aria-hidden="true" />
-                                                            Abrir mi cliente
+                                                            <TranslatedText>Abrir mi cliente</TranslatedText>
                                                         </button>
                                                     )}
                                                 </div>

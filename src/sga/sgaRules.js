@@ -1,3 +1,4 @@
+import { localeNumberFormatter } from '../i18n/locale.js';
 /**
  * Reglas puras de movimientos SGA, sin acceso a base de datos.
  * Todas las cantidades se convierten a centésimas para evitar errores binarios.
@@ -14,7 +15,7 @@ export function toHundredths(value) {
 }
 
 export const fromHundredths = (value) => Number((value / 100).toFixed(2));
-export const qtyText = (value) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(value);
+export const qtyText = (value) => localeNumberFormatter( { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(value);
 
 export function buildSgaPreview({ type, product, lot, warehouse, location, quantity, waste, counted, reason, reference, note }) {
     const errors = [];

@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -413,7 +415,7 @@ function EtiquetasLibro35Tipo1() {
             >
                 <div className="flex w-full items-start justify-between">
                     <div className="shrink-0 text-left">
-                        <img
+                        <LocalizedElement><img
                             src={brandLogos[selectedProduct.codmarca]}
                             alt="Logo de Marca"
                             className={`h-auto ${{
@@ -425,7 +427,7 @@ function EtiquetasLibro35Tipo1() {
                             }[selectedProduct.codmarca] ||
                                 'w-[90px]'
                                 }`}
-                        />
+                        /></LocalizedElement>
                     </div>
 
                     <div className="ml-2 flex min-w-0 flex-1 flex-nowrap items-start justify-end gap-[4px]">
@@ -468,7 +470,7 @@ function EtiquetasLibro35Tipo1() {
                         </p>
 
                         <p className="mb-[1px] leading-tight w-[200px] text-justify">
-                            <span className="font-extrabold">Composition:</span>
+                            <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span>
                             <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
                         </p>
 
@@ -505,12 +507,12 @@ function EtiquetasLibro35Tipo1() {
 
                     <div className="text-content text-[10px] relative left-[40px]">
                         <h3 className="mb-[3.2px]">
-                            <strong>Usages:</strong>
+                            <strong><TranslatedText>Usages:</TranslatedText></strong>
                         </h3>
                         <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
 
                         <h3 className="mb-[3.2px] mt-[3.2px]">
-                            <strong>Cares:</strong>
+                            <strong><TranslatedText>Cares:</TranslatedText></strong>
                         </h3>
                         <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                     </div>
@@ -525,7 +527,7 @@ function EtiquetasLibro35Tipo1() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta de Libro</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta de Libro</TranslatedText></h1>
 
             <div className="flex justify-center mb-8">
                 <SearchBar

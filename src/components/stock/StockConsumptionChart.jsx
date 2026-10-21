@@ -1,3 +1,5 @@
+import { localeDateTimeFormatter } from '../../i18n/locale.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import { formatQuantity, toNumber } from './stockControlUtils';
 
@@ -6,7 +8,7 @@ const formatMonth = (label) => {
     if (!year || !month) return label;
 
     const date = new Date(Number(year), Number(month) - 1, 1);
-    return new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' }).format(date);
+    return localeDateTimeFormatter( { month: 'short', year: '2-digit' }).format(date);
 };
 
 function StockConsumptionChart({ product }) {
@@ -16,7 +18,7 @@ function StockConsumptionChart({ product }) {
     if (!history.length) {
         return (
             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-                No hay consumo registrado para este producto en el periodo seleccionado.
+                <TranslatedText>No hay consumo registrado para este producto en el periodo seleccionado.</TranslatedText>
             </div>
         );
     }

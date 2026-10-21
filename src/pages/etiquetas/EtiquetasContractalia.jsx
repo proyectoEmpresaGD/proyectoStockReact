@@ -1,3 +1,6 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, {
     useCallback,
     useEffect,
@@ -297,7 +300,7 @@ const drawContainedPdfImage = async (
         );
     } catch (imageError) {
         console.warn(
-            'No se pudo añadir una imagen al PDF:',
+            translateCurrent('No se pudo añadir una imagen al PDF:'),
             imageError,
         );
     }
@@ -462,7 +465,7 @@ const parseMaintenance = (maintenance) => {
             .filter(Boolean);
     } catch (error) {
         console.warn(
-            'No se pudo interpretar el mantenimiento del producto:',
+            translateCurrent('No se pudo interpretar el mantenimiento del producto:'),
             error,
         );
 
@@ -1101,7 +1104,7 @@ export default function EtiquetasContractalia() {
                 setSuggestions([]);
 
                 setError(
-                    'No se pudieron buscar productos.',
+                    translateCurrent('No se pudieron buscar productos.'),
                 );
 
                 return [];
@@ -1172,7 +1175,7 @@ export default function EtiquetasContractalia() {
                     );
 
                     setError(
-                        'No se pudo cargar el producto seleccionado.',
+                        translateCurrent('No se pudo cargar el producto seleccionado.'),
                     );
                 } finally {
                     setLoading(false);
@@ -2147,7 +2150,7 @@ export default function EtiquetasContractalia() {
                 </h1>
 
                 <p className="mt-2 text-sm text-gray-500">
-                    8 × 5 cm · estilo QUALITY clásico · iconos automáticos
+                    <TranslatedText>8 × 5 cm · estilo QUALITY clásico · iconos automáticos</TranslatedText>
                 </p>
             </div>
 
@@ -2181,7 +2184,7 @@ export default function EtiquetasContractalia() {
 
             {loading && (
                 <p className="mb-4 text-center text-sm text-gray-500">
-                    Cargando producto...
+                    <TranslatedText>Cargando producto...</TranslatedText>
                 </p>
             )}
 
@@ -2194,11 +2197,11 @@ export default function EtiquetasContractalia() {
             {selectedProduct &&
                 !isContractalia && (
                     <div className="mx-auto mb-5 max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        Este formato está
+                        <TranslatedText>Este formato está
                         preparado únicamente
                         para productos
                         Contractalia
-                        (codmarca CTL).
+                        (codmarca CTL).</TranslatedText>
                     </div>
                 )}
 
@@ -2206,8 +2209,8 @@ export default function EtiquetasContractalia() {
                 isContractalia && (
                     <>
                         <div className="mb-3 text-center text-xs text-gray-500">
-                            Iconos técnicos
-                            detectados:{' '}
+                            <TranslatedText>Iconos técnicos
+                            detectados:</TranslatedText>{' '}
                             {
                                 specialIcons.length
                             }
@@ -2407,7 +2410,7 @@ export default function EtiquetasContractalia() {
                                             }
                                         />
 
-                                        <QualityMainRow
+                                        <LocalizedElement><QualityMainRow
                                             label="Comp"
                                             value={
                                                 composition
@@ -2421,7 +2424,7 @@ export default function EtiquetasContractalia() {
                                             maxLines={
                                                 2
                                             }
-                                        />
+                                        /></LocalizedElement>
                                     </div>
                                 </section>
 
@@ -2473,7 +2476,7 @@ export default function EtiquetasContractalia() {
                         : 'cursor-not-allowed bg-gray-300'
                         }`}
                 >
-                    Descargar Etiqueta
+                    <TranslatedText>Descargar Etiqueta</TranslatedText>
                 </button>
 
                 <button
@@ -2493,7 +2496,7 @@ export default function EtiquetasContractalia() {
                         : 'cursor-not-allowed bg-gray-300'
                         }`}
                 >
-                    Descargar como JPG
+                    <TranslatedText>Descargar como JPG</TranslatedText>
                 </button>
             </div>
         </div>

@@ -1,3 +1,4 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import { LOT_LABEL_SCAN_MODE_OPTIONS } from './productLotLabelConstants';
 
@@ -5,7 +6,7 @@ export default function LabelScanModeSelector({ value, onChange }) {
     return (
         <div className="space-y-2">
             <label className="block text-sm font-semibold text-slate-700">
-                Modo del QR
+                <TranslatedText>Modo del QR</TranslatedText>
             </label>
 
             <select

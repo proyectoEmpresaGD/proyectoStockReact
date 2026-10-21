@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -428,7 +430,7 @@ function EtiquetaLibro45Ancho() {
                 <div className="flex flex-col">
                     {/* Logo (antes estaba en Header) */}
                     <div className="text-left">
-                        <img
+                        <LocalizedElement><img
                             src={brandLogos[selectedProduct.codmarca]}
                             alt="Logo de Marca"
                             className={`h-auto ${{
@@ -439,7 +441,7 @@ function EtiquetaLibro45Ancho() {
                                 FLA: "w-[130px] relative left-[-5px]",
                             }[selectedProduct.codmarca] || "w-[90px]"}`}
                             style={{ objectFit: "contain" }}
-                        />
+                        /></LocalizedElement>
                     </div>
 
                     {/* Info (era tu Col 1) */}
@@ -461,7 +463,7 @@ function EtiquetaLibro45Ancho() {
                         </p>
 
                         <p className="mb-[1px] leading-tight text-justify">
-                            <span className="font-extrabold">Composition:</span>{" "}
+                            <span className="font-extrabold"><TranslatedText>Composition:</TranslatedText></span>{" "}
                             <span className="font-normal relative -top-[1px]">{selectedProduct.composicion}</span>
                         </p>
 
@@ -492,12 +494,12 @@ function EtiquetaLibro45Ancho() {
                 {/* ───────────── COL 2: USAGES / CARES (IGUAL QUE TU CODIGO) ───────────── */}
                 <div className="text-content text-[10px] relative top-[46px] left-[60px]">
                     <h3 className="mb-[9.5px]">
-                        <strong>Usages:</strong>
+                        <strong><TranslatedText>Usages:</TranslatedText></strong>
                     </h3>
                     <div className="flex w-4 h-4">{getUsoImages(selectedProduct.uso)}</div>
 
                     <h3 className="mb-[8.5px] mt-[4.5px]">
-                        <strong>Cares:</strong>
+                        <strong><TranslatedText>Cares:</TranslatedText></strong>
                     </h3>
                     <div className="flex w-4 h-4">{getMantenimientoImages(selectedProduct.mantenimiento)}</div>
                 </div>
@@ -625,7 +627,7 @@ function EtiquetaLibro45Ancho() {
 
                         </div>
                     ) : (
-                        <div className="text-[8px] font-normal">Sin imagen</div>
+                        <div className="text-[8px] font-normal"><TranslatedText>Sin imagen</TranslatedText></div>
                     )}
                 </div>
 
@@ -655,7 +657,7 @@ function EtiquetaLibro45Ancho() {
 
     return (
         <div className="container mx-auto p-6 max-w-5xl bg-gray-100 rounded-lg shadow-md">
-            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700">Etiqueta 31cm</h1>
+            <h1 className="text-4xl font-bold mb-8 text-center text-blue-700"><TranslatedText>Etiqueta 31cm</TranslatedText></h1>
 
             <div className="flex justify-center mb-8">
                 <SearchBar

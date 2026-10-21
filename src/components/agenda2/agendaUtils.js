@@ -1,5 +1,8 @@
 import { format, isToday, isPast, isTomorrow, parseISO } from 'date-fns';
-import es from 'date-fns/locale/es';
+import { es, enGB } from 'date-fns/locale';
+import { getActiveLocale } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+const activeDateLocale = () => getActiveLocale() === 'en-GB' ? enGB : es;
 
 export const VISIT_TYPES = [
     { value: 'visita', label: 'Visita presencial' },
@@ -60,15 +63,15 @@ export function toLocalInput(value) {
 
 export function formatDateTime(value, fallback = 'Sin fecha') {
     const date = toDate(value);
-    return date ? format(date, "d MMM yyyy · HH:mm", { locale: es }) : fallback;
+    return date ? format(date, "d MMM yyyy · HH:mm", { locale: activeDateLocale() }) : translateCurrent(fallback);
 }
 
 export function formatDayLabel(value) {
     const date = toDate(value);
-    if (!date) return 'Sin fecha';
-    if (isToday(date)) return `Hoy · ${format(date, 'HH:mm')}`;
-    if (isTomorrow(date)) return `Mañana · ${format(date, 'HH:mm')}`;
-    return format(date, "EEEE d MMM · HH:mm", { locale: es });
+    if (!date) return translateCurrent('Sin fecha');
+    if (isToday(date)) return `${translateCurrent('Hoy')} · ${format(date, 'HH:mm')}`;
+    if (isTomorrow(date)) return `${translateCurrent('Mañana')} · ${format(date, 'HH:mm')}`;
+    return format(date, "EEEE d MMM · HH:mm", { locale: activeDateLocale() });
 }
 
 export function isOverdue(item) {

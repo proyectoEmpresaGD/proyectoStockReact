@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React from 'react';
 import { FilePlus2, UploadCloud } from 'lucide-react';
 
@@ -14,7 +16,7 @@ export default function Dropzone({ onFiles, accept = 'application/pdf' }) {
     const openPicker = () => inputRef.current?.click();
 
     return (
-        <div
+        <LocalizedElement><div
             className={`cjm-dropzone ${isOver ? 'is-over' : ''}`}
             onDragOver={(event) => { event.preventDefault(); setIsOver(true); }}
             onDragLeave={() => setIsOver(false)}
@@ -33,9 +35,9 @@ export default function Dropzone({ onFiles, accept = 'application/pdf' }) {
             <span className="cjm-icon-tile h-14 w-14 rounded-2xl">
                 {isOver ? <FilePlus2 aria-hidden="true" /> : <UploadCloud aria-hidden="true" />}
             </span>
-            <p className="mt-4 font-semibold app-text">Arrastra aquí los PDFs</p>
-            <p className="cjm-muted mt-1 text-sm">También puedes pulsar para seleccionarlos desde el dispositivo.</p>
-            <span className="cjm-badge mt-4">Solo PDF · selección múltiple</span>
+            <p className="mt-4 font-semibold app-text"><TranslatedText>Arrastra aquí los PDFs</TranslatedText></p>
+            <p className="cjm-muted mt-1 text-sm"><TranslatedText>También puedes pulsar para seleccionarlos desde el dispositivo.</TranslatedText></p>
+            <span className="cjm-badge mt-4"><TranslatedText>Solo PDF · selección múltiple</TranslatedText></span>
             <input
                 ref={inputRef}
                 type="file"
@@ -44,6 +46,6 @@ export default function Dropzone({ onFiles, accept = 'application/pdf' }) {
                 className="sr-only"
                 onChange={(event) => handleFiles(event.target.files)}
             />
-        </div>
+        </div></LocalizedElement>
     );
 }

@@ -1,3 +1,4 @@
+import { translateCurrent } from '../i18n/translations.js';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { decodeJwtPayload } from '../utils/jwt';
 import { hydrateRoleAccessFromBackend } from '../utils/roleAccessConfig';
@@ -57,13 +58,13 @@ export const AuthProvider = ({ children }) => {
                 })
                 .catch((error) => {
                     if (active && error.name !== 'AbortError') {
-                        console.warn('No se pudo sincronizar el perfil actual:', error);
+                        console.warn(translateCurrent('No se pudo sincronizar el perfil actual:'), error);
                     }
                 });
 
             timeoutId = setTimeout(() => {
                 if (!active) return;
-                toast.warning('Tu sesión ha expirado. Vuelve a iniciar sesión.');
+                toast.warning(translateCurrent('Tu sesión ha expirado. Vuelve a iniciar sesión.'));
                 logout();
             }, timeLeft * 1000);
         } catch (error) {

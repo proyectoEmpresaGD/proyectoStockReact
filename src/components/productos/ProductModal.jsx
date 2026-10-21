@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/components/productos/ProductModal.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { AiOutlineClose, AiOutlineLoading3Quarters } from 'react-icons/ai';
@@ -46,20 +48,20 @@ function ProductModal({ modalVisible, selectedProductLots, closeModal, loadingLo
                     <h2 id="modal-title" className="text-base font-semibold text-slate-900 sm:text-lg">
                         {title}
                     </h2>
-                    <button
+                    <LocalizedElement><button
                         onClick={closeModal}
                         className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
                         aria-label="Cerrar modal"
                     >
                         <AiOutlineClose size={22} />
-                    </button>
+                    </button></LocalizedElement>
                 </div>
 
                 <div className="px-4 py-4 sm:px-6 sm:py-5">
                     {loadingLots ? (
                         <div className="flex items-center justify-center py-12 text-slate-600">
                             <AiOutlineLoading3Quarters className="mr-2 animate-spin" />
-                            Cargando lotes…
+                            <TranslatedText>Cargando lotes…</TranslatedText>
                         </div>
                     ) : hasLots ? (
                         <>
@@ -67,8 +69,8 @@ function ProductModal({ modalVisible, selectedProductLots, closeModal, loadingLo
                                 <table className="w-full text-sm text-slate-700">
                                     <thead className="sticky top-0 bg-slate-50">
                                         <tr>
-                                            <th className="px-4 py-2 text-left font-medium">Lote</th>
-                                            <th className="px-4 py-2 text-right font-medium">Cantidad</th>
+                                            <th className="px-4 py-2 text-left font-medium"><TranslatedText>Lote</TranslatedText></th>
+                                            <th className="px-4 py-2 text-right font-medium"><TranslatedText>Cantidad</TranslatedText></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -101,9 +103,9 @@ function ProductModal({ modalVisible, selectedProductLots, closeModal, loadingLo
                                             key={`${lot.codlote ?? 'lote-mobile'}-${i}`}
                                             className="rounded-xl border border-slate-200 bg-slate-50 p-3"
                                         >
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lote</p>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500"><TranslatedText>Lote</TranslatedText></p>
                                             <p className="text-sm font-medium text-slate-900">{lot.codlote}</p>
-                                            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Cantidad</p>
+                                            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><TranslatedText>Cantidad</TranslatedText></p>
                                             <p className="text-sm tabular-nums text-slate-700">{qty}</p>
                                         </div>
                                     );
@@ -111,7 +113,7 @@ function ProductModal({ modalVisible, selectedProductLots, closeModal, loadingLo
                             </div>
                         </>
                     ) : (
-                        <div className="py-8 text-center text-slate-500">No hay lotes disponibles.</div>
+                        <div className="py-8 text-center text-slate-500"><TranslatedText>No hay lotes disponibles.</TranslatedText></div>
                     )}
                 </div>
             </div>

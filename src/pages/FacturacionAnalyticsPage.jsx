@@ -1,3 +1,7 @@
+import { localeNumberFormatter, localeDateTimeFormatter } from '../i18n/locale.js';
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Select from 'react-select';
@@ -17,17 +21,17 @@ import {
 } from '../Constants/facturacionSeries';
 
 // Apple-ish formatting: clean, consistent
-const money = new Intl.NumberFormat('es-ES', {
+const money = localeNumberFormatter( {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
 });
-const number = new Intl.NumberFormat('es-ES');
+const number = localeNumberFormatter();
 
-const fmtDay = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit' });
-const fmtFull = new Intl.DateTimeFormat('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
-const fmtWeekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' });
+const fmtDay = localeDateTimeFormatter( { day: '2-digit', month: '2-digit' });
+const fmtFull = localeDateTimeFormatter( { year: 'numeric', month: '2-digit', day: '2-digit' });
+const fmtWeekday = localeDateTimeFormatter( { weekday: 'long' });
 
 const COMPARE_MODES = {
     BUSINESS_DAY: 'business_day',
@@ -432,17 +436,17 @@ function BusinessUnitComparisonCard({ stats, compareYear }) {
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
                     <div>
-                        <div className="text-slate-500">Facturas</div>
+                        <div className="text-slate-500"><TranslatedText>Facturas</TranslatedText></div>
                         <div className="font-medium tabular-nums text-slate-800">{kpiFormat(data.facturas)}</div>
                     </div>
                     <div>
-                        <div className="text-slate-500"><HelpLabel help={ANALYTICS_HELP.ticketMedio}>Ticket medio</HelpLabel></div>
+                        <div className="text-slate-500"><HelpLabel help={ANALYTICS_HELP.ticketMedio}><TranslatedText>Ticket medio</TranslatedText></HelpLabel></div>
                         <div className="font-medium tabular-nums text-slate-800">{kpiFormat(data.ticketMedio, 'money')}</div>
                     </div>
                 </div>
                 {isCompare && data.variacionVsCompare !== null && data.variacionVsCompare !== undefined ? (
                     <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                        Variación actual vs {compareYear}:{' '}
+                        <TranslatedText>Variación actual vs</TranslatedText> {compareYear}:{' '}
                         <span className="font-semibold tabular-nums text-slate-950">{pctFormat(data.variacionVsCompare)}</span>
                     </div>
                 ) : null}
@@ -474,7 +478,7 @@ function BusinessUnitComparisonCard({ stats, compareYear }) {
     };
 
     return (
-        <Card
+        <LocalizedElement><Card
             title="Tejido vs Proyectos"
             help={ANALYTICS_HELP.unidadNegocio}
             subtitle={`Clasificación automática por serie: Proyectos son las series que empiezan por H; Tejido el resto${compareYear ? ` · comparando con ${compareYear}` : ''}.`}
@@ -482,7 +486,7 @@ function BusinessUnitComparisonCard({ stats, compareYear }) {
             <div className="space-y-5">
                 <div>
                     <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
-                        <span>Periodo actual</span>
+                        <span><TranslatedText>Periodo actual</TranslatedText></span>
                         <span>{pctFormat(tejidoPct)} / {pctFormat(proyectosPct)}</span>
                     </div>
                     <div className="overflow-hidden rounded-full bg-slate-100 h-4" aria-label={`Reparto actual: Tejido ${pctFormat(tejidoPct)}, Proyectos ${pctFormat(proyectosPct)}`}>
@@ -498,16 +502,16 @@ function BusinessUnitComparisonCard({ stats, compareYear }) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <UnitCard title="Tejido" data={tejidoActual} pct={tejidoPct} tone="teal" />
-                    <UnitCard title="Proyectos" data={proyectosActual} pct={proyectosPct} tone="indigo" />
+                    <LocalizedElement><UnitCard title="Tejido" data={tejidoActual} pct={tejidoPct} tone="teal" /></LocalizedElement>
+                    <LocalizedElement><UnitCard title="Proyectos" data={proyectosActual} pct={proyectosPct} tone="indigo" /></LocalizedElement>
                 </div>
 
                 {hasCompare ? (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
-                                <div className="text-sm font-semibold text-slate-900">Datos {compareYear}</div>
-                                <div className="text-xs text-slate-600">Mismo periodo comparado, separado de los datos actuales.</div>
+                                <div className="text-sm font-semibold text-slate-900"><TranslatedText>Datos</TranslatedText> {compareYear}</div>
+                                <div className="text-xs text-slate-600"><TranslatedText>Mismo periodo comparado, separado de los datos actuales.</TranslatedText></div>
                             </div>
                             <MetricBadge tone="slate">{kpiFormat(totalCompare, 'money')}</MetricBadge>
                         </div>
@@ -524,13 +528,13 @@ function BusinessUnitComparisonCard({ stats, compareYear }) {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <UnitCard title="Tejido" data={tejidoCompare} pct={tejidoComparePct} tone="teal" yearLabel={String(compareYear)} isCompare />
-                            <UnitCard title="Proyectos" data={proyectosCompare} pct={proyectosComparePct} tone="indigo" yearLabel={String(compareYear)} isCompare />
+                            <LocalizedElement><UnitCard title="Tejido" data={tejidoCompare} pct={tejidoComparePct} tone="teal" yearLabel={String(compareYear)} isCompare /></LocalizedElement>
+                            <LocalizedElement><UnitCard title="Proyectos" data={proyectosCompare} pct={proyectosComparePct} tone="indigo" yearLabel={String(compareYear)} isCompare /></LocalizedElement>
                         </div>
                     </div>
                 ) : null}
             </div>
-        </Card>
+        </Card></LocalizedElement>
     );
 }
 
@@ -561,22 +565,22 @@ function BusinessLinesOverview({ data, compareYear }) {
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <div className="text-sm font-semibold text-slate-900">{row.label}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">{row.grupo === 'principal' ? 'Línea principal' : 'Operación especial'}</div>
+                        <div className="mt-0.5 text-xs text-slate-500"><TranslatedText>{row.grupo === 'principal' ? 'Línea principal' : 'Operación especial'}</TranslatedText></div>
                     </div>
                     <MetricBadge tone={row.grupo === 'principal' ? 'teal' : 'amber'}>{pctFormat(pct)}</MetricBadge>
                 </div>
                 <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">{kpiFormat(neto, 'money')}</div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                     <div>
-                        <div className="text-slate-500">Ventas</div>
+                        <div className="text-slate-500"><TranslatedText>Ventas</TranslatedText></div>
                         <div className="font-medium text-slate-800 tabular-nums">{kpiFormat(ventas, 'money')}</div>
                     </div>
                     <div>
-                        <div className="text-slate-500"><HelpLabel help={ANALYTICS_HELP.abono}>Abonos</HelpLabel></div>
+                        <div className="text-slate-500"><HelpLabel help={ANALYTICS_HELP.abono}><TranslatedText>Abonos</TranslatedText></HelpLabel></div>
                         <div className="font-medium text-rose-700 tabular-nums">{kpiFormat(abonos, 'money')}</div>
                     </div>
                     <div>
-                        <div className="text-slate-500">Facturas</div>
+                        <div className="text-slate-500"><TranslatedText>Facturas</TranslatedText></div>
                         <div className="font-medium text-slate-800 tabular-nums">{kpiFormat(row.numero_facturas)}</div>
                     </div>
                 </div>
@@ -592,39 +596,39 @@ function BusinessLinesOverview({ data, compareYear }) {
 
     return (
         <div className="space-y-4">
-            <Card
+            <LocalizedElement><Card
                 title="Líneas de negocio"
                 help={ANALYTICS_HELP.lineaNegocio}
                 subtitle="Clasificación oficial por series: tejido, papel, wallpaper, muestrarios, contract y operaciones especiales separadas."
-                right={topLine ? <MetricBadge tone="teal">Líder: {topLine.label}</MetricBadge> : null}
+                right={topLine ? <MetricBadge tone="teal"><TranslatedText>Líder:</TranslatedText> {topLine.label}</MetricBadge> : null}
             >
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <KpiTile label="Neto líneas" value={kpiFormat(data?.totalNeto || 0, 'money')} hint={ANALYTICS_HELP.netoLineas} />
-                    <KpiTile label="Ventas" value={kpiFormat(data?.totalVentas || 0, 'money')} hint="Suma de los movimientos clasificados como ventas dentro de las líneas seleccionadas." />
-                    <KpiTile label="Abonos/devoluciones" value={kpiFormat(data?.totalAbonos || 0, 'money')} hint={ANALYTICS_HELP.abono} />
-                    <KpiTile label="Facturas" value={kpiFormat(data?.totalFacturas || 0)} hint="Documentos del periodo filtrado." />
+                    <LocalizedElement><KpiTile label="Neto líneas" value={kpiFormat(data?.totalNeto || 0, 'money')} hint={ANALYTICS_HELP.netoLineas} /></LocalizedElement>
+                    <LocalizedElement><KpiTile label="Ventas" value={kpiFormat(data?.totalVentas || 0, 'money')} hint="Suma de los movimientos clasificados como ventas dentro de las líneas seleccionadas." /></LocalizedElement>
+                    <LocalizedElement><KpiTile label="Abonos/devoluciones" value={kpiFormat(data?.totalAbonos || 0, 'money')} hint={ANALYTICS_HELP.abono} /></LocalizedElement>
+                    <LocalizedElement><KpiTile label="Facturas" value={kpiFormat(data?.totalFacturas || 0)} hint="Documentos del periodo filtrado." /></LocalizedElement>
                 </div>
-            </Card>
+            </Card></LocalizedElement>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {mainRows.map((row) => <LineCard key={row.linea} row={row} />)}
                 {!mainRows.length ? (
-                    <Card title="Sin líneas principales">
-                        <div className="text-sm text-slate-600">No hay datos de líneas principales con los filtros actuales.</div>
-                    </Card>
+                    <LocalizedElement><Card title="Sin líneas principales">
+                        <div className="text-sm text-slate-600"><TranslatedText>No hay datos de líneas principales con los filtros actuales.</TranslatedText></div>
+                    </Card></LocalizedElement>
                 ) : null}
             </div>
 
-            <Card title="Operaciones especiales" help="Movimientos que no se mezclan con las ventas normales de producto, como anticipos, transportes, alquileres o vehículos." subtitle="Anticipos, devoluciones, transportes, alquileres, vehículos y operaciones especiales no se mezclan con producto.">
+            <LocalizedElement><Card title="Operaciones especiales" help="Movimientos que no se mezclan con las ventas normales de producto, como anticipos, transportes, alquileres o vehículos." subtitle="Anticipos, devoluciones, transportes, alquileres, vehículos y operaciones especiales no se mezclan con producto.">
                 <ModernTableShell>
                     <table className="facturacion-data-table min-w-full text-sm">
                         <thead className="bg-slate-50 text-slate-600">
                             <tr>
-                                <th className="px-4 py-3 text-left">Operación</th>
-                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.netoLineas}>Neto</HelpLabel></th>
-                                <th className="px-4 py-3 text-right">Ventas</th>
-                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.abono}>Abonos</HelpLabel></th>
-                                <th className="px-4 py-3 text-right">Facturas</th>
+                                <th className="px-4 py-3 text-left"><TranslatedText>Operación</TranslatedText></th>
+                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.netoLineas}><TranslatedText>Neto</TranslatedText></HelpLabel></th>
+                                <th className="px-4 py-3 text-right"><TranslatedText>Ventas</TranslatedText></th>
+                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.abono}><TranslatedText>Abonos</TranslatedText></HelpLabel></th>
+                                <th className="px-4 py-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
                                 {compareYear ? <th className="px-4 py-3 text-right">Δ vs {compareYear}</th> : null}
                             </tr>
                         </thead>
@@ -641,26 +645,26 @@ function BusinessLinesOverview({ data, compareYear }) {
                             ))}
                             {!specialRows.length ? (
                                 <tr>
-                                    <td className="px-4 py-4 text-slate-500" colSpan={compareYear ? 6 : 5}>Sin operaciones especiales en el periodo.</td>
+                                    <td className="px-4 py-4 text-slate-500" colSpan={compareYear ? 6 : 5}><TranslatedText>Sin operaciones especiales en el periodo.</TranslatedText></td>
                                 </tr>
                             ) : null}
                         </tbody>
                     </table>
                 </ModernTableShell>
-            </Card>
+            </Card></LocalizedElement>
 
-            <Card title="Detalle por serie" help={ANALYTICS_HELP.serie} subtitle="Cada serie queda vinculada a su línea de negocio y tipo de movimiento.">
+            <LocalizedElement><Card title="Detalle por serie" help={ANALYTICS_HELP.serie} subtitle="Cada serie queda vinculada a su línea de negocio y tipo de movimiento.">
                 <ModernTableShell>
                     <table className="facturacion-data-table min-w-full text-sm">
                         <thead className="bg-slate-50 text-slate-600">
                             <tr>
-                                <th className="px-4 py-3 text-left">Serie</th>
-                                <th className="px-4 py-3 text-left">Descripción</th>
-                                <th className="px-4 py-3 text-left"><HelpLabel help={ANALYTICS_HELP.lineaNegocio}>Línea</HelpLabel></th>
-                                <th className="px-4 py-3 text-left"><HelpLabel help={ANALYTICS_HELP.movimiento}>Movimiento</HelpLabel></th>
-                                <th className="px-4 py-3 text-right">Importe</th>
-                                <th className="px-4 py-3 text-right">Facturas</th>
-                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.ticketMedio}>Ticket medio</HelpLabel></th>
+                                <th className="px-4 py-3 text-left"><TranslatedText>Serie</TranslatedText></th>
+                                <th className="px-4 py-3 text-left"><TranslatedText>Descripción</TranslatedText></th>
+                                <th className="px-4 py-3 text-left"><HelpLabel help={ANALYTICS_HELP.lineaNegocio}><TranslatedText>Línea</TranslatedText></HelpLabel></th>
+                                <th className="px-4 py-3 text-left"><HelpLabel help={ANALYTICS_HELP.movimiento}><TranslatedText>Movimiento</TranslatedText></HelpLabel></th>
+                                <th className="px-4 py-3 text-right"><TranslatedText>Importe</TranslatedText></th>
+                                <th className="px-4 py-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
+                                <th className="px-4 py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.ticketMedio}><TranslatedText>Ticket medio</TranslatedText></HelpLabel></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -677,13 +681,13 @@ function BusinessLinesOverview({ data, compareYear }) {
                             ))}
                             {!bySeries.length ? (
                                 <tr>
-                                    <td className="px-4 py-4 text-slate-500" colSpan={7}>Sin datos por serie.</td>
+                                    <td className="px-4 py-4 text-slate-500" colSpan={7}><TranslatedText>Sin datos por serie.</TranslatedText></td>
                                 </tr>
                             ) : null}
                         </tbody>
                     </table>
                 </ModernTableShell>
-            </Card>
+            </Card></LocalizedElement>
         </div>
     );
 }
@@ -701,7 +705,7 @@ function InsightCard({ label, value, detail, hint, tone = 'slate' }) {
                     <div className="mt-1 text-lg font-semibold text-slate-950 tabular-nums">{value}</div>
                     {detail ? <div className="mt-1 text-xs text-slate-500">{detail}</div> : null}
                 </div>
-                <MetricBadge tone={tone}>Insight</MetricBadge>
+                <MetricBadge tone={tone}><TranslatedText>Insight</TranslatedText></MetricBadge>
             </div>
         </div>
     );
@@ -1004,7 +1008,7 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
     ];
 
     return (
-        <Card
+        <LocalizedElement><Card
             title="Calendario laboral aplicado"
             help={ANALYTICS_HELP.calendarioLaboral}
             subtitle="Montilla, Córdoba · excluye sábados, domingos y festivos en gráficas; las tablas siguen mostrando todas las facturas."
@@ -1030,13 +1034,13 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
 
             {compareStats ? (
                 <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-950">
-                    <span className="font-semibold">Comparativa {compareYear}:</span>{' '}
-                    {safeFormatFull(compareRange.from)} - {safeFormatFull(compareRange.to)} · {compareStats.workingDays} días laborables · {compareStats.holidayDays} festivos en rango.
+                    <span className="font-semibold"><TranslatedText>Comparativa</TranslatedText> {compareYear}:</span>{' '}
+                    {safeFormatFull(compareRange.from)} - {safeFormatFull(compareRange.to)} · {compareStats.workingDays} <TranslatedText>días laborables ·</TranslatedText> {compareStats.holidayDays} <TranslatedText>festivos en rango.</TranslatedText>
                 </div>
             ) : null}
 
             <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                <span className="font-semibold">Regla aplicada:</span> las gráficas usan días laborables de Montilla. Las tablas de facturas y comparación no ocultan sábados, domingos ni festivos para no perder movimientos reales.
+                <span className="font-semibold"><TranslatedText>Regla aplicada:</TranslatedText></span> <TranslatedText>las gráficas usan días laborables de Montilla. Las tablas de facturas y comparación no ocultan sábados, domingos ni festivos para no perder movimientos reales.</TranslatedText>
             </div>
 
             {open ? (
@@ -1044,15 +1048,15 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
                     {byYear.map(({ year, entries }) => (
                         <div key={year} className="rounded-2xl border border-slate-200 overflow-hidden">
                             <div className="bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
-                                Festivos {year} · Montilla
+                                <TranslatedText>Festivos</TranslatedText> {year} · Montilla
                             </div>
                             <div className="max-h-80 overflow-auto">
                                 <table className="facturacion-data-table w-full text-sm">
                                     <thead className="sticky top-0 bg-white">
                                         <tr className="text-left border-b border-slate-200">
-                                            <th className="px-4 py-2 font-semibold text-slate-700">Fecha</th>
-                                            <th className="px-4 py-2 font-semibold text-slate-700">Festivo</th>
-                                            <th className="px-4 py-2 font-semibold text-slate-700">Tipo</th>
+                                            <th className="px-4 py-2 font-semibold text-slate-700"><TranslatedText>Fecha</TranslatedText></th>
+                                            <th className="px-4 py-2 font-semibold text-slate-700"><TranslatedText>Festivo</TranslatedText></th>
+                                            <th className="px-4 py-2 font-semibold text-slate-700"><TranslatedText>Tipo</TranslatedText></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1070,7 +1074,7 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
                                         {!entries.length ? (
                                             <tr>
                                                 <td colSpan={3} className="px-4 py-4 text-slate-500">
-                                                    No hay festivos locales cargados para este año. Se usa fallback de festivos fijos.
+                                                    <TranslatedText>No hay festivos locales cargados para este año. Se usa fallback de festivos fijos.</TranslatedText>
                                                 </td>
                                             </tr>
                                         ) : null}
@@ -1081,7 +1085,7 @@ function LaborCalendarMontillaPanel({ fromISO, toISO, compareYear, yearsInPlay }
                     ))}
                 </div>
             ) : null}
-        </Card>
+        </Card></LocalizedElement>
     );
 }
 
@@ -1265,9 +1269,9 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                 <div className="text-sm font-semibold text-slate-800">{title}</div>
                 <div className="text-xs text-slate-500 tabular-nums">
-                    Rango: {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
+                    <TranslatedText>Rango:</TranslatedText> {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
                     {excludeNonWorking ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días`} ·{' '}
-                    Facturación positiva: {kpiFormat(totalRange, 'money')} · {totalLabel}: {kpiFormat(totalRawRange, 'money')} · Días con ventas: {kpiFormat(daysWithSales)}
+                    <TranslatedText>Facturación positiva:</TranslatedText> {kpiFormat(totalRange, 'money')} · {totalLabel}: {kpiFormat(totalRawRange, 'money')} <TranslatedText>· Días con ventas:</TranslatedText> {kpiFormat(daysWithSales)}
                     {hasAbonos ? ` · Abonos: ${kpiFormat(abonosRange, 'money')}` : ''}
                     {lastNZ ? ` · Último con ventas: ${kpiFormat(lastNZ.y, 'money')}` : ''}
                 </div>
@@ -1318,10 +1322,10 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
             {hasAbonos ? (
                 <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
                     <span className="inline-flex items-center gap-2">
-                        <span className="w-3 h-0.5 bg-blue-600 inline-block" /> Facturación positiva
+                        <span className="w-3 h-0.5 bg-blue-600 inline-block" /> <TranslatedText>Facturación positiva</TranslatedText>
                     </span>
                     <span className="inline-flex items-center gap-2">
-                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> Abonos informativos
+                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> <TranslatedText>Abonos informativos</TranslatedText>
                     </span>
                 </div>
             ) : null}
@@ -1330,18 +1334,18 @@ function SimpleLineChart({ rows, fromISO, toISO, title = 'Evolución (Diaria)', 
                 <div className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                     <div className="font-medium">{fmtFull.format(points[hoverIdx].date)}</div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <div className="tabular-nums">Facturación: {kpiFormat(points[hoverIdx].y, 'money')}</div>
+                        <div className="tabular-nums"><TranslatedText>Facturación:</TranslatedText> {kpiFormat(points[hoverIdx].y, 'money')}</div>
                         <div className="tabular-nums text-slate-500">{totalLabel}: {kpiFormat(points[hoverIdx].total, 'money')}</div>
                         {hasAbonos ? (
                             <>
-                                <div className="tabular-nums text-red-600">Abonos: {kpiFormat(points[hoverIdx].abonos, 'money')}</div>
-                                <div className="tabular-nums text-slate-500">Neto informativo: {kpiFormat(points[hoverIdx].neto, 'money')}</div>
+                                <div className="tabular-nums text-red-600"><TranslatedText>Abonos:</TranslatedText> {kpiFormat(points[hoverIdx].abonos, 'money')}</div>
+                                <div className="tabular-nums text-slate-500"><TranslatedText>Neto informativo:</TranslatedText> {kpiFormat(points[hoverIdx].neto, 'money')}</div>
                             </>
                         ) : null}
                     </div>
                 </div>
             ) : (
-                <div className="mt-3 text-xs text-slate-500">Mueve el ratón sobre el gráfico para ver el detalle del día.</div>
+                <div className="mt-3 text-xs text-slate-500"><TranslatedText>Mueve el ratón sobre el gráfico para ver el detalle del día.</TranslatedText></div>
             )}
         </div>
     );
@@ -1486,11 +1490,11 @@ function CompareLineChart({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                 <div className="text-sm font-semibold text-slate-800">{title}</div>
                 <div className="text-xs text-slate-500 tabular-nums">
-                    Rango: {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
-                    Modo: {compareModeConfig.shortLabel} ·{' '}
+                    <TranslatedText>Rango:</TranslatedText> {safeFormatFull(fromISO)} → {safeFormatFull(toISO)} ·{' '}
+                    <TranslatedText>Modo:</TranslatedText> {compareModeConfig.shortLabel} ·{' '}
                     {comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? `${rangeDaysLaborables} días laborables` : `${rangeDaysCalendario} días calendario`} ·{' '}
-                    Facturación positiva Actual: {kpiFormat(totalCur, 'money')} · {compareLabel}:{' '}
-                    {kpiFormat(totalCmp, 'money')} · {totalLabel}: {kpiFormat(totalRawCur, 'money')} / {kpiFormat(totalRawCmp, 'money')} · Días con ventas: {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
+                    <TranslatedText>Facturación positiva Actual:</TranslatedText> {kpiFormat(totalCur, 'money')} · {compareLabel}:{' '}
+                    {kpiFormat(totalCmp, 'money')} · {totalLabel}: {kpiFormat(totalRawCur, 'money')} / {kpiFormat(totalRawCmp, 'money')} <TranslatedText>· Días con ventas:</TranslatedText> {kpiFormat(daysWithSalesCur)} / {kpiFormat(daysWithSalesCmp)}
                     {hasAbonos ? ` · Abonos: ${kpiFormat(abonosTotalCur, 'money')} / ${kpiFormat(abonosTotalCmp, 'money')}` : ''}
                     {missingCount ? ` · Faltan ${missingCount} ${comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? 'laborables' : 'días'} en ${compareLabel}` : ''}
                 </div>
@@ -1546,19 +1550,19 @@ function CompareLineChart({
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-2">
-                    <span className="w-3 h-0.5 bg-blue-600 inline-block" /> Actual
+                    <span className="w-3 h-0.5 bg-blue-600 inline-block" /> <TranslatedText>Actual</TranslatedText>
                 </span>
                 <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-0.5 bg-slate-400 inline-block" style={{ borderTop: '2px dashed #94a3b8' }} /> {compareLabel}
                 </span>
                 {hasAbonosCur ? (
                     <span className="inline-flex items-center gap-2">
-                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> Abonos actual
+                        <span className="w-3 h-0.5 bg-red-600 inline-block" /> <TranslatedText>Abonos actual</TranslatedText>
                     </span>
                 ) : null}
                 {hasAbonosCmp ? (
                     <span className="inline-flex items-center gap-2">
-                        <span className="w-3 h-0.5 bg-red-400 inline-block" /> Abonos {compareLabel}
+                        <span className="w-3 h-0.5 bg-red-400 inline-block" /> <TranslatedText>Abonos</TranslatedText> {compareLabel}
                     </span>
                 ) : null}
             </div>
@@ -1568,14 +1572,14 @@ function CompareLineChart({
                     <div className="font-medium">
                         {fmtFull.format(dateList[hoverIdx])}
                         {comparisonLists.mode === COMPARE_MODES.BUSINESS_DAY ? (
-                            <span className="ml-2 text-xs font-normal text-slate-500">Laborable #{hoverIdx + 1}</span>
+                            <span className="ml-2 text-xs font-normal text-slate-500"><TranslatedText>Laborable #</TranslatedText>{hoverIdx + 1}</span>
                         ) : null}
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <div className="tabular-nums">Actual facturación: {kpiFormat(pointsCur[hoverIdx]?.y ?? 0, 'money')}</div>
-                        <div className="tabular-nums text-slate-500">Actual {totalBefore}: {kpiFormat(pointsCur[hoverIdx]?.total ?? 0, 'money')}</div>
+                        <div className="tabular-nums"><TranslatedText>Actual facturación:</TranslatedText> {kpiFormat(pointsCur[hoverIdx]?.y ?? 0, 'money')}</div>
+                        <div className="tabular-nums text-slate-500"><TranslatedText>Actual</TranslatedText> {totalBefore}: {kpiFormat(pointsCur[hoverIdx]?.total ?? 0, 'money')}</div>
                         <div className="tabular-nums text-slate-500">
-                            {compareLabel} facturación:{' '}
+                            {compareLabel} <TranslatedText>facturación:</TranslatedText>{' '}
                             {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.y ?? 0, 'money')}
                             {!pointsCmp[hoverIdx]?.missing && compareDateList[hoverIdx] ? (
                                 <span className="ml-1 text-slate-400">({fmtFull.format(compareDateList[hoverIdx])})</span>
@@ -1587,16 +1591,16 @@ function CompareLineChart({
                         </div>
                         {hasAbonos ? (
                             <>
-                                <div className="tabular-nums text-red-600">Abono actual: {kpiFormat(pointsCur[hoverIdx]?.abonos ?? 0, 'money')}</div>
+                                <div className="tabular-nums text-red-600"><TranslatedText>Abono actual:</TranslatedText> {kpiFormat(pointsCur[hoverIdx]?.abonos ?? 0, 'money')}</div>
                                 <div className="tabular-nums text-red-400">
-                                    Abono {compareLabel}: {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.abonos ?? 0, 'money')}
+                                    <TranslatedText>Abono</TranslatedText> {compareLabel}: {pointsCmp[hoverIdx]?.missing ? '—' : kpiFormat(pointsCmp[hoverIdx]?.abonos ?? 0, 'money')}
                                 </div>
                             </>
                         ) : null}
                     </div>
                 </div>
             ) : (
-                <div className="mt-3 text-xs text-slate-500">Mueve el ratón sobre el gráfico para ver el detalle del día.</div>
+                <div className="mt-3 text-xs text-slate-500"><TranslatedText>Mueve el ratón sobre el gráfico para ver el detalle del día.</TranslatedText></div>
             )}
         </div>
     );
@@ -1626,7 +1630,7 @@ function Ranking({ title, rows }) {
                         </div>
                     );
                 })}
-                {!safeRows.length && <div className="text-sm text-slate-500">Sin datos</div>}
+                {!safeRows.length && <div className="text-sm text-slate-500"><TranslatedText>Sin datos</TranslatedText></div>}
             </div>
         </div>
     );
@@ -1690,20 +1694,20 @@ class PageErrorBoundary extends React.Component {
             return (
                 <div className="p-6 bg-slate-50 min-h-screen">
                     <div className="max-w-[900px] mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                        <div className="text-lg font-semibold text-slate-900">Algo salió mal</div>
-                        <div className="text-sm text-slate-600 mt-2">Se produjo un error inesperado, pero evitamos la pantalla en blanco.</div>
+                        <div className="text-lg font-semibold text-slate-900"><TranslatedText>Algo salió mal</TranslatedText></div>
+                        <div className="text-sm text-slate-600 mt-2"><TranslatedText>Se produjo un error inesperado, pero evitamos la pantalla en blanco.</TranslatedText></div>
                         <div className="mt-4 flex gap-2 flex-wrap">
                             <button
                                 className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                                 onClick={() => this.setState({ hasError: false, error: null })}
                             >
-                                Reintentar
+                                <TranslatedText>Reintentar</TranslatedText>
                             </button>
                             <button
                                 className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50"
                                 onClick={() => window.location.reload()}
                             >
-                                Recargar
+                                <TranslatedText>Recargar</TranslatedText>
                             </button>
                         </div>
                         <div className="mt-3 text-xs text-slate-400 break-words">
@@ -1718,6 +1722,7 @@ class PageErrorBoundary extends React.Component {
 }
 
 function FacturacionAnalyticsPageInner() {
+    const { t } = useLanguage();
     const [tab, setTab] = useState('resumen');
 
     const [filtersMeta, setFiltersMeta] = useState({
@@ -2563,19 +2568,19 @@ function FacturacionAnalyticsPageInner() {
                         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
                             <div className="max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <MetricBadge tone="slate">Dashboard</MetricBadge>
+                                    <MetricBadge tone="slate"><TranslatedText>Dashboard</TranslatedText></MetricBadge>
                                     <MetricBadge tone={reqState.loading ? 'amber' : 'emerald'}>
                                         {reqState.loading ? 'Actualizando datos' : 'Datos cargados'}
                                     </MetricBadge>
-                                    {activeBusinessUnit === 'custom' ? <MetricBadge tone="amber">Series personalizadas</MetricBadge> : null}
+                                    {activeBusinessUnit === 'custom' ? <MetricBadge tone="amber"><TranslatedText>Series personalizadas</TranslatedText></MetricBadge> : null}
                                 </div>
-                                <h1 className="mt-4 text-3xl font-semibold tracking-tight app-text md:text-4xl">Facturación</h1>
+                                <h1 className="mt-4 text-3xl font-semibold tracking-tight app-text md:text-4xl"><TranslatedText>Facturación</TranslatedText></h1>
                                 <p className="cjm-muted mt-2 text-sm md:text-base">
-                                    Resumen comercial y fiscal con foco en {showInvoiceTotal ? 'facturación final con IVA y portes' : 'ventas netas'}, comparativa por periodos y separación visual entre <b>Tejido</b> y <b>Proyectos</b>.
+                                    <TranslatedText>Resumen comercial y fiscal con foco en</TranslatedText> <TranslatedText>{showInvoiceTotal ? 'facturación final con IVA y portes' : 'ventas netas'}</TranslatedText><TranslatedText>, comparativa por periodos y separación visual entre</TranslatedText> <b><TranslatedText>Tejido</TranslatedText></b> <TranslatedText>y</TranslatedText> <b><TranslatedText>Proyectos</TranslatedText></b>.
                                 </p>
                                 <div className="facturacion-help-guide mt-3">
-                                    <HelpTooltip text="Los símbolos de ayuda explican cada concepto con palabras sencillas. Puedes pasar el ratón, enfocarlos con el teclado o tocarlos en móvil." label="Cómo usar las ayudas" />
-                                    <span>Pasa el cursor o pulsa sobre <b>?</b> para ver una explicación.</span>
+                                    <LocalizedElement><HelpTooltip text="Los símbolos de ayuda explican cada concepto con palabras sencillas. Puedes pasar el ratón, enfocarlos con el teclado o tocarlos en móvil." label="Cómo usar las ayudas" /></LocalizedElement>
+                                    <span><TranslatedText>Pasa el cursor o pulsa sobre</TranslatedText> <b>?</b> <TranslatedText>para ver una explicación.</TranslatedText></span>
                                 </div>
                                 <div className="cjm-muted mt-4 flex flex-wrap items-center gap-2 text-xs">
                                     <span className="rounded-full bg-slate-100 px-3 py-1">
@@ -2585,15 +2590,15 @@ function FacturacionAnalyticsPageInner() {
                                         {excludeNonWorking
                                             ? buildDateList(filters.from, filters.to, { excludeNonWorking, nonWorkingSet }).length
                                             : daysBetweenInclusive(filters.from, filters.to)}{' '}
-                                        días laborables
+                                        <TranslatedText>días laborables</TranslatedText>
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1">
-                                        {showInvoiceTotal ? 'Total con IVA y portes · imptotal' : 'Ventas sin IVA ni portes · impbruto'}
-                                        <HelpTooltip text={amountHelp} label="Cómo se calcula el importe mostrado" />
+                                        <TranslatedText>{showInvoiceTotal ? 'Total con IVA y portes · imptotal' : 'Ventas sin IVA ni portes · impbruto'}</TranslatedText>
+                                        <LocalizedElement><HelpTooltip text={amountHelp} label="Cómo se calcula el importe mostrado" /></LocalizedElement>
                                     </span>
-                                    {reqState.lastOkAt ? <span className="rounded-full bg-slate-100 px-3 py-1 tabular-nums">Última respuesta: {reqState.lastOkAt}</span> : null}
+                                    {reqState.lastOkAt ? <span className="rounded-full bg-slate-100 px-3 py-1 tabular-nums"><TranslatedText>Última respuesta:</TranslatedText> {reqState.lastOkAt}</span> : null}
                                 </div>
-                                <div className="mt-3 flex flex-wrap gap-2" aria-label="Filtros activos">
+                                <LocalizedElement><div className="mt-3 flex flex-wrap gap-2" aria-label="Filtros activos">
                                     {activeFilterChips.map((chip) => (
                                         <span key={chip.key} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                                             {chip.label}
@@ -2609,11 +2614,11 @@ function FacturacionAnalyticsPageInner() {
                                             ) : null}
                                         </span>
                                     ))}
-                                </div>
+                                </div></LocalizedElement>
                             </div>
 
                             <div className="flex flex-col sm:flex-row xl:flex-col gap-2 xl:min-w-[260px]">
-                                <button
+                                <LocalizedElement><button
                                     type="button"
                                     onClick={toggleAmountMode}
                                     aria-pressed={showInvoiceTotal}
@@ -2621,7 +2626,7 @@ function FacturacionAnalyticsPageInner() {
                                     className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showInvoiceTotal ? 'border-blue-700 bg-blue-700 text-white hover:bg-blue-800' : 'border-slate-300 bg-white text-slate-800 hover:bg-blue-50'}`}
                                 >
                                     <span className="flex items-center justify-between gap-3">
-                                        <span>{showInvoiceTotal ? 'Total con IVA y portes' : 'Mostrar total con IVA y portes'}</span>
+                                        <span><TranslatedText>{showInvoiceTotal ? 'Total con IVA y portes' : 'Mostrar total con IVA y portes'}</TranslatedText></span>
                                         <span aria-hidden="true" className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${showInvoiceTotal ? 'bg-blue-300' : 'bg-slate-300'}`}>
                                             <span className={`absolute h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-transform ${showInvoiceTotal ? 'translate-x-6' : 'translate-x-1'}`} style={{ width: 18, height: 18 }} />
                                         </span>
@@ -2629,37 +2634,37 @@ function FacturacionAnalyticsPageInner() {
                                     <span className={`mt-1 block text-xs font-normal ${showInvoiceTotal ? 'text-blue-100' : 'text-slate-500'}`}>
                                         {showInvoiceTotal ? 'Activado · campo imptotal' : 'Desactivado · campo impbruto'}
                                     </span>
-                                </button>
+                                </button></LocalizedElement>
                                 <div className="flex gap-2 flex-wrap xl:justify-end">
                                     {showInvoiceTotal ? (
-                                        <button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" onClick={goToTodaySpain} title="Mostrar exclusivamente las facturas de hoy en España">
-                                            Hoy
-                                        </button>
+                                        <LocalizedElement><button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" onClick={goToTodaySpain} title="Mostrar exclusivamente las facturas de hoy en España">
+                                            <TranslatedText>Hoy</TranslatedText>
+                                        </button></LocalizedElement>
                                     ) : null}
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(7)}>
-                                        7 días
+                                        <TranslatedText>7 días</TranslatedText>
                                     </button>
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(30)}>
-                                        30 días
+                                        <TranslatedText>30 días</TranslatedText>
                                     </button>
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(90)}>
-                                        90 días
+                                        <TranslatedText>90 días</TranslatedText>
                                     </button>
                                 </div>
 
                                 <div className="flex gap-2 flex-wrap xl:justify-end">
-                                    <button
+                                    <LocalizedElement><button
                                         className={`px-4 py-2 rounded-full text-sm border transition ${
                                             compareYear === 2025 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                         }`}
                                         onClick={toggleCompare2025}
                                         title="Comparar contra 2025. Por defecto se alinea por día laborable equivalente."
                                     >
-                                        Comparar con 2025
-                                    </button>
+                                        <TranslatedText>Comparar con 2025</TranslatedText>
+                                    </button></LocalizedElement>
 
                                     {compareYear ? (
-                                        <select
+                                        <LocalizedElement><select
                                             value={filters.compareMode}
                                             onChange={(event) => setFilters((f) => ({ ...f, compareMode: getCompareModeConfig(event.target.value).key, page: 1 }))}
                                             className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -2671,15 +2676,15 @@ function FacturacionAnalyticsPageInner() {
                                                     {option.shortLabel}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </select></LocalizedElement>
                                     ) : null}
 
-                                    <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={forceRetry} title="Reintentar cargar datos">
-                                        Reintentar
-                                    </button>
+                                    <LocalizedElement><button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={forceRetry} title="Reintentar cargar datos">
+                                        <TranslatedText>Reintentar</TranslatedText>
+                                    </button></LocalizedElement>
 
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => setShowDebug((v) => !v)}>
-                                        {showDebug ? 'Ocultar diagnóstico' : 'Diagnóstico'}
+                                        <TranslatedText>{showDebug ? 'Ocultar diagnóstico' : 'Diagnóstico'}</TranslatedText>
                                     </button>
                                 </div>
                             </div>
@@ -2692,21 +2697,21 @@ function FacturacionAnalyticsPageInner() {
                     <div className="bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl p-4">
                         <div className="flex items-start justify-between gap-3">
                             <div>
-                                <div className="font-semibold text-sm">Se detectó un error</div>
+                                <div className="font-semibold text-sm"><TranslatedText>Se detectó un error</TranslatedText></div>
                                 <div className="text-sm mt-1">
-                                    <span className="font-medium">Origen:</span> {reqState.error.where}
+                                    <span className="font-medium"><TranslatedText>Origen:</TranslatedText></span> {reqState.error.where}
                                 </div>
                                 <div className="text-sm mt-1">
-                                    <span className="font-medium">Mensaje:</span> {reqState.error.message}
+                                    <span className="font-medium"><TranslatedText>Mensaje:</TranslatedText></span> {reqState.error.message}
                                 </div>
                                 <div className="text-xs text-slate-600 mt-2">
-                                    {reqState.error.raw instanceof TypeError && reqState.error.message === 'Failed to fetch'
+                                    <TranslatedText>{reqState.error.raw instanceof TypeError && reqState.error.message === 'Failed to fetch'
                                         ? 'La API no responde. Comprueba que el proceso Node del servidor esté ejecutándose en el puerto configurado (habitualmente 1234). El selector no puede acceder a los importes hasta que la conexión vuelva a estar disponible.'
-                                        : 'Si este error procede de una extensión del navegador, comprueba la aplicación sin esa extensión.'}
+                                        : 'Si este error procede de una extensión del navegador, comprueba la aplicación sin esa extensión.'}</TranslatedText>
                                 </div>
                             </div>
                             <button className="px-3 py-2 rounded-xl border border-rose-200 bg-white text-sm hover:bg-rose-100" onClick={forceRetry}>
-                                Reintentar
+                                <TranslatedText>Reintentar</TranslatedText>
                             </button>
                         </div>
                     </div>
@@ -2715,17 +2720,17 @@ function FacturacionAnalyticsPageInner() {
                 {/* Debug panel */}
                 {showDebug ? (
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-sm">
-                        <div className="font-semibold text-slate-800 mb-2">Diagnóstico</div>
+                        <div className="font-semibold text-slate-800 mb-2"><TranslatedText>Diagnóstico</TranslatedText></div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filtros</div>
+                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500"><TranslatedText>Filtros</TranslatedText></div>
                                 <pre className="mt-2 text-xs overflow-auto">{JSON.stringify(filters, null, 2)}</pre>
                             </div>
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Resumen de datos</div>
+                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500"><TranslatedText>Resumen de datos</TranslatedText></div>
                                 <div className="mt-2 text-xs space-y-1">
                                     <div>summary: {summary ? '✅' : '❌ (null)'}</div>
-                                    <div>pedidos facturados: {summary?.pedidos_disponible ? kpiFormat(summary?.numero_pedidos) : 'no disponible'}</div>
+                                    <div><TranslatedText>pedidos facturados:</TranslatedText> <TranslatedText>{summary?.pedidos_disponible ? kpiFormat(summary?.numero_pedidos) : 'no disponible'}</TranslatedText></div>
                                     <div>series: {(data.series || []).length}</div>
                                     <div>timeseries.series: {(data.timeseries?.series || []).length}</div>
                                     <div>timeseries.compare_series: {(data.timeseries?.compare_series || []).length}</div>
@@ -2744,7 +2749,7 @@ function FacturacionAnalyticsPageInner() {
                 <div className="cjm-card facturacion-filter-panel rounded-3xl p-4 md:p-5">
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-end">
                         <div className="xl:col-span-2">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5">Desde</div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Desde</TranslatedText></div>
                             <input
                                 type="date"
                                 value={fromDraft}
@@ -2755,7 +2760,7 @@ function FacturacionAnalyticsPageInner() {
                         </div>
 
                         <div className="xl:col-span-2">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5">Hasta</div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Hasta</TranslatedText></div>
                             <input
                                 type="date"
                                 value={toDraft}
@@ -2766,31 +2771,31 @@ function FacturacionAnalyticsPageInner() {
                         </div>
 
                         <div className="xl:col-span-3">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.unidadNegocio}>Unidad de negocio</HelpLabel></div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.unidadNegocio}><TranslatedText>Unidad de negocio</TranslatedText></HelpLabel></div>
                             <BusinessUnitToggle activeKey={activeBusinessUnit} onChange={applyBusinessUnit} />
-                            {activeBusinessUnit === 'custom' ? <div className="mt-1.5 text-[11px] text-amber-600">Selección manual de series activa.</div> : null}
+                            {activeBusinessUnit === 'custom' ? <div className="mt-1.5 text-[11px] text-amber-600"><TranslatedText>Selección manual de series activa.</TranslatedText></div> : null}
                         </div>
 
                         <div className="xl:col-span-3">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5">Buscar</div>
-                            <input
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Buscar</TranslatedText></div>
+                            <LocalizedElement><input
                                 value={searchDraft}
                                 onChange={(e) => setSearchDraft(e.target.value)}
                                 className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                 placeholder="Factura / cliente / razón social"
-                            />
+                            /></LocalizedElement>
                         </div>
 
                         <div className="xl:col-span-2">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.agrupacion}>Agrupación</HelpLabel></div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.agrupacion}><TranslatedText>Agrupación</TranslatedText></HelpLabel></div>
                             <select
                                 className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                 value={filters.granularity}
                                 onChange={(e) => setFilters((f) => ({ ...f, granularity: e.target.value }))}
                             >
-                                <option value="day">Día</option>
-                                <option value="week">Semana</option>
-                                <option value="month">Mes</option>
+                                <option value="day"><TranslatedText>Día</TranslatedText></option>
+                                <option value="week"><TranslatedText>Semana</TranslatedText></option>
+                                <option value="month"><TranslatedText>Mes</TranslatedText></option>
                             </select>
                         </div>
                     </div>
@@ -2799,47 +2804,47 @@ function FacturacionAnalyticsPageInner() {
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                             <div className="lg:col-span-7">
                                 <div className="flex items-center justify-between gap-3 mb-2">
-                                    <div className="text-xs font-medium text-slate-500"><HelpLabel help={ANALYTICS_HELP.serie}>Series de facturación</HelpLabel></div>
+                                    <div className="text-xs font-medium text-slate-500"><HelpLabel help={ANALYTICS_HELP.serie}><TranslatedText>Series de facturación</TranslatedText></HelpLabel></div>
                                     <div className="flex flex-wrap gap-2">
                                         <QuickActionButton active={!filters.series?.length} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.ALL)}>
-                                            Todas
+                                            <TranslatedText>Todas</TranslatedText>
                                         </QuickActionButton>
                                         <QuickActionButton active={activeBusinessUnit === BUSINESS_UNIT_KEYS.FABRIC} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.FABRIC)}>
-                                            Tejido
+                                            <TranslatedText>Tejido</TranslatedText>
                                         </QuickActionButton>
                                         <QuickActionButton active={activeBusinessUnit === BUSINESS_UNIT_KEYS.PROJECTS} onClick={() => applyBusinessUnit(BUSINESS_UNIT_KEYS.PROJECTS)}>
-                                            Proyectos
+                                            <TranslatedText>Proyectos</TranslatedText>
                                         </QuickActionButton>
                                         <QuickActionButton active={false} onClick={() => setFilters((f) => ({ ...f, series: [], page: 1 }))}>
-                                            Limpiar
+                                            <TranslatedText>Limpiar</TranslatedText>
                                         </QuickActionButton>
                                     </div>
                                 </div>
-                                <Select
+                                <LocalizedElement><Select
                                     classNamePrefix="cjm-select"
                                     isMulti
                                     options={seriesOptions}
                                     value={seriesOptions.filter((o) => selectedSeriesSet.has(o.value))}
                                     onChange={(selected) => setFilters((f) => ({ ...f, series: (selected || []).map((x) => x.value), page: 1 }))}
                                     placeholder="Todas las series"
-                                />
+                                /></LocalizedElement>
                             </div>
 
                             <div className="lg:col-span-5">
-                                <div className="text-xs font-medium text-slate-500 mb-2">Accesos rápidos</div>
+                                <div className="text-xs font-medium text-slate-500 mb-2"><TranslatedText>Accesos rápidos</TranslatedText></div>
                                 <div className="flex flex-wrap gap-2">
                                     <QuickActionButton onClick={() => fullYear(new Date().getFullYear())}>
-                                        Año actual
+                                        <TranslatedText>Año actual</TranslatedText>
                                     </QuickActionButton>
-                                    <QuickActionButton onClick={() => fullYear(2025)} title="Ver el año completo 2025">
-                                        Año 2025 completo
-                                    </QuickActionButton>
-                                    <QuickActionButton onClick={() => goToYearSameRange(2025)} title="Mismo rango pero en 2025">
-                                        Ir a 2025
-                                    </QuickActionButton>
+                                    <LocalizedElement><QuickActionButton onClick={() => fullYear(2025)} title="Ver el año completo 2025">
+                                        <TranslatedText>Año 2025 completo</TranslatedText>
+                                    </QuickActionButton></LocalizedElement>
+                                    <LocalizedElement><QuickActionButton onClick={() => goToYearSameRange(2025)} title="Mismo rango pero en 2025">
+                                        <TranslatedText>Ir a 2025</TranslatedText>
+                                    </QuickActionButton></LocalizedElement>
                                 </div>
                                 <div className="mt-3 text-xs text-slate-500">
-                                    Tejido selecciona las series que no empiezan por <b>H</b>. Proyectos selecciona las series que empiezan por <b>H</b>. Las series de 1 carácter son facturas y las de 2 caracteres son abonos.
+                                    <TranslatedText>Tejido selecciona las series que no empiezan por</TranslatedText> <b>H</b><TranslatedText>. Proyectos selecciona las series que empiezan por</TranslatedText> <b>H</b><TranslatedText>. Las series de 1 carácter son facturas y las de 2 caracteres son abonos.</TranslatedText>
                                 </div>
                             </div>
                         </div>
@@ -2848,9 +2853,9 @@ function FacturacionAnalyticsPageInner() {
                     <div className="mt-5 border-t border-slate-100 pt-4">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <div>
-                                <div className="text-sm font-semibold text-slate-800">Filtros avanzados</div>
+                                <div className="text-sm font-semibold text-slate-800"><TranslatedText>Filtros avanzados</TranslatedText></div>
                                 <div className="text-xs text-slate-600 mt-1">
-                                    Acota por cliente, vendedor, forma de pago, zona, ruta, tipo de factura o rango de importes.
+                                    <TranslatedText>Acota por cliente, vendedor, forma de pago, zona, ruta, tipo de factura o rango de importes.</TranslatedText>
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -2868,7 +2873,7 @@ function FacturacionAnalyticsPageInner() {
                                         className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                         onClick={clearAdvancedFilters}
                                     >
-                                        Limpiar avanzados
+                                        <TranslatedText>Limpiar avanzados</TranslatedText>
                                     </button>
                                 ) : null}
                             </div>
@@ -2877,107 +2882,107 @@ function FacturacionAnalyticsPageInner() {
                         {showAdvancedFilters ? (
                             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Canal</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Canal</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={canalOptions}
                                         value={canalOptions.filter((option) => filters.canal?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('canal', selected)}
                                         placeholder="Todos"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Cliente</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Cliente</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={clienteOptions}
                                         value={clienteOptions.filter((option) => filters.cliente?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('cliente', selected)}
                                         placeholder="Todos"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Vendedor</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Vendedor</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={vendedorOptions}
                                         value={vendedorOptions.filter((option) => filters.vendedor?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('vendedor', selected)}
                                         placeholder="Todos"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Forma de pago</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Forma de pago</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={formaPagoOptions}
                                         value={formaPagoOptions.filter((option) => filters.formaPago?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('formaPago', selected)}
                                         placeholder="Todas"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Zona</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Zona</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={zonaOptions}
                                         value={zonaOptions.filter((option) => filters.zona?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('zona', selected)}
                                         placeholder="Todas"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Ruta</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Ruta</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={rutaOptions}
                                         value={rutaOptions.filter((option) => filters.ruta?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('ruta', selected)}
                                         placeholder="Todas"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Departamento</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Departamento</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={departamentoOptions}
                                         value={departamentoOptions.filter((option) => filters.departamento?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('departamento', selected)}
                                         placeholder="Todos"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Tipo factura</div>
-                                    <Select
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Tipo factura</TranslatedText></div>
+                                    <LocalizedElement><Select
                                         classNamePrefix="cjm-select"
                                         isMulti
                                         options={tipoFacturaOptions}
                                         value={tipoFacturaOptions.filter((option) => filters.tipoFactura?.includes(option.value))}
                                         onChange={(selected) => setMultiFilter('tipoFactura', selected)}
                                         placeholder="Todos"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><HelpLabel help={ANALYTICS_HELP.rectificativa}>Rectificativas</HelpLabel></div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><HelpLabel help={ANALYTICS_HELP.rectificativa}><TranslatedText>Rectificativas</TranslatedText></HelpLabel></div>
                                     <select
                                         className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         value={filters.rectificativas}
                                         onChange={(e) => setFilters((f) => ({ ...f, rectificativas: e.target.value, page: 1 }))}
                                     >
-                                        <option value="">Todas</option>
-                                        <option value="no">Solo normales</option>
-                                        <option value="yes">Solo rectificativas</option>
+                                        <option value=""><TranslatedText>Todas</TranslatedText></option>
+                                        <option value="no"><TranslatedText>Solo normales</TranslatedText></option>
+                                        <option value="yes"><TranslatedText>Solo rectificativas</TranslatedText></option>
                                     </select>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Importe mínimo</div>
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Importe mínimo</TranslatedText></div>
                                     <input
                                         type="number"
                                         inputMode="decimal"
@@ -2988,15 +2993,15 @@ function FacturacionAnalyticsPageInner() {
                                     />
                                 </div>
                                 <div>
-                                    <div className="text-xs font-medium text-slate-600 mb-1.5">Importe máximo</div>
-                                    <input
+                                    <div className="text-xs font-medium text-slate-600 mb-1.5"><TranslatedText>Importe máximo</TranslatedText></div>
+                                    <LocalizedElement><input
                                         type="number"
                                         inputMode="decimal"
                                         value={filters.amountMax}
                                         onChange={(e) => setFilters((f) => ({ ...f, amountMax: e.target.value, page: 1 }))}
                                         className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder="Sin límite"
-                                    />
+                                    /></LocalizedElement>
                                 </div>
                             </div>
                         ) : null}
@@ -3031,19 +3036,19 @@ function FacturacionAnalyticsPageInner() {
 
                 {/* Empty */}
                 {!reqState.loading && !reqState.error && !hasAnyData ? (
-                    <Card
+                    <LocalizedElement><Card
                         title="Sin datos"
                         subtitle="El backend respondió, pero no hay resultados para los filtros actuales."
                         right={
                             <button className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50" onClick={() => applyQuickRange(365)}>
-                                Probar 365 días
+                                <TranslatedText>Probar 365 días</TranslatedText>
                             </button>
                         }
                     >
                         <div className="text-sm text-slate-600">
-                            Prueba a ampliar el rango o a limpiar filtros de series. Si aun así sale vacío, revisa que <code>facventa</code> tenga fechas dentro del rango.
+                            <TranslatedText>Prueba a ampliar el rango o a limpiar filtros de series. Si aun así sale vacío, revisa que</TranslatedText> <code>facventa</code> <TranslatedText>tenga fechas dentro del rango.</TranslatedText>
                         </div>
-                    </Card>
+                    </Card></LocalizedElement>
                 ) : null}
 
                 {/* =========================
@@ -3052,55 +3057,53 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'resumen' && summary && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <KpiTile label={showInvoiceTotal ? "Facturación total" : "Ventas netas"} value={kpiFormat(ventasBruto, 'money')} hint={showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.ventasNetas} />
+                            <LocalizedElement><KpiTile label={showInvoiceTotal ? "Facturación total" : "Ventas netas"} value={kpiFormat(ventasBruto, 'money')} hint={showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.ventasNetas} /></LocalizedElement>
                             {showInvoiceTotal ? (
-                                <KpiTile
+                                <LocalizedElement><KpiTile
                                     label="Facturación de hoy (total)"
                                     value={kpiFormat(summary.facturacion_dia_total || 0, 'money')}
                                     hint="Total final (campo imptotal) de las facturas fechadas hoy, aplicando los filtros comerciales activos salvo el rango de fechas. No representa cobros."
-                                />
+                                /></LocalizedElement>
                             ) : null}
-                            <KpiTile label="Facturas" value={kpiFormat(facturas)} hint="Número de facturas emitidas." />
-                            <KpiTile
+                            <LocalizedElement><KpiTile label="Facturas" value={kpiFormat(facturas)} hint="Número de facturas emitidas." /></LocalizedElement>
+                            <LocalizedElement><KpiTile
                                 label="Pedidos"
                                 value={pedidosDisponible ? kpiFormat(pedidos) : 'No disponible'}
                                 hint="Número de pedidos distintos que pueden relacionarse de forma fiable con las facturas mostradas."
-                            />
-                            <KpiTile
+                            /></LocalizedElement>
+                            <LocalizedElement><KpiTile
                                 label="Pedidos/factura"
                                 value={pedidosDisponible ? Number(pedidosPorFactura || 0).toFixed(2) : '—'}
                                 hint={pedidosDisponible ? `${ANALYTICS_HELP.pedidosFactura} Líneas de pedido relacionadas: ${kpiFormat(lineasPedido)}.` : 'No hay información suficiente para relacionar pedidos y facturas.'}
-                            />
-                            <KpiTile label="Ticket medio" value={kpiFormat(ticketMedioBruto, 'money')} hint={ANALYTICS_HELP.ticketMedio} />
-                            <KpiTile label="Ticket pedido" value={pedidosDisponible ? kpiFormat(ticketMedioPedido, 'money') : '—'} hint={ANALYTICS_HELP.ticketPedido} />
+                            /></LocalizedElement>
+                            <LocalizedElement><KpiTile label="Ticket medio" value={kpiFormat(ticketMedioBruto, 'money')} hint={ANALYTICS_HELP.ticketMedio} /></LocalizedElement>
+                            <LocalizedElement><KpiTile label="Ticket pedido" value={pedidosDisponible ? kpiFormat(ticketMedioPedido, 'money') : '—'} hint={ANALYTICS_HELP.ticketPedido} /></LocalizedElement>
 
                             <KpiTile
-                                label={compareYear ? `Δ vs ${compareYear}` : 'Comparación'}
-                                value={compareYear ? pctFormat(summary.variacion_vs_compare) : 'Sin activar'}
-                                hint={
-                                    compareYear
+                                label=<TranslatedText>{compareYear ? `Δ vs ${compareYear}` : 'Comparación'}</TranslatedText>
+                                value=<TranslatedText>{compareYear ? pctFormat(summary.variacion_vs_compare) : 'Sin activar'}</TranslatedText>
+                                hint=<TranslatedText>{compareYear
                                         ? `Comparado con el mismo rango en ${compareYear} usando el ${amountLabel}.`
-                                        : 'La variación porcentual se muestra solo cuando activas la comparación. Así evitamos confundirla con el periodo anterior.'
-                                }
+                                        : 'La variación porcentual se muestra solo cuando activas la comparación. Así evitamos confundirla con el periodo anterior.'}</TranslatedText>
                                 trend={compareYear ? compareTrend : { kind: 'flat', text: '—' }}
                             />
 
-                            <KpiTile
+                            <LocalizedElement><KpiTile
                                 label="Tejido"
                                 value={kpiFormat(businessUnitStats[BUSINESS_UNIT_KEYS.FABRIC]?.ventas, 'money')}
                                 hint="Series que no empiezan por H."
-                            />
+                            /></LocalizedElement>
 
-                            <KpiTile
+                            <LocalizedElement><KpiTile
                                 label="Proyectos"
                                 value={kpiFormat(businessUnitStats[BUSINESS_UNIT_KEYS.PROJECTS]?.ventas, 'money')}
                                 hint="Series que empiezan por H."
-                            />
+                            /></LocalizedElement>
                         </div>
 
                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                             <div className="xl:col-span-2">
-                                <Card
+                                <LocalizedElement><Card
                                     title="Evolución de ventas"
                                     help={amountHelp}
                                     subtitle={
@@ -3110,7 +3113,7 @@ function FacturacionAnalyticsPageInner() {
                                     }
                                 >
                                     {compareYear ? (
-                                        <CompareLineChart
+                                        <LocalizedElement><CompareLineChart
                                         amountMode={filters.amountMode}
                                             currentRows={data.timeseries.series || []}
                                             compareRows={data.timeseries.compare_series || []}
@@ -3120,9 +3123,9 @@ function FacturacionAnalyticsPageInner() {
                                             title="Evolución diaria"
                                             excludeNonWorking={excludeNonWorking}
                                             nonWorkingSet={nonWorkingSet}
-                                        />
+                                        /></LocalizedElement>
                                     ) : (
-                                        <SimpleLineChart
+                                        <LocalizedElement><SimpleLineChart
                                             amountMode={filters.amountMode}
                                             rows={data.timeseries.series || []}
                                             fromISO={filters.from}
@@ -3130,74 +3133,74 @@ function FacturacionAnalyticsPageInner() {
                                             title="Evolución diaria"
                                             excludeNonWorking={excludeNonWorking}
                                             nonWorkingSet={nonWorkingSet}
-                                        />
+                                        /></LocalizedElement>
                                     )}
-                                </Card>
+                                </Card></LocalizedElement>
                             </div>
 
                             <BusinessUnitComparisonCard stats={businessUnitStats} compareYear={compareYear} />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <InsightCard
+                            <LocalizedElement><InsightCard
                                 label="Serie líder"
                                 value={topSerie?.serie || topSerie?.label || '—'}
                                 detail={topSerie ? `${kpiFormat(topSerie.ventas || topSerie.total || topSerie.value, 'money')} en ventas` : 'Sin serie destacada'}
                                 tone="teal"
-                            />
-                            <InsightCard
+                            /></LocalizedElement>
+                            <LocalizedElement><InsightCard
                                 label="Facturas listadas"
                                 value={kpiFormat(totalRowsCount || data.invoices?.rows?.length || 0)}
                                 detail="Resultado del filtro actual"
                                 tone="slate"
-                            />
-                            <InsightCard
+                            /></LocalizedElement>
+                            <LocalizedElement><InsightCard
                                 label="Rectificativas"
                                 hint={ANALYTICS_HELP.rectificativa}
                                 value={kpiFormat(rectificativasConteo)}
                                 detail={rectificativasConteo ? `${kpiFormat(rectificativasImpacto, 'money')} en positivo` : 'Sin rectificativas en el rango'}
                                 tone={rectificativasConteo ? 'amber' : 'emerald'}
-                            />
-                            <InsightCard
+                            /></LocalizedElement>
+                            <LocalizedElement><InsightCard
                                 label="Coste informado"
                                 hint={ANALYTICS_HELP.costeCobertura}
                                 value={`${costeCoberturaPct.toFixed(2)}%`}
                                 detail={margenDisponible ? 'Margen disponible' : 'Margen no fiable todavía'}
                                 tone={margenDisponible ? 'emerald' : 'slate'}
-                            />
+                            /></LocalizedElement>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <Card title="Top series" subtitle="Ranking por ventas netas">
+                            <LocalizedElement><Card title="Top series" subtitle="Ranking por ventas netas">
                                 <Ranking title="" rows={summary.top_series_by_sales || []} />
-                            </Card>
+                            </Card></LocalizedElement>
 
                             <div className="lg:col-span-2">
-                                <Card title="Siguiente lectura recomendada" subtitle="Accesos directos para profundizar sin perder contexto">
+                                <LocalizedElement><Card title="Siguiente lectura recomendada" subtitle="Accesos directos para profundizar sin perder contexto">
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <button
                                             className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
                                             onClick={() => setTab('unidades')}
                                         >
-                                            <div className="text-sm font-semibold text-slate-900">Tejido / Proyectos</div>
-                                            <div className="mt-1 text-xs text-slate-500">Compara el peso de cada unidad.</div>
+                                            <div className="text-sm font-semibold text-slate-900"><TranslatedText>Tejido / Proyectos</TranslatedText></div>
+                                            <div className="mt-1 text-xs text-slate-500"><TranslatedText>Compara el peso de cada unidad.</TranslatedText></div>
                                         </button>
                                         <button
                                             className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
                                             onClick={() => setTab('series')}
                                         >
-                                            <div className="text-sm font-semibold text-slate-900">Series</div>
-                                            <div className="mt-1 text-xs text-slate-500">Revisa importe, facturas y ticket medio.</div>
+                                            <div className="text-sm font-semibold text-slate-900"><TranslatedText>Series</TranslatedText></div>
+                                            <div className="mt-1 text-xs text-slate-500"><TranslatedText>Revisa importe, facturas y ticket medio.</TranslatedText></div>
                                         </button>
                                         <button
                                             className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-white hover:shadow-sm transition"
                                             onClick={() => setTab(compareYear ? 'comparacion' : 'facturas')}
                                         >
-                                            <div className="text-sm font-semibold text-slate-900">{compareYear ? 'Comparación' : 'Facturas'}</div>
+                                            <div className="text-sm font-semibold text-slate-900"><TranslatedText><TranslatedText>{compareYear ? 'Comparación' : 'Facturas'}</TranslatedText></TranslatedText></div>
                                             <div className="mt-1 text-xs text-slate-500">{compareYear ? `Detalle diario vs ${compareYear}.` : 'Consulta el detalle filtrado.'}</div>
                                         </button>
                                     </div>
-                                </Card>
+                                </Card></LocalizedElement>
                             </div>
                         </div>
                     </div>
@@ -3209,29 +3212,29 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'comparacion' && (
                     <div className="space-y-4">
                         {!compareYear ? (
-                            <Card
+                            <LocalizedElement><Card
                                 title="Comparación"
                                 subtitle="Activa la comparación para ver el análisis detallado"
                                 right={
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={toggleCompare2025}>
-                                        Activar comparar con 2025
+                                        <TranslatedText>Activar comparar con 2025</TranslatedText>
                                     </button>
                                 }
                             >
                                 <div className="text-sm text-slate-600">
-                                    Esta sección compara día a día el {amountLabel}, alineando los días laborables para que la comparación sea más justa.
+                                    <TranslatedText>Esta sección compara día a día el</TranslatedText> {amountLabel}<TranslatedText>, alineando los días laborables para que la comparación sea más justa.</TranslatedText>
                                 </div>
-                            </Card>
+                            </Card></LocalizedElement>
                         ) : (
                             <>
-                                <Card
+                                <LocalizedElement><Card
                                     title="Comparación detallada"
                                     help={filters.compareMode === COMPARE_MODES.BUSINESS_DAY ? ANALYTICS_HELP.laborableEquivalente : ANALYTICS_HELP.fechaExacta}
                                     subtitle={`Actual vs ${compareYear} · Modo: ${getCompareModeConfig(filters.compareMode).label} · ${amountLabel}`}
                                     right={
                                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                                            <span className="text-xs text-slate-500">Modo comparación</span>
-                                            <select
+                                            <span className="text-xs text-slate-500"><TranslatedText>Modo comparación</TranslatedText></span>
+                                            <LocalizedElement><select
                                                 value={filters.compareMode}
                                                 onChange={(event) => setFilters((f) => ({ ...f, compareMode: getCompareModeConfig(event.target.value).key, page: 1 }))}
                                                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -3242,11 +3245,11 @@ function FacturacionAnalyticsPageInner() {
                                                         {option.label}
                                                     </option>
                                                 ))}
-                                            </select>
+                                            </select></LocalizedElement>
                                         </div>
                                     }
                                 >
-                                    <CompareLineChart
+                                    <LocalizedElement><CompareLineChart
                                         amountMode={filters.amountMode}
                                         currentRows={data.timeseries.series || []}
                                         compareRows={data.timeseries.compare_series || []}
@@ -3257,27 +3260,27 @@ function FacturacionAnalyticsPageInner() {
                                         compareMode={filters.compareMode}
                                         excludeNonWorking={excludeNonWorking}
                                         nonWorkingSet={nonWorkingSet}
-                                    />
-                                </Card>
+                                    /></LocalizedElement>
+                                </Card></LocalizedElement>
 
                                 {compareStats ? (
                                     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
-                                        <KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint={`Cálculo basado en ${amountLabel} del periodo actual, usando el modo ${compareStats.compareModeLabel}.`} />
+                                        <LocalizedElement><KpiTile label="Total actual" value={kpiFormat(compareStats.sumCur, 'money')} hint={`Cálculo basado en ${amountLabel} del periodo actual, usando el modo ${compareStats.compareModeLabel}.`} /></LocalizedElement>
                                         <KpiTile label={`Total ${compareYear}`} value={kpiFormat(compareStats.sumCmp, 'money')} hint={`Cálculo basado en ${amountLabel} del periodo comparado, alineado según el modo elegido.`} />
                                         <KpiTile label="Δ €" value={kpiFormat(compareStats.deltaTotal, 'money')} hint={ANALYTICS_HELP.deltaEuro} />
                                         <KpiTile label="Δ %" value={compareStats.deltaTotalPct === null ? '—' : pctFormat(compareStats.deltaTotalPct)} hint={ANALYTICS_HELP.deltaPercent} />
-                                        <KpiTile label="Media por punto" value={kpiFormat(compareStats.avgCur, 'money')} hint={ANALYTICS_HELP.mediaPunto} />
-                                        <KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint={`Número de días o periodos agrupados cuyo ${amountLabel} es mayor que cero.`} />
-                                        <KpiTile
+                                        <LocalizedElement><KpiTile label="Media por punto" value={kpiFormat(compareStats.avgCur, 'money')} hint={ANALYTICS_HELP.mediaPunto} /></LocalizedElement>
+                                        <LocalizedElement><KpiTile label="Días con ventas" value={kpiFormat(compareStats.daysCurNonZero)} hint={`Número de días o periodos agrupados cuyo ${amountLabel} es mayor que cero.`} /></LocalizedElement>
+                                        <LocalizedElement><KpiTile
                                             label="Laborables"
                                             value={`${compareStats.actualBusinessDays}/${compareStats.compareBusinessDays}`}
                                             hint={`${ANALYTICS_HELP.laborableEquivalente} Se muestran los días laborables del periodo actual y del comparado.`}
-                                        />
+                                        /></LocalizedElement>
                                     </div>
                                 ) : null}
 
                                 {compareStats ? (
-                                    <Card
+                                    <LocalizedElement><Card
                                         title={compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'Detalle por día laborable equivalente' : 'Detalle por fecha exacta'}
                                         subtitle={
                                             compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY
@@ -3286,27 +3289,27 @@ function FacturacionAnalyticsPageInner() {
                                         }
                                         right={
                                             <MetricBadge tone={compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'emerald' : 'amber'}>
-                                                {compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'Recomendado ventas' : 'Revisión fiscal'}
+                                                <TranslatedText>{compareStats.compareMode === COMPARE_MODES.BUSINESS_DAY ? 'Recomendado ventas' : 'Revisión fiscal'}</TranslatedText>
                                             </MetricBadge>
                                         }
                                     >
                                         <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Modo activo</div>
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500"><TranslatedText>Modo activo</TranslatedText></div>
                                                 <div className="mt-1 font-semibold text-slate-900">{compareStats.compareModeLabel}</div>
                                                 <div className="mt-1 text-xs text-slate-600">
                                                     {getCompareModeConfig(compareStats.compareMode).description}
                                                 </div>
                                             </div>
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Días calendario</div>
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500"><TranslatedText>Días calendario</TranslatedText></div>
                                                 <div className="mt-1 font-semibold text-slate-900 tabular-nums">
                                                     {compareStats.actualCalendarDays} / {compareStats.compareCalendarDays}
                                                 </div>
-                                                <div className="mt-1 text-xs text-slate-600">Actual / {compareYear}</div>
+                                                <div className="mt-1 text-xs text-slate-600"><TranslatedText>Actual /</TranslatedText> {compareYear}</div>
                                             </div>
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Días laborables</div>
+                                                <div className="text-xs font-medium uppercase tracking-wide text-slate-500"><TranslatedText>Días laborables</TranslatedText></div>
                                                 <div className="mt-1 font-semibold text-slate-900 tabular-nums">
                                                     {compareStats.actualBusinessDays} / {compareStats.compareBusinessDays}
                                                 </div>
@@ -3322,12 +3325,12 @@ function FacturacionAnalyticsPageInner() {
                                                 <thead>
                                                     <tr className="text-left border-b">
                                                         <th className="py-3">#</th>
-                                                        <th className="py-3">Día actual</th>
-                                                        <th className="py-3">Día {compareYear}</th>
-                                                        <th className="py-3 text-right">Actual</th>
+                                                        <th className="py-3"><TranslatedText>Día actual</TranslatedText></th>
+                                                        <th className="py-3"><TranslatedText>Día</TranslatedText> {compareYear}</th>
+                                                        <th className="py-3 text-right"><TranslatedText>Actual</TranslatedText></th>
                                                         <th className="py-3 text-right">{compareYear}</th>
-                                                        <th className="py-3 text-right">Abonos actual</th>
-                                                        <th className="py-3 text-right">Abonos {compareYear}</th>
+                                                        <th className="py-3 text-right"><TranslatedText>Abonos actual</TranslatedText></th>
+                                                        <th className="py-3 text-right"><TranslatedText>Abonos</TranslatedText> {compareYear}</th>
                                                         <th className="py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.deltaEuro}>Δ €</HelpLabel></th>
                                                         <th className="py-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.deltaPercent}>Δ %</HelpLabel></th>
                                                     </tr>
@@ -3364,21 +3367,21 @@ function FacturacionAnalyticsPageInner() {
 
                                         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm">
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="font-semibold text-slate-800">Mejor día (actual)</div>
+                                                <div className="font-semibold text-slate-800"><TranslatedText>Mejor día (actual)</TranslatedText></div>
                                                 <div className="mt-1 text-slate-700">
                                                     {compareStats.bestCur.date ? fmtFull.format(compareStats.bestCur.date) : '—'} ·{' '}
                                                     <span className="tabular-nums">{kpiFormat(compareStats.bestCur.y, 'money')}</span>
                                                 </div>
                                             </div>
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="font-semibold text-slate-800">Peor día (actual)</div>
+                                                <div className="font-semibold text-slate-800"><TranslatedText>Peor día (actual)</TranslatedText></div>
                                                 <div className="mt-1 text-slate-700">
                                                     {compareStats.worstCur.date ? fmtFull.format(compareStats.worstCur.date) : '—'} ·{' '}
                                                     <span className="tabular-nums">{kpiFormat(compareStats.worstCur.y, 'money')}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </Card>
+                                    </Card></LocalizedElement>
                                 ) : null}
                             </>
                         )}
@@ -3411,15 +3414,15 @@ function FacturacionAnalyticsPageInner() {
                                     <Card key={unitKey} title={title} subtitle={subtitle}>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
-                                                <div className="text-xs text-slate-500">Ventas</div>
+                                                <div className="text-xs text-slate-500"><TranslatedText>Ventas</TranslatedText></div>
                                                 <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.ventas, 'money')}</div>
                                             </div>
                                             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
-                                                <div className="text-xs text-slate-500">Facturas</div>
+                                                <div className="text-xs text-slate-500"><TranslatedText>Facturas</TranslatedText></div>
                                                 <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.facturas)}</div>
                                             </div>
                                             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3">
-                                                <div className="text-xs text-slate-500"><HelpLabel help={ANALYTICS_HELP.ticketMedio}>Ticket medio</HelpLabel></div>
+                                                <div className="text-xs text-slate-500"><HelpLabel help={ANALYTICS_HELP.ticketMedio}><TranslatedText>Ticket medio</TranslatedText></HelpLabel></div>
                                                 <div className="mt-1 text-lg font-semibold tabular-nums">{kpiFormat(unit.ticketMedio, 'money')}</div>
                                             </div>
                                         </div>
@@ -3429,10 +3432,10 @@ function FacturacionAnalyticsPageInner() {
                                                 <table className="facturacion-data-table w-full text-sm">
                                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                                         <tr className="text-left border-b border-slate-200">
-                                                            <th className="py-3 px-3">Serie</th>
-                                                            <th className="py-3 px-3 text-right">Ventas</th>
-                                                            <th className="py-3 px-3 text-right">Facturas</th>
-                                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.porcentajeTotal}>% total</HelpLabel></th>
+                                                            <th className="py-3 px-3"><TranslatedText>Serie</TranslatedText></th>
+                                                            <th className="py-3 px-3 text-right"><TranslatedText>Ventas</TranslatedText></th>
+                                                            <th className="py-3 px-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
+                                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.porcentajeTotal}><TranslatedText>% total</TranslatedText></HelpLabel></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -3447,7 +3450,7 @@ function FacturacionAnalyticsPageInner() {
                                                         {!unit.rows?.length && (
                                                             <tr>
                                                                 <td className="py-4 px-3 text-slate-500" colSpan={4}>
-                                                                    Sin datos para esta unidad con los filtros actuales.
+                                                                    <TranslatedText>Sin datos para esta unidad con los filtros actuales.</TranslatedText>
                                                                 </td>
                                                             </tr>
                                                         )}
@@ -3467,17 +3470,17 @@ function FacturacionAnalyticsPageInner() {
             SERIES
         ========================= */}
                 {tab === 'series' && (
-                    <Card title="Series" help={ANALYTICS_HELP.serie} subtitle={`Ventas calculadas por ${amountLabel}. Proyectos reúne las series que empiezan por H; las series se clasifican además como facturas o abonos.`}>
+                    <LocalizedElement><Card title="Series" help={ANALYTICS_HELP.serie} subtitle={`Ventas calculadas por ${amountLabel}. Proyectos reúne las series que empiezan por H; las series se clasifican además como facturas o abonos.`}>
                         <ModernTableShell>
                             <table className="facturacion-data-table w-full text-sm">
                                 <thead className="bg-slate-50 sticky top-0 z-10">
                                     <tr className="text-left border-b border-slate-200">
-                                        <th className="py-3 px-3">Serie</th>
-                                        <th className="py-3 px-3">Tipo</th>
-                                        <th className="py-3 px-3 text-right">Ventas</th>
-                                        <th className="py-3 px-3 text-right">Facturas</th>
-                                        <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.ticketMedio}>Ticket medio</HelpLabel></th>
-                                        <th className="py-3 px-3 text-right">% total</th>
+                                        <th className="py-3 px-3"><TranslatedText>Serie</TranslatedText></th>
+                                        <th className="py-3 px-3"><TranslatedText>Tipo</TranslatedText></th>
+                                        <th className="py-3 px-3 text-right"><TranslatedText>Ventas</TranslatedText></th>
+                                        <th className="py-3 px-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
+                                        <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.ticketMedio}><TranslatedText>Ticket medio</TranslatedText></HelpLabel></th>
+                                        <th className="py-3 px-3 text-right"><TranslatedText>% total</TranslatedText></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3496,14 +3499,14 @@ function FacturacionAnalyticsPageInner() {
                                     {!data.series?.length && (
                                         <tr>
                                             <td className="py-4 px-3 text-slate-500" colSpan={6}>
-                                                Sin datos para los filtros actuales.
+                                                <TranslatedText>Sin datos para los filtros actuales.</TranslatedText>
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </ModernTableShell>
-                    </Card>
+                    </Card></LocalizedElement>
                 )}
 
                 {/* =========================
@@ -3511,9 +3514,9 @@ function FacturacionAnalyticsPageInner() {
         ========================= */}
                 {tab === 'tendencias' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        <Card title="Evolución" help={amountHelp} subtitle={compareYear ? `Actual vs ${compareYear} — ${amountLabel} — sin no laborables` : `${amountLabel} — sin no laborables`}>
+                        <LocalizedElement><Card title="Evolución" help={amountHelp} subtitle={compareYear ? `Actual vs ${compareYear} — ${amountLabel} — sin no laborables` : `${amountLabel} — sin no laborables`}>
                             {compareYear ? (
-                                <CompareLineChart
+                                <LocalizedElement><CompareLineChart
                                             amountMode={filters.amountMode}
                                     currentRows={data.timeseries.series || []}
                                     compareRows={data.timeseries.compare_series || []}
@@ -3523,9 +3526,9 @@ function FacturacionAnalyticsPageInner() {
                                     title="Evolución (Diaria)"
                                     excludeNonWorking={excludeNonWorking}
                                     nonWorkingSet={nonWorkingSet}
-                                />
+                                /></LocalizedElement>
                             ) : (
-                                <SimpleLineChart
+                                <LocalizedElement><SimpleLineChart
                                             amountMode={filters.amountMode}
                                     rows={data.timeseries.series || []}
                                     fromISO={filters.from}
@@ -3533,11 +3536,11 @@ function FacturacionAnalyticsPageInner() {
                                     title="Evolución (Diaria)"
                                     excludeNonWorking={excludeNonWorking}
                                     nonWorkingSet={nonWorkingSet}
-                                />
+                                /></LocalizedElement>
                             )}
-                        </Card>
+                        </Card></LocalizedElement>
 
-                        <Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle={`Mes anterior y mismo periodo del año anterior, sobre el ${amountLabel}.`}>
+                        <LocalizedElement><Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle={`Mes anterior y mismo periodo del año anterior, sobre el ${amountLabel}.`}>
                             <div className="max-h-[360px] overflow-auto text-sm">
                                 {(data.timeseries.yoy_mom || []).map((r) => (
                                     <div key={r.month_key} className="py-2 border-b last:border-b-0">
@@ -3546,17 +3549,17 @@ function FacturacionAnalyticsPageInner() {
                                             <div className="tabular-nums text-slate-900">{kpiFormat(r.total, 'money')}</div>
                                         </div>
                                         <div className="text-xs text-slate-500 mt-1">
-                                            <HelpLabel help={ANALYTICS_HELP.mom}>Mes anterior</HelpLabel>: {kpiFormat(r.mom_previous, 'money')} · <HelpLabel help={ANALYTICS_HELP.yoy}>Mismo periodo año anterior</HelpLabel>: {kpiFormat(r.yoy_previous, 'money')}
+                                            <HelpLabel help={ANALYTICS_HELP.mom}><TranslatedText>Mes anterior</TranslatedText></HelpLabel>: {kpiFormat(r.mom_previous, 'money')} · <HelpLabel help={ANALYTICS_HELP.yoy}><TranslatedText>Mismo periodo año anterior</TranslatedText></HelpLabel>: {kpiFormat(r.yoy_previous, 'money')}
                                         </div>
                                     </div>
                                 ))}
-                                {!data.timeseries.yoy_mom?.length && <div className="text-slate-500">Sin datos.</div>}
+                                {!data.timeseries.yoy_mom?.length && <div className="text-slate-500"><TranslatedText>Sin datos.</TranslatedText></div>}
                             </div>
-                        </Card>
+                        </Card></LocalizedElement>
 
-                        <Card title="Top series" help={ANALYTICS_HELP.serie} subtitle={`Ordenadas por el ${amountLabel}.`}>
+                        <LocalizedElement><Card title="Top series" help={ANALYTICS_HELP.serie} subtitle={`Ordenadas por el ${amountLabel}.`}>
                             <Ranking title="" rows={data.summary?.top_series_by_sales || []} />
-                        </Card>
+                        </Card></LocalizedElement>
                     </div>
                 )}
 
@@ -3565,26 +3568,26 @@ function FacturacionAnalyticsPageInner() {
         ========================= */}
                 {tab === 'facturas' && (
                     <div className="space-y-4">
-                        <Card
+                        <LocalizedElement><Card
                             title="Buscador de facturas"
                             subtitle="Busca dentro del periodo y filtros actuales por número, serie, cliente, razón social, NIF, vendedor, forma de pago, zona o ruta."
                             right={
                                 <button className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50" onClick={exportCsv}>
-                                    Exportar CSV
+                                    <TranslatedText>Exportar CSV</TranslatedText>
                                 </button>
                             }
                         >
                             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
                                 <div>
-                                    <div className="text-xs font-medium text-slate-500 mb-1.5">Factura / cliente / NIF / vendedor</div>
-                                    <input
+                                    <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Factura / cliente / NIF / vendedor</TranslatedText></div>
+                                    <LocalizedElement><input
                                         value={searchDraft}
                                         onChange={(e) => setSearchDraft(e.target.value)}
                                         className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                         placeholder="Ej: A 23000123, H-1520, cliente, razón social, NIF..."
-                                    />
+                                    /></LocalizedElement>
                                     <div className="mt-2 text-xs text-slate-500">
-                                        Rango activo: {filters.from} → {filters.to}. La búsqueda respeta fechas, unidad de negocio, series y rectificativas.
+                                        <TranslatedText>Rango activo:</TranslatedText> {filters.from} → {filters.to}<TranslatedText>. La búsqueda respeta fechas, unidad de negocio, series y rectificativas.</TranslatedText>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -3596,7 +3599,7 @@ function FacturacionAnalyticsPageInner() {
                                         }}
                                         disabled={!searchDraft.trim()}
                                     >
-                                        Buscar
+                                        <TranslatedText>Buscar</TranslatedText>
                                     </button>
                                     <button
                                         className="px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium hover:bg-slate-50"
@@ -3605,116 +3608,116 @@ function FacturacionAnalyticsPageInner() {
                                             setFilters((f) => ({ ...f, search: '', page: 1 }));
                                         }}
                                     >
-                                        Limpiar
+                                        <TranslatedText>Limpiar</TranslatedText>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex flex-wrap gap-2" aria-label="Filtros rápidos de facturas">
+                            <LocalizedElement><div className="mt-4 flex flex-wrap gap-2" aria-label="Filtros rápidos de facturas">
                                 <button
                                     type="button"
                                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                     onClick={() => applyInvoiceQuickFilter({ rectificativas: '' })}
                                 >
-                                    Todas
+                                    <TranslatedText>Todas</TranslatedText>
                                 </button>
                                 <button
                                     type="button"
                                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                     onClick={() => applyInvoiceQuickFilter({ rectificativas: 'no' })}
                                 >
-                                    Solo normales
+                                    <TranslatedText>Solo normales</TranslatedText>
                                 </button>
                                 <button
                                     type="button"
                                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                     onClick={() => applyInvoiceQuickFilter({ rectificativas: 'yes' })}
                                 >
-                                    Solo rectificativas
+                                    <TranslatedText>Solo rectificativas</TranslatedText>
                                 </button>
                                 <button
                                     type="button"
                                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                     onClick={() => setShowAdvancedFilters(true)}
                                 >
-                                    Abrir filtros avanzados
+                                    <TranslatedText>Abrir filtros avanzados</TranslatedText>
                                 </button>
-                            </div>
+                            </div></LocalizedElement>
 
                             <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                    <div className="text-xs text-slate-500">Resultados</div>
+                                    <div className="text-xs text-slate-500"><TranslatedText>Resultados</TranslatedText></div>
                                     <div className="text-xl font-semibold tabular-nums">{kpiFormat(data.invoices?.total || 0)}</div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                    <div className="text-xs text-slate-500">Página</div>
+                                    <div className="text-xs text-slate-500"><TranslatedText>Página</TranslatedText></div>
                                     <div className="text-xl font-semibold tabular-nums">{kpiFormat(data.invoices?.page || 1)}</div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                    <div className="text-xs text-slate-500">Mostradas</div>
+                                    <div className="text-xs text-slate-500"><TranslatedText>Mostradas</TranslatedText></div>
                                     <div className="text-xl font-semibold tabular-nums">{kpiFormat((data.invoices?.rows || []).length)}</div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                                    <div className="text-xs text-slate-500">Filtro texto</div>
+                                    <div className="text-xs text-slate-500"><TranslatedText>Filtro texto</TranslatedText></div>
                                     <div className="text-sm font-semibold truncate">{filters.search || 'Sin búsqueda'}</div>
                                 </div>
                             </div>
-                        </Card>
+                        </Card></LocalizedElement>
 
                         {selectedInvoice ? (
-                            <Card
-                                title={`Análisis factura ${selectedInvoice.serie || '—'}-${selectedInvoice.nfacventa || '—'}`}
+                            <LocalizedElement><Card
+                                title={`${t('Análisis factura')} ${selectedInvoice.serie || '—'}-${selectedInvoice.nfacventa || '—'}`}
                                 subtitle="Detalle rápido para comprobar cliente, importes y clasificación."
                                 right={
                                     <button
                                         className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50"
                                         onClick={() => setSelectedInvoice(null)}
                                     >
-                                        Cerrar
+                                        <TranslatedText>Cerrar</TranslatedText>
                                     </button>
                                 }
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                                    <KpiTile label="Bruto" value={kpiFormat(selectedInvoice.impbruto || 0, 'money')} hint={ANALYTICS_HELP.brutoFactura} />
-                                    <KpiTile label="IVA" value={kpiFormat(selectedInvoice.impiva || 0, 'money')} hint={ANALYTICS_HELP.iva} />
-                                    <KpiTile label="Total" value={kpiFormat(selectedInvoice.imptotal ?? selectedInvoice.imptotfactura ?? 0, 'money')} hint={ANALYTICS_HELP.totalFactura} />
-                                    <KpiTile label="Tipo" value={selectedInvoice.es_rectificativa ? 'Rectificativa' : getBusinessUnitLabel(selectedInvoice.serie)} hint={selectedInvoice.es_rectificativa ? 'Factura rectificativa detectada.' : 'Según serie.'} />
+                                    <LocalizedElement><KpiTile label="Bruto" value={kpiFormat(selectedInvoice.impbruto || 0, 'money')} hint={ANALYTICS_HELP.brutoFactura} /></LocalizedElement>
+                                    <LocalizedElement><KpiTile label="IVA" value={kpiFormat(selectedInvoice.impiva || 0, 'money')} hint={ANALYTICS_HELP.iva} /></LocalizedElement>
+                                    <LocalizedElement><KpiTile label="Total" value={kpiFormat(selectedInvoice.imptotal ?? selectedInvoice.imptotfactura ?? 0, 'money')} hint={ANALYTICS_HELP.totalFactura} /></LocalizedElement>
+                                    <LocalizedElement><KpiTile label="Tipo" value={selectedInvoice.es_rectificativa ? 'Rectificativa' : getBusinessUnitLabel(selectedInvoice.serie)} hint={selectedInvoice.es_rectificativa ? 'Factura rectificativa detectada.' : 'Según serie.'} /></LocalizedElement>
                                 </div>
 
                                 <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3 text-sm">
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Cliente</div>
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold"><TranslatedText>Cliente</TranslatedText></div>
                                         <div className="mt-2 font-semibold text-slate-900">{selectedInvoice.razentre || selectedInvoice.nomcomer || '—'}</div>
-                                        <div className="text-slate-600">Código: {selectedInvoice.cliente || '—'}</div>
-                                        <div className="text-slate-600">NIF: {selectedInvoice.nifentre || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Código:</TranslatedText> {selectedInvoice.cliente || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>NIF:</TranslatedText> {selectedInvoice.nifentre || '—'}</div>
                                     </div>
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Clasificación</div>
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold"><TranslatedText>Clasificación</TranslatedText></div>
                                         <div className="mt-2 flex items-center gap-2">
                                             <SeriesTypeBadge serie={selectedInvoice.serie} />
-                                            <span className="font-semibold text-slate-900">Serie {selectedInvoice.serie || '—'}</span>
+                                            <span className="font-semibold text-slate-900"><TranslatedText>Serie</TranslatedText> {selectedInvoice.serie || '—'}</span>
                                         </div>
-                                        <div className="text-slate-600 mt-2">Canal: {selectedInvoice.canal || '—'}</div>
-                                        <div className="text-slate-600">Fecha: {selectedInvoice.fecha_dia || selectedInvoice.fecha || '—'}</div>
-                                        <div className="text-slate-600">Clase: {selectedInvoice.clasefactura || '—'}</div>
-                                        <div className="text-slate-600">Tipo rectificativa: {selectedInvoice.tipfacrectificativa || '—'}</div>
+                                        <div className="text-slate-600 mt-2"><TranslatedText>Canal:</TranslatedText> {selectedInvoice.canal || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Fecha:</TranslatedText> {selectedInvoice.fecha_dia || selectedInvoice.fecha || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Clase:</TranslatedText> {selectedInvoice.clasefactura || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Tipo rectificativa:</TranslatedText> {selectedInvoice.tipfacrectificativa || '—'}</div>
                                         {selectedInvoice.serierectifica || selectedInvoice.nfacrectifica || selectedInvoice.abonacodserfacventa || selectedInvoice.abonanfacventa ? (
                                             <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                                                Referencia rectificada/abonada: {selectedInvoice.serierectifica || selectedInvoice.abonacodserfacventa || '—'}-{selectedInvoice.nfacrectifica || selectedInvoice.abonanfacventa || '—'}
+                                                <TranslatedText>Referencia rectificada/abonada:</TranslatedText> {selectedInvoice.serierectifica || selectedInvoice.abonacodserfacventa || '—'}-{selectedInvoice.nfacrectifica || selectedInvoice.abonanfacventa || '—'}
                                             </div>
                                         ) : null}
                                     </div>
                                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Gestión</div>
-                                        <div className="mt-2 text-slate-600">Forma pago: {selectedInvoice.codforpago || '—'}</div>
-                                        <div className="text-slate-600">Vendedor: {selectedInvoice.codvend || '—'}</div>
-                                        <div className="text-slate-600">Zona/Ruta: {selectedInvoice.codzona || '—'} / {selectedInvoice.codruta || '—'}</div>
+                                        <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold"><TranslatedText>Gestión</TranslatedText></div>
+                                        <div className="mt-2 text-slate-600"><TranslatedText>Forma pago:</TranslatedText> {selectedInvoice.codforpago || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Vendedor:</TranslatedText> {selectedInvoice.codvend || '—'}</div>
+                                        <div className="text-slate-600"><TranslatedText>Zona/Ruta:</TranslatedText> {selectedInvoice.codzona || '—'} / {selectedInvoice.codruta || '—'}</div>
                                     </div>
                                 </div>
-                            </Card>
+                            </Card></LocalizedElement>
                         ) : null}
 
-                        <Card
+                        <LocalizedElement><Card
                             title="Facturas"
                             subtitle="Detalle filtrado con clasificación por unidad de negocio, clase de factura y tipo rectificativa. Pulsa “Analizar” para abrir el detalle."
                         >
@@ -3731,7 +3734,7 @@ function FacturacionAnalyticsPageInner() {
                                                     <span className="text-lg font-semibold app-text">{r.serie ?? '—'}-{r.nfacventa ?? '—'}</span>
                                                     {r.es_rectificativa ? (
                                                         <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                                            Rectificativa
+                                                            <TranslatedText>Rectificativa</TranslatedText>
                                                         </span>
                                                     ) : (
                                                         <SeriesTypeBadge serie={r.serie} />
@@ -3743,22 +3746,22 @@ function FacturacionAnalyticsPageInner() {
                                                 className="cjm-icon-button min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold"
                                                 onClick={() => setSelectedInvoice(r)}
                                             >
-                                                Analizar
+                                                <TranslatedText>Analizar</TranslatedText>
                                             </button>
                                         </div>
 
                                         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                                             <div className="col-span-2 rounded-xl bg-slate-50 p-3">
-                                                <div className="cjm-muted text-xs">Cliente</div>
+                                                <div className="cjm-muted text-xs"><TranslatedText>Cliente</TranslatedText></div>
                                                 <div className="mt-1 font-semibold app-text">{r.razentre || r.nomcomer || r.cliente || '—'}</div>
-                                                <div className="cjm-muted mt-0.5 text-xs">{r.nifentre || 'Sin NIF'} · Vendedor {r.codvend || '—'}</div>
+                                                <div className="cjm-muted mt-0.5 text-xs">{r.nifentre || 'Sin NIF'} <TranslatedText>· Vendedor</TranslatedText> {r.codvend || '—'}</div>
                                             </div>
                                             <div className="rounded-xl bg-slate-50 p-3">
-                                                <div className="cjm-muted text-xs">Bruto</div>
+                                                <div className="cjm-muted text-xs"><TranslatedText>Bruto</TranslatedText></div>
                                                 <div className="mt-1 font-semibold app-text tabular-nums">{kpiFormat(r.impbruto ?? 0, 'money')}</div>
                                             </div>
                                             <div className="rounded-xl bg-slate-50 p-3 text-right">
-                                                <div className={`text-xs ${showInvoiceTotal ? 'font-semibold text-blue-700' : 'cjm-muted'}`}>Total {showInvoiceTotal ? '· activo' : ''}</div>
+                                                <div className={`text-xs ${showInvoiceTotal ? 'font-semibold text-blue-700' : 'cjm-muted'}`}><TranslatedText>Total</TranslatedText> {showInvoiceTotal ? '· activo' : ''}</div>
                                                 <div className={`mt-1 font-semibold tabular-nums ${showInvoiceTotal ? 'text-blue-700' : 'app-text'}`}>{kpiFormat(r.imptotal ?? r.imptotfactura ?? 0, 'money')}</div>
                                             </div>
                                         </div>
@@ -3766,7 +3769,7 @@ function FacturacionAnalyticsPageInner() {
                                 ))}
                                 {!data.invoices.rows?.length && (
                                     <div className="cjm-empty-state py-8 text-sm cjm-muted">
-                                        Sin facturas para los filtros actuales.
+                                        <TranslatedText>Sin facturas para los filtros actuales.</TranslatedText>
                                     </div>
                                 )}
                             </div>
@@ -3776,20 +3779,20 @@ function FacturacionAnalyticsPageInner() {
                                 <table className="facturacion-data-table w-full text-sm">
                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                         <tr className="text-left border-b border-slate-200">
-                                            <th className="py-3 px-3">Fecha</th>
-                                            <th className="py-3 px-3">Serie</th>
-                                            <th className="py-3 px-3">Tipo</th>
-                                            <th className="py-3 px-3">Nº</th>
-                                            <th className="py-3 px-3"><HelpLabel help={ANALYTICS_HELP.claseFactura}>Clase</HelpLabel></th>
-                                            <th className="py-3 px-3"><HelpLabel help={ANALYTICS_HELP.tipoRectificativa}>Rectif.</HelpLabel></th>
-                                            <th className="py-3 px-3">Cliente</th>
-                                            <th className="py-3 px-3">Razón social</th>
-                                            <th className="py-3 px-3">NIF</th>
-                                            <th className="py-3 px-3">Vendedor</th>
-                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.brutoFactura}>Bruto</HelpLabel></th>
-                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.iva}>IVA</HelpLabel></th>
-                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.totalFactura}>Total</HelpLabel></th>
-                                            <th className="py-3 px-3 text-right">Acción</th>
+                                            <th className="py-3 px-3"><TranslatedText>Fecha</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>Serie</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>Tipo</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>Nº</TranslatedText></th>
+                                            <th className="py-3 px-3"><HelpLabel help={ANALYTICS_HELP.claseFactura}><TranslatedText>Clase</TranslatedText></HelpLabel></th>
+                                            <th className="py-3 px-3"><HelpLabel help={ANALYTICS_HELP.tipoRectificativa}><TranslatedText>Rectif.</TranslatedText></HelpLabel></th>
+                                            <th className="py-3 px-3"><TranslatedText>Cliente</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>Razón social</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>NIF</TranslatedText></th>
+                                            <th className="py-3 px-3"><TranslatedText>Vendedor</TranslatedText></th>
+                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.brutoFactura}><TranslatedText>Bruto</TranslatedText></HelpLabel></th>
+                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.iva}><TranslatedText>IVA</TranslatedText></HelpLabel></th>
+                                            <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.totalFactura}><TranslatedText>Total</TranslatedText></HelpLabel></th>
+                                            <th className="py-3 px-3 text-right"><TranslatedText>Acción</TranslatedText></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -3803,7 +3806,7 @@ function FacturacionAnalyticsPageInner() {
                                                 <td className="py-3 px-3">
                                                     {r.es_rectificativa ? (
                                                         <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-amber-50 border-amber-200 text-amber-700">
-                                                            Rectificativa
+                                                            <TranslatedText>Rectificativa</TranslatedText>
                                                         </span>
                                                     ) : (
                                                         <SeriesTypeBadge serie={r.serie} />
@@ -3824,7 +3827,7 @@ function FacturacionAnalyticsPageInner() {
                                                         className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium hover:bg-white"
                                                         onClick={() => setSelectedInvoice(r)}
                                                     >
-                                                        Analizar
+                                                        <TranslatedText>Analizar</TranslatedText>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -3832,7 +3835,7 @@ function FacturacionAnalyticsPageInner() {
                                         {!data.invoices.rows?.length && (
                                             <tr>
                                                 <td className="py-4 px-3 text-slate-500" colSpan={14}>
-                                                    Sin facturas para los filtros actuales. Revisa el rango de fechas o limpia la búsqueda.
+                                                    <TranslatedText>Sin facturas para los filtros actuales. Revisa el rango de fechas o limpia la búsqueda.</TranslatedText>
                                                 </td>
                                             </tr>
                                         )}
@@ -3843,7 +3846,7 @@ function FacturacionAnalyticsPageInner() {
 
                             <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
                                 <div className="text-slate-500">
-                                    Mostrando {(data.invoices?.rows || []).length} de {kpiFormat(data.invoices?.total || 0)} facturas.
+                                    <TranslatedText>Mostrando</TranslatedText> {(data.invoices?.rows || []).length} <TranslatedText>de</TranslatedText> {kpiFormat(data.invoices?.total || 0)} <TranslatedText>facturas.</TranslatedText>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
@@ -3851,18 +3854,18 @@ function FacturacionAnalyticsPageInner() {
                                         disabled={(data.invoices?.page || 1) <= 1}
                                         onClick={() => setFilters((f) => ({ ...f, page: Math.max(1, (data.invoices?.page || 1) - 1) }))}
                                     >
-                                        Anterior
+                                        <TranslatedText>Anterior</TranslatedText>
                                     </button>
                                     <button
                                         className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
                                         disabled={(data.invoices?.page || 1) * (data.invoices?.pageSize || filters.pageSize) >= (data.invoices?.total || 0)}
                                         onClick={() => setFilters((f) => ({ ...f, page: (data.invoices?.page || 1) + 1 }))}
                                     >
-                                        Siguiente
+                                        <TranslatedText>Siguiente</TranslatedText>
                                     </button>
                                 </div>
                             </div>
-                        </Card>
+                        </Card></LocalizedElement>
                     </div>
                 )}
 
@@ -3871,25 +3874,25 @@ function FacturacionAnalyticsPageInner() {
             CLIENTES
         ========================= */}
                 {tab === 'clientes' && (
-                    <Card title="Clientes" help={ANALYTICS_HELP.pareto} subtitle={`Clientes ordenados de mayor a menor facturación según ${amountLabel}. Se muestra la razón social cuando está disponible.`}>
+                    <LocalizedElement><Card title="Clientes" help={ANALYTICS_HELP.pareto} subtitle={`Clientes ordenados de mayor a menor facturación según ${amountLabel}. Se muestra la razón social cuando está disponible.`}>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <Ranking
+                            <LocalizedElement><Ranking
                                 title="Top clientes"
                                 rows={(data.summary?.top_clients || []).map((x) => ({
                                     label: x.razentre || x.cliente || '—',
                                     value: x.total,
                                 }))}
-                            />
+                            /></LocalizedElement>
                             <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
-                                <div className="text-sm font-semibold text-slate-800">Notas</div>
+                                <div className="text-sm font-semibold text-slate-800"><TranslatedText>Notas</TranslatedText></div>
                                 <ul className="text-sm text-slate-600 mt-2 list-disc pl-5 space-y-1">
-                                    <li><HelpLabel help={amountHelp}>“Ventas”</HelpLabel> representa el {amountLabel}.</li>
-                                    <li>{showInvoiceTotal ? 'El IVA y los portes ya están incluidos en imptotal, sin sumarse por segunda vez.' : 'El IVA se muestra como KPI fiscal de apoyo.'}</li>
-                                    <li>Las gráficas y comparaciones se muestran <b>sin no-laborables</b> (festivos oficiales + Montilla 2025/2026 + fines de semana).</li>
+                                    <li><HelpLabel help={amountHelp}><TranslatedText>“Ventas”</TranslatedText></HelpLabel> <TranslatedText>representa el</TranslatedText> {amountLabel}.</li>
+                                    <li><TranslatedText>{showInvoiceTotal ? 'El IVA y los portes ya están incluidos en imptotal, sin sumarse por segunda vez.' : 'El IVA se muestra como KPI fiscal de apoyo.'}</TranslatedText></li>
+                                    <li><TranslatedText>Las gráficas y comparaciones se muestran</TranslatedText> <b><TranslatedText>sin no-laborables</TranslatedText></b> <TranslatedText>(festivos oficiales + Montilla 2025/2026 + fines de semana).</TranslatedText></li>
                                 </ul>
                             </div>
                         </div>
-                    </Card>
+                    </Card></LocalizedElement>
                 )}
 
 
@@ -3899,29 +3902,29 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'calidad' && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <KpiTile
+                            <LocalizedElement><KpiTile
                                 label="Puntuación datos"
                                 value={`${kpiFormat(dataQualitySummary?.data_score ?? 0)}%`}
                                 hint={ANALYTICS_HELP.puntuacionDatos}
-                            />
-                            <KpiTile
+                            /></LocalizedElement>
+                            <LocalizedElement><KpiTile
                                 label="Venta ajustada"
                                 value={ventasAjustadasRectificativas === null ? '—' : kpiFormat(ventasAjustadasRectificativas, 'money')}
                                 hint="Ventas no rectificativas menos rectificativas. Las rectificativas se tratan en positivo según la regla confirmada."
-                            />
-                            <KpiTile
+                            /></LocalizedElement>
+                            <LocalizedElement><KpiTile
                                 label="Rectificativas"
                                 value={kpiFormat(dataQualitySummary?.rectificativas ?? rectificativasConteo)}
                                 hint="Se identifican mediante la información de corrección registrada en cada factura."
-                            />
-                            <KpiTile
+                            /></LocalizedElement>
+                            <LocalizedElement><KpiTile
                                 label="Cobertura coste"
                                 value={`${costeCoberturaPct.toFixed(2)}%`}
                                 hint={ANALYTICS_HELP.costeCobertura}
-                            />
+                            /></LocalizedElement>
                         </div>
 
-                        <Card
+                        <LocalizedElement><Card
                             title="Conclusión automática"
                             help="Resumen automático de calidad y fiabilidad de los datos. No modifica facturas ni sustituye una revisión contable."
                             subtitle="Resumen de la calidad y fiabilidad de los datos incluidos en los filtros actuales."
@@ -3936,13 +3939,13 @@ function FacturacionAnalyticsPageInner() {
                                         ))
                                     ) : (
                                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                                            Sin recomendaciones para los filtros actuales.
+                                            <TranslatedText>Sin recomendaciones para los filtros actuales.</TranslatedText>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                    <div className="text-xs uppercase tracking-wide text-slate-400"><HelpLabel help={ANALYTICS_HELP.margen}>Margen</HelpLabel></div>
+                                    <div className="text-xs uppercase tracking-wide text-slate-400"><HelpLabel help={ANALYTICS_HELP.margen}><TranslatedText>Margen</TranslatedText></HelpLabel></div>
                                     <div className="mt-1 text-lg font-semibold text-slate-950">
                                         {margenDisponible ? kpiFormat(dataQualitySummary?.margen_estimado, 'money') : 'No disponible'}
                                     </div>
@@ -3956,10 +3959,10 @@ function FacturacionAnalyticsPageInner() {
                                     ) : null}
                                 </div>
                             </div>
-                        </Card>
+                        </Card></LocalizedElement>
 
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                            <Card title="Controles de integridad" help={ANALYTICS_HELP.descuadre} subtitle="Comprobaciones básicas para detectar datos ausentes o importes que no cuadran.">
+                            <LocalizedElement><Card title="Controles de integridad" help={ANALYTICS_HELP.descuadre} subtitle="Comprobaciones básicas para detectar datos ausentes o importes que no cuadran.">
                                 <div className="space-y-2">
                                     {(data.dataQuality?.checks || []).map((check) => (
                                         <div key={check.key} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3">
@@ -3973,21 +3976,21 @@ function FacturacionAnalyticsPageInner() {
                                         </div>
                                     ))}
                                 </div>
-                            </Card>
+                            </Card></LocalizedElement>
 
                             <div className="lg:col-span-4">
-                                <Card title="Calidad por serie" help={ANALYTICS_HELP.puntuacionDatos} subtitle="Controles contables según importes originales del ERP (impbruto, impuestos e imptotal), independientes del selector comercial.">
+                                <LocalizedElement><Card title="Calidad por serie" help={ANALYTICS_HELP.puntuacionDatos} subtitle="Controles contables según importes originales del ERP (impbruto, impuestos e imptotal), independientes del selector comercial.">
                                     <ModernTableShell>
                                         <table className="facturacion-data-table w-full text-sm">
                                             <thead className="bg-slate-50 sticky top-0 z-10">
                                                 <tr className="text-left border-b border-slate-200">
-                                                    <th className="py-3 px-3">Serie</th>
-                                                    <th className="py-3 px-3">Tipo</th>
-                                                    <th className="py-3 px-3 text-right">Ventas</th>
-                                                    <th className="py-3 px-3 text-right">Facturas</th>
-                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.rectificativa}>Rectificativas</HelpLabel></th>
-                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.costeInformado}>Coste informado</HelpLabel></th>
-                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.descuadre}>Descuadres</HelpLabel></th>
+                                                    <th className="py-3 px-3"><TranslatedText>Serie</TranslatedText></th>
+                                                    <th className="py-3 px-3"><TranslatedText>Tipo</TranslatedText></th>
+                                                    <th className="py-3 px-3 text-right"><TranslatedText>Ventas</TranslatedText></th>
+                                                    <th className="py-3 px-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
+                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.rectificativa}><TranslatedText>Rectificativas</TranslatedText></HelpLabel></th>
+                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.costeInformado}><TranslatedText>Coste informado</TranslatedText></HelpLabel></th>
+                                                    <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.descuadre}><TranslatedText>Descuadres</TranslatedText></HelpLabel></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -4011,14 +4014,14 @@ function FacturacionAnalyticsPageInner() {
                                                 {!data.dataQuality?.by_series?.length && (
                                                     <tr>
                                                         <td className="py-4 px-3 text-slate-500" colSpan={7}>
-                                                            Sin datos de calidad para los filtros actuales.
+                                                            <TranslatedText>Sin datos de calidad para los filtros actuales.</TranslatedText>
                                                         </td>
                                                     </tr>
                                                 )}
                                             </tbody>
                                         </table>
                                     </ModernTableShell>
-                                </Card>
+                                </Card></LocalizedElement>
                             </div>
                         </div>
                     </div>
@@ -4029,7 +4032,7 @@ function FacturacionAnalyticsPageInner() {
             COMPLIANCE
         ========================= */}
                 {tab === 'compliance' && (
-                    <Card title="Control fiscal" help={ANALYTICS_HELP.compliance} subtitle="Resumen por serie de los estados SII y VeriFactu registrados en el ERP.">
+                    <LocalizedElement><Card title="Control fiscal" help={ANALYTICS_HELP.compliance} subtitle="Resumen por serie de los estados SII y VeriFactu registrados en el ERP.">
                         {(data.compliance.alerts || []).length ? (
                             <div className="mb-3 space-y-2">
                                 {data.compliance.alerts.map((a) => (
@@ -4039,20 +4042,20 @@ function FacturacionAnalyticsPageInner() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="mb-3 text-sm text-slate-500">Sin alertas.</div>
+                            <div className="mb-3 text-sm text-slate-500"><TranslatedText>Sin alertas.</TranslatedText></div>
                         )}
 
                         <div className="overflow-auto">
                             <table className="facturacion-data-table w-full text-sm">
                                 <thead>
                                     <tr className="text-left border-b">
-                                        <th className="py-3">Serie</th>
-                                        <th className="py-3">Total</th>
-                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.sii}>Con estado SII</HelpLabel></th>
-                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.sii}>Errores SII</HelpLabel></th>
-                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.fueraPlazo}>Fuera plazo</HelpLabel></th>
-                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.verifactu}>Con VeriFactu</HelpLabel></th>
-                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.verifactu}>Errores VeriFactu</HelpLabel></th>
+                                        <th className="py-3"><TranslatedText>Serie</TranslatedText></th>
+                                        <th className="py-3"><TranslatedText>Total</TranslatedText></th>
+                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.sii}><TranslatedText>Con estado SII</TranslatedText></HelpLabel></th>
+                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.sii}><TranslatedText>Errores SII</TranslatedText></HelpLabel></th>
+                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.fueraPlazo}><TranslatedText>Fuera plazo</TranslatedText></HelpLabel></th>
+                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.verifactu}><TranslatedText>Con VeriFactu</TranslatedText></HelpLabel></th>
+                                        <th className="py-3"><HelpLabel help={ANALYTICS_HELP.verifactu}><TranslatedText>Errores VeriFactu</TranslatedText></HelpLabel></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4070,21 +4073,21 @@ function FacturacionAnalyticsPageInner() {
                                     {!data.compliance.rows?.length && (
                                         <tr>
                                             <td className="py-4 text-slate-500" colSpan={7}>
-                                                Sin datos de compliance para los filtros actuales.
+                                                <TranslatedText>Sin datos de compliance para los filtros actuales.</TranslatedText>
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </Card>
+                    </Card></LocalizedElement>
                 )}
 
                 {/* Loading empty state for resumen */}
                 {tab === 'resumen' && !summary && reqState.loading && (
-                    <Card title="Cargando…" subtitle="Obteniendo datos del backend.">
+                    <LocalizedElement><Card title="Cargando…" subtitle="Obteniendo datos del backend.">
                         <div className="text-sm text-slate-500">—</div>
-                    </Card>
+                    </Card></LocalizedElement>
                 )}
             </div>
         </div>

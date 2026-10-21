@@ -1,3 +1,5 @@
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import SearchBar from '../../components/productos/SearchBar';
@@ -197,7 +199,7 @@ function EtiquetasMarke() {
 
     return (
         <div className="container mx-auto p-4 max-w-3xl">
-            <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800">Generador de Etiquetas de Productos</h1>
+            <h1 className="text-3xl font-extrabold mb-8 text-center text-gray-800"><TranslatedText>Generador de Etiquetas de Productos</TranslatedText></h1>
 
             <div className="flex justify-center mb-8">
                 <SearchBar
@@ -229,7 +231,7 @@ function EtiquetasMarke() {
                 >
                     <div className="w-[100%]">
                         <div className="logo-section" style={{ marginBottom: '4px', marginTop: '4px', justifyItems: "center" }}>
-                            <img
+                            <LocalizedElement><img
                                 src={brandLogos[selectedProduct.codmarca]}
                                 alt="Logo de Marca"
                                 style={{
@@ -237,7 +239,7 @@ function EtiquetasMarke() {
                                     maxHeight: selectedProduct.codmarca === 'CJM' || selectedProduct.codmarca === 'BAS' ? '1.2cm' : '1.4cm',
                                     objectFit: 'contain'
                                 }}
-                            />
+                            /></LocalizedElement>
                         </div>
                     </div>
 
@@ -251,7 +253,7 @@ function EtiquetasMarke() {
                         </div>
 
                         <div className="text-content text-xs " style={{ textAlign: 'start', width: '65%', marginBottom: '7px' }}>
-                            <p className="font-bold">Codigo: {selectedProduct.codprodu}</p>
+                            <p className="font-bold"><TranslatedText>Codigo:</TranslatedText> {selectedProduct.codprodu}</p>
                             <p className="font-bold" >Pattern: {selectedProduct.nombre}</p>
                             <p className="font-bold">Shade:{selectedProduct.tonalidad}</p>
 

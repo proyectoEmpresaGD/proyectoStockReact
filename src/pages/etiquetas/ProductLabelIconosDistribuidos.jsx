@@ -1,3 +1,5 @@
+import { translateCurrent } from '../../i18n/translations.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 // src/pages/etiquetas/EtiquetaLibroIconos.jsx
 
 import React, {
@@ -494,7 +496,7 @@ export default function EtiquetaLibroIconos() {
                     setSuggestions([]);
 
                     setError(
-                        'No se pudieron buscar productos.'
+                        translateCurrent('No se pudieron buscar productos.')
                     );
 
                     return [];
@@ -575,7 +577,7 @@ export default function EtiquetaLibroIconos() {
                     );
 
                     setError(
-                        'No se pudo cargar el producto seleccionado.'
+                        translateCurrent('No se pudo cargar el producto seleccionado.')
                     );
                 } finally {
                     setLoading(
@@ -775,7 +777,7 @@ export default function EtiquetaLibroIconos() {
 
                         if (!image) {
                             console.warn(
-                                `El producto tiene el uso "${visibleUse}", pero no existe en brandLogosUsos.json`
+                                translateCurrent('El producto tiene el uso {use}, pero no existe en brandLogosUsos.json', { use: visibleUse })
                             );
 
                             return null;
@@ -1345,18 +1347,18 @@ export default function EtiquetaLibroIconos() {
             <section className="no-print cjm-panel mx-auto mb-6 max-w-5xl rounded-3xl p-4 sm:p-6">
                 <div className="mb-6">
                     <p className="cjm-kicker">
-                        Documentos · Etiquetas Libro
+                        <TranslatedText>Documentos · Etiquetas Libro</TranslatedText>
                     </p>
 
                     <h1 className="mt-1 text-2xl font-semibold tracking-tight app-text sm:text-3xl">
-                        Etiqueta Libro Iconos
+                        <TranslatedText>Etiqueta Libro Iconos</TranslatedText>
                     </h1>
 
                     <p className="mt-2 text-sm text-slate-600">
-                        Etiqueta de 14 × 4 cm con
+                        <TranslatedText>Etiqueta de 14 × 4 cm con
                         logotipo Contractalia,
                         información del producto
-                        e iconos de usos.
+                        e iconos de usos.</TranslatedText>
                     </p>
                 </div>
 
@@ -1388,7 +1390,7 @@ export default function EtiquetaLibroIconos() {
 
                 {loading && (
                     <p className="mt-4 text-center text-sm text-slate-500">
-                        Cargando producto...
+                        <TranslatedText>Cargando producto...</TranslatedText>
                     </p>
                 )}
 
@@ -1402,7 +1404,7 @@ export default function EtiquetaLibroIconos() {
                     <>
                         <div className="mx-auto mt-5 max-w-2xl rounded-xl border border-slate-200 bg-white p-4">
                             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                Producto seleccionado
+                                <TranslatedText>Producto seleccionado</TranslatedText>
                             </p>
 
                             <p className="mt-1 font-semibold text-slate-900">
@@ -1413,7 +1415,7 @@ export default function EtiquetaLibroIconos() {
                             </p>
 
                             <p className="mt-1 text-xs text-slate-500">
-                                Usos encontrados:{' '}
+                                <TranslatedText>Usos encontrados:</TranslatedText>{' '}
                                 {
                                     visibleUseIcons
                                         .length
@@ -1431,7 +1433,7 @@ export default function EtiquetaLibroIconos() {
                                     primaryButtonClassName
                                 }
                             >
-                                Imprimir
+                                <TranslatedText>Imprimir</TranslatedText>
                             </button>
 
                             <button
@@ -1443,7 +1445,7 @@ export default function EtiquetaLibroIconos() {
                                     primaryButtonClassName
                                 }
                             >
-                                Descargar PDF
+                                <TranslatedText>Descargar PDF</TranslatedText>
                             </button>
 
                             <button
@@ -1455,7 +1457,7 @@ export default function EtiquetaLibroIconos() {
                                     primaryButtonClassName
                                 }
                             >
-                                Descargar JPG
+                                <TranslatedText>Descargar JPG</TranslatedText>
                             </button>
 
                             <button
@@ -1467,7 +1469,7 @@ export default function EtiquetaLibroIconos() {
                                     secondaryButtonClassName
                                 }
                             >
-                                Limpiar
+                                <TranslatedText>Limpiar</TranslatedText>
                             </button>
                         </div>
                     </>

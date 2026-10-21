@@ -1,3 +1,5 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { FiSearch, FiX } from 'react-icons/fi';
 import { useAuthContext } from '../../Auth/AuthContext';
@@ -165,7 +167,7 @@ export default function SearchBar({
             aria-expanded={showSuggestions}
         >
             <label className="cjm-control-label" htmlFor="client-search-input">
-                Buscar cliente
+                <TranslatedText>Buscar cliente</TranslatedText>
             </label>
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -174,7 +176,7 @@ export default function SearchBar({
                         className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]"
                         aria-hidden="true"
                     />
-                    <input
+                    <LocalizedElement><input
                         id="client-search-input"
                         type="search"
                         placeholder="Nombre o código de cliente"
@@ -184,17 +186,17 @@ export default function SearchBar({
                         autoComplete="off"
                         enterKeyHint="search"
                         className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-11"
-                    />
+                    /></LocalizedElement>
 
                     {searchTerm && (
-                        <button
+                        <LocalizedElement><button
                             type="button"
                             onClick={clearSearch}
                             className="cjm-icon-button absolute right-1.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border-0 bg-transparent"
                             aria-label="Limpiar búsqueda"
                         >
                             <FiX aria-hidden="true" />
-                        </button>
+                        </button></LocalizedElement>
                     )}
                 </div>
 

@@ -1,6 +1,8 @@
-import { FaBars, FaMoon, FaSignOutAlt, FaSun } from 'react-icons/fa';
+import TranslatedText from '../i18n/TranslatedText.jsx';
+import { FaBars, FaSignOutAlt } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useAuthContext } from '../Auth/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext.jsx';
 
 const formatRole = (role) => {
     const normalized = String(role || '').trim().toLowerCase();
@@ -20,8 +22,9 @@ const formatRole = (role) => {
     return labels[normalized] || role || 'Usuario';
 };
 
-function Header({ toggleSidebar, isDarkMode, toggleDarkMode }) {
+function Header({ toggleSidebar }) {
     const { logout, user } = useAuthContext();
+    const { t } = useLanguage();
     const username = String(user?.username || 'Usuario').trim();
     const initial = username.charAt(0).toUpperCase() || 'U';
 
@@ -31,12 +34,12 @@ function Header({ toggleSidebar, isDarkMode, toggleDarkMode }) {
                 <button
                     onClick={toggleSidebar}
                     className="cjm-icon-button rounded-xl p-2.5 md:hidden"
-                    aria-label="Abrir menú lateral"
+                    aria-label={t('Abrir menú lateral')}
                 >
                     <FaBars />
                 </button>
 
-                <Link to="/" className="group flex min-w-0 items-center gap-3" aria-label="Ir al inicio">
+                <Link to="/" className="group flex min-w-0 items-center gap-3" aria-label={t('Ir al inicio')}>
                     <img
                         src="/logos/CJM marca negro.png"
                         alt="CJM Group"
@@ -48,7 +51,7 @@ function Header({ toggleSidebar, isDarkMode, toggleDarkMode }) {
                             Stock &amp; Operations
                         </span>
                         <span className="block truncate text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                            Gestión interna
+                            <TranslatedText>Gestión interna</TranslatedText>
                         </span>
                     </span>
                 </Link>
@@ -67,28 +70,19 @@ function Header({ toggleSidebar, isDarkMode, toggleDarkMode }) {
                             {username}
                         </span>
                         <span className="block max-w-36 truncate text-[11px] text-slate-400">
-                            {formatRole(user?.role)}
+                            {t(formatRole(user?.role))}
                         </span>
                     </span>
                 </Link>
 
                 <button
-                    onClick={toggleDarkMode}
-                    className="cjm-icon-button rounded-xl p-2.5"
-                    aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
-                    title={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
-                >
-                    {isDarkMode ? <FaSun /> : <FaMoon />}
-                </button>
-
-                <button
                     onClick={logout}
                     className="group flex items-center gap-2 rounded-xl border border-red-200 bg-white px-2.5 py-2.5 text-sm font-medium text-red-600 transition-all hover:border-red-300 hover:bg-red-50 sm:px-3.5"
-                    aria-label="Cerrar sesión"
-                    title="Cerrar sesión"
+                    aria-label={t('Cerrar sesión')}
+                    title={t('Cerrar sesión')}
                 >
                     <FaSignOutAlt />
-                    <span className="hidden lg:inline">Salir</span>
+                    <span className="hidden lg:inline">{t('Salir')}</span>
                 </button>
             </div>
         </header>

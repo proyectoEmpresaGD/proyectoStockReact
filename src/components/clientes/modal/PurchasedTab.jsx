@@ -1,3 +1,5 @@
+import TranslatedText from '../../../i18n/TranslatedText.jsx';
+import LocalizedElement from '../../../i18n/LocalizedElement.jsx';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import KPIGrid from './KPIGrid';
@@ -276,13 +278,13 @@ export default function PurchasedTab({ client, updateClientBilling }) {
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div className="relative flex-1 min-w-[200px]">
-                    <input
+                    <LocalizedElement><input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Buscar en resultados…"
                         className="w-full border rounded-lg px-3 py-2 text-sm pr-10"
-                    />
+                    /></LocalizedElement>
                     <FiSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 </div>
 
@@ -448,7 +450,7 @@ export default function PurchasedTab({ client, updateClientBilling }) {
                                     colSpan={visibleCols.length}
                                     className="px-3 py-4 text-center text-gray-500"
                                 >
-                                    No hay productos disponibles.
+                                    <TranslatedText>No hay productos disponibles.</TranslatedText>
                                 </td>
                             </tr>
                         )}

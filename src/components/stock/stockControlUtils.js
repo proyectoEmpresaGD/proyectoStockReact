@@ -1,3 +1,4 @@
+import { getActiveLocale } from '../../i18n/locale.js';
 export const STOCK_STATUS = {
     immediate: 'immediate',
     upcoming: 'upcoming',
@@ -17,7 +18,7 @@ export const toNumber = (value, fallback = 0) => {
 };
 
 export const formatQuantity = (value, decimals = 2) => {
-    return toNumber(value).toLocaleString('es-ES', {
+    return toNumber(value).toLocaleString(getActiveLocale(), {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
     });
@@ -30,7 +31,7 @@ export const formatCoverage = (value) => {
     if (months >= 99) return 'Sin consumo';
     if (months < 1) return `${Math.max(Math.round(months * 30), 1)} días`;
 
-    return `${months.toLocaleString('es-ES', {
+    return `${months.toLocaleString(getActiveLocale(), {
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
     })} meses`;

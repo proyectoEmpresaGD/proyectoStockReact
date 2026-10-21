@@ -1,3 +1,5 @@
+import LocalizedElement from '../i18n/LocalizedElement.jsx';
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FaEdit, FaKey, FaPlus, FaTimes, FaTrash } from 'react-icons/fa';
 import { FiBriefcase, FiMail, FiSearch, FiUsers } from 'react-icons/fi';
@@ -389,7 +391,7 @@ function GestionUsuarios() {
 
     return (
         <PageShell maxWidth="max-w-7xl" className="mt-16 sm:mt-20">
-            <PageHeader
+            <LocalizedElement><PageHeader
                 eyebrow="Administración · Seguridad"
                 title="Gestión de usuarios"
                 description="Crea cuentas, asigna permisos y mantén actualizados los datos laborales desde una interfaz optimizada para móvil, tablet y ordenador."
@@ -401,10 +403,10 @@ function GestionUsuarios() {
                         className="cjm-primary-button inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold sm:w-auto"
                     >
                         <FaPlus aria-hidden="true" />
-                        Nuevo usuario
+                        <TranslatedText>Nuevo usuario</TranslatedText>
                     </button>
                 )}
-            />
+            /></LocalizedElement>
 
             {errorMessage && (
                 <div className="cjm-alert cjm-alert-error mt-4" role="alert">{errorMessage}</div>
@@ -413,30 +415,30 @@ function GestionUsuarios() {
                 <div className="cjm-alert cjm-alert-success mt-4" role="status">{successMessage}</div>
             )}
 
-            <section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Filtros de usuarios">
+            <LocalizedElement><section className="cjm-toolbar mt-5 sm:mt-6" aria-label="Filtros de usuarios">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
                     <label className="block">
-                        <span className="cjm-control-label">Buscar usuario</span>
+                        <span className="cjm-control-label"><TranslatedText>Buscar usuario</TranslatedText></span>
                         <span className="relative block">
                             <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" />
-                            <input
+                            <LocalizedElement><input
                                 type="search"
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
                                 placeholder="Usuario, nombre, email o departamento"
                                 className="cjm-input min-h-11 rounded-xl py-2.5 pl-10 pr-3"
-                            />
+                            /></LocalizedElement>
                         </span>
                     </label>
 
                     <label className="block">
-                        <span className="cjm-control-label">Rol</span>
+                        <span className="cjm-control-label"><TranslatedText>Rol</TranslatedText></span>
                         <select
                             value={roleFilter}
                             onChange={(event) => setRoleFilter(event.target.value)}
                             className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
                         >
-                            <option value="all">Todos los roles</option>
+                            <option value="all"><TranslatedText>Todos los roles</TranslatedText></option>
                             {roles.map((role) => (
                                 <option key={role} value={role}>{roleLabel(role)}</option>
                             ))}
@@ -444,10 +446,10 @@ function GestionUsuarios() {
                     </label>
 
                     <span className="cjm-brand-chip min-h-11 justify-center px-3 py-2 text-sm font-semibold">
-                        {filteredUsers.length} de {users.length}
+                        {filteredUsers.length} <TranslatedText>de</TranslatedText> {users.length}
                     </span>
                 </div>
-            </section>
+            </section></LocalizedElement>
 
             <section className="mt-5 sm:mt-6" aria-live="polite">
                 <div className="hidden md:block cjm-table-shell">
@@ -455,14 +457,14 @@ function GestionUsuarios() {
                         <table className="cjm-table min-w-[980px]">
                             <thead>
                                 <tr>
-                                    <th>Usuario</th>
-                                    <th>Nombre</th>
-                                    <th>Email</th>
-                                    <th>Rol</th>
-                                    <th>Departamento</th>
-                                    <th>Cod. repre</th>
-                                    <th>Cod. repres</th>
-                                    <th className="text-right">Acciones</th>
+                                    <th><TranslatedText>Usuario</TranslatedText></th>
+                                    <th><TranslatedText>Nombre</TranslatedText></th>
+                                    <th><TranslatedText>Email</TranslatedText></th>
+                                    <th><TranslatedText>Rol</TranslatedText></th>
+                                    <th><TranslatedText>Departamento</TranslatedText></th>
+                                    <th><TranslatedText>Cod. repre</TranslatedText></th>
+                                    <th><TranslatedText>Cod. repres</TranslatedText></th>
+                                    <th className="text-right"><TranslatedText>Acciones</TranslatedText></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -478,7 +480,7 @@ function GestionUsuarios() {
                                 ) : filteredUsers.length === 0 ? (
                                     <tr>
                                         <td colSpan="8" className="py-10 text-center cjm-muted">
-                                            No hay usuarios que coincidan con los filtros.
+                                            <TranslatedText>No hay usuarios que coincidan con los filtros.</TranslatedText>
                                         </td>
                                     </tr>
                                 ) : filteredUsers.map((user) => (
@@ -498,7 +500,7 @@ function GestionUsuarios() {
                                                 <span className="cjm-badge">{roleLabel(user.role)}</span>
                                                 {customRouteAccessCount(user.route_access) > 0 && (
                                                     <span className="cjm-muted text-[11px] font-medium">
-                                                        {customRouteAccessCount(user.route_access)} personalizado{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
+                                                        {customRouteAccessCount(user.route_access)} <TranslatedText>personalizado</TranslatedText>{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
                                                     </span>
                                                 )}
                                             </div>
@@ -543,8 +545,8 @@ function GestionUsuarios() {
                         </div>
                     ) : filteredUsers.length === 0 ? (
                         <div className="cjm-empty-state py-10">
-                            <p className="font-semibold app-text">No hay usuarios</p>
-                            <p className="cjm-muted mt-2 text-sm">Prueba con otra búsqueda o rol.</p>
+                            <p className="font-semibold app-text"><TranslatedText>No hay usuarios</TranslatedText></p>
+                            <p className="cjm-muted mt-2 text-sm"><TranslatedText>Prueba con otra búsqueda o rol.</TranslatedText></p>
                         </div>
                     ) : filteredUsers.map((user) => (
                         <article key={user.id} className="cjm-data-card">
@@ -562,7 +564,7 @@ function GestionUsuarios() {
                                     <span className="cjm-badge">{roleLabel(user.role)}</span>
                                     {customRouteAccessCount(user.route_access) > 0 && (
                                         <span className="cjm-muted text-[10px] font-medium">
-                                            {customRouteAccessCount(user.route_access)} personalizado{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
+                                            {customRouteAccessCount(user.route_access)} <TranslatedText>personalizado</TranslatedText>{customRouteAccessCount(user.route_access) === 1 ? '' : 's'}
                                         </span>
                                     )}
                                 </div>
@@ -581,7 +583,7 @@ function GestionUsuarios() {
 
                             {(user.codrepre || normalizeCodrepresForDisplay(user.codrepres)) && (
                                 <div className="mt-3 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2 text-xs cjm-muted">
-                                    Representantes: {[user.codrepre, normalizeCodrepresForDisplay(user.codrepres)].filter(Boolean).join(' · ')}
+                                    <TranslatedText>Representantes:</TranslatedText> {[user.codrepre, normalizeCodrepresForDisplay(user.codrepres)].filter(Boolean).join(' · ')}
                                 </div>
                             )}
 
@@ -609,7 +611,7 @@ function GestionUsuarios() {
             </section>
 
             {isCreateModalOpen && (
-                <UserModal
+                <LocalizedElement><UserModal
                     title="Crear nuevo usuario"
                     mode="create"
                     userData={newUser}
@@ -618,11 +620,11 @@ function GestionUsuarios() {
                     onSubmit={handleCreateUser}
                     onChange={handleNewUserChange}
                     onGeneratePassword={handleGeneratePassword}
-                />
+                /></LocalizedElement>
             )}
 
             {isEditModalOpen && editUser && (
-                <UserModal
+                <LocalizedElement><UserModal
                     title="Editar usuario"
                     mode="edit"
                     userData={editUser}
@@ -632,11 +634,11 @@ function GestionUsuarios() {
                     onChange={handleEditUserChange}
                     onRouteAccessChange={handleEditUserRouteAccessChange}
                     onRouteAccessReset={handleResetEditUserRouteAccess}
-                />
+                /></LocalizedElement>
             )}
 
             {pendingDeleteUser && (
-                <ConfirmDialog
+                <LocalizedElement><ConfirmDialog
                     title="Eliminar usuario"
                     message={`¿Seguro que quieres eliminar a ${pendingDeleteUser.username}? Esta acción no se puede deshacer.`}
                     confirmLabel="Eliminar usuario"
@@ -644,7 +646,7 @@ function GestionUsuarios() {
                     onCancel={() => setPendingDeleteUser(null)}
                     loading={deleting}
                     destructive
-                />
+                /></LocalizedElement>
             )}
         </PageShell>
     );
@@ -675,7 +677,7 @@ function UserModal({
             <section className="cjm-modal sm:max-w-4xl" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
                 <div className="cjm-modal-header flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
                     <div className="min-w-0">
-                        <p className="cjm-kicker">Administración de acceso</p>
+                        <p className="cjm-kicker"><TranslatedText>Administración de acceso</TranslatedText></p>
                         <h2 id="user-modal-title" className="mt-1 text-lg font-semibold app-text sm:text-xl">{title}</h2>
                         <p className="cjm-muted mt-1 text-sm">
                             {isCreateMode
@@ -683,7 +685,7 @@ function UserModal({
                                 : 'Modifica los datos y permisos del usuario seleccionado.'}
                         </p>
                     </div>
-                    <button
+                    <LocalizedElement><button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
@@ -691,13 +693,13 @@ function UserModal({
                         aria-label="Cerrar"
                     >
                         <FaTimes aria-hidden="true" />
-                    </button>
+                    </button></LocalizedElement>
                 </div>
 
                 <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
                     <div className="cjm-modal-body px-4 py-5 sm:px-6">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <FormField label="Usuario" required>
+                            <LocalizedElement><FormField label="Usuario" required>
                                 <input
                                     type="text"
                                     value={userData.username}
@@ -705,7 +707,7 @@ function UserModal({
                                     className="cjm-input min-h-11 rounded-xl px-3 py-2.5"
                                     required
                                 />
-                            </FormField>
+                            </FormField></LocalizedElement>
 
                             {isCreateMode && (
                                 <FormField label="Contraseña" required>
@@ -723,7 +725,7 @@ function UserModal({
                                             className="cjm-secondary-button shrink-0"
                                         >
                                             <FaKey aria-hidden="true" />
-                                            Generar
+                                            <TranslatedText>Generar</TranslatedText>
                                         </button>
                                     </div>
                                 </FormField>
@@ -740,7 +742,7 @@ function UserModal({
                                 </select>
                             </FormField>
 
-                            <FormField label="Tipo de jornada">
+                            <LocalizedElement><FormField label="Tipo de jornada">
                                 <select
                                     value={userData.tipo_jornada}
                                     onChange={(event) => onChange('tipo_jornada', event.target.value)}
@@ -748,53 +750,53 @@ function UserModal({
                                 >
                                     {jornadas.map((jornada) => <option key={jornada} value={jornada}>{jornada}</option>)}
                                 </select>
-                            </FormField>
+                            </FormField></LocalizedElement>
 
                             <FormField label="Nombre">
                                 <input type="text" value={userData.nombre} onChange={(event) => onChange('nombre', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
                             </FormField>
-                            <FormField label="Primer apellido">
+                            <LocalizedElement><FormField label="Primer apellido">
                                 <input type="text" value={userData.apellido1} onChange={(event) => onChange('apellido1', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
-                            </FormField>
-                            <FormField label="Segundo apellido">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Segundo apellido">
                                 <input type="text" value={userData.apellido2} onChange={(event) => onChange('apellido2', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
-                            </FormField>
-                            <FormField label="DNI">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="DNI">
                                 <input type="text" value={userData.dni} onChange={(event) => onChange('dni', event.target.value.toUpperCase())} className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
-                            </FormField>
-                            <FormField label="Email">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Email">
                                 <input type="email" value={userData.email} onChange={(event) => onChange('email', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
-                            </FormField>
-                            <FormField label="Departamento">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Departamento">
                                 <input type="text" value={userData.departamento} onChange={(event) => onChange('departamento', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
-                            </FormField>
-                            <FormField label="Días de vacaciones anuales">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Días de vacaciones anuales">
                                 <input type="number" min="0" value={userData.dias_vacaciones_anuales} onChange={(event) => onChange('dias_vacaciones_anuales', event.target.value)} className="cjm-input min-h-11 rounded-xl px-3 py-2.5" />
-                            </FormField>
-                            <FormField label="Representante principal">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Representante principal">
                                 <input type="text" value={userData.codrepre} onChange={(event) => onChange('codrepre', event.target.value.toUpperCase())} placeholder="020" className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
-                            </FormField>
-                            <FormField label="Representantes adicionales">
+                            </FormField></LocalizedElement>
+                            <LocalizedElement><FormField label="Representantes adicionales">
                                 <input type="text" value={userData.codrepres} onChange={(event) => onChange('codrepres', event.target.value.toUpperCase())} placeholder="021, 022, 030" className="cjm-input min-h-11 rounded-xl px-3 py-2.5 uppercase" />
-                            </FormField>
+                            </FormField></LocalizedElement>
 
                             {isCreateMode && (
-                                <FormField label="Imagen de perfil" className="md:col-span-2">
+                                <LocalizedElement><FormField label="Imagen de perfil" className="md:col-span-2">
                                     <input
                                         type="file"
                                         accept="image/*"
                                         onChange={(event) => onChange('imagenperfil', event.target.files?.[0] || null)}
                                         className="cjm-input min-h-11 rounded-xl px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#536f93] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
                                     />
-                                </FormField>
+                                </FormField></LocalizedElement>
                             )}
                         </div>
 
                         {isCreateMode ? (
                             <div className="mt-6 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-4">
-                                <p className="text-sm font-semibold app-text">Permisos individuales</p>
+                                <p className="text-sm font-semibold app-text"><TranslatedText>Permisos individuales</TranslatedText></p>
                                 <p className="cjm-muted mt-1 text-sm leading-6">
-                                    Primero crea el usuario. Después podrás editarlo y añadir o bloquear rutas concretas sin crear un rol nuevo.
+                                    <TranslatedText>Primero crea el usuario. Después podrás editarlo y añadir o bloquear rutas concretas sin crear un rol nuevo.</TranslatedText>
                                 </p>
                             </div>
                         ) : (
@@ -809,7 +811,7 @@ function UserModal({
 
                     <div className="cjm-modal-footer grid grid-cols-1 gap-2 border-t px-4 py-4 sm:flex sm:justify-end sm:px-6">
                         <button type="button" onClick={onClose} className="cjm-ghost-button" disabled={saving}>
-                            Cancelar
+                            <TranslatedText>Cancelar</TranslatedText>
                         </button>
                         <button
                             type="submit"
@@ -853,27 +855,27 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
         <section className="mt-6 border-t border-[var(--cjm-border)] pt-6" aria-labelledby="route-permissions-title">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p className="cjm-kicker">Permisos individuales</p>
+                    <p className="cjm-kicker"><TranslatedText>Permisos individuales</TranslatedText></p>
                     <h3 id="route-permissions-title" className="mt-1 text-base font-semibold app-text sm:text-lg">
-                        Acceso a módulos y rutas
+                        <TranslatedText>Acceso a módulos y rutas</TranslatedText>
                     </h3>
                     <p className="cjm-muted mt-1 max-w-2xl text-sm leading-6">
-                        El rol <strong>{roleLabel(normalizedRole)}</strong> define la base. Aquí solo guardas excepciones para este usuario.
+                        <TranslatedText>El rol</TranslatedText> <strong>{roleLabel(normalizedRole)}</strong> <TranslatedText>define la base. Aquí solo guardas excepciones para este usuario.</TranslatedText>
                     </p>
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:max-w-sm">
                     <label className="block w-full">
-                        <span className="sr-only">Buscar permiso</span>
+                        <span className="sr-only"><TranslatedText>Buscar permiso</TranslatedText></span>
                         <span className="relative block">
                             <FiSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" />
-                            <input
+                            <LocalizedElement><input
                                 type="search"
                                 value={permissionSearch}
                                 onChange={(event) => setPermissionSearch(event.target.value)}
                                 placeholder="Buscar módulo o ruta"
                                 className="cjm-input min-h-11 rounded-xl py-2.5 pl-10 pr-3"
-                            />
+                            /></LocalizedElement>
                         </span>
                     </label>
                     {customCount > 0 && !isAdmin && (
@@ -882,7 +884,7 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
                             onClick={onReset}
                             className="cjm-secondary-button min-h-10 justify-center text-xs"
                         >
-                            Restaurar permisos del rol ({customCount})
+                            <TranslatedText>Restaurar permisos del rol (</TranslatedText>{customCount})
                         </button>
                     )}
                 </div>
@@ -890,7 +892,7 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
 
             {isAdmin && (
                 <div className="cjm-alert cjm-alert-success mt-4" role="status">
-                    Los administradores conservan acceso completo. No es necesario crear excepciones individuales.
+                    <TranslatedText>Los administradores conservan acceso completo. No es necesario crear excepciones individuales.</TranslatedText>
                 </div>
             )}
 
@@ -933,9 +935,9 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
                                             className="cjm-input min-h-11 w-full rounded-xl px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                             aria-label={`Permiso para ${route.label}`}
                                         >
-                                            <option value="inherit">Heredar del rol</option>
-                                            <option value="allow">Dar acceso</option>
-                                            <option value="deny">Bloquear acceso</option>
+                                            <option value="inherit"><TranslatedText>Heredar del rol</TranslatedText></option>
+                                            <option value="allow"><TranslatedText>Dar acceso</TranslatedText></option>
+                                            <option value="deny"><TranslatedText>Bloquear acceso</TranslatedText></option>
                                         </select>
                                     </div>
                                 );
@@ -946,8 +948,8 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
 
                 {Object.keys(groupedRoutes).length === 0 && (
                     <div className="cjm-empty-state py-8">
-                        <p className="font-semibold app-text">No hay rutas que coincidan</p>
-                        <p className="cjm-muted mt-1 text-sm">Prueba con otro término de búsqueda.</p>
+                        <p className="font-semibold app-text"><TranslatedText>No hay rutas que coincidan</TranslatedText></p>
+                        <p className="cjm-muted mt-1 text-sm"><TranslatedText>Prueba con otro término de búsqueda.</TranslatedText></p>
                     </div>
                 )}
             </div>

@@ -1,3 +1,4 @@
+import { getActiveLocale } from '../i18n/locale.js';
 /**
  * SGA · Preparación de pedidos, exclusivamente en memoria en esta fase.
  * Las cantidades usan centésimas enteras (metros con dos decimales).
@@ -231,7 +232,7 @@ export function getOrderProgress(order, picks = [], products = []) {
 
 export function formatUnitTotals(totals, field = 'delivered') {
     const units = Object.entries(totals || {});
-    return units.length ? units.map(([unit, values]) => `${asNumber(toCents(values[field])).toLocaleString('es-ES', { maximumFractionDigits: 2 })} ${unit}`).join(' + ') : '0 m';
+    return units.length ? units.map(([unit, values]) => `${asNumber(toCents(values[field])).toLocaleString(getActiveLocale(), { maximumFractionDigits: 2 })} ${unit}`).join(' + ') : '0 m';
 }
 
 /** Revisión defensiva: reproducir TODAS las preparaciones evita documentos con

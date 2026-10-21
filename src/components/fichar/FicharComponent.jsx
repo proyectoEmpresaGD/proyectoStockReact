@@ -1,3 +1,8 @@
+import { useLanguage } from '../../i18n/LanguageContext.jsx';
+import { getActiveLocale } from '../../i18n/locale.js';
+import { translateCurrent } from '../../i18n/translations.js';
+import LocalizedElement from '../../i18n/LocalizedElement.jsx';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -36,6 +41,7 @@ const getDaySlots = (items = []) => {
 
 export default function FicharComponent() {
     const { user, token, logout } = useAuthContext();
+    const { language, t } = useLanguage();
     const [fichajes, setFichajes] = useState([]);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -70,7 +76,7 @@ export default function FicharComponent() {
     const grouped = useMemo(() => groupFichajesByDay(fichajes), [fichajes]);
     const now = moment().tz(MADRID_ZONE);
     const daysInMonth = now.daysInMonth();
-    const periodLabel = now.toDate().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const periodLabel = now.toDate().toLocaleDateString(getActiveLocale(), { month: 'long', year: 'numeric' });
 
     const totalHours = useMemo(() => {
         let total = 0;
@@ -124,17 +130,17 @@ export default function FicharComponent() {
 
     const handlePrint = () => {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const monthName = now.toDate().toLocaleDateString('es-ES', { month: 'long' });
+        const monthName = now.toDate().toLocaleDateString(getActiveLocale(), { month: 'long' });
         doc.setFontSize(16);
-        doc.text('Registro de horas mensuales', 14, 15);
+        doc.text(t('Registro de horas mensuales'), 14, 15);
         doc.setFontSize(9);
-        doc.text('Empresa: CJM WORLDWIDE S.L.', 14, 22);
+        doc.text(`${t('Empresa:')} CJM WORLDWIDE S.L.`, 14, 22);
         doc.text('NIF/CIF: B14570873', 14, 27);
-        doc.text(`Trabajador: ${user?.nombre || user?.name || user?.username || '—'}`, 14, 32);
+        doc.text(`${t('Trabajador:')} ${user?.nombre || user?.name || user?.username || '—'}`, 14, 32);
         doc.text(`DNI: ${user?.dni || '—'}`, 14, 37);
-        doc.text(`Periodo: ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${now.year()}`, 14, 42);
+        doc.text(`${t('Periodo:')} ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${now.year()}`, 14, 42);
 
-        const headers = ['Día', 'Entrada mañana', 'Salida mañana', 'Entrada tarde', 'Salida tarde'];
+        const headers = ['Día', 'Entrada mañana', 'Salida mañana', 'Entrada tarde', 'Salida tarde'].map(t);
         const positions = [14, 35, 78, 121, 164];
         doc.setFont(undefined, 'bold');
         headers.forEach((header, index) => doc.text(header, positions[index], 52));
@@ -154,9 +160,9 @@ export default function FicharComponent() {
             y += 7;
         }
         doc.setFont(undefined, 'bold');
-        doc.text(`Total de horas: ${totalHours.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, Math.min(y + 5, 198));
+        doc.text(`${t('Total de horas:')} ${totalHours.toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, Math.min(y + 5, 198));
         doc.save(`registro-horas-${now.format('YYYY-MM')}.pdf`);
-        toast.success('Resumen mensual descargado.');
+        toast.success(translateCurrent('Resumen mensual descargado.'));
     };
 
     const rows = Array.from({ length: daysInMonth }, (_, index) => {
@@ -167,22 +173,22 @@ export default function FicharComponent() {
     return (
         <section className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-3">
-                <article className="cjm-metric-card"><p className="cjm-data-label">Periodo</p><p className="mt-2 font-semibold capitalize app-text">{periodLabel}</p></article>
-                <article className="cjm-metric-card"><p className="cjm-data-label">Fichajes</p><p className="mt-2 text-2xl font-semibold tabular-nums app-text">{fichajes.length}</p></article>
-                <article className="cjm-metric-card"><p className="cjm-data-label">Horas registradas</p><p className="mt-2 text-2xl font-semibold tabular-nums app-text">{totalHours.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></article>
+                <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Periodo</TranslatedText></p><p className="mt-2 font-semibold capitalize app-text">{periodLabel}</p></article>
+                <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Fichajes</TranslatedText></p><p className="mt-2 text-2xl font-semibold tabular-nums app-text">{fichajes.length}</p></article>
+                <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Horas registradas</TranslatedText></p><p className="mt-2 text-2xl font-semibold tabular-nums app-text">{totalHours.toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></article>
             </div>
 
             <div className="cjm-toolbar flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="grid grid-cols-2 gap-2 sm:flex">
                     <button type="button" onClick={() => register({ type: 'entrada' })} disabled={submitting} className="cjm-primary-button bg-emerald-700 hover:bg-emerald-800">
-                        <LogIn className="h-4 w-4" aria-hidden="true" />Entrada
+                        <LogIn className="h-4 w-4" aria-hidden="true" /><TranslatedText>Entrada</TranslatedText>
                     </button>
                     <button type="button" onClick={() => setShowSignatureModal(true)} disabled={submitting} className="cjm-danger-button">
-                        <LogOut className="h-4 w-4" aria-hidden="true" />Salida
+                        <LogOut className="h-4 w-4" aria-hidden="true" /><TranslatedText>Salida</TranslatedText>
                     </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:flex">
-                    <button type="button" onClick={fetchFichajes} disabled={loading} className="cjm-ghost-button"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />Actualizar</button>
+                    <button type="button" onClick={fetchFichajes} disabled={loading} className="cjm-ghost-button"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" /><TranslatedText>Actualizar</TranslatedText></button>
                     <button type="button" onClick={handlePrint} disabled={!fichajes.length} className="cjm-secondary-button"><Download className="h-4 w-4" aria-hidden="true" />PDF</button>
                 </div>
             </div>
@@ -190,16 +196,16 @@ export default function FicharComponent() {
             {error && <div className="cjm-alert cjm-alert-error" role="alert">{error}</div>}
 
             {loading ? (
-                <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm">Cargando fichajes…</p></div>
+                <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm"><TranslatedText>Cargando fichajes…</TranslatedText></p></div>
             ) : fichajes.length === 0 ? (
-                <EmptyState title="No hay fichajes registrados" description="Pulsa Entrada para iniciar el registro de la jornada." />
+                <LocalizedElement><EmptyState title="No hay fichajes registrados" description="Pulsa Entrada para iniciar el registro de la jornada." /></LocalizedElement>
             ) : (
                 <>
                     <div className="hidden md:block">
                         <div className="cjm-table-shell">
                             <div className="cjm-table-scroller max-h-[58vh] overflow-y-auto">
                                 <table className="cjm-table min-w-[760px]">
-                                    <thead className="sticky top-0 z-10"><tr><th>Día</th><th>Entrada mañana</th><th>Salida mañana</th><th>Entrada tarde</th><th>Salida tarde</th><th>Firma</th></tr></thead>
+                                    <thead className="sticky top-0 z-10"><tr><th><TranslatedText>Día</TranslatedText></th><th><TranslatedText>Entrada mañana</TranslatedText></th><th><TranslatedText>Salida mañana</TranslatedText></th><th><TranslatedText>Entrada tarde</TranslatedText></th><th><TranslatedText>Salida tarde</TranslatedText></th><th><TranslatedText>Firma</TranslatedText></th></tr></thead>
                                     <tbody>
                                         {rows.map((row) => {
                                             const signature = row.afternoonExit?.firma || row.morningExit?.firma;
@@ -219,12 +225,12 @@ export default function FicharComponent() {
                     <div className="grid gap-3 sm:grid-cols-2 md:hidden">
                         {rows.filter((row) => row.morningEntry || row.morningExit || row.afternoonEntry || row.afternoonExit).map((row) => (
                             <article className="cjm-data-card" key={`mobile-${row.day}`}>
-                                <div className="flex items-center justify-between"><p className="font-semibold app-text">Día {row.day}</p><span className="cjm-badge">{[row.morningEntry, row.morningExit, row.afternoonEntry, row.afternoonExit].filter(Boolean).length} marcas</span></div>
+                                <div className="flex items-center justify-between"><p className="font-semibold app-text"><TranslatedText>Día</TranslatedText> {row.day}</p><span className="cjm-badge">{[row.morningEntry, row.morningExit, row.afternoonEntry, row.afternoonExit].filter(Boolean).length} <TranslatedText>marcas</TranslatedText></span></div>
                                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                                    <div><dt className="cjm-data-label">Entrada mañana</dt><dd className="mt-1 app-text">{formatTime(row.morningEntry)}</dd></div>
-                                    <div><dt className="cjm-data-label">Salida mañana</dt><dd className="mt-1 app-text">{formatTime(row.morningExit)}</dd></div>
-                                    <div><dt className="cjm-data-label">Entrada tarde</dt><dd className="mt-1 app-text">{formatTime(row.afternoonEntry)}</dd></div>
-                                    <div><dt className="cjm-data-label">Salida tarde</dt><dd className="mt-1 app-text">{formatTime(row.afternoonExit)}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Entrada mañana</TranslatedText></dt><dd className="mt-1 app-text">{formatTime(row.morningEntry)}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Salida mañana</TranslatedText></dt><dd className="mt-1 app-text">{formatTime(row.morningExit)}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Entrada tarde</TranslatedText></dt><dd className="mt-1 app-text">{formatTime(row.afternoonEntry)}</dd></div>
+                                    <div><dt className="cjm-data-label"><TranslatedText>Salida tarde</TranslatedText></dt><dd className="mt-1 app-text">{formatTime(row.afternoonExit)}</dd></div>
                                 </dl>
                             </article>
                         ))}

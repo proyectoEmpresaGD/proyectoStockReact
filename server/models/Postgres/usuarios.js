@@ -124,6 +124,14 @@ const normalizeUserData = (data) => {
         normalizedData.codrepres = normalizeCodrepres(normalizedData.codrepres);
     }
 
+    if (Object.prototype.hasOwnProperty.call(normalizedData, 'idioma')) {
+        normalizedData.idioma = normalizedData.idioma === 'en' ? 'en' : 'es';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(normalizedData, 'tema')) {
+        normalizedData.tema = normalizedData.tema === 'dark' ? 'dark' : 'light';
+    }
+
     if (Object.prototype.hasOwnProperty.call(normalizedData, 'route_access')) {
         normalizedData.route_access = normalizeRouteAccess(normalizedData.route_access);
     }
@@ -560,6 +568,8 @@ export class UserModel {
             'codrepre',
             'codrepres',
             'route_access',
+            'idioma',
+            'tema',
         ];
 
         const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -605,7 +615,9 @@ export class UserModel {
                 departamento,
                 codrepre,
                 codrepres,
-                route_access
+                route_access,
+                idioma,
+                tema
         `;
 
         try {

@@ -1,3 +1,4 @@
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
 import ProductLotLabel from './ProductLotLabel';
 
@@ -22,7 +23,7 @@ export default function ProductLotLabelsPreview({
     if (lots.length === 0) {
         return (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                Selecciona un producto, busca por nombre o carga una colección para generar etiquetas.
+                <TranslatedText>Selecciona un producto, busca por nombre o carga una colección para generar etiquetas.</TranslatedText>
             </div>
         );
     }

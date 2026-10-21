@@ -1,3 +1,4 @@
+import TranslatedText from '../i18n/TranslatedText.jsx';
 import React from 'react';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
@@ -28,10 +29,10 @@ export default class AppErrorBoundary extends React.Component {
                     <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-amber-700">
                         <AlertTriangle aria-hidden="true" />
                     </span>
-                    <p className="cjm-kicker mt-5">Protección de la aplicación</p>
-                    <h1 className="mt-2 text-2xl font-semibold app-text sm:text-3xl">No se pudo mostrar este módulo</h1>
+                    <p className="cjm-kicker mt-5"><TranslatedText>Protección de la aplicación</TranslatedText></p>
+                    <h1 className="mt-2 text-2xl font-semibold app-text sm:text-3xl"><TranslatedText>No se pudo mostrar este módulo</TranslatedText></h1>
                     <p className="cjm-muted mx-auto mt-3 max-w-md text-sm leading-6 sm:text-base">
-                        La sesión y el resto de la aplicación siguen protegidos. Puedes reintentar la carga o volver al inicio.
+                        <TranslatedText>La sesión y el resto de la aplicación siguen protegidos. Puedes reintentar la carga o volver al inicio.</TranslatedText>
                     </p>
                     {import.meta.env.DEV && this.state.error?.message && (
                         <pre className="mt-5 overflow-auto rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3 text-left text-xs text-[var(--cjm-muted)]">
@@ -45,7 +46,7 @@ export default class AppErrorBoundary extends React.Component {
                         </button>
                         <a href="#/" className="cjm-ghost-button">
                             <Home className="h-4 w-4" aria-hidden="true" />
-                            Volver al inicio
+                            <TranslatedText>Volver al inicio</TranslatedText>
                         </a>
                     </div>
                 </section>

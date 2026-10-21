@@ -1,3 +1,5 @@
+import { getActiveLocale } from '../../i18n/locale.js';
+import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const ProductTable = ({ products, fetchProductLots }) => {
@@ -30,7 +32,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
         const date = new Date(value);
 
         if (!Number.isNaN(date.getTime())) {
-            return date.toLocaleDateString("es-ES");
+            return date.toLocaleDateString(getActiveLocale());
         }
 
         return String(value);
@@ -77,7 +79,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
             return "—";
         }
 
-        return addBusinessDays(new Date(), totalBusinessDays).toLocaleDateString("es-ES");
+        return addBusinessDays(new Date(), totalBusinessDays).toLocaleDateString(getActiveLocale());
     };
 
     const normalizeLot = (l, idx) => {
@@ -234,7 +236,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
         return (
             <div className={`flex shrink-0 flex-col items-center gap-1 ${RIGHT_W}`}>
                 <div className="text-center text-sm font-semibold app-text md:text-base">
-                    Stock disponible
+                    <TranslatedText>Stock disponible</TranslatedText>
                 </div>
 
                 <div className="w-full rounded-xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] px-3 py-2.5 text-center text-base font-extrabold tabular-nums text-[var(--cjm-primary-deep)]">
@@ -248,13 +250,13 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 {stockReservado > 0 && (
                     <div className="mt-2 w-full space-y-1">
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-2 py-1 text-center text-xs font-bold text-amber-700">
-                            Reservado: {stockReservado.toFixed(2)}{" "}
+                            <TranslatedText>Reservado:</TranslatedText> {stockReservado.toFixed(2)}{" "}
                             {stockUnitLabel(product, stockReservado)}
                         </div>
 
                         {stockTotal > 0 && (
                             <div className="rounded-xl border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-semibold text-gray-600">
-                                Total real: {stockTotal.toFixed(2)}{" "}
+                                <TranslatedText>Total real:</TranslatedText> {stockTotal.toFixed(2)}{" "}
                                 {stockUnitLabel(product, stockTotal)}
                             </div>
                         )}
@@ -281,7 +283,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
             <div className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3.5 sm:p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                        <SectionTitle>Lotes</SectionTitle>
+                        <SectionTitle><TranslatedText>Lotes</TranslatedText></SectionTitle>
 
                         <div className="cjm-muted mt-1 break-words text-xs">
                             {entry.status === "loading"
@@ -315,7 +317,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                     : "bg-[var(--cjm-surface)] text-[var(--cjm-text)] ring-[var(--cjm-border)] hover:bg-[var(--cjm-surface-muted)]",
                             ].join(" ")}
                         >
-                            {entry.status === "error" ? "Reintentar" : "Cargar"}
+                            <TranslatedText>{entry.status === "error" ? "Reintentar" : "Cargar"}</TranslatedText>
                         </button>
                     )}
                 </div>
@@ -329,7 +331,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                 {entry.status === "error" && (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 break-words">
-                        No se han podido cargar los lotes.
+                        <TranslatedText>No se han podido cargar los lotes.</TranslatedText>
                         <div className="mt-1 text-xs text-red-700 break-words">
                             {entry.error || "—"}
                         </div>
@@ -340,7 +342,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                     <>
                         {lots.length === 0 ? (
                             <div className="cjm-muted mt-3 text-sm">
-                                No hay lotes disponibles.
+                                <TranslatedText>No hay lotes disponibles.</TranslatedText>
                             </div>
                         ) : (
                             <>
@@ -365,19 +367,19 @@ const ProductTable = ({ products, fetchProductLots }) => {
                                                     </div>
 
                                                     <div className="cjm-muted text-xs">
-                                                        Disponible
+                                                        <TranslatedText>Disponible</TranslatedText>
                                                     </div>
 
                                                     {stockReservado > 0 && (
                                                         <div className="mt-1 inline-flex rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
-                                                            Reservado: {stockReservado.toFixed(2)}{" "}
+                                                            <TranslatedText>Reservado:</TranslatedText> {stockReservado.toFixed(2)}{" "}
                                                             {qtyUnitForLotRow(p, stockReservado)}
                                                         </div>
                                                     )}
 
                                                     {stockReservado > 0 && stockTotal > 0 && (
                                                         <div className="cjm-muted mt-1 text-xs font-semibold">
-                                                            Total real: {stockTotal.toFixed(2)}{" "}
+                                                            <TranslatedText>Total real:</TranslatedText> {stockTotal.toFixed(2)}{" "}
                                                             {qtyUnitForLotRow(p, stockTotal)}
                                                         </div>
                                                     )}
@@ -395,7 +397,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
                                 {lots.length > 8 && (
                                     <div className="cjm-muted mt-2 text-xs">
-                                        Desplázate para ver todos los lotes.
+                                        <TranslatedText>Desplázate para ver todos los lotes.</TranslatedText>
                                     </div>
                                 )}
                             </>
@@ -408,13 +410,13 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
     const StatusBox = ({ p }) => (
         <div className="overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-3.5 sm:p-4">
-            <SectionTitle>Estado</SectionTitle>
+            <SectionTitle><TranslatedText>Estado</TranslatedText></SectionTitle>
 
             <div className="mt-3 space-y-2">
                 <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <div className="text-sm font-semibold app-text md:text-base">
-                            Pendiente recibir
+                            <TranslatedText>Pendiente recibir</TranslatedText>
                         </div>
                     </div>
 
@@ -428,7 +430,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <div className="text-sm font-semibold app-text md:text-base">
-                            Fecha estimada
+                            <TranslatedText>Fecha estimada</TranslatedText>
                         </div>
                     </div>
 
@@ -442,7 +444,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <div className="text-sm font-semibold app-text md:text-base">
-                            Pendiente servir
+                            <TranslatedText>Pendiente servir</TranslatedText>
                         </div>
                     </div>
 
@@ -464,22 +466,22 @@ const ProductTable = ({ products, fetchProductLots }) => {
 
         return (
             <div className="overflow-hidden rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-3.5 sm:p-4">
-                <SectionTitle>Disponibilidad</SectionTitle>
+                <SectionTitle><TranslatedText>Disponibilidad</TranslatedText></SectionTitle>
 
                 <p className="mt-3 break-words text-sm leading-6 app-text md:text-base">
-                    <span>En caso de no haber stock disponible o suficiente</span>, podemos entregar{" "}
+                    <span><TranslatedText>En caso de no haber stock disponible o suficiente</TranslatedText></span><TranslatedText>, podemos entregar</TranslatedText>{" "}
                     <span className="font-extrabold text-base md:text-lg">{metros}</span>{" "}
-                    <span className="font-bold">metros</span>{" "}
-                    en un plazo aproximado de{" "}
+                    <span className="font-bold"><TranslatedText>metros</TranslatedText></span>{" "}
+                    <TranslatedText>en un plazo aproximado de</TranslatedText>{" "}
                     <span className="font-extrabold text-base md:text-lg">{dias}</span>{" "}
-                    <span className="font-bold">días laborables</span>{" "}
-                    después de la confirmación del pedido.
+                    <span className="font-bold"><TranslatedText>días laborables</TranslatedText></span>{" "}
+                    <TranslatedText>después de la confirmación del pedido.</TranslatedText>
                 </p>
 
                 <div className="mt-4">
                     <div className="flex w-full flex-col items-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface)] px-4 py-3 text-center">
                         <div className="cjm-muted text-center text-xs">
-                            Si confirma hoy, fecha aprox.
+                            <TranslatedText>Si confirma hoy, fecha aprox.</TranslatedText>
                         </div>
 
                         <div className="mt-1 break-words text-center text-lg font-extrabold tabular-nums app-text md:text-xl">
@@ -487,9 +489,9 @@ const ProductTable = ({ products, fetchProductLots }) => {
                         </div>
 
                         <div className="mt-2 break-words text-center text-xs leading-5 app-text md:text-sm">
-                            Para cantidades superiores a{" "}
+                            <TranslatedText>Para cantidades superiores a</TranslatedText>{" "}
                             <span className="font-extrabold">{metros}</span>{" "}
-                            <span className="font-bold">metros</span>, consultar en{" "}
+                            <span className="font-bold"><TranslatedText>metros</TranslatedText></span><TranslatedText>, consultar en</TranslatedText>{" "}
                             <span className="font-semibold break-all">pedidos@cjmgroup.es</span>.
                         </div>
                     </div>
@@ -504,7 +506,7 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                         <div className="cjm-brand-chip px-3 py-1 text-xs font-semibold">
-                            Producto
+                            <TranslatedText>Producto</TranslatedText>
                         </div>
 
                         <div className="mt-3 break-words text-lg font-semibold leading-snug app-text md:text-xl">
@@ -536,8 +538,8 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 ) : (
                     <div className="cjm-empty-state py-10 sm:py-14">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-xl text-[var(--cjm-primary-deep)]">⌕</div>
-                        <p className="mt-4 text-base font-semibold app-text">Busca un producto para consultar su stock</p>
-                        <p className="cjm-muted mx-auto mt-2 max-w-md text-sm leading-6">Escribe una referencia o nombre y pulsa Enter o el botón Buscar.</p>
+                        <p className="mt-4 text-base font-semibold app-text"><TranslatedText>Busca un producto para consultar su stock</TranslatedText></p>
+                        <p className="cjm-muted mx-auto mt-2 max-w-md text-sm leading-6"><TranslatedText>Escribe una referencia o nombre y pulsa Enter o el botón Buscar.</TranslatedText></p>
                     </div>
                 )}
             </div>
