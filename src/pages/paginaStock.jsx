@@ -1,5 +1,7 @@
 import { translateCurrent } from '../i18n/translations.js';
 import TranslatedText from '../i18n/TranslatedText.jsx';
+import { useSearchParams } from 'react-router-dom';
+import { matchesLinkedProduct } from '../features/entradas/stockDeepLink.js';
 import LocalizedElement from '../i18n/LocalizedElement.jsx';
 // src/pages/paginaStock.jsx
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -15,6 +17,9 @@ import PageHeader from '../common/PageHeader.jsx';
 
 function Stock() {
     const { token } = useAuthContext();
+    const [routeParams] = useSearchParams();
+    const linkedQueryCode = (routeParams.get('buscar') || '').trim().slice(0, 120);
+    const [linkedProductCode, setLinkedProductCode] = useState('');
 
     const SEARCH_FETCH_LIMIT = 5000;
 
@@ -146,7 +151,7 @@ function Stock() {
     const computeCombined = useCallback(
         (productsList) =>
             productsList
-                .filter(isValidProduct)
+                .filter((product) => isValidProduct(product) || matchesLinkedProduct(product, linkedProductCode))
                 .map((product) => {
                     const key = normStr(product.codprodu).toUpperCase();
                     const stock = stockByProd.get(key);
@@ -174,7 +179,7 @@ function Stock() {
                         cantminima: stock?.cantminima || null,
                     };
                 }),
-        [stockByProd, isValidProduct, normStr, fechasByCode]
+        [stockByProd, isValidProduct, normStr, fechasByCode, linkedProductCode]
     );
 
     useEffect(() => {
@@ -272,7 +277,7 @@ function Stock() {
     useEffect(() => {
         const normalizedSearchTerm = searchTerm.trim();
 
-        if (normalizedSearchTerm.length < 2 || !token) {
+        if (normalizedSearchTerm.length < 2 || !token || (linkedQueryCode && normalizedSearchTerm === linkedQueryCode)) {
             suggestAbortRef.current?.abort?.();
             setSuggestions([]);
             return;
@@ -318,7 +323,7 @@ function Stock() {
             clearTimeout(timeout);
             controller.abort();
         };
-    }, [searchTerm, token, isValidProduct, fuzzyFilter]);
+    }, [searchTerm, token, isValidProduct, fuzzyFilter, linkedQueryCode]);
 
     const performSearch = useCallback(
         (query) => {
@@ -328,6 +333,7 @@ function Stock() {
 
             setLoadingSearch(true);
             setError(null);
+            setLinkedProductCode('');
 
             requestedFechasRef.current = new Set();
             setFechasByCode({});
@@ -366,6 +372,52 @@ function Stock() {
         },
         [token, SEARCH_FETCH_LIMIT]
     );
+
+    // Acceso directo desde Entradas: consulta la referencia exacta y muestra
+    // también libros/muestrarios que no pasan los filtros del buscador general.
+    // No se convierte la referencia en una búsqueda por descripción.
+    useEffect(() => {
+        if (!linkedQueryCode || !token) {
+            setLinkedProductCode('');
+            return undefined;
+        }
+        const controller = new AbortController();
+        searchAbortRef.current?.abort();
+        searchAbortRef.current = controller;
+        setLinkedProductCode(linkedQueryCode);
+        setSearchTerm(linkedQueryCode);
+        setSuggestions([]);
+        setError(null);
+        setResultsRaw([]);
+        setLoadingSearch(true);
+        requestedFechasRef.current = new Set();
+        setFechasByCode({});
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/${encodeURIComponent(linkedQueryCode)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+            cache: 'no-store',
+        })
+            .then((response) => {
+                if (!response.ok) throw new Error('No se pudo abrir la referencia exacta.');
+                return response.json();
+            })
+            .then((product) => {
+                if (controller.signal.aborted) return;
+                if (!matchesLinkedProduct(product, linkedQueryCode)) {
+                    throw new Error('La referencia solicitada no coincide con el producto recibido.');
+                }
+                setResultsRaw([product]);
+                setCurrentPage(1);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+            })
+            .catch((error) => {
+                if (controller.signal.aborted) return;
+                setResultsRaw([]);
+                setError(error.message || 'No se pudo abrir la referencia exacta.');
+            })
+            .finally(() => { if (!controller.signal.aborted) setLoadingSearch(false); });
+        return () => controller.abort();
+    }, [linkedQueryCode, token]);
 
     const handleSearchKeyPress = (event, explicitValue) => {
         if (event.key !== 'Enter') return;

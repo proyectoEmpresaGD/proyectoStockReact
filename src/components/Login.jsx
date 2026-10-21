@@ -1,3 +1,4 @@
+import BrandMark from './BrandMark.jsx';
 import { translateCurrent } from '../i18n/translations.js';
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -74,11 +75,10 @@ function Login() {
             <main className="cjm-panel relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-[2rem] lg:min-h-[690px] lg:grid-cols-[1.05fr_0.95fr]">
                 <section className="cjm-hero hidden border-r border-slate-200 p-12 lg:flex lg:flex-col lg:justify-between">
                     <div>
-                        <img
-                            src="/logos/CJM marca negro.png"
-                            alt="CJM Group"
-                            className="cjm-logo-adaptive h-16 w-auto object-contain"
-                        />
+                        <div className="flex items-center gap-3">
+                            <BrandMark className="h-16 w-16" />
+                            <span className="text-lg font-semibold tracking-[0.08em] app-text">CJM GROUP</span>
+                        </div>
                         <div className="mt-16 max-w-xl">
                             <p className="cjm-kicker">{t('Plataforma corporativa')}</p>
                             <h1 className="mt-4 text-5xl font-semibold tracking-tight text-slate-900">
@@ -103,11 +103,10 @@ function Login() {
                 <section className="flex items-center px-5 py-8 sm:px-10 sm:py-12 lg:px-14">
                     <div className="mx-auto w-full max-w-md">
                         <div className="mb-8 lg:hidden">
-                            <img
-                                src="/logos/CJM marca negro.png"
-                                alt="CJM Group"
-                                className="cjm-logo-adaptive mx-auto h-14 w-auto object-contain"
-                            />
+                            <div className="flex items-center justify-center gap-3">
+                                <BrandMark className="h-14 w-14" />
+                                <span className="text-base font-semibold tracking-[0.08em] app-text">CJM GROUP</span>
+                            </div>
                         </div>
 
                         <div>

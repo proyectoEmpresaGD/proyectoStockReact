@@ -3,14 +3,28 @@
   "name": "CJMW WORLDWIDE STOCK",
   "icons": [
     {
-      "src": "/pwa-192.png",
+      "src": "/branding/cjm-app-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/pwa-512.png",
+      "src": "/branding/cjm-app-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/branding/cjm-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/branding/cjm-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/#/",

@@ -1,3 +1,4 @@
+import BrandMark from './components/BrandMark.jsx';
 import { Suspense, lazy, useState } from 'react';
 import { HashRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
@@ -9,6 +10,7 @@ import { userCanAccessRoute } from './utils/roleAccessConfig.js';
 import ProtectedRoute from './Auth/ProtectedRoute.jsx';
 import Sidebar from './components/navbar';
 import Header from './components/header';
+import { StockActivityProvider } from './features/entradas/StockActivityContext.jsx';
 import Login from './components/Login.jsx';
 import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 
@@ -58,11 +60,7 @@ const PageLoader = () => {
   return (
   <div className="flex min-h-[60vh] items-center justify-center px-4" role="status" aria-live="polite">
     <div className="cjm-panel cjm-hero w-full max-w-sm rounded-3xl px-8 py-8 text-center">
-      <img
-        src="/logos/CJM marca negro.png"
-        alt="CJM Group"
-        className="cjm-logo-adaptive mx-auto h-10 w-auto object-contain"
-      />
+      <BrandMark className="mx-auto h-14 w-14" />
       <div className="mx-auto mt-6 h-9 w-9 animate-spin rounded-full border-[3px] border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" aria-hidden="true" />
       <h2 className="mt-5 text-lg font-semibold tracking-tight app-text">{t('Preparando el módulo')}</h2>
       <p className="cjm-muted mt-2 text-sm">CJM Stock &amp; Operations</p>
@@ -194,7 +192,7 @@ function App() {
   return <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <AuthProvider>
       <LanguageProvider>
-        <ThemeProvider><AppContent /></ThemeProvider>
+        <StockActivityProvider><ThemeProvider><AppContent /></ThemeProvider></StockActivityProvider>
       </LanguageProvider>
     </AuthProvider>
   </Router>;

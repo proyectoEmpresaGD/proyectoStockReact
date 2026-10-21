@@ -74,25 +74,13 @@ export class ClienteController {
             const offset = (Math.max(Number.parseInt(page, 10) || 1, 1) - 1) * safeLimit;
             const { codclien, codrepres } = normalizeUserClientAccess(req.user);
 
-            const clientes = await ClienteModel.getAll({
-                offset,
-                limit: safeLimit,
-                codpais,
-                codprovi,
-                query,
-                status,
-                codclien,
-                codrepres,
-            });
-
-            const totalClientes = await ClienteModel.getCount({
-                codpais,
-                codprovi,
-                query,
-                status,
-                codclien,
-                codrepres,
-            });
+            // Ambas lecturas son independientes: ejecutarlas a la vez reduce
+            // la latencia sin alterar los filtros ni la respuesta del API.
+            const filters = { codpais, codprovi, query, status, codclien, codrepres };
+            const [clientes, totalClientes] = await Promise.all([
+                ClienteModel.getAll({ ...filters, offset, limit: safeLimit }),
+                ClienteModel.getCount(filters),
+            ]);
 
             res.json({ clients: clientes, total: totalClientes });
         } catch (error) {

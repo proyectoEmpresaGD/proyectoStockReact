@@ -1,4 +1,6 @@
+import BrandMark from './BrandMark.jsx';
 import TranslatedText from '../i18n/TranslatedText.jsx';
+import StockActivityBell from '../features/entradas/StockActivityBell.jsx';
 import { FaBars, FaSignOutAlt } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useAuthContext } from '../Auth/AuthContext';
@@ -40,11 +42,7 @@ function Header({ toggleSidebar }) {
                 </button>
 
                 <Link to="/" className="group flex min-w-0 items-center gap-3" aria-label={t('Ir al inicio')}>
-                    <img
-                        src="/logos/CJM marca negro.png"
-                        alt="CJM Group"
-                        className="cjm-logo-adaptive h-9 w-auto object-contain transition-opacity group-hover:opacity-75 sm:h-10"
-                    />
+                    <BrandMark className="h-10 w-10 transition-opacity group-hover:opacity-75 sm:h-11 sm:w-11" />
                     <span className="hidden h-8 w-px bg-slate-200 sm:block" aria-hidden="true" />
                     <span className="hidden min-w-0 sm:block">
                         <span className="block truncate text-sm font-semibold tracking-tight text-slate-800">
@@ -58,6 +56,7 @@ function Header({ toggleSidebar }) {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+                <StockActivityBell />
                 <Link
                     to="/perfilusuario"
                     className="hidden items-center gap-2.5 rounded-2xl border border-transparent px-2.5 py-1.5 transition-colors hover:border-slate-200 hover:bg-slate-50 sm:flex"

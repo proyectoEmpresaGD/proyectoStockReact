@@ -1,167 +1,280 @@
-import { translateCurrent } from '../i18n/translations.js';
-import { getActiveLocale } from '../i18n/locale.js';
-import LocalizedElement from '../i18n/LocalizedElement.jsx';
-import TranslatedText from '../i18n/TranslatedText.jsx';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, PackageCheck, RefreshCw, Warehouse } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+    Activity, ArrowDownUp, ArrowRight, Bell, CalendarDays, CheckCheck, Clock3,
+    Copy, Info, Package, PackageCheck, RefreshCw, Search, SlidersHorizontal, X,
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 import PageShell from '../common/PageShell.jsx';
-import PageHeader from '../common/PageHeader.jsx';
 import EmptyState from '../common/EmptyState.jsx';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
+import { useStockActivity } from '../features/entradas/StockActivityContext.jsx';
+import { groupEntries, localISODate, normalizeSearch, offsetLocalDate, sortStockActivity } from '../features/entradas/entradasUtils.js';
+import { userCanAccessRoute } from '../utils/roleAccessConfig.js';
+import { useEntryT } from '../features/entradas/entryCopy.js';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const PAGE_SIZE = 12;
+const quantityFormat = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const shortDateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+const timeFormat = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
+const fullDate = (text) => {
+    const [year, month, day] = text.split('-').map(Number);
+    return shortDateFormat.format(new Date(year, month - 1, day, 12));
+};
+const validQueryDate = (text) => /^\d{4}-\d{2}-\d{2}$/.test(text || '') && !Number.isNaN(Date.parse(`${text}T12:00:00`));
+
+function Metric({ icon: Icon, label, value, note }) {
+    return (
+        <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 shadow-sm">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]"><Icon size={20} /></span>
+            <div className="min-w-0">
+                <p className="text-xs font-medium text-[var(--cjm-muted)]">{label}</p>
+                <p className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums app-text">{value}</p>
+                {note && <p className="cjm-muted mt-0.5 text-[11px]">{note}</p>}
+            </div>
+        </div>
+    );
+}
+
+function EntryCard({ entry, canViewStock, isChanged, detectedAt, onCopy }) {
+    const t = useEntryT();
+    // No mostrar fecultmod como hora de recepción: es una modificación de stock
+    // y su serialización puede variar con la zona horaria del servidor.
+    const detectionTime = detectedAt && Number.isFinite(Date.parse(detectedAt)) ? new Date(detectedAt) : null;
+    const brand = (String(entry.codprodu).match(/^[A-Za-z]+/) || [])[0] || 'ST';
+    return (
+        <article className="group flex flex-col gap-4 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 transition-colors hover:border-[var(--cjm-primary-border)] sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] text-xs font-extrabold tracking-widest text-[var(--cjm-primary-deep)]" aria-hidden="true">{brand.slice(0, 3).toUpperCase()}</div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold tracking-wide text-[var(--cjm-primary-deep)]">{entry.codprodu}</span>
+                        {isChanged && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{t('Cambio detectado')}</span>}
+                    </div>
+                    <h3 className="mt-1 break-words text-sm font-semibold leading-snug app-text sm:text-base">{entry.desprodu}</h3>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--cjm-muted)]">
+                        {detectionTime && <span className="inline-flex items-center gap-1"><Clock3 size={12}/>{t('Detectado a las')} {timeFormat.format(detectionTime)}</span>}
+                        {entry.recordCount > 1 && <span>{entry.recordCount} {t('registros agrupados')}</span>}
+                    </div>
+                </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--cjm-border)] pt-3 sm:min-w-[185px] sm:justify-end sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 sm:pt-0">
+                <div className="sm:text-right">
+                    <p className="text-[11px] font-medium text-[var(--cjm-muted)]">{t('Cantidad registrada')}</p>
+                    <p className="text-xl font-bold tabular-nums app-text">{quantityFormat.format(entry.quantity)}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" onClick={() => onCopy(entry.codprodu)} className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--cjm-muted)] hover:bg-[var(--cjm-surface-muted)] hover:text-[var(--cjm-primary-deep)]" title={`Copiar referencia ${entry.codprodu}`} aria-label={`Copiar referencia ${entry.codprodu}`}><Copy size={16} /></button>
+                    {canViewStock && (
+                        <Link to={`/stock?buscar=${encodeURIComponent(entry.codprodu)}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)] transition hover:bg-[var(--cjm-primary-border)]" title={`Abrir referencia exacta ${entry.codprodu} en stock`} aria-label={`Abrir referencia exacta ${entry.codprodu} en stock`}><ArrowRight size={18} /></Link>
+                    )}
+                </div>
+            </div>
+        </article>
+    );
+}
 
 export default function EntradasPage() {
     const { user, token } = useAuthContext();
-    const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
-    const [entradas, setEntradas] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState('');
-    const previousRowsRef = useRef([]);
-    const hasLoadedRef = useRef(false);
-    const activeRequestRef = useRef(null);
+    const t = useEntryT();
+    const { entriesToday, notifications, unreadCount, loading: todayLoading, error: todayError, lastUpdated, refresh, markAllRead } = useStockActivity();
+    const [searchParams] = useSearchParams();
+    const today = localISODate();
+    const initialDate = searchParams.get('fecha');
+    const [selectedDate, setSelectedDate] = useState(() => validQueryDate(initialDate) ? initialDate : today);
+    const [search, setSearch] = useState(() => (searchParams.get('buscar') || '').slice(0, 120));
+    const [sort, setSort] = useState('recent');
+    const [view, setView] = useState('all');
+    const [page, setPage] = useState(1);
+    const [historicalRows, setHistoricalRows] = useState([]);
+    const [historicalLoading, setHistoricalLoading] = useState(false);
+    const [historicalError, setHistoricalError] = useState('');
+    const [historicalRequest, setHistoricalRequest] = useState(0);
+    const [showInfo, setShowInfo] = useState(false);
 
-    const totalQuantity = useMemo(
-        () => entradas.reduce((sum, row) => sum + Number(row.cancompra || 0), 0),
-        [entradas]
-    );
+    const isToday = selectedDate === today;
+    const canViewStock = userCanAccessRoute(String(user?.role || '').toLowerCase(), '/stock', user?.route_access);
 
-    const fetchEntradas = useCallback(async ({ silent = false } = {}) => {
-        if (!selectedDate || !token) return;
-        activeRequestRef.current?.abort();
+    useEffect(() => {
+        const dateParam = searchParams.get('fecha');
+        if (validQueryDate(dateParam)) setSelectedDate(dateParam);
+        const codeParam = searchParams.get('buscar');
+        if (codeParam) setSearch(codeParam.slice(0, 120));
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (isToday || !token) return undefined;
         const controller = new AbortController();
-        activeRequestRef.current = controller;
+        setHistoricalLoading(true);
+        setHistoricalError('');
+        setHistoricalRows([]);
+        fetch(`${API_BASE}/api/stock/entradas?date=${encodeURIComponent(selectedDate)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+            cache: 'no-store',
+        })
+            .then(async (response) => {
+                if (!response.ok) throw new Error(`No se pudieron consultar las entradas (${response.status}).`);
+                const rows = await response.json();
+                if (!Array.isArray(rows)) throw new Error('Respuesta de entradas no válida.');
+                return rows;
+            })
+            .then((rows) => { if (!controller.signal.aborted) setHistoricalRows(groupEntries(rows)); })
+            .catch((error) => { if (!controller.signal.aborted) setHistoricalError(error.message || 'Error al consultar entradas.'); })
+            .finally(() => { if (!controller.signal.aborted) setHistoricalLoading(false); });
+        return () => controller.abort();
+    }, [selectedDate, token, isToday, historicalRequest]);
 
-        silent ? setRefreshing(true) : setLoading(true);
-        setError('');
+    useEffect(() => { setPage(1); }, [search, sort, view, selectedDate]);
+    useEffect(() => { if (!isToday && view !== 'all') setView('all'); }, [isToday, view]);
 
-        try {
-            const response = await fetch(`${API_BASE}/api/stock/entradas?date=${encodeURIComponent(selectedDate)}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                signal: controller.signal,
-            });
-            if (!response.ok) throw new Error(`No se pudieron cargar las entradas (${response.status}).`);
-            const data = await response.json();
-            const rows = Array.isArray(data) ? data : [];
-
-            if (hasLoadedRef.current && String(user?.role || '').toLowerCase() === 'ventas') {
-                const previous = previousRowsRef.current;
-                const newProducts = rows.filter((item) => !previous.some((old) => old.codprodu === item.codprodu));
-                if (newProducts.length) {
-                    toast.info(translateCurrent(newProducts.length === 1 ? 'Un producto nuevo en almacén.' : '{count} productos nuevos en almacén.', { count: newProducts.length }));
-                }
-            }
-
-            setEntradas(rows);
-            previousRowsRef.current = rows;
-            hasLoadedRef.current = true;
-        } catch (requestError) {
-            if (requestError.name !== 'AbortError') {
-                console.error(requestError);
-                setError(requestError.message || 'No se pudieron cargar las entradas.');
-                setEntradas([]);
-            }
-        } finally {
-            if (!controller.signal.aborted) {
-                setLoading(false);
-                setRefreshing(false);
-            }
+    const entries = isToday ? entriesToday : historicalRows;
+    const loading = isToday ? todayLoading : historicalLoading;
+    const error = isToday ? todayError : historicalError;
+    const totalRecords = useMemo(() => entries.reduce((sum, item) => sum + item.recordCount, 0), [entries]);
+    const changedDetails = useMemo(() => {
+        const map = new Map();
+        for (const notice of notifications) {
+            const key = String(notice.codprodu || '').toUpperCase();
+            if (!map.has(key)) map.set(key, notice);
         }
-    }, [selectedDate, token, user?.role]);
+        return map;
+    }, [notifications]);
+    const changedCodes = useMemo(() => new Set(changedDetails.keys()), [changedDetails]);
+    const filtered = useMemo(() => {
+        const terms = normalizeSearch(search).split(/\s+/).filter(Boolean);
+        const result = entries.filter((item) => {
+            if (view === 'changed' && !changedCodes.has(item.codprodu.toUpperCase())) return false;
+            const searchable = normalizeSearch(`${item.codprodu} ${item.desprodu}`);
+            return terms.every((term) => searchable.includes(term));
+        });
+        return sortStockActivity(result, sort);
+    }, [entries, search, sort, view, changedCodes]);
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    useEffect(() => { setPage((current) => Math.min(current, totalPages)); }, [totalPages]);
+    const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-    useEffect(() => {
-        hasLoadedRef.current = false;
-        previousRowsRef.current = [];
-        fetchEntradas();
-        return () => activeRequestRef.current?.abort();
-    }, [fetchEntradas]);
+    const handleRefresh = useCallback(() => {
+        if (isToday) refresh();
+        else setHistoricalRequest((value) => value + 1);
+    }, [isToday, refresh]);
 
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            if (document.visibilityState === 'visible') fetchEntradas({ silent: true });
-        }, 60000);
-        return () => window.clearInterval(interval);
-    }, [fetchEntradas]);
+    const handleCopy = async (code) => {
+        try {
+            await navigator.clipboard.writeText(code);
+            toast.success(t('Referencia copiada'));
+        } catch { toast.error(t('No se pudo copiar la referencia.')); }
+    };
 
+    const yesterday = offsetLocalDate(today, -1);
+    const dateLabel = isToday ? t('Hoy') : selectedDate === yesterday ? t('Ayer') : fullDate(selectedDate);
     return (
-        <PageShell maxWidth="max-w-6xl">
-            <LocalizedElement><PageHeader
-                eyebrow="Almacén · Seguimiento"
-                title="Entradas de productos"
-                description="Consulta las cantidades recibidas por fecha. La pantalla se actualiza automáticamente cada minuto."
-                icon={Warehouse}
-                actions={(
-                    <button type="button" onClick={() => fetchEntradas({ silent: true })} disabled={loading || refreshing} className="cjm-ghost-button">
-                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" /><TranslatedText>Actualizar</TranslatedText>
-                    </button>
-                )}
-            /></LocalizedElement>
-
-            <section className="cjm-toolbar mt-6">
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,260px)_1fr] sm:items-end">
-                    <label>
-                        <span className="cjm-control-label"><TranslatedText>Fecha de entrada</TranslatedText></span>
-                        <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-3 py-2.5">
-                            <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none" />
-                        </span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-3 sm:justify-self-end sm:min-w-[340px]">
-                        <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Referencias</TranslatedText></p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{entradas.length}</p></article>
-                        <article className="cjm-metric-card"><p className="cjm-data-label"><TranslatedText>Cantidad total</TranslatedText></p><p className="mt-1 text-xl font-semibold tabular-nums app-text">{totalQuantity.toLocaleString(getActiveLocale(), { maximumFractionDigits: 2 })}</p></article>
+        <PageShell maxWidth="max-w-7xl">
+            <section className="relative overflow-hidden rounded-[1.6rem] border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface-muted)] p-5 sm:p-7">
+                <div className="pointer-events-none absolute -right-14 -top-16 h-56 w-56 rounded-full bg-[var(--cjm-primary-soft)] blur-2xl" aria-hidden="true" />
+                <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                    <div className="flex min-w-0 items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]"><PackageCheck size={25} /></div>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="cjm-kicker">{t('VENTAS · SEGUIMIENTO')}</span>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--cjm-primary-deep)]"><span className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-rose-500' : 'bg-emerald-500'}`} /> {t(error ? 'Consulta no disponible' : 'Consulta cada minuto')}</span>
+                            </div>
+                            <h1 className="mt-2 text-2xl font-bold tracking-tight app-text sm:text-[2rem]">{t('Novedades de stock')}</h1>
+                            <p className="cjm-muted mt-2 max-w-2xl text-sm leading-6">{t('Encuentra referencias con actividad, revisa cantidades registradas y consulta el stock sin perder tiempo.')}</p>
+                            <p className="cjm-muted mt-2 max-w-2xl text-xs leading-5"><Info size={14} className="mr-1 inline-block align-[-2px]" />{t('Actividad basada en modificaciones de stock, no en albaranes de venta ni en recepciones confirmadas.')}</p>
+                        </div>
                     </div>
+                    <button type="button" onClick={handleRefresh} disabled={loading} className="cjm-ghost-button inline-flex shrink-0 items-center justify-center gap-2 self-start disabled:opacity-60 lg:self-center">
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> {t(loading ? 'Consultando…' : 'Actualizar')}
+                    </button>
                 </div>
             </section>
 
-            {error && <div className="cjm-alert cjm-alert-error mt-5" role="alert">{error}</div>}
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <Metric icon={Package} label={t('Referencias con actividad')} value={entries.length.toLocaleString('es-ES')} note={dateLabel} />
+                <Metric icon={Activity} label={t('Registros consultados')} value={totalRecords.toLocaleString('es-ES')} note={t('Agrupados por referencia')} />
+                <Metric icon={Bell} label={t('Avisos pendientes')} value={isToday ? unreadCount : '—'} note={t(isToday ? 'Cambios detectados en este navegador' : 'Disponibles en la vista de hoy')} />
+            </div>
 
-            <section className="mt-5" aria-live="polite">
-                {loading ? (
-                    <div className="cjm-empty-state py-14" role="status"><span className="mx-auto block h-8 w-8 animate-spin rounded-full border-2 border-[var(--cjm-border)] border-t-[var(--cjm-primary)]" /><p className="cjm-muted mt-3 text-sm"><TranslatedText>Cargando entradas…</TranslatedText></p></div>
-                ) : entradas.length === 0 ? (
-                    <LocalizedElement><EmptyState icon={CalendarDays} title="No hay entradas para esta fecha" description="Selecciona otro día o pulsa Actualizar para consultar de nuevo." /></LocalizedElement>
+            <section className="mt-5 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 sm:p-5" aria-label="Buscar y filtrar entradas">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="inline-flex gap-1 rounded-xl bg-[var(--cjm-surface-muted)] p-1" role="group" aria-label="Selección de fecha rápida">
+                        <button type="button" onClick={() => setSelectedDate(today)} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${isToday ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)] shadow-sm' : 'cjm-muted hover:bg-[var(--cjm-surface)]'}`}>{t('Hoy')}</button>
+                        <button type="button" onClick={() => setSelectedDate(yesterday)} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${selectedDate === yesterday ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)] shadow-sm' : 'cjm-muted hover:bg-[var(--cjm-surface)]'}`}>{t('Ayer')}</button>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[var(--cjm-muted)]">
+                        <CalendarDays size={16} aria-hidden="true" /> {t('Fecha')}
+                        <input type="date" value={selectedDate} max={today} onChange={(event) => { if (event.target.value) setSelectedDate(event.target.value); }} className="min-h-10 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-2.5 text-sm font-medium app-text outline-none focus:border-[var(--cjm-primary)]" />
+                    </label>
+                </div>
+                <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px]">
+                    <label className="relative block">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" size={18} aria-hidden="true" />
+                        <span className="sr-only">Buscar por referencia o descripción</span>
+                        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Buscar tejido, descripción o referencia…')} className="min-h-12 w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] py-2.5 pl-11 pr-10 text-sm app-text outline-none focus:border-[var(--cjm-primary)]" />
+                        {search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]" aria-label="Borrar búsqueda"><X size={17}/></button>}
+                    </label>
+                    <label className="relative flex min-h-12 items-center gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 text-sm">
+                        <ArrowDownUp size={17} className="shrink-0 text-[var(--cjm-muted)]" aria-hidden="true" />
+                        <span className="sr-only">Ordenar resultados</span>
+                        <select value={sort} onChange={(event) => setSort(event.target.value)} className="w-full bg-transparent py-3 text-sm app-text outline-none">
+                            <option value="recent">{t('Actividad más reciente')}</option>
+                            <option value="oldest">{t('Actividad más antigua')}</option>
+                            <option value="quantity">{t('Mayor cantidad')}</option>
+                            <option value="code">{t('Referencia A–Z')}</option>
+                        </select>
+                    </label>
+                </div>
+                <p className="mt-2 text-xs text-[var(--cjm-muted)]">{t('El orden usa la última modificación de stock, no la hora de recepción de mercancía.')}</p>
+            </section>
+
+            <section className="mt-6" aria-labelledby="entries-section-title" aria-live="polite">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h2 id="entries-section-title" className="text-lg font-bold app-text">{t('Actividad del')} {dateLabel.toLowerCase()}</h2>
+                        <p className="cjm-muted mt-1 text-xs">{filtered.length} {t(filtered.length === 1 ? 'referencia' : 'referencias')} {t(search ? 'coincidentes' : 'registradas')}{isToday && lastUpdated ? ` · ${t('Última consulta')}: ${timeFormat.format(lastUpdated)}` : ''}</p>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-1" role="group" aria-label="Filtrar actividad">
+                        <button type="button" onClick={() => setView('all')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'all' ? 'bg-[var(--cjm-surface)] app-text shadow-sm' : 'cjm-muted'}`}>{t('Todas')}</button>
+                        {isToday && <button type="button" onClick={() => setView('changed')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'changed' ? 'bg-[var(--cjm-surface)] app-text shadow-sm' : 'cjm-muted'}`}>{t('Cambios detectados')} ({changedCodes.size})</button>}
+                    </div>
+                </div>
+                <p className="mb-3 flex items-center gap-2 text-xs text-[var(--cjm-muted)]"><Info size={14} className="shrink-0" /> {t('Las horas de recepción no están disponibles. Solo se muestra la hora en que este navegador detecta un cambio.')}</p>
+                {error && <div className="cjm-alert cjm-alert-error mb-4 flex flex-wrap items-center justify-between gap-2" role="alert"><span>{error}{entries.length ? ` ${t('Mostrando la última consulta correcta.')}` : ''}</span><button type="button" className="font-semibold underline" onClick={handleRefresh}>{t('Reintentar')}</button></div>}
+                {loading && entries.length === 0 ? (
+                    <div className="cjm-empty-state py-14" role="status"><RefreshCw className="mx-auto animate-spin text-[var(--cjm-primary-deep)]" size={26} /><p className="cjm-muted mt-3 text-sm">{t('Consultando datos de stock…')}</p></div>
+                ) : filtered.length === 0 ? (
+                    <EmptyState icon={SlidersHorizontal} title={t(search || view === 'changed' ? 'No hay coincidencias' : 'Sin registros para este día')} description={t(search || view === 'changed' ? 'Prueba otra búsqueda o selecciona Todas.' : 'Consulta otra fecha para revisar la actividad.')} />
                 ) : (
-                    <>
-                        <div className="hidden md:block">
-                            <div className="cjm-table-shell">
-                                <div className="cjm-table-scroller">
-                                    <table className="cjm-table">
-                                        <thead><tr><th><TranslatedText>Código</TranslatedText></th><th><TranslatedText>Descripción</TranslatedText></th><th className="text-right"><TranslatedText>Cantidad entrante</TranslatedText></th></tr></thead>
-                                        <tbody>
-                                            {entradas.map((entry, index) => (
-                                                <tr key={`${entry.codprodu || 'entrada'}-${index}`}>
-                                                    <td><span className="cjm-badge">{entry.codprodu || '—'}</span></td>
-                                                    <td className="font-semibold">{entry.desprodu || 'Sin descripción'}</td>
-                                                    <td className="text-right text-base font-semibold tabular-nums">{Number(entry.cancompra || 0).toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                    <div className="grid gap-2.5">
+                        {visible.map((entry) => (
+                            <EntryCard key={entry.codprodu.toUpperCase()} entry={entry} canViewStock={canViewStock} isChanged={isToday && changedCodes.has(entry.codprodu.toUpperCase())} detectedAt={isToday ? changedDetails.get(entry.codprodu.toUpperCase())?.detectedAt : null} onCopy={handleCopy} />
+                        ))}
+                    </div>
+                )}
+                {filtered.length > PAGE_SIZE && (
+                    <nav className="mt-5 flex items-center justify-between gap-3" aria-label="Paginación de entradas">
+                        <span className="cjm-muted text-xs">{t('Página')} {page} {t('de')} {totalPages} · {filtered.length} {t('resultados')}</span>
+                        <div className="flex gap-2">
+                            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page === 1} className="cjm-ghost-button disabled:opacity-40">{t('Anterior')}</button>
+                            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page === totalPages} className="cjm-ghost-button disabled:opacity-40">{t('Siguiente')}</button>
                         </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2 md:hidden">
-                            {entradas.map((entry, index) => (
-                                <article className="cjm-data-card" key={`${entry.codprodu || 'entrada'}-mobile-${index}`}>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <p className="cjm-data-label">{entry.codprodu || 'Sin código'}</p>
-                                            <h3 className="mt-1 font-semibold app-text">{entry.desprodu || 'Sin descripción'}</h3>
-                                        </div>
-                                        <span className="cjm-icon-tile h-10 w-10 shrink-0 rounded-xl"><PackageCheck className="h-5 w-5" aria-hidden="true" /></span>
-                                    </div>
-                                    <div className="mt-4 flex items-end justify-between border-t border-[var(--cjm-border)] pt-3">
-                                        <span className="cjm-muted text-sm"><TranslatedText>Cantidad entrante</TranslatedText></span>
-                                        <strong className="text-xl tabular-nums app-text">{Number(entry.cancompra || 0).toLocaleString(getActiveLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
-                    </>
+                    </nav>
                 )}
             </section>
+
+            {isToday && unreadCount > 0 && (
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-4 text-sm">
+                    <span className="flex items-center gap-2 font-medium app-text"><Bell size={17} /> {t('Tienes')} {unreadCount} {t(unreadCount === 1 ? 'cambio sin revisar' : 'cambios sin revisar')}.</span>
+                    <button type="button" onClick={markAllRead} className="inline-flex items-center gap-2 font-semibold text-[var(--cjm-primary-deep)] hover:underline"><CheckCheck size={17} /> {t('Marcar revisados')}</button>
+                </div>
+            )}
+            <footer className="mt-5 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-4 py-3 text-xs leading-5 text-[var(--cjm-muted)]">
+                <button type="button" className="inline-flex items-center gap-1.5 font-semibold text-[var(--cjm-primary-deep)] hover:underline" aria-expanded={showInfo} onClick={() => setShowInfo((current) => !current)}><Info size={15} /> {t('Acerca de estos datos')} {showInfo ? '−' : '+'}</button>
+                {showInfo && <p className="mt-2">{t('La consulta existente utiliza la fecha de última modificación del stock y la cantidad acumulada de compra. No confirma la entrada de un lote nuevo ni la cantidad disponible tras reservas. Los avisos de esta versión solo detectan aumentos entre consultas de este navegador; no son notificaciones oficiales de recepción. Para conocer los metros comercializables, abre la ficha de stock de cada producto.')}</p>}
+            </footer>
         </PageShell>
     );
 }

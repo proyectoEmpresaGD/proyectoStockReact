@@ -21,6 +21,7 @@ import ClientOwnershipCheck from '../components/clientes/ClientOwnershipCheck.js
 import PaginationControls from '../components/PaginationControls';
 import PageShell from '../common/PageShell.jsx';
 import PageHeader from '../common/PageHeader.jsx';
+import { mapWithConcurrency } from '../utils/mapWithConcurrency.js';
 
 export default function Clients() {
     const { token } = useAuthContext();
@@ -100,7 +101,9 @@ export default function Clients() {
                 setClients(currentClients);
                 setTotalClients(data.total || currentClients.length || 0);
 
-                const billingEntries = await Promise.all(currentClients.map(async (client) => {
+                // Las mismas consultas y cálculo, sin abrir una conexión por cada
+                // cliente a la vez (páginas de hasta 100 elementos).
+                const billingEntries = await mapWithConcurrency(currentClients, 4, async (client) => {
                     try {
                         const billingResponse = await fetch(
                             `${import.meta.env.VITE_API_BASE_URL}/api/pedventa/client/${client.codclien}`,
@@ -128,7 +131,7 @@ export default function Clients() {
                         if (error?.name === 'AbortError') throw error;
                         return [client.codclien, 0];
                     }
-                }));
+                });
 
                 if (!controller.signal.aborted) {
                     setClientBillings(Object.fromEntries(billingEntries));

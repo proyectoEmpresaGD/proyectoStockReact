@@ -239,14 +239,6 @@ textarea {
   background: var(--cjm-surface-muted);
 }
 
-.cjm-logo-adaptive {
-  filter: none;
-}
-
-:root[data-theme='dark'] .cjm-logo-adaptive {
-  filter: brightness(0) invert(1);
-}
-
 .cjm-hero {
   position: relative;
   isolation: isolate;

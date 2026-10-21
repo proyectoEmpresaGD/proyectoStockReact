@@ -1,4 +1,5 @@
 import { StockModel } from '../models/Postgres/stock.js';
+import { ProductModel } from '../models/Postgres/productos.js';
 import { validateStock, validatePartialStock } from '../schemas/stock.js';
 
 export class StockController {
@@ -162,7 +163,7 @@ export class StockController {
         try {
             const { date } = req.query;
             const dateValue = date || new Date().toISOString().split('T')[0];
-            const entradas = await StockModel.getEntradasByDate({ date: dateValue });
+            const entradas = await ProductModel.getEntradasByDate({ date: dateValue });
             res.json(entradas);
         } catch (error) {
             console.error('Error fetching entradas:', error);

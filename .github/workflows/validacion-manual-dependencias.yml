@@ -1,0 +1,36 @@
+# Solo ejecución manual. No publica, despliega ni modifica archivos de producción.
+name: Validación manual de dependencias
+on:
+  workflow_dispatch:
+jobs:
+  instalacion-y-regresion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Establecer npm 11
+        run: npm install --global npm@11
+      - name: Versiones
+        run: node -v && npm -v
+      - name: Revisar locks y riesgos conocidos
+        run: npm run deps:check && npm run deps:risk-report
+      - name: Instalar sin modificar los locks
+        run: npm ci && npm --prefix server ci
+      - name: Compilar frontend
+        run: npm run build
+      - name: Ejecutar pruebas sin base de datos
+        run: node --test tests/*.test.js tests/**/*.test.js
+  auditoria-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Establecer npm 11
+        run: npm install --global npm@11
+      - name: Auditar ambos árboles por separado
+        run: npm run deps:audit

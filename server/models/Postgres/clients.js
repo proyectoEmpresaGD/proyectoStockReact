@@ -1,5 +1,6 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { CLIENT_FIELDS } from '../../schemas/clients.js';
 
 dotenv.config();
 
@@ -586,11 +587,21 @@ export class ClienteModel {
         return rows[0];
     }
 
-    static async update({ codclien, input }) {
+    static async update({ codclien, input, allowRepresentativeChange = false }) {
         const keys = Object.keys(input);
 
         if (keys.length === 0) {
             return null;
+        }
+
+        // Defensa en profundidad: la validación del controlador no es suficiente.
+        // Los identificadores SQL no se pueden parametrizar como los valores.
+        // Solo permitimos columnas conocidas y nunca modificamos el código del cliente.
+        const editable = new Set(CLIENT_FIELDS.filter((field) =>
+            field !== 'codclien' && (allowRepresentativeChange || field !== 'codrepre')
+        ));
+        if (keys.some((key) => !editable.has(key))) {
+            throw new Error('Se han proporcionado campos no autorizados para editar el cliente.');
         }
 
         const fields = keys
