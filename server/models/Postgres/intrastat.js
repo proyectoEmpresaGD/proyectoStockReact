@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -9,6 +10,7 @@ const pool = new pg.Pool({
         ? { rejectUnauthorized: false }
         : false,
 });
+attachPoolErrorHandler(pool, 'intrastat');
 
 export class IntrastatModel {
 

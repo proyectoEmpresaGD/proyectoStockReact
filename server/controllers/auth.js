@@ -1,3 +1,4 @@
+import { isTransientDatabaseError } from '../db/postgresResilience.js';
 import bcrypt from 'bcryptjs';
 import moment from 'moment-timezone';
 import { UserModel } from '../models/Postgres/usuarios.js';
@@ -199,7 +200,11 @@ export class AuthController {
                 },
             });
         } catch (error) {
-            console.error('Error during login:', error);
+            console.error('Error during login:', error?.code || error?.message);
+            if (isTransientDatabaseError(error)) {
+                res.setHeader('Retry-After', '2');
+                return res.status(503).json({ message: 'Base de datos temporalmente no disponible. Reintenta en unos segundos.' });
+            }
             return res.status(500).json({ message: 'Internal server error' });
         }
     }
@@ -270,8 +275,14 @@ export class AuthController {
             return res.status(403).json({ message: 'Refresh token required' });
         }
 
+        let decoded;
         try {
-            const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        } catch {
+            return res.status(403).json({ message: 'Invalid refresh token' });
+        }
+
+        try {
             const user = await UserModel.findById(decoded.id);
 
             if (!user || user.refresh_token !== refreshToken) {
@@ -293,7 +304,12 @@ export class AuthController {
 
             return res.json({ token: newToken });
         } catch (error) {
-            return res.status(403).json({ message: 'Invalid refresh token' });
+            if (isTransientDatabaseError(error)) {
+                res.setHeader('Retry-After', '2');
+                return res.status(503).json({ message: 'Base de datos temporalmente no disponible. Reintenta en unos segundos.' });
+            }
+            console.error('Error renovando sesión:', error?.code || error?.message);
+            return res.status(500).json({ message: 'Error al renovar sesión' });
         }
     }
 
@@ -324,7 +340,11 @@ export class AuthController {
 
             return res.json(safeUser);
         } catch (error) {
-            console.error('Error al obtener el perfil del usuario:', error);
+            console.error('Error al obtener el perfil del usuario:', error?.code || error?.message);
+            if (isTransientDatabaseError(error)) {
+                res.setHeader('Retry-After', '2');
+                return res.status(503).json({ message: 'Base de datos temporalmente no disponible. Reintenta en unos segundos.' });
+            }
             return res.status(500).json({ message: 'Error al obtener perfil' });
         }
     }

@@ -23,7 +23,9 @@ export const createStockRouter = () => {
 
     stockRouter.post('/', stockController.create.bind(stockController));
     stockRouter.get('/alerts', stockController.getLowStockAlerts.bind(stockController));
+    stockRouter.get('/entradas/stock-totales', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getTotalesParaEntradas.bind(stockController));
     stockRouter.get('/entradas/lotes/:codprodu', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getLotesParaEntradas.bind(stockController));
+    stockRouter.get('/entradas/diagnostico', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getDiagnosticoEntradas.bind(stockController));
     stockRouter.get('/entradas/recepciones', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getRecepcionesCompra.bind(stockController));
     stockRouter.get('/entradas', stockController.getEntradas.bind(stockController));
     stockRouter.get('/producto/:codprodu', stockController.getByCodprodu.bind(stockController));

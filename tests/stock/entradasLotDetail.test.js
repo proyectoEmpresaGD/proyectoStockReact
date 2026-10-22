@@ -38,7 +38,7 @@ test('sin token no consulta lotes; endpoint obliga al permiso de Entradas', () =
   assert.match(code, /if \(!token\) return undefined/);
   assert.match(code, /AbortController/);
   assert.match(code, /api\/stock\/entradas\/lotes/);
-  assert.match(code, /actualmente/);
+  assert.match(code, /todos los lotes/);
   const routes = getSource('server/routes/stock.js');
   assert.match(routes, /'\/entradas\/lotes\/:codprodu', requireRouteAccess\('\/entradas', 'ventas', 'administracion'\)/);
   assert.doesNotMatch(code, /UPDATE\s+stocklotes/);

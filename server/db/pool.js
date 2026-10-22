@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from "./postgresResilience.js";
 // server/db/pool.js
 import pg from "pg";
 import "dotenv/config";
@@ -19,6 +20,7 @@ if (!process.env.DATABASE_URL) {
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });
+    attachPoolErrorHandler(pool, "principal");
 }
 
 export default pool;

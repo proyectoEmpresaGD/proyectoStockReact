@@ -65,7 +65,10 @@ function LowStockAlertsPage() {
         rows,
         loading,
         loadingFilters,
+        filtersError,
+        reloadFilters,
         error,
+        retryMessage,
         hasPendingChanges,
         updateFilter,
         applyFilters,
@@ -297,6 +300,15 @@ function LowStockAlertsPage() {
                     onApply={applyFilters}
                 />
 
+                {filtersError && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+                        <span>{filtersError} Puedes seguir buscando por referencia mientras se recuperan.</span>
+                        <button type="button" className="ml-3 inline-flex items-center gap-1 font-semibold underline" onClick={reloadFilters}>
+                            <RefreshCw size={14} aria-hidden="true" /> Volver a cargar filtros
+                        </button>
+                    </div>
+                )}
+
                 {planError && (
                     <div className="cjm-alert-error" role="alert">
                         <strong><TranslatedText>No se ha podido revisar la propuesta de compra guardada.</TranslatedText></strong>
@@ -310,6 +322,13 @@ function LowStockAlertsPage() {
                 {hasPendingChanges && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         <TranslatedText>Has cambiado los filtros. Pulsa</TranslatedText> <strong><TranslatedText>Ver resultados</TranslatedText></strong> <TranslatedText>para aplicarlos.</TranslatedText>
+                    </div>
+                )}
+
+                {loading && retryMessage && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800" role="status" aria-live="polite">
+                        <RefreshCw size={16} className="mr-2 inline animate-spin" aria-hidden="true" />
+                        {retryMessage}
                     </div>
                 )}
 

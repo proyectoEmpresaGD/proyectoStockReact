@@ -1,5 +1,5 @@
-// Los lotes de stock actuales NO se identifican como los lotes que entraron
-// en un albarán hasta conocer una relación ERP verificada.
+// La consulta de stock presenta existencias actuales, no cantidades recibidas.
+// Hasta confirmar la trazabilidad del ERP, NUNCA marcamos un lote como recibido.
 export function normalizeCurrentLots(rows, requestedCode) {
     const requested = String(requestedCode ?? '').trim().toUpperCase();
     if (!requested || !Array.isArray(rows)) return [];
@@ -9,7 +9,6 @@ export function normalizeCurrentLots(rows, requestedCode) {
             codlote: String(row.codlote).trim(),
             canal: String(row.canal ?? '').trim(),
             codalmac: String(row.codalmac ?? '').trim(),
-            // Son existencias ACTUALES, no cantidad recibida.
             stocktotal: amount(row.stocktotal),
             stockreservado: amount(row.stockreservado),
             stockactual: amount(row.stockactual),
@@ -21,6 +20,21 @@ export function normalizeCurrentLots(rows, requestedCode) {
 function amount(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
+}
+
+// Los tejidos (codtipo 101) se gestionan en metros en CJM.
+// No poner "m" a libros, perchas u otros tipos cuya unidad es diferente.
+export function receivedUnit(entry) {
+    return String(entry?.productType ?? '').trim() === '101' ? 'm' : '';
+}
+
+// Stock total ACTUAL en el almacén consultado, no stock recibido hoy.
+export function summarizeCurrentLots(lots) {
+    return (Array.isArray(lots) ? lots : []).reduce((result, lot) => ({
+        total: result.total + amount(lot.stocktotal),
+        reserved: result.reserved + amount(lot.stockreservado),
+        available: result.available + amount(lot.stockactual),
+    }), { total: 0, reserved: 0, available: 0 });
 }
 
 export function receiptLineDetails(entry) {
@@ -41,4 +55,19 @@ export function receiptLineDetails(entry) {
                 ? line.receivedAt : null,
         }))
         .sort((a, b) => (b.receivedAt ? Date.parse(b.receivedAt) : 0) - (a.receivedAt ? Date.parse(a.receivedAt) : 0));
+}
+
+// Solo se puede marcar un lote recibido cuando una fuente del ERP haya
+// devuelto la relación código de lote <-> albarán y la haya verificado.
+// Ni fecultmod ni el stock actual prueban esa relación.
+export function getVerifiedReceiptLots(entry, currentLots) {
+    if (entry?.lotLinkVerified !== true || !Array.isArray(entry?.receivedLots)) return [];
+    const known = new Set((Array.isArray(currentLots) ? currentLots : [])
+        .map((lot) => `${String(lot.codalmac).trim()}|${String(lot.canal).trim()}|${String(lot.codlote).trim()}`));
+    const ids = new Set();
+    for (const item of entry.receivedLots) {
+        const key = `${String(item?.codalmac ?? '').trim()}|${String(item?.canal ?? '').trim()}|${String(item?.codlote ?? '').trim()}`;
+        if (known.has(key)) ids.add(key);
+    }
+    return [...ids];
 }

@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { FAMILY_NAME_BY_CODE } from '../../constants/familyNames.js';
@@ -8,6 +9,7 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
+attachPoolErrorHandler(pool, 'stock');
 
 // acepta 0, 00, 000, etc.
 const CODALMAC_CERO_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) ~ '^0+$'";

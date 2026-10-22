@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -7,6 +8,7 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
+attachPoolErrorHandler(pool, 'stockLotes');
 
 const reservasActivasPorLoteSql = `
     SELECT
@@ -106,6 +108,27 @@ export class StockLotesModel {
                 stockactual: stockDisponible,
             };
         });
+    }
+
+    // Consulta única para las tarjetas visibles de Entradas. Solo lectura y
+    // sin reservar, restar, actualizar ni inferir cantidades de recepción.
+    static async getTotalsForEntries(codes) {
+        const normalized = [...new Set((Array.isArray(codes) ? codes : [])
+            .map((code) => String(code).trim().toUpperCase()))];
+        if (!normalized.length) return {};
+        const { rows } = await pool.query(`
+            SELECT UPPER(TRIM(sl.codprodu::text)) AS codprodu,
+                   SUM(sl.stockactual) AS stocktotal
+            FROM stocklotes sl
+            WHERE CAST(sl.codalmac AS int) = 0
+              AND UPPER(TRIM(sl.codprodu::text)) = ANY($1::text[])
+            GROUP BY UPPER(TRIM(sl.codprodu::text))
+        `, [normalized]);
+        // Una referencia sin lotes actuales tiene stock físico 0 (no un error).
+        // El frontend reserva «—» para un fallo de consulta o datos no disponibles.
+        const totals = Object.fromEntries(normalized.map((code) => [code, 0]));
+        for (const row of rows) totals[row.codprodu] = Number(row.stocktotal || 0);
+        return totals;
     }
 
     static async getById({ codProdu }) {

@@ -6,10 +6,16 @@ import { groupConfirmedReceipts, collectReceiptIds, detectNewReceipts, updateSto
 
 const file = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('sin estados confirmados y fecha validada, el endpoint NO consulta compras', async () => {
-    let queryCalls = 0;
-    await assert.rejects(getRecepcionesCompraByDate('2026-10-21', {}, { query: () => { queryCalls++; } }), RecepcionesNoConfiguradasError);
-    assert.equal(queryCalls, 0);
+test('sin estados configurados consulta albaranes de compra del día, sin atribuir confirmación física', async () => {
+    const calls = [];
+    const config = getReceptionConfig({});
+    assert.deepEqual(config.states, []);
+    assert.doesNotMatch(buildReceptionQuery(config), /a\.estalbcompra::text\)\) = ANY/);
+    await getRecepcionesCompraByDate('2026-10-21', {}, { query: async (...args) => { calls.push(args); return { rows: [] }; } });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0][1], ['2026-10-21']);
+    assert.match(calls[0][0], /\$1::date/);
+    assert.doesNotMatch(calls[0][0], /\$2/);
 });
 
 test('estados y nombres de campos solo pueden venir de listas blancas', () => {
@@ -112,4 +118,24 @@ test('el filtro de Entradas usa siempre albcompra.fecha y rechaza fecentre', asy
     await getRecepcionesCompraByDate('2026-10-21', { CJM_RECEPCION_ESTADOS: 'C' }, db);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].params, ['2026-10-21', ['C']]);
+});
+
+
+test('la cantidad de parámetros coincide con los marcadores SQL con y sin estados', async () => {
+    const scenarios = [
+        { env: {}, expected: ['2026-10-21'] },
+        { env: { CJM_RECEPCION_ESTADOS: 'F' }, expected: ['2026-10-21', ['F']] },
+        { env: { CJM_RECEPCION_ESTADOS: 'F,R,F' }, expected: ['2026-10-21', ['F', 'R']] },
+    ];
+    for (const { env, expected } of scenarios) {
+        const database = {
+            query: async (sql, params) => {
+                const positions = [...sql.matchAll(/\$(\d+)\b/g)].map(match => Number(match[1]));
+                assert.equal(Math.max(...positions), params.length);
+                assert.deepEqual(params, expected);
+                return { rows: [{ codprodu: 'ARE00001' }] };
+            },
+        };
+        assert.deepEqual(await getRecepcionesCompraByDate('2026-10-21', env, database), [{ codprodu: 'ARE00001' }]);
+    }
 });

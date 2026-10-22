@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuthContext } from '../../Auth/AuthContext.jsx';
 import { userCanAccessRoute } from '../../utils/roleAccessConfig.js';
-import { groupEntries, localISODate, normalizeStoredActivity, updateStoredActivity } from './entradasUtils.js';
+import { groupEntries, groupConfirmedReceipts, localISODate, madridISODate, normalizeStoredActivity, updateStoredActivity } from './entradasUtils.js';
 import { playActivitySound, readSoundPreference, saveSoundPreference, unlockActivitySound } from './notificationSound.js';
 
 const StockActivityContext = createContext(null);
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 const REFRESH_MS = 60000;
+// Por defecto mostramos cantidades de albcompra_linea; VITE_CJM_ENTRADAS_REALES=false permite volver al modo antiguo.
+const USING_CONFIRMED_RECEIPTS = import.meta.env.VITE_CJM_ENTRADAS_REALES !== 'false';
+const businessDate = () => USING_CONFIRMED_RECEIPTS ? madridISODate() : localISODate();
 
-const activityKey = (username, date) => `cjm:stock-activity:v1:${username}:${date}`;
+const activityKey = (username, date) => `cjm:stock-activity:${USING_CONFIRMED_RECEIPTS ? 'recepciones-v1' : 'v1'}:${username}:${date}`;
 const readActivity = (username, date) => {
     try {
         return normalizeStoredActivity(JSON.parse(localStorage.getItem(activityKey(username, date))), date);
@@ -49,19 +52,22 @@ export function StockActivityProvider({ children }) {
         abortRef.current = controller;
         if (!silent) setLoading(true);
         try {
-            const date = localISODate();
-            const response = await fetch(`${API_BASE}/api/stock/entradas?date=${encodeURIComponent(date)}`, {
+            const date = businessDate();
+            const response = await fetch(`${API_BASE}/api/stock/entradas${USING_CONFIRMED_RECEIPTS ? '/recepciones' : ''}?date=${encodeURIComponent(date)}`, {
                 headers: { Authorization: `Bearer ${token}` },
                 signal: controller.signal,
                 cache: 'no-store',
             });
-            if (!response.ok) throw new Error(`No se pudieron consultar las entradas (${response.status}).`);
+            if (!response.ok) {
+                const responseBody = await response.json().catch(() => null);
+                throw new Error(responseBody?.message || `No se pudieron consultar las entradas (${response.status}).`);
+            }
             const payload = await response.json();
             if (controller.signal.aborted) return;
             if (!Array.isArray(payload)) throw new Error('La respuesta de entradas no es válida.');
-            const grouped = groupEntries(payload);
+            const grouped = USING_CONFIRMED_RECEIPTS ? groupConfirmedReceipts(payload) : groupEntries(payload);
             const previous = readActivity(username, date);
-            const updated = updateStoredActivity(previous, grouped, date);
+            const updated = updateStoredActivity(previous, grouped, date, USING_CONFIRMED_RECEIPTS);
             const existingIds = new Set(previous.notifications.map((item) => item.id));
             // Solo avisamos por cambios de un sondeo posterior, nunca por la
             // primera consulta ni por avisos que ya estaban guardados.
@@ -110,7 +116,7 @@ export function StockActivityProvider({ children }) {
             return undefined;
         }
         setEntriesToday([]);
-        setActivity(readActivity(username, localISODate()));
+        setActivity(readActivity(username, businessDate()));
         setLastUpdated(null);
         refresh();
         const timer = window.setInterval(() => {
@@ -144,7 +150,7 @@ export function StockActivityProvider({ children }) {
     return (
         <StockActivityContext.Provider value={{
             canView, entriesToday, notifications, unreadCount, lastUpdated, loading, error, refresh, markAllRead,
-            soundEnabled, changeSoundEnabled,
+            soundEnabled, changeSoundEnabled, receiptMode: USING_CONFIRMED_RECEIPTS,
         }}>
             {children}
         </StockActivityContext.Provider>

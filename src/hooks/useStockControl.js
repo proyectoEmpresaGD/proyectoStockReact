@@ -16,8 +16,12 @@ export function useStockControl({ token }) {
     const [filterOptions, setFilterOptions] = useState({ providers: [], collections: [] });
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [loadingFilters, setLoadingFilters] = useState(false);
+    const [loadingFilters, setLoadingFilters] = useState(true);
+    const [filtersError, setFiltersError] = useState('');
+    const [filtersRetryIndex, setFiltersRetryIndex] = useState(0);
     const [error, setError] = useState('');
+    const [retryMessage, setRetryMessage] = useState('');
+    const [initialRowsSettled, setInitialRowsSettled] = useState(false);
     const requestControllerRef = useRef(null);
 
     const hasPendingChanges = useMemo(
@@ -61,30 +65,43 @@ export function useStockControl({ token }) {
 
         setLoading(true);
         setError('');
+        setRetryMessage('');
 
         try {
             const data = await fetchStockControlRows({
                 token,
                 filters: overrideFilters || appliedFilters,
                 signal: controller.signal,
+                onRetry: ({ attempt, maxRetries }) => {
+                    if (!controller.signal.aborted) {
+                        setRetryMessage(`El servidor está tardando en responder. Reintentando automáticamente (${attempt}/${maxRetries})...`);
+                    }
+                },
             });
 
             if (controller.signal.aborted) return;
-            setRows(Array.isArray(data) ? data : []);
+            setRows(data);
         } catch (err) {
-            if (err?.name === 'AbortError') return;
+            if (controller.signal.aborted || err?.name === 'AbortError') return;
             setRows([]);
             setError(err?.message || 'Error cargando el control de stock.');
         } finally {
-            if (!controller.signal.aborted) setLoading(false);
+            if (!controller.signal.aborted && requestControllerRef.current === controller) {
+                setLoading(false);
+                setRetryMessage('');
+                setInitialRowsSettled(true);
+            }
         }
     }, [token, appliedFilters]);
 
+    // No competir con la consulta inicial de planificación: el desplegable de
+    // proveedores usa una consulta pesada sobre el historial de compras.
     useEffect(() => {
-        if (!token) return undefined;
+        if (!token || !initialRowsSettled) return undefined;
 
         const controller = new AbortController();
         setLoadingFilters(true);
+        setFiltersError('');
         fetchStockControlFilters({ token, signal: controller.signal })
             .then((data) => {
                 if (controller.signal.aborted) return;
@@ -94,13 +111,24 @@ export function useStockControl({ token }) {
                 });
             })
             .catch(() => {
-                if (!controller.signal.aborted) setFilterOptions({ providers: [], collections: [] });
+                if (!controller.signal.aborted) {
+                    setFilterOptions({ providers: [], collections: [] });
+                    setFiltersError('No se han podido cargar las opciones de proveedor y familia.');
+                }
             })
             .finally(() => {
                 if (!controller.signal.aborted) setLoadingFilters(false);
             });
 
         return () => controller.abort();
+    }, [token, initialRowsSettled, filtersRetryIndex]);
+
+    useEffect(() => {
+        setInitialRowsSettled(false);
+        setRows([]);
+        setFilterOptions({ providers: [], collections: [] });
+        setFiltersError('');
+        setLoadingFilters(true);
     }, [token]);
 
     useEffect(() => {
@@ -115,7 +143,11 @@ export function useStockControl({ token }) {
         rows,
         loading,
         loadingFilters,
+        filtersError,
+        reloadFilters: () => setFiltersRetryIndex((value) => value + 1),
+        initialRowsSettled,
         error,
+        retryMessage,
         hasPendingChanges,
         updateFilter,
         applyFilters,

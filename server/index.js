@@ -1,3 +1,4 @@
+import { isTransientDatabaseError } from './db/postgresResilience.js';
 import express, { json } from "express";
 import { createProductRouter } from "./routes/productos.js";
 import { createImagenRouter } from "./routes/imagenes.js";
@@ -266,6 +267,10 @@ app.get('/api/proxy', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   if (res.headersSent) return next(err);
+  if (isTransientDatabaseError(err)) {
+    res.set('Retry-After', '2');
+    return res.status(503).json({ error: 'Conexión temporal con la base de datos no disponible.' });
+  }
   res.status(500).json({ error: "Internal server error" });
 });
 

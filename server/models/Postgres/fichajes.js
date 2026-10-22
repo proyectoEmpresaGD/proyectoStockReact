@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -7,6 +8,7 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
+attachPoolErrorHandler(pool, 'fichajes');
 
 export class FichajeModel {
     static async getAllByUserId(userId) {

@@ -1,3 +1,4 @@
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { CLIENT_FIELDS } from '../../schemas/clients.js';
@@ -11,6 +12,7 @@ const pool = new pg.Pool({
     keepAliveInitialDelayMillis: 10000,
     connectionTimeoutMillis: 10000,
 });
+attachPoolErrorHandler(pool, 'clients');
 
 const buildNormalizedClientSearch = (fieldName) => `
   regexp_replace(

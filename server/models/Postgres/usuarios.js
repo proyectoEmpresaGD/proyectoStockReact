@@ -1,3 +1,5 @@
+import { retryDatabaseRead } from '../../db/postgresResilience.js';
+import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -6,7 +8,10 @@ dotenv.config();
 const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: 10000,
+    keepAlive: true,
 });
+attachPoolErrorHandler(pool, 'usuarios');
 
 const normalizeTextOrNull = (value) => {
     if (value === undefined || value === null) return null;
@@ -165,26 +170,18 @@ export class UserModel {
         const query = 'SELECT * FROM usuarios WHERE username = $1';
         const values = [username];
 
-        try {
-            const { rows } = await pool.query(query, values);
-            return rows.length > 0 ? rows[0] : null;
-        } catch (error) {
-            console.error('Error fetching user by username:', error);
-            throw new Error('Error fetching user by username');
-        }
+        // Solo SELECT: reintentar cortes transitorios de DNS/red sin modificar sesiones.
+        const { rows } = await retryDatabaseRead(() => pool.query(query, values));
+        return rows.length > 0 ? rows[0] : null;
     }
 
     static async findById(userId) {
         const query = 'SELECT * FROM usuarios WHERE id = $1';
         const values = [userId];
 
-        try {
-            const { rows } = await pool.query(query, values);
-            return rows.length > 0 ? rows[0] : null;
-        } catch (error) {
-            console.error('Error fetching user by ID:', error);
-            throw new Error('Error fetching user by ID');
-        }
+        // Solo SELECT: reintentar cortes transitorios de DNS/red sin modificar sesiones.
+        const { rows } = await retryDatabaseRead(() => pool.query(query, values));
+        return rows.length > 0 ? rows[0] : null;
     }
 
     static async updateJornada(userId, tipoJornada) {

@@ -1,8 +1,9 @@
+import { isTransientDatabaseError } from '../db/postgresResilience.js';
 import { StockModel } from '../models/Postgres/stock.js';
 import { ProductModel } from '../models/Postgres/productos.js';
 import { StockLotesModel } from '../models/Postgres/stockLotes.js';
 import { validateStock, validatePartialStock } from '../schemas/stock.js';
-import { getRecepcionesCompraByDate, todayMadrid, validDate, RecepcionesNoConfiguradasError } from '../services/recepcionesCompra.js';
+import { getRecepcionesCompraByDate, getReceptionDiagnosticByDate, todayMadrid, validDate, RecepcionesNoConfiguradasError } from '../services/recepcionesCompra.js';
 
 export class StockController {
     async getAll(req, res) {
@@ -38,6 +39,10 @@ export class StockController {
             res.json(filters);
         } catch (error) {
             console.error('Error fetching control stock filters:', error);
+            if (isTransientDatabaseError(error)) {
+                res.set('Retry-After', '2');
+                return res.status(503).json({ error: 'Conexión temporal con la base de datos no disponible.' });
+            }
             res.status(500).json({ error: error.message });
         }
     }
@@ -49,6 +54,10 @@ export class StockController {
             return res.json(suggestions);
         } catch (error) {
             console.error('Error buscando sugerencias de control de stock:', error);
+            if (isTransientDatabaseError(error)) {
+                res.set('Retry-After', '2');
+                return res.status(503).json({ error: 'Conexión temporal con la base de datos no disponible.' });
+            }
             return res.status(500).json({ error: 'No se han podido cargar las sugerencias.' });
         }
     }
@@ -89,6 +98,10 @@ export class StockController {
             res.json(data);
         } catch (error) {
             console.error('Error fetching control stock:', error);
+            if (isTransientDatabaseError(error)) {
+                res.set('Retry-After', '2');
+                return res.status(503).json({ error: 'Conexión temporal con la base de datos no disponible.' });
+            }
             res.status(500).json({ error: error.message });
         }
     }
@@ -179,6 +192,24 @@ export class StockController {
         }
     }
 
+    // Totales físicos para la página visible de Entradas: una sola consulta
+    // por hasta 24 referencias. Nunca se confunden con metros recibidos.
+    async getTotalesParaEntradas(req, res) {
+        const raw = String(req.query.codes ?? '');
+        const codes = raw.split(',').map((code) => code.trim().toUpperCase()).filter(Boolean);
+        if (!codes.length || codes.length > 24 || new Set(codes).size !== codes.length
+            || codes.some((code) => !/^[A-Z0-9_-]{1,64}$/.test(code))) {
+            return res.status(400).json({ message: 'Se requieren entre 1 y 24 referencias válidas y distintas.' });
+        }
+        try {
+            const totals = await StockLotesModel.getTotalsForEntries(codes);
+            return res.json(totals);
+        } catch (error) {
+            console.error('Error consultando totales de Entradas:', error);
+            return res.status(500).json({ message: 'No se ha podido consultar el stock total.' });
+        }
+    }
+
     // Consulta de solo lectura y bajo permiso /entradas: los comerciales autorizados
     // pueden ver lotes actuales sin necesitar permiso para abrir todo el módulo Stock.
     // Estos lotes NO se atribuyen a un albarán sin un vínculo de recepción verificado.
@@ -198,6 +229,20 @@ export class StockController {
 
     // Endpoint adicional y protegido. NO sustituye la consulta de stock
     // hasta validar los estados/fechas en el ERP con datos reales.
+    // Respuesta solo con contadores para distinguir ausencia real de albaranes
+    // de filtros o líneas que no llegan a la lista. Igual permiso que Entradas.
+    async getDiagnosticoEntradas(req, res) {
+        const date = req.query.date || todayMadrid();
+        if (!validDate(date)) return res.status(400).json({ message: 'Fecha no válida (AAAA-MM-DD).' });
+        try {
+            const result = await getReceptionDiagnosticByDate(date);
+            return res.json(result);
+        } catch (error) {
+            console.error('Error diagnosticando albaranes de compra:', error);
+            return res.status(500).json({ message: 'No se pudo comprobar el motivo de la lista vacía.' });
+        }
+    }
+
     async getRecepcionesCompra(req, res) {
         const date = req.query.date || todayMadrid();
         if (!validDate(date)) return res.status(400).json({ message: 'Fecha no válida (AAAA-MM-DD).' });

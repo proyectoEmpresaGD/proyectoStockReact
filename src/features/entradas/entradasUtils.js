@@ -67,6 +67,17 @@ export function groupEntries(rows) {
 
 // Cabeceras y líneas de COMPRA acreditadas por una configuración verificada:
 // conservamos sus IDs estables, no inferimos nuevas entradas por cancompra.
+// Únicamente datos de trazabilidad explícitos: sin vínculo verificado NO se
+// puede deducir un lote recibido mirando las existencias actuales.
+function verifiedLotFromLine(row) {
+    if (row?.lotLinkVerified !== true) return null;
+    const codlote = String(row.receivedLotCode ?? '').trim();
+    const codalmac = String(row.receivedWarehouse ?? '').trim();
+    const canal = String(row.receivedChannel ?? '').trim();
+    if (!codlote || !codalmac || !canal) return null;
+    return { codlote, codalmac, canal };
+}
+
 export function groupConfirmedReceipts(rows) {
     const grouped = new Map();
     for (const row of Array.isArray(rows) ? rows : []) {
@@ -81,12 +92,15 @@ export function groupConfirmedReceipts(rows) {
             grouped.set(key, {
                 codprodu: code,
                 desprodu: String(row.desprodu || 'Sin descripción').trim(),
+                productType: String(row.productType ?? '').trim(),
                 quantity: amount,
                 updatedAt: row.receivedAt || null,
                 timestamp,
                 firstTimestamp: timestamp,
                 recordCount: 1,
                 receiptLines: [{ id: lineId, quantity: amount, serieAlbaran: String(row.serieAlbaran || '').trim(), numeroAlbaran: String(row.numeroAlbaran || '').trim(), receivedAt: row.receivedAt || null }],
+                lotLinkVerified: Boolean(verifiedLotFromLine(row)),
+                receivedLots: verifiedLotFromLine(row) ? [verifiedLotFromLine(row)] : [],
                 receiptDocuments: [String(row.serieAlbaran || '') + String(row.numeroAlbaran || '')],
             });
         } else if (!existing.receiptLines.some((line) => line.id === lineId)) {
@@ -102,6 +116,15 @@ export function groupConfirmedReceipts(rows) {
                 existing.timestamp = timestamp;
                 existing.updatedAt = row.receivedAt;
             }
+        }
+        // Una línea de albarán puede asociarse a varias piezas. No duplicar
+        // la cantidad de esa línea, pero conservar todos los lotes verificados.
+        const verified = verifiedLotFromLine(row);
+        const target = grouped.get(key);
+        if (verified && !target.receivedLots.some((lot) => lot.codlote === verified.codlote
+            && lot.codalmac === verified.codalmac && lot.canal === verified.canal)) {
+            target.lotLinkVerified = true;
+            target.receivedLots.push(verified);
         }
     }
     return sortStockActivity([...grouped.values()], 'recent');

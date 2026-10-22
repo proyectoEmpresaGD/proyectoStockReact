@@ -1,3 +1,5 @@
+import { fetchStockWithRecovery } from './stockControlFetchRecovery.js';
+
 const buildHeaders = (token) => ({
     Authorization: `Bearer ${token}`,
 });
@@ -41,21 +43,24 @@ export async function fetchStockControlSuggestions({ token, query, signal }) {
     return Array.isArray(suggestions) ? suggestions : [];
 }
 
-export async function fetchStockControlRows({ token, filters, signal }) {
+export async function fetchStockControlRows({ token, filters, signal, onRetry }) {
     const query = buildQueryString(filters);
     const url = `${getApiBaseUrl()}/api/stock/control-stock${query ? `?${query}` : ''}`;
 
-    const response = await fetch(url, {
+    const response = await fetchStockWithRecovery(url, {
         headers: buildHeaders(token),
         cache: 'no-store',
         signal,
-    });
+    }, { onRetry });
 
     if (!response.ok) {
-        throw new Error('No se ha podido cargar el control de stock.');
+        if (response.status === 401) throw new Error('La sesión ha caducado o no se ha podido autenticar. Inicia sesión de nuevo.');
+        if (response.status === 403) throw new Error('No tienes permiso para consultar este módulo.');
+        throw new Error(`No se ha podido cargar el control de stock (HTTP ${response.status}).`);
     }
-
-    return response.json();
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error('El servidor ha devuelto una respuesta de stock no válida.');
+    return rows;
 }
 // Usado para depurar propuestas anteriores y validar cada descarga contra la tabla productos.
 export async function validateStockControlProductCodes({ token, codes, signal }) {
