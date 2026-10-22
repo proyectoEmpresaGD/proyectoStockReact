@@ -120,6 +120,14 @@ export const getRiskByLeadTime = (product) => {
 
 export const compareStockRows = (sortBy, horizon) => (a, b) => {
     switch (sortBy) {
+        case 'pendingServeDesc':
+        case 'pendingServeAsc': {
+            // Orden numérico por unidades pendientes, nunca alfabético por el valor formateado.
+            const difference = toNumber(a.canpenservir) - toNumber(b.canpenservir);
+            if (difference !== 0) return sortBy === 'pendingServeDesc' ? -difference : difference;
+            // Evitar saltos arbitrarios de filas empatadas entre páginas.
+            return String(a.codprodu || '').localeCompare(String(b.codprodu || ''), 'es', { sensitivity: 'base' });
+        }
         case 'supplier':
             return String(a.nombre_proveedor || a.codprove || '')
                 .localeCompare(String(b.nombre_proveedor || b.codprove || ''), 'es', { sensitivity: 'base' });

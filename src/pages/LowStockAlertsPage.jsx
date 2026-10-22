@@ -50,6 +50,8 @@ const SORT_OPTIONS = [
     { value: 'coverage', label: 'Menor cobertura' },
     { value: 'supplier', label: 'Proveedor' },
     { value: 'product', label: 'Producto' },
+    { value: 'pendingServeDesc', label: 'Pendiente de servir: mayor a menor' },
+    { value: 'pendingServeAsc', label: 'Pendiente de servir: menor a mayor' },
 ];
 
 const getPlanStorageKey = (user) => {
@@ -95,6 +97,9 @@ function LowStockAlertsPage() {
     }, [applyFilters, filters.productName]);
     const [horizon, setHorizon] = useState(HORIZONS.month);
     const [sortBy, setSortBy] = useState('priority');
+    const togglePendingServeSort = useCallback(() => {
+        setSortBy((previous) => previous === 'pendingServeDesc' ? 'pendingServeAsc' : 'pendingServeDesc');
+    }, []);
     const [page, setPage] = useState(1);
     const pageSize = 40;
     const [detailsProduct, setDetailsProduct] = useState(null);
@@ -439,6 +444,8 @@ function LowStockAlertsPage() {
                     <StockControlTable
                         rows={pageRows}
                         horizon={horizon}
+                        sortBy={sortBy}
+                        onTogglePendingServeSort={togglePendingServeSort}
                         purchasePlan={purchasePlan}
                         onTogglePlan={togglePlanProduct}
                         onQuantityChange={changePlanQuantity}

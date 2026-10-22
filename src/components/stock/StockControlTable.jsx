@@ -1,7 +1,7 @@
 import { getActiveLocale } from '../../i18n/locale.js';
 import TranslatedText from '../../i18n/TranslatedText.jsx';
 import React from 'react';
-import { BarChart3, CalendarClock, Check, ShoppingCart, Truck } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, BarChart3, CalendarClock, Check, ShoppingCart, Truck } from 'lucide-react';
 import {
     formatCoverage,
     formatQuantity,
@@ -157,6 +157,8 @@ function ProductMobileCard({ product, horizon, planItem, onTogglePlan, onQuantit
 function StockControlTable({
     rows,
     horizon,
+    sortBy,
+    onTogglePendingServeSort,
     purchasePlan,
     onTogglePlan,
     onQuantityChange,
@@ -196,7 +198,27 @@ function StockControlTable({
                                 <th className="sticky left-0 z-20 min-w-[300px] bg-slate-50 text-left"><TranslatedText>Producto</TranslatedText></th>
                                 <th className="min-w-[190px] text-left"><TranslatedText>Proveedor</TranslatedText></th>
                                 <th className="text-right"><TranslatedText>Stock</TranslatedText></th>
-                                <th className="text-right"><TranslatedText>Pend. servir</TranslatedText></th>
+                                <th
+                                    className="text-right"
+                                    aria-sort={sortBy === 'pendingServeDesc' ? 'descending' : sortBy === 'pendingServeAsc' ? 'ascending' : 'none'}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={onTogglePendingServeSort}
+                                        className={`inline-flex min-h-10 w-full items-center justify-end gap-1.5 rounded-md px-1 font-semibold transition hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${sortBy?.startsWith('pendingServe') ? 'text-blue-700' : 'text-slate-700'}`}
+                                        aria-label={sortBy === 'pendingServeDesc'
+                                            ? 'Pendiente de servir: ordenar de menor a mayor'
+                                            : 'Pendiente de servir: ordenar de mayor a menor'}
+                                        title={sortBy === 'pendingServeDesc' ? 'Ordenar de menor a mayor' : 'Ordenar de mayor a menor'}
+                                    >
+                                        <TranslatedText>Pendiente de servir</TranslatedText>
+                                        {sortBy === 'pendingServeDesc'
+                                            ? <ArrowDown size={14} aria-hidden="true" />
+                                            : sortBy === 'pendingServeAsc'
+                                                ? <ArrowUp size={14} aria-hidden="true" />
+                                                : <ArrowDownUp size={14} className="text-slate-400" aria-hidden="true" />}
+                                    </button>
+                                </th>
                                 <th className="text-right"><TranslatedText>Pend. recibir</TranslatedText></th>
                                 <th className="text-right"><TranslatedText>Posición prevista</TranslatedText></th>
                                 <th className="text-right"><TranslatedText>Consumo/mes</TranslatedText></th>
