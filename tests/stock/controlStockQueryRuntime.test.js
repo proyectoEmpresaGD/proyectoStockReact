@@ -20,6 +20,8 @@ const buildMockedModel = (method) => {
     const constructor = new Function('pool', 'controlStockActiveProductCondition', `
         return class StockModel {
             static getControlStockMonthsBack(v) { return Math.min(Math.max(Number.parseInt(v, 10) || 12, 1), 36); }
+            static controlStockCanonicalCode(value) { return String(value ?? '').trim().toUpperCase().replace(/^([A-Z]+)0*([0-9]+)$/, (_, letters, digits) => letters + (digits.replace(/^0+(?=\d)/, '') || '0')); }
+            static async getControlStockProviderMapByCodes() { return new Map(); }
             static async getDatCompraMapByCodes() { return new Map(); }
             static async getFechaEstimadaMapByCodesFast() { return new Map(); }
             ${method}
@@ -70,4 +72,25 @@ test('query de sugerencias limitada, usa catálogo sin agregaciones de facturaci
     assert.doesNotMatch(calls[0].sql, /FROM facventa|FROM stocklotes|FROM albcompra_linea/);
     assert.deepEqual(await Model.searchControlStockProducts('a'), []);
     assert.equal(calls.length, 1);
+});
+
+
+test('búsqueda explícita muestra incluso catálogo sin consumo o sin necesidad de compra', async () => {
+    const { Model, calls } = buildMockedModel(isolateMethod('getControlStock({', 'getById({'));
+    await Model.getControlStock({ productName: 'Lino azul', limit: 500 });
+    const sql = calls[0].sql;
+    assert.match(sql, /AND \(TRUE OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
+    assert.match(sql, /AND \(TRUE OR \(/);
+    assert.match(sql, /FROM productos_base\s+CROSS JOIN meses/);
+    assert.deepEqual(calls[0].params, [12, 500, '%Lino%', '%azul%']);
+});
+
+test('consulta general conserva selección de necesidades y evita meses de productos sin consumo', async () => {
+    const { Model, calls } = buildMockedModel(isolateMethod('getControlStock({', 'getById({'));
+    await Model.getControlStock({ limit: 2000 });
+    const sql = calls[0].sql;
+    assert.match(sql, /AND \(FALSE OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
+    assert.match(sql, /AND \(FALSE OR \(/);
+    assert.match(sql, /INNER JOIN \(SELECT DISTINCT codprodu_key FROM consumo_mensual\) consumo_con_datos/);
+    assert.deepEqual(calls[0].params, [12, 2000]);
 });

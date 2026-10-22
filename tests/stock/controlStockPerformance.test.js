@@ -49,14 +49,26 @@ test('Las fórmulas de planificación y el orden de resultados permanecen idént
     const a = baseline.indexOf(start);
     const b = model.indexOf(start, model.indexOf('static async getControlStock({'));
     assert.ok(a >= 0 && b >= 0);
-    assert.equal(model.slice(b, model.indexOf(stop, b) + stop.length),
-        baseline.slice(a, baseline.indexOf(stop, a) + stop.length));
+    const current = model.slice(b, model.indexOf(stop, b) + stop.length);
+    const reference = baseline.slice(a, baseline.indexOf(stop, a) + stop.length);
+    // La fórmula de cada campo calculado permanece idéntica; sólo cambia
+    // la forma de obtener el proveedor y la fuente de datos de ventas.
+    const calculations = (sql) => sql.slice(
+        sql.indexOf('                CASE\n                    WHEN productos_base.tipo'),
+        sql.indexOf('            FROM productos_base')
+    );
+    assert.equal(calculations(current), calculations(reference));
+    assert.match(current, /AND \(\$\{includeCatalogMatch\} OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
+    assert.match(current, /AND \(\$\{includeCatalogMatch\} OR \(/);
+    assert.match(current, /recommended_net_next_month DESC/);
 });
 
-test('Seleccionar una sugerencia consulta por código exacto y preserva filtros restantes', () => {
-    assert.match(hook, /const next = \{ \.\.\.filters, productName: String\(code \|\| ''\)\.trim\(\), productCode: String/);
+test('Seleccionar una sugerencia consulta por código exacto sin filtros previos que la oculten', () => {
+    assert.match(hook, /const next = \{ \.\.\.filters, provider: '', collection: '', productName: String\(code \|\| ''\)\.trim\(\), productCode: String/);
     assert.match(hook, /setAppliedFilters\(next\)/);
     assert.match(hook, /key === 'productName' \? \{ productCode: '' \}/);
+    assert.match(page, /setStatus\(STOCK_STATUS\.all\)/);
+    assert.match(page, /onProductSelect=\{selectCatalogProduct\}/);
     assert.match(autocomplete, /fetchStockControlSuggestions/);
     assert.match(autocomplete, /setTimeout\(\(\) =>/);
     assert.match(autocomplete, /controller\.abort\(\)/);

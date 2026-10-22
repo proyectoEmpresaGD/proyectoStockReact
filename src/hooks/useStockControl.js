@@ -46,7 +46,9 @@ export function useStockControl({ token }) {
     }, [filters]);
 
     const selectProduct = useCallback((code) => {
-        const next = { ...filters, productName: String(code || '').trim(), productCode: String(code || '').trim() };
+        // Una referencia elegida del catálogo debe poder encontrarse aunque
+        // los filtros previos de proveedor o familia pertenezcan a otro producto.
+        const next = { ...filters, provider: '', collection: '', productName: String(code || '').trim(), productCode: String(code || '').trim() };
         setFilters(next);
         setAppliedFilters(next);
     }, [filters]);

@@ -540,20 +540,57 @@ export class StockModel {
         }
     }
 
-    static async getControlStock({ provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500 }) {
+    // Clave canónica compatible con REGEXP_REPLACE SQL, sin convertir códigos grandes a Number.
+    static controlStockCanonicalCode(value) {
+        return String(value ?? '').trim().toUpperCase().replace(/^([A-Z]+)0*([0-9]+)$/, (_, letters, digits) =>
+            letters + (digits.replace(/^0+(?=\d)/, '') || '0'));
+    }
+
+    // El proveedor del resultado se obtiene *después* de decidir qué referencias mostrar.
+    // No calcula el proveedor del catálogo entero cuando no existe filtro de proveedor.
+    static async getControlStockProviderMapByCodes(codes = []) {
+        const normalized = [...new Set(codes.map(StockModel.controlStockCanonicalCode).filter(Boolean))];
+        if (!normalized.length) return new Map();
+        const key = `UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))`;
+        const { rows } = await pool.query(`
+            SELECT DISTINCT ON (${key})
+                ${key} AS codprodu_key,
+                NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '') AS codprove,
+                COALESCE(proveedores.razprove,
+                    NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '')) AS nombre_proveedor
+            FROM albcompra_linea
+            LEFT JOIN faccompra
+                ON faccompra.ejercicio = albcompra_linea.ejercicio
+               AND faccompra.canal = albcompra_linea.canal
+               AND faccompra.codserfaccompra = albcompra_linea.codserfaccompra
+               AND faccompra.nfaccompra = albcompra_linea.nfaccompra
+            LEFT JOIN proveedores
+                ON TRIM(proveedores.codprove::text) =
+                   NULLIF(TRIM(COALESCE(albcompra_linea.codprove::text, faccompra.codprove::text, '')), '')
+            WHERE ${key} = ANY($1::text[])
+            ORDER BY ${key}, COALESCE(faccompra.fecha, albcompra_linea.fecha) DESC NULLS LAST
+        `, [normalized]);
+        return new Map(rows.map((row) => [row.codprodu_key, {
+            codprove: row.codprove || '',
+            nombre_proveedor: row.nombre_proveedor ?? row.codprove ?? '',
+        }]));
+    }
+
+    static async getControlStock({ provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500, onTiming = null }) {
         const safeMonthsBack = StockModel.getControlStockMonthsBack(monthsBack);
         const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 500, 1), 2000);
 
         const lateFilters = [];
         const earlyFilters = [];
+        const selectedProvider = String(provider || '').trim();
         const params = [safeMonthsBack, safeLimit];
         let paramIndex = params.length + 1;
 
         // El proveedor es el último de cada referencia: hay que filtrarlo DESPUÉS
         // de elegirlo, nunca sobre líneas de compra históricas.
-        if (provider) {
+        if (selectedProvider) {
             lateFilters.push(`COALESCE(ultimo_proveedor.codprove, '') = $${paramIndex++}`);
-            params.push(String(provider).trim());
+            params.push(selectedProvider);
         }
 
         // Familia y texto dependen solo del producto. Filtrarlos en productos_base
@@ -584,6 +621,21 @@ export class StockModel {
         // a los códigos seleccionados. EXISTS evita multiplicar ventas si hay códigos
         // distintos que comparten una forma canónica.
         const scopedProducts = earlyFilters.length > 0;
+        // El catálogo de sugerencias incluye también productos cubiertos o sin ventas.
+        // Si el usuario busca explícitamente una referencia/nombre, debe poder verla
+        // en la tabla con sus cálculos reales, aunque NO genere necesidad de compra.
+        // El listado general conserva intactos los criterios de alertas.
+        const explicitProductSearch = Boolean(String(productCode || '').trim() || String(productName || '').trim());
+        const includeCatalogMatch = explicitProductSearch ? 'TRUE' : 'FALSE';
+        // Para el listado general, crear historial mensual sólo para claves que
+        // realmente consumieron. Los productos sin consumo ya eran excluidos después.
+        // El INNER JOIN conserva la multiplicidad original si existen dos códigos
+        // diferentes que comparten una misma clave canónica.
+        const historyProducts = explicitProductSearch
+            ? 'productos_base'
+            : `productos_base
+                INNER JOIN (SELECT DISTINCT codprodu_key FROM consumo_mensual) consumo_con_datos
+                    ON consumo_con_datos.codprodu_key = productos_base.codprodu_key`;
         const scopeSales = scopedProducts ? `AND EXISTS (
             SELECT 1 FROM productos_base pb
             WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
@@ -601,25 +653,17 @@ export class StockModel {
             WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
         )` : '';
 
-        try {
-            const { rows } = await pool.query(
-                `
-            WITH productos_base AS (
-                SELECT
-                    productos.codprodu,
-                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(productos.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
-                    COALESCE(productos.desprodu, '') AS desprodu,
-                    COALESCE(productos.coleccion, '') AS coleccion,
-                    NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia,
-                    COALESCE(productos.codmarca, '') AS codmarca,
-                    COALESCE(TRIM(productos.codtipo::text), '') AS tipo
-                FROM productos
-                WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
-                AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
-                AND ${controlStockActiveProductCondition()}
-                ${baseFilters}
-            ),
-            ultimo_proveedor AS (
+        // El proveedor sólo participa en la consulta grande si es un filtro de negocio.
+        // Sin filtro se enriquece después de LIMIT; cero resultados => cero lecturas de compras.
+        const needProviderForFiltering = Boolean(selectedProvider);
+        const supplierSelect = needProviderForFiltering
+            ? `COALESCE(ultimo_proveedor.codprove, '') AS codprove,
+                COALESCE(ultimo_proveedor.nombre_proveedor, ultimo_proveedor.codprove, '') AS nombre_proveedor,`
+            : `''::text AS codprove,
+                ''::text AS nombre_proveedor,`;
+        const supplierJoin = needProviderForFiltering ? `LEFT JOIN ultimo_proveedor
+                ON ultimo_proveedor.codprodu_key = productos_base.codprodu_key` : '';
+        const supplierCte = needProviderForFiltering ? `ultimo_proveedor AS (
                 SELECT DISTINCT ON (
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
                 )
@@ -639,7 +683,30 @@ export class StockModel {
                 ORDER BY
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albcompra_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
                     COALESCE(faccompra.fecha, albcompra_linea.fecha) DESC NULLS LAST
+            ),` : '';
+        const measure = (label, started) => {
+            if (typeof onTiming === 'function') onTiming(label, performance.now() - started);
+        };
+        try {
+            const sqlStarted = performance.now();
+            const { rows } = await pool.query(
+                `
+            WITH productos_base AS (
+                SELECT
+                    productos.codprodu,
+                    UPPER(REGEXP_REPLACE(TRIM(COALESCE(productos.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
+                    COALESCE(productos.desprodu, '') AS desprodu,
+                    COALESCE(productos.coleccion, '') AS coleccion,
+                    NULLIF(TRIM(productos.codfamil::text), '') AS codfamilia,
+                    COALESCE(productos.codmarca, '') AS codmarca,
+                    COALESCE(TRIM(productos.codtipo::text), '') AS tipo
+                FROM productos
+                WHERE COALESCE(TRIM(productos.codtipo::text), '') IN ('101', '103', '105', '106', '109')
+                AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
+                AND ${controlStockActiveProductCondition()}
+                ${baseFilters}
             ),
+            ${supplierCte}
             stock_almacen AS (
                 SELECT
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
@@ -660,35 +727,46 @@ export class StockModel {
                 ${scopeLots}
                 GROUP BY UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
             ),
+            facturas_periodo AS MATERIALIZED (
+                SELECT facventa.codclien, facventa.codserfacventa, facventa.nfacventa,
+                       facventa.codalbar, facventa.nalbar, facventa.fecha
+                FROM facventa
+                WHERE facventa.fecha >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
+                  AND facventa.fecha < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+            ),
+            -- Equivalente a la condición OR original. La segunda rama sólo contiene
+            -- los emparejamientos NO incluidos en la primera (sin doble contar).
+            facturas_albaranes AS (
+                SELECT fp.fecha, av.codseralbventa, av.nalbventa, av.codclien
+                FROM facturas_periodo fp
+                INNER JOIN albventa av
+                    ON av.codclien = fp.codclien
+                   AND av.codserfacventa = fp.codserfacventa
+                   AND av.nfacventa = fp.nfacventa
+                UNION ALL
+                SELECT fp.fecha, av.codseralbventa, av.nalbventa, av.codclien
+                FROM facturas_periodo fp
+                INNER JOIN albventa av
+                    ON av.codclien = fp.codclien
+                   AND av.codseralbventa = fp.codalbar
+                   AND av.nalbventa = fp.nalbar
+                   AND (av.codserfacventa = fp.codserfacventa AND av.nfacventa = fp.nfacventa) IS NOT TRUE
+            ),
             consumo_mensual AS (
                 SELECT
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
-                    DATE_TRUNC('month', facventa.fecha)::date AS fecha_mes,
+                    DATE_TRUNC('month', facturas_albaranes.fecha)::date AS fecha_mes,
                     SUM(ABS(COALESCE(albventa_linea.cantidad, 0)))::numeric AS consumo
-                FROM facventa
-                INNER JOIN albventa
-                    ON albventa.codclien = facventa.codclien
-                AND (
-                        (
-                            albventa.codserfacventa = facventa.codserfacventa
-                            AND albventa.nfacventa = facventa.nfacventa
-                        )
-                        OR (
-                            albventa.codseralbventa = facventa.codalbar
-                            AND albventa.nalbventa = facventa.nalbar
-                        )
-                )
+                FROM facturas_albaranes
                 INNER JOIN albventa_linea
-                    ON albventa_linea.codseralbventa = albventa.codseralbventa
-                AND albventa_linea.nalbventa = albventa.nalbventa
-                AND albventa_linea.codclien = albventa.codclien
+                    ON albventa_linea.codseralbventa = facturas_albaranes.codseralbventa
+                   AND albventa_linea.nalbventa = facturas_albaranes.nalbventa
+                   AND albventa_linea.codclien = facturas_albaranes.codclien
                 WHERE NULLIF(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '') IS NOT NULL
                 ${scopeSales}
-                AND facventa.fecha >= DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
-                AND facventa.fecha < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
                 GROUP BY
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
-                    DATE_TRUNC('month', facventa.fecha)::date
+                    DATE_TRUNC('month', facturas_albaranes.fecha)::date
             ),
             meses AS (
                 SELECT generate_series(
@@ -701,7 +779,7 @@ export class StockModel {
                 SELECT
                     productos_base.codprodu_key,
                     meses.fecha_mes
-                FROM productos_base
+                FROM ${historyProducts}
                 CROSS JOIN meses
             ),
             resumen_consumo AS (
@@ -731,8 +809,7 @@ export class StockModel {
                 productos_base.codfamilia,
                 productos_base.codmarca,
                 productos_base.tipo,
-                COALESCE(ultimo_proveedor.codprove, '') AS codprove,
-                COALESCE(ultimo_proveedor.nombre_proveedor, ultimo_proveedor.codprove, '') AS nombre_proveedor,
+                ${supplierSelect}
 
                 CASE
                     WHEN productos_base.tipo = '101'
@@ -844,14 +921,13 @@ export class StockModel {
                 ON stock_almacen.codprodu_key = productos_base.codprodu_key
             LEFT JOIN stock_lotes_tipo_101
                 ON stock_lotes_tipo_101.codprodu_key = productos_base.codprodu_key
-            LEFT JOIN ultimo_proveedor
-                ON ultimo_proveedor.codprodu_key = productos_base.codprodu_key
+            ${supplierJoin}
             LEFT JOIN resumen_consumo
                 ON resumen_consumo.codprodu_key = productos_base.codprodu_key
             WHERE 1 = 1
               ${extraFilters}
-              AND COALESCE(resumen_consumo.consumo_total_periodo, 0) > 0
-              AND (
+              AND (${includeCatalogMatch} OR COALESCE(resumen_consumo.consumo_total_periodo, 0) > 0)
+              AND (${includeCatalogMatch} OR (
                     (
                         productos_base.tipo = '101'
                         AND COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0) < 30
@@ -876,7 +952,7 @@ export class StockModel {
                             - COALESCE(stock_almacen.canpenservir, 0)
                         )
                     )
-              )
+              ))
             ORDER BY
                 recommended_net_next_month DESC,
                 recommended_net_next_three_months DESC,
@@ -887,14 +963,24 @@ export class StockModel {
                 params
             );
 
+            measure('sql', sqlStarted);
             const productCodes = rows.map((row) => row.codprodu).filter(Boolean);
-            const [datCompraMap, estimatedDateMap] = await Promise.all([
-                StockModel.getDatCompraMapByCodes(productCodes),
-                StockModel.getFechaEstimadaMapByCodesFast(productCodes, safeLimit),
+            // Sin filas evitamos las consultas de ampliación por completo.
+            const timedRead = async (name, action) => {
+                const t = performance.now();
+                try { return await action(); } finally { measure(name, t); }
+            };
+            const [providerMap, datCompraMap, estimatedDateMap] = await Promise.all([
+                needProviderForFiltering ? Promise.resolve(new Map()) :
+                    timedRead('providers', () => StockModel.getControlStockProviderMapByCodes(productCodes)),
+                timedRead('purchases', () => StockModel.getDatCompraMapByCodes(productCodes)),
+                timedRead('dates', () => StockModel.getFechaEstimadaMapByCodesFast(productCodes, safeLimit)),
             ]);
 
             return rows.map((row) => {
                 const purchaseData = datCompraMap.get(StockModel.normalizeCode(row.codprodu));
+                const latestProvider = needProviderForFiltering
+                    ? null : providerMap.get(StockModel.controlStockCanonicalCode(row.codprodu));
                 const minimumOrderQuantity = StockModel.parseFlexibleNumber(purchaseData?.cantminima, 0);
                 const leadTimeDays = StockModel.parseFlexibleNumber(purchaseData?.plaentre, 0);
                 const recommendedMonth = StockModel.toSafeNumber(row.recommended_net_next_month);
@@ -902,6 +988,7 @@ export class StockModel {
 
                 return {
                     ...row,
+                    ...(latestProvider ? { codprove: latestProvider.codprove, nombre_proveedor: latestProvider.nombre_proveedor } : {}),
                     nombre_familia: StockModel.getFamilyName(row.codfamilia),
                     stockactual: StockModel.toSafeNumber(row.stockactual),
                     canpenrecib: StockModel.toSafeNumber(row.canpenrecib),

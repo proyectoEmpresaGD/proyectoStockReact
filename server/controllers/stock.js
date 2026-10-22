@@ -80,6 +80,7 @@ export class StockController {
 
     async getControlStock(req, res) {
         const startedAt = performance.now();
+        const timings = {};
         try {
             const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500 } = req.query;
 
@@ -90,11 +91,19 @@ export class StockController {
                 productCode,
                 monthsBack,
                 limit,
+                onTiming: (stage, ms) => { timings[stage] = ms; },
             });
 
             const elapsed = performance.now() - startedAt;
-            res.set('Server-Timing', `stock-db;dur=${elapsed.toFixed(1)}`);
-            if (elapsed > 3000) console.warn(`Control de stock: consulta lenta (${Math.round(elapsed)} ms, ${data.length} productos).`);
+            const stageMetrics = Object.entries(timings)
+                .map(([name, ms]) => `stock-${name};dur=${ms.toFixed(1)}`);
+            res.set('Server-Timing', [`stock-db;dur=${elapsed.toFixed(1)}`, ...stageMetrics].join(', '));
+            if (elapsed > 3000) {
+                const stages = Object.entries(timings)
+                    .map(([name, ms]) => `${name}=${Math.round(ms)} ms`)
+                    .join(', ');
+                console.warn(`Control de stock: consulta lenta (${Math.round(elapsed)} ms, ${data.length} productos). ${stages}`);
+            }
             res.json(data);
         } catch (error) {
             console.error('Error fetching control stock:', error);

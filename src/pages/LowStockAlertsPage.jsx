@@ -78,6 +78,20 @@ function LowStockAlertsPage() {
     } = useStockControl({ token });
 
     const [status, setStatus] = useState(STOCK_STATUS.all);
+    const selectCatalogProduct = useCallback((code) => {
+        // No ocultar la referencia seleccionada bajo un estado «Comprar ahora»
+        // que el usuario hubiese aplicado a la consulta anterior.
+        setStatus(STOCK_STATUS.all);
+        selectProduct(code);
+    }, [selectProduct]);
+    const applySearchFilters = useCallback((searchOverride) => {
+        // También al escribir el código manualmente: mostrar el producto aunque
+        // estuviera activo un filtro local de estado de compra.
+        if (typeof searchOverride === 'string' || filters.productName.trim()) {
+            setStatus(STOCK_STATUS.all);
+        }
+        applyFilters(searchOverride);
+    }, [applyFilters, filters.productName]);
     const [horizon, setHorizon] = useState(HORIZONS.month);
     const [sortBy, setSortBy] = useState('priority');
     const [page, setPage] = useState(1);
@@ -294,10 +308,10 @@ function LowStockAlertsPage() {
                     loading={loading}
                     token={token}
                     rows={rows}
-                    onProductSelect={selectProduct}
+                    onProductSelect={selectCatalogProduct}
                     onFilterChange={updateFilter}
                     onReset={resetFilters}
-                    onApply={applyFilters}
+                    onApply={applySearchFilters}
                 />
 
                 {filtersError && (
