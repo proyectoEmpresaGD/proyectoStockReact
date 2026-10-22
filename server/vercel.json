@@ -8,6 +8,25 @@
     ],
     "routes": [
         {
+            "src": "/api/stock/control-stock(?:/.*)?",
+            "has": [
+                {
+                    "type": "header",
+                    "key": "Origin",
+                    "value": "^https://proyecto-stock-react\\.vercel\\.app$"
+                }
+            ],
+            "headers": {
+                "Access-Control-Allow-Origin": "https://proyecto-stock-react.vercel.app",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "600",
+                "Vary": "Origin"
+            },
+            "continue": true
+        },
+        {
             "src": "/(.*)",
             "dest": "index.js"
         }

@@ -2,6 +2,8 @@
 // No se reutiliza para escrituras, inicio de sesión ni modificaciones de permisos.
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const RETRY_DELAYS = [1000, 2500];
+// No ejecutar de nuevo una consulta pesada tras agotar tiempo en el servidor.
+const SLOW_FAILURE_THRESHOLD_MS = 10000;
 
 function abortedError() {
     return new DOMException('Consulta cancelada.', 'AbortError');
@@ -55,6 +57,8 @@ export async function fetchStockWithRecovery(url, options, {
     onRetry,
     delays = RETRY_DELAYS,
     timeoutMs = 45000,
+    now = () => Date.now(),
+    slowFailureThresholdMs = SLOW_FAILURE_THRESHOLD_MS,
 } = {}) {
     const signal = options?.signal;
 
@@ -62,9 +66,13 @@ export async function fetchStockWithRecovery(url, options, {
         if (signal?.aborted) throw abortedError();
         let retryable = false;
         let retryStatus = null;
+        const startedAt = now();
         try {
             const response = await fetchWithAttemptTimeout(fetchImpl, url, options, timeoutMs);
-            if (response.ok || !RETRYABLE_STATUSES.has(response.status) || attempt >= delays.length) {
+            // Un 504/5xx tras una consulta larga apunta a saturación/timeout,
+            // no a un microcorte corto. Reintentarlo multiplica trabajo en Neon.
+            if (response.ok || !RETRYABLE_STATUSES.has(response.status) || attempt >= delays.length
+                || (response.status >= 500 && now() - startedAt >= slowFailureThresholdMs)) {
                 return response;
             }
             retryable = true;
@@ -74,6 +82,9 @@ export async function fetchStockWithRecovery(url, options, {
             // fetch rechaza con TypeError ante fallos de red / servidor inalcanzable.
             // Otros errores de programación no se reintentan silenciosamente.
             if (!(error instanceof TypeError) || attempt >= delays.length) throw error;
+            if (now() - startedAt >= slowFailureThresholdMs) {
+                throw new Error('La consulta de planificación tardó demasiado o el servidor interrumpió la conexión. Comprueba los registros de Vercel.');
+            }
             retryable = true;
         }
         if (!retryable) break;
