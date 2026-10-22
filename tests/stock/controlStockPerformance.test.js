@@ -57,7 +57,8 @@ test('Las fórmulas de planificación y el orden de resultados permanecen idént
         sql.indexOf('                CASE\n                    WHEN productos_base.tipo'),
         sql.indexOf('            FROM productos_base')
     );
-    assert.equal(calculations(current), calculations(reference));
+    const withoutHist = (v) => v.replace(/\s*(?:-- Historial detallado se genera sólo para los resultados ya limitados\.\n\s*)?NULL::json AS __history_placeholder|\s*COALESCE\(resumen_consumo\.monthly_history, '\[\]'::json\) AS monthly_history/, '');
+    assert.equal(withoutHist(calculations(current)), withoutHist(calculations(reference)));
     assert.match(current, /AND \(\$\{includeCatalogMatch\} OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
     assert.match(current, /AND \(\$\{includeCatalogMatch\} OR \(/);
     assert.match(current, /recommended_net_next_month DESC/);

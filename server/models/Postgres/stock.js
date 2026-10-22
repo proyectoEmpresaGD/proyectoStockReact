@@ -633,15 +633,6 @@ export class StockModel {
         // El listado general conserva intactos los criterios de alertas.
         const explicitProductSearch = Boolean(String(productCode || '').trim() || String(productName || '').trim());
         const includeCatalogMatch = explicitProductSearch ? 'TRUE' : 'FALSE';
-        // Para el listado general, crear historial mensual sólo para claves que
-        // realmente consumieron. Los productos sin consumo ya eran excluidos después.
-        // El INNER JOIN conserva la multiplicidad original si existen dos códigos
-        // diferentes que comparten una misma clave canónica.
-        const historyProducts = explicitProductSearch
-            ? 'productos_base'
-            : `productos_base
-                INNER JOIN (SELECT DISTINCT codprodu_key FROM consumo_mensual) consumo_con_datos
-                    ON consumo_con_datos.codprodu_key = productos_base.codprodu_key`;
         const scopeSales = scopedProducts ? `AND EXISTS (
             SELECT 1 FROM productos_base pb
             WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
@@ -789,42 +780,27 @@ export class StockModel {
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
                     DATE_TRUNC('month', facturas_albaranes.fecha)::date
             ),
-            meses AS (
-                SELECT generate_series(
-                    DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month'),
-                    DATE_TRUNC('month', CURRENT_DATE),
-                    INTERVAL '1 month'
-                )::date AS fecha_mes
-            ),
-            consumo_producto_mes AS (
-                SELECT
-                    productos_base.codprodu_key,
-                    meses.fecha_mes
-                FROM ${historyProducts}
-                CROSS JOIN meses
+            -- Resumir el consumo sin generar 12 filas/JSON por cada referencia del
+            -- catálogo. Se preserva la multiplicidad del catálogo por clave canónica
+            -- (la consulta anterior repetía meses para cada producto con esa clave).
+            multiplicidad_producto AS (
+                SELECT codprodu_key, COUNT(*)::numeric AS repeticiones
+                FROM productos_base
+                GROUP BY codprodu_key
             ),
             resumen_consumo AS (
                 SELECT
-                    consumo_producto_mes.codprodu_key,
-                    SUM(COALESCE(consumo_mensual.consumo, 0))::numeric AS consumo_total_periodo,
-                    AVG(COALESCE(consumo_mensual.consumo, 0))::numeric AS consumo_medio_mensual,
-                    json_agg(
-                        json_build_object(
-                            'year', EXTRACT(YEAR FROM consumo_producto_mes.fecha_mes)::int,
-                            'month', EXTRACT(MONTH FROM consumo_producto_mes.fecha_mes)::int,
-                            'label', TO_CHAR(consumo_producto_mes.fecha_mes, 'YYYY-MM'),
-                            'consumption', COALESCE(consumo_mensual.consumo, 0)
-                        )
-                        ORDER BY consumo_producto_mes.fecha_mes
-                    ) AS monthly_history
-                FROM consumo_producto_mes
-                LEFT JOIN consumo_mensual
-                    ON consumo_mensual.codprodu_key = consumo_producto_mes.codprodu_key
-                   AND consumo_mensual.fecha_mes = consumo_producto_mes.fecha_mes
-                GROUP BY consumo_producto_mes.codprodu_key
-            )
+                    mp.codprodu_key,
+                    (COALESCE(SUM(cm.consumo), 0) * mp.repeticiones)::numeric AS consumo_total_periodo,
+                    (COALESCE(SUM(cm.consumo), 0) / $1::numeric)::numeric AS consumo_medio_mensual
+                FROM multiplicidad_producto mp
+                LEFT JOIN consumo_mensual cm ON cm.codprodu_key = mp.codprodu_key
+                GROUP BY mp.codprodu_key, mp.repeticiones
+            ),
+            resultados_priorizados AS MATERIALIZED (
             SELECT
                 productos_base.codprodu,
+                productos_base.codprodu_key AS internal_codprodu_key,
                 productos_base.desprodu,
                 productos_base.coleccion,
                 productos_base.codfamilia,
@@ -936,7 +912,8 @@ export class StockModel {
                     0
                 )::numeric AS recommended_net_next_three_months,
 
-                COALESCE(resumen_consumo.monthly_history, '[]'::json) AS monthly_history
+                -- Historial detallado se genera sólo para los resultados ya limitados.
+                NULL::json AS __history_placeholder
             FROM productos_base
             LEFT JOIN stock_almacen
                 ON stock_almacen.codprodu_key = productos_base.codprodu_key
@@ -980,6 +957,39 @@ export class StockModel {
                 avg_monthly_consumption DESC,
                 productos_base.desprodu ASC
             LIMIT $2
+            )
+            SELECT
+                priorizados.*,
+                (
+                    SELECT COALESCE(json_agg(
+                        json_build_object(
+                            'year', EXTRACT(YEAR FROM mes.fecha_mes)::int,
+                            'month', EXTRACT(MONTH FROM mes.fecha_mes)::int,
+                            'label', TO_CHAR(mes.fecha_mes, 'YYYY-MM'),
+                            'consumption', COALESCE(cm.consumo, 0)
+                        ) ORDER BY mes.fecha_mes
+                    ), '[]'::json)
+                    FROM generate_series(
+                        DATE_TRUNC('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month'),
+                        DATE_TRUNC('month', CURRENT_DATE),
+                        INTERVAL '1 month'
+                    ) mes(fecha_mes)
+                    -- Mantener la repetición original si varias fichas comparten
+                    -- la misma clave canónica (sin modificar cifras ni historial).
+                    CROSS JOIN LATERAL generate_series(1, (
+                        SELECT COUNT(*)::int FROM productos_base pb
+                        WHERE pb.codprodu_key = priorizados.internal_codprodu_key
+                    )) copia(n)
+                    LEFT JOIN consumo_mensual cm
+                        ON cm.codprodu_key = priorizados.internal_codprodu_key
+                       AND cm.fecha_mes = mes.fecha_mes::date
+                ) AS monthly_history
+            FROM resultados_priorizados priorizados
+            ORDER BY
+                priorizados.recommended_net_next_month DESC,
+                priorizados.recommended_net_next_three_months DESC,
+                priorizados.avg_monthly_consumption DESC,
+                priorizados.desprodu ASC
             `,
                 params
             );
@@ -999,6 +1009,7 @@ export class StockModel {
             ]);
 
             return rows.map((row) => {
+                const { internal_codprodu_key, __history_placeholder, ...publicRow } = row;
                 const purchaseData = datCompraMap.get(StockModel.normalizeCode(row.codprodu));
                 const latestProvider = needProviderForFiltering
                     ? null : providerMap.get(StockModel.controlStockCanonicalCode(row.codprodu));
@@ -1008,7 +1019,7 @@ export class StockModel {
                 const recommendedQuarter = StockModel.toSafeNumber(row.recommended_net_next_three_months);
 
                 return {
-                    ...row,
+                    ...publicRow,
                     ...(latestProvider ? { codprove: latestProvider.codprove, nombre_proveedor: latestProvider.nombre_proveedor } : {}),
                     nombre_familia: StockModel.getFamilyName(row.codfamilia),
                     stockactual: StockModel.toSafeNumber(row.stockactual),

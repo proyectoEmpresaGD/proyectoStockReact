@@ -1,0 +1,14 @@
+-- SOLO PROPUESTAS. NO EJECUTAR SIN REVISAR PRIMERO EL DIAGNOSTICO
+-- DE INDICES, EXPLAIN Y CARGA DE NEON. NO SON PARTE DEL PARCHE AUTOMATICO.
+-- Si faltan índices equivalentes, aprobar cada uno y ejecutarlo POR SEPARADO
+-- fuera de una transacción. CONCURRENTLY evita bloquear escrituras normales,
+-- pero consume CPU/IO y espacio, y debe coordinarse con el mantenimiento.
+--
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS cjm_facventa_fecha_ctls_idx
+--   ON public.facventa (fecha);
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS cjm_albventa_fac_ctls_idx
+--   ON public.albventa (codclien, codserfacventa, nfacventa);
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS cjm_albventa_alb_ctls_idx
+--   ON public.albventa (codclien, codseralbventa, nalbventa);
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS cjm_albventa_linea_join_ctls_idx
+--   ON public.albventa_linea (codclien, codseralbventa, nalbventa);

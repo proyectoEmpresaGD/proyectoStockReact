@@ -81,7 +81,8 @@ test('búsqueda explícita muestra incluso catálogo sin consumo o sin necesidad
     const sql = calls[0].sql;
     assert.match(sql, /AND \(TRUE OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
     assert.match(sql, /AND \(TRUE OR \(/);
-    assert.match(sql, /FROM productos_base\s+CROSS JOIN meses/);
+    assert.match(sql, /resultados_priorizados AS MATERIALIZED/);
+    assert.match(sql, /FROM resultados_priorizados priorizados/);
     assert.deepEqual(calls[0].params, [12, 500, '%Lino%', '%azul%']);
 });
 
@@ -91,6 +92,7 @@ test('consulta general conserva selección de necesidades y evita meses de produ
     const sql = calls[0].sql;
     assert.match(sql, /AND \(FALSE OR COALESCE\(resumen_consumo\.consumo_total_periodo, 0\) > 0\)/);
     assert.match(sql, /AND \(FALSE OR \(/);
-    assert.match(sql, /INNER JOIN \(SELECT DISTINCT codprodu_key FROM consumo_mensual\) consumo_con_datos/);
+    assert.match(sql, /resumen_consumo AS \(/);
+    assert.match(sql, /COUNT\(\*\)::numeric AS repeticiones/);
     assert.deepEqual(calls[0].params, [12, 2000]);
 });
