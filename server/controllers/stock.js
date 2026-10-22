@@ -81,8 +81,13 @@ export class StockController {
     async getControlStock(req, res) {
         const startedAt = performance.now();
         const timings = {};
+        // Diagnóstico optativo. En un 504 de Vercel el controlador no llega al
+        // console.warn final; estos registros ayudan a localizar la fase bloqueada.
+        const traceEnabled = process.env.CJM_DEBUG_STOCK_CONTROL === '1';
+        const traceId = traceEnabled ? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : null;
+        if (traceEnabled) console.info(`[control-stock:${traceId}] Inicio de consulta`);
         try {
-            const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500 } = req.query;
+            const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 100 } = req.query;
 
             const data = await StockModel.getControlStock({
                 provider,
@@ -91,7 +96,10 @@ export class StockController {
                 productCode,
                 monthsBack,
                 limit,
-                onTiming: (stage, ms) => { timings[stage] = ms; },
+                onTiming: (stage, ms) => {
+                    timings[stage] = ms;
+                    if (traceEnabled) console.info(`[control-stock:${traceId}] ${stage}=${Math.round(ms)}ms`);
+                },
             });
 
             const elapsed = performance.now() - startedAt;

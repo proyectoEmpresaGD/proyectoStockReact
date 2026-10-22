@@ -454,12 +454,13 @@ export class StockModel {
         const tokens = String(search || '').trim().slice(0, 100).split(/\s+/).filter(Boolean).slice(0, 5);
         if (!tokens.length || tokens.join('').length < 2) return [];
 
-        const parameters = tokens.map((token) => `%${token}%`);
+        const escapeToken = (token) => token.replace(/[\\%_]/g, '\\$&');
+        const parameters = tokens.map((token) => `%${escapeToken(token)}%`);
         const conditions = parameters.map((_, index) => `(
             productos.codprodu::text ILIKE $${index + 1}
             OR productos.desprodu ILIKE $${index + 1}
         )`).join(' AND ');
-        const firstTokenPrefix = `${tokens[0]}%`;
+        const firstTokenPrefix = `${escapeToken(tokens[0])}%`;
         const { rows } = await pool.query(`
             SELECT TRIM(productos.codprodu::text) AS codprodu,
                    COALESCE(productos.desprodu, '') AS desprodu
@@ -468,9 +469,14 @@ export class StockModel {
               AND TRIM(COALESCE(productos.desprodu, '')) NOT ILIKE '%TRABAJO%'
               AND ${controlStockActiveProductCondition()}
               AND ${conditions}
-            ORDER BY CASE WHEN TRIM(productos.codprodu::text) ILIKE $${parameters.length + 1}
-                          THEN 0 ELSE 1 END,
-                     productos.codprodu ASC
+            ORDER BY CASE
+                WHEN UPPER(TRIM(productos.codprodu::text)) = UPPER(LEFT($${parameters.length + 1}, LENGTH($${parameters.length + 1}) - 1)) THEN 0
+                WHEN TRIM(productos.codprodu::text) ILIKE $${parameters.length + 1} THEN 1
+                WHEN productos.codprodu::text ILIKE $1 THEN 2
+                WHEN productos.desprodu ILIKE $${parameters.length + 1} THEN 3
+                ELSE 4
+            END,
+            productos.codprodu ASC
             LIMIT 10
         `, [...parameters, firstTokenPrefix]);
         return rows;
@@ -653,6 +659,20 @@ export class StockModel {
             WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(stocklotes.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
         )` : '';
 
+        // Para búsquedas acotadas, seleccionar primero las líneas del producto.
+        // Evita unir todo el historial de albaranes a líneas que no pueden aparecer
+        // en el resultado. EXISTS conserva cada línea una sola vez.
+        const scopedSalesCte = explicitProductSearch ? `lineas_venta_filtradas AS MATERIALIZED (
+                SELECT albventa_linea.codprodu, albventa_linea.cantidad,
+                       albventa_linea.codseralbventa, albventa_linea.nalbventa,
+                       albventa_linea.codclien
+                FROM albventa_linea
+                WHERE NULLIF(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '') IS NOT NULL
+                ${scopeSales}
+            ),` : '';
+        const salesLinesSource = explicitProductSearch ? 'lineas_venta_filtradas AS albventa_linea' : 'albventa_linea';
+        const residualScopeSales = explicitProductSearch ? '' : scopeSales;
+
         // El proveedor sólo participa en la consulta grande si es un filtro de negocio.
         // Sin filtro se enriquece después de LIMIT; cero resultados => cero lecturas de compras.
         const needProviderForFiltering = Boolean(selectedProvider);
@@ -707,6 +727,7 @@ export class StockModel {
                 ${baseFilters}
             ),
             ${supplierCte}
+            ${scopedSalesCte}
             stock_almacen AS (
                 SELECT
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(stock.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')) AS codprodu_key,
@@ -758,12 +779,12 @@ export class StockModel {
                     DATE_TRUNC('month', facturas_albaranes.fecha)::date AS fecha_mes,
                     SUM(ABS(COALESCE(albventa_linea.cantidad, 0)))::numeric AS consumo
                 FROM facturas_albaranes
-                INNER JOIN albventa_linea
+                INNER JOIN ${salesLinesSource}
                     ON albventa_linea.codseralbventa = facturas_albaranes.codseralbventa
                    AND albventa_linea.nalbventa = facturas_albaranes.nalbventa
                    AND albventa_linea.codclien = facturas_albaranes.codclien
                 WHERE NULLIF(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '') IS NOT NULL
-                ${scopeSales}
+                ${residualScopeSales}
                 GROUP BY
                     UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2')),
                     DATE_TRUNC('month', facturas_albaranes.fecha)::date

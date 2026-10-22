@@ -61,6 +61,7 @@ function LowStockAlertsPage() {
     const { token, user } = useAuthContext();
     const {
         filters,
+        appliedFilters,
         filterOptions,
         rows,
         loading,
@@ -313,6 +314,11 @@ function LowStockAlertsPage() {
                     onReset={resetFilters}
                     onApply={applySearchFilters}
                 />
+
+                <p className="text-xs text-slate-500" role="note">
+                    La planificación muestra como máximo {appliedFilters.limit} productos por consulta.
+                    El buscador de referencias consulta el catálogo completo, aunque una referencia no esté entre los resultados iniciales.
+                </p>
 
                 {filtersError && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">

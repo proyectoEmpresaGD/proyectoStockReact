@@ -12,6 +12,7 @@ const MONTH_OPTIONS = [
 ];
 
 const LIMIT_OPTIONS = [
+    { value: '100', label: 'Hasta 100 productos (rápido)' },
     { value: '500', label: 'Hasta 500 productos' },
     { value: '1000', label: 'Hasta 1.000 productos' },
     { value: '2000', label: 'Hasta 2.000 productos' },
@@ -166,7 +167,7 @@ function StockControlFilters({
                     <div>
                         <h2 className="text-base font-semibold text-slate-900"><TranslatedText>Buscar y acotar productos</TranslatedText></h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            <TranslatedText>Los cambios se aplican al pulsar «Ver resultados» para evitar recargas mientras escribes.</TranslatedText>
+                            <TranslatedText>Carga inicial: hasta 100 productos. Puedes ampliar el límite; el buscador consulta todo el catálogo.</TranslatedText>
                         </p>
                     </div>
                 </div>

@@ -109,7 +109,7 @@ test('la carga de proveedores espera la primera consulta y puede recuperarse por
 
 test('control de permisos, cálculos y límite 2000 siguen como antes', () => {
     assert.match(routes, /get\('\/control-stock', requirePurchasingRole/);
-    assert.match(hook, /limit: '2000'/);
+    assert.match(hook, /limit: '100'/);
     assert.match(client, /fetchStockWithRecovery\(url/);
     assert.match(client, /if \(response\.status === 401\)/);
     assert.match(client, /if \(response\.status === 403\)/);

@@ -7,7 +7,7 @@ const DEFAULT_FILTERS = {
     productName: '',
     productCode: '',
     monthsBack: '12',
-    limit: '2000',
+    limit: '100',
 };
 
 export function useStockControl({ token }) {
