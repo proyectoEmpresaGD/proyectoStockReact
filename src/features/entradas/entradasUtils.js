@@ -191,6 +191,39 @@ export function normalizeStoredActivity(value, date) {
     };
 }
 
+// La preferencia local puede estar desactivada (modo privado, cuota llena).
+// Conservar también el último estado válido en memoria evita perder avisos
+// entre sondeos; cuando hay varias pestañas se fusionan IDs vistos y lecturas.
+export function reconcileActivityState(persisted, inMemory, date) {
+    const saved = normalizeStoredActivity(persisted, date);
+    const memory = normalizeStoredActivity(inMemory, date);
+    if (memory.snapshot === null) return saved;
+    const byId = new Map();
+    for (const notice of [...memory.notifications, ...saved.notifications]) {
+        const current = byId.get(notice.id);
+        byId.set(notice.id, current ? { ...current, read: Boolean(current.read || notice.read) } : notice);
+    }
+    return {
+        date,
+        snapshot: memory.snapshot,
+        receiptIds: memory.receiptIds !== null || saved.receiptIds !== null
+            ? [...new Set([...(memory.receiptIds || []), ...(saved.receiptIds || [])])]
+            : null,
+        notifications: [...byId.values()].sort((a, b) =>
+            (Date.parse(b.detectedAt) || 0) - (Date.parse(a.detectedAt) || 0)).slice(0, 40),
+    };
+}
+
+// Si la aplicación permanece abierta durante el cambio de día, la primera
+// lectura de la nueva fecha NO debe descartar novedades como si fueran históricas.
+// En una apertura normal (sin consulta previa en esta sesión) se conserva el
+// comportamiento de usar la primera lectura como punto de partida.
+export function baselineForRefresh(stored, date, lastSuccessfulDate, receiptMode = false) {
+    const current = normalizeStoredActivity(stored, date);
+    if (current.snapshot !== null || !lastSuccessfulDate || lastSuccessfulDate === date) return current;
+    return { ...current, snapshot: {}, receiptIds: receiptMode ? [] : null };
+}
+
 export function updateStoredActivity(previous, entries, date, receiptMode = false) {
     const current = normalizeStoredActivity(previous, date);
     const isReceiptMode = receiptMode || entries.some((row) => Array.isArray(row.receiptLines));
@@ -202,7 +235,12 @@ export function updateStoredActivity(previous, entries, date, receiptMode = fals
     return {
         date,
         snapshot: makeSnapshot(entries),
-        receiptIds: isReceiptMode ? collectReceiptIds(entries) : null,
+        // Conservar IDs ya vistos incluso si una consulta posterior los omite
+        // temporalmente (ERP en sincronización, documento editado, etc.).
+        // Si reaparecen, NO son una recepción nueva.
+        receiptIds: isReceiptMode
+            ? [...new Set([...(current.receiptIds || []), ...collectReceiptIds(entries)])]
+            : null,
         notifications: [...additions, ...current.notifications].slice(0, 40),
     };
 }

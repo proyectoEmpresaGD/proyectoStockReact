@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, ArrowUpRight, PackageSearch, Volume2, VolumeX } from 'lucide-react';
+import { Bell, CheckCheck, ArrowUpRight, PackageSearch, Volume2, VolumeX, MonitorSmartphone, RefreshCw, AlertCircle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStockActivity } from './StockActivityContext.jsx';
 import { useEntryT } from './entryCopy.js';
 import { playActivitySound } from './notificationSound.js';
 
 export default function StockActivityBell() {
-    const { canView, notifications, unreadCount, markAllRead, soundEnabled, changeSoundEnabled } = useStockActivity();
+    const { canView, notifications, unreadCount, markAllRead, soundEnabled, changeSoundEnabled, desktopEnabled, changeDesktopEnabled, receiptMode, error, refresh, lastUpdated } = useStockActivity();
     const t = useEntryT();
     const detectionTime = (value) => value && Number.isFinite(Date.parse(value))
         ? new Date(value).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
@@ -14,11 +14,17 @@ export default function StockActivityBell() {
     const wrapperRef = useRef(null);
     const location = useLocation();
     const [soundWarning, setSoundWarning] = useState(false);
+    const [desktopWarning, setDesktopWarning] = useState(false);
     const toggleSound = async () => {
         const next = !soundEnabled;
         changeSoundEnabled(next);
         setSoundWarning(false);
         if (next && !(await playActivitySound())) setSoundWarning(true);
+    };
+
+    const toggleDesktop = async () => {
+        const result = await changeDesktopEnabled(!desktopEnabled);
+        setDesktopWarning(!result);
     };
 
     useEffect(() => { setOpen(false); }, [location.pathname]);
@@ -60,7 +66,7 @@ export default function StockActivityBell() {
                     <div className="flex items-start justify-between gap-3 border-b border-[var(--cjm-border)] px-4 py-4">
                         <div>
                             <p className="font-semibold app-text">{t('Actividad de stock')}</p>
-                            <p className="cjm-muted mt-0.5 text-xs">{t('Cambios detectados hoy en este navegador')}</p>
+                            <p className="cjm-muted mt-0.5 text-xs">{t(receiptMode ? 'Nuevas líneas de compra detectadas hoy' : 'Cambios detectados hoy en este navegador')}</p>
                         </div>
                         {unreadCount > 0 && (
                             <button type="button" onClick={markAllRead} className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--cjm-primary-deep)] hover:underline">
@@ -85,7 +91,15 @@ export default function StockActivityBell() {
                         </button>
                         <p className="cjm-muted px-2 text-[11px] leading-4">{t('Solo al detectar cambios nuevos con la aplicación abierta.')}</p>
                         {soundWarning && <p className="px-2 pt-1 text-xs text-amber-700" role="status">{t('Tu navegador ha bloqueado el audio. Interactúa con la pestaña y comprueba el volumen.')}</p>}
+                        <button type="button" onClick={toggleDesktop} aria-pressed={desktopEnabled} className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-[var(--cjm-surface-muted)]">
+                            <span className="flex items-center gap-2 text-sm font-medium app-text"><MonitorSmartphone size={18} aria-hidden="true" /> {t('Avisos del navegador')}</span>
+                            <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${desktopEnabled ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]' : 'bg-[var(--cjm-surface-muted)] cjm-muted'}`}>{t(desktopEnabled ? 'Activado' : 'Desactivado')}</span>
+                        </button>
+                        <p className="cjm-muted px-2 text-[11px] leading-4">{t('Avisos opcionales en segundo plano con la aplicación abierta. No funcionan con el navegador cerrado.')}</p>
+                        {desktopWarning && <p className="px-2 pt-1 text-xs text-amber-700" role="status">{t('El navegador no ha autorizado las notificaciones. Revisa los permisos del sitio.')}</p>}
                     </div>
+                    {error && <div className="flex items-center justify-between gap-2 border-b border-[var(--cjm-border)] px-4 py-2 text-xs text-amber-700" role="status"><span className="flex items-center gap-1"><AlertCircle size={14} /> {t('No se pudo actualizar Entradas; se conserva la última consulta correcta.')}</span><button type="button" onClick={() => refresh()} className="inline-flex items-center gap-1 font-semibold underline"><RefreshCw size={12} /> {t('Reintentar')}</button></div>}
+                    {!error && lastUpdated && <p className="cjm-muted px-4 py-2 text-[11px]">{t('Última consulta')}: {lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>}
                     <div className="max-h-72 overflow-y-auto">
                         {notifications.length === 0 ? (
                             <div className="px-5 py-9 text-center">
@@ -105,7 +119,7 @@ export default function StockActivityBell() {
                                     {!item.read && <span className="h-2 w-2 rounded-full bg-[var(--cjm-primary)]" aria-label="No leído" />}
                                 </div>
                                 <p className="cjm-muted mt-0.5 truncate text-xs">{item.desprodu}</p>
-                                <p className="mt-1 text-xs text-[var(--cjm-primary-deep)]">{t(item.kind === 'new-reference' ? 'Referencia detectada' : 'Cantidad registrada aumentada')} · +{item.change.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</p>
+                                <p className="mt-1 text-xs text-[var(--cjm-primary-deep)]">{t(item.kind === 'receipt' ? 'Albarán de compra detectado' : item.kind === 'new-reference' ? 'Referencia detectada' : 'Cantidad registrada aumentada')} · +{item.change.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</p>
                                 {detectionTime(item.detectedAt) && <p className="cjm-muted mt-1 text-[11px]">{t('Detectado a las')} {detectionTime(item.detectedAt)}</p>}
                             </Link>
                         ))}
