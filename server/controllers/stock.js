@@ -3,7 +3,7 @@ import { StockModel } from '../models/Postgres/stock.js';
 import { ProductModel } from '../models/Postgres/productos.js';
 import { StockLotesModel } from '../models/Postgres/stockLotes.js';
 import { validateStock, validatePartialStock } from '../schemas/stock.js';
-import { getRecepcionesCompraByDate, getReceptionDiagnosticByDate, todayMadrid, validDate, RecepcionesNoConfiguradasError } from '../services/recepcionesCompra.js';
+import { getRecepcionesCompraByDate, getReceptionDiagnosticByDate, todayMadrid, validDate, RecepcionesNoConfiguradasError, isReceptionSchemaError } from '../services/recepcionesCompra.js';
 
 export class StockController {
     async getAll(req, res) {
@@ -255,7 +255,15 @@ export class StockController {
             const result = await getReceptionDiagnosticByDate(date);
             return res.json(result);
         } catch (error) {
-            console.error('Error diagnosticando albaranes de compra:', error);
+            console.error('Error diagnosticando albaranes de compra:', {
+                code: error?.code, message: error?.message, detail: error?.detail,
+            });
+            if (isReceptionSchemaError(error)) {
+                return res.status(503).json({ code: 'ENTRADAS_ESQUEMA_INCOMPATIBLE', message: 'Las columnas o sus tipos en PostgreSQL no coinciden con la consulta de Entradas.' });
+            }
+            if (isTransientDatabaseError(error)) {
+                return res.status(503).json({ code: 'ENTRADAS_BD_TEMPORAL', message: 'La base de datos no está disponible temporalmente.' });
+            }
             return res.status(500).json({ message: 'No se pudo comprobar el motivo de la lista vacía.' });
         }
     }
@@ -270,8 +278,20 @@ export class StockController {
             if (error instanceof RecepcionesNoConfiguradasError) {
                 return res.status(503).json({ code: error.code, message: error.message });
             }
-            console.error('Error consultando albaranes de compra recibidos:', error);
-            return res.status(500).json({ message: 'No se pudieron consultar los albaranes de compra.' });
+            // Registrar el código SQLSTATE en el backend permite identificar
+            // la causa real del 500 (columna, cast, tabla, permisos o conexión)
+            // sin mostrar a usuarios las consultas ni datos del ERP.
+            console.error('Error consultando albaranes de compra recibidos:', {
+                code: error?.code, message: error?.message, detail: error?.detail,
+                column: error?.column, table: error?.table,
+            });
+            if (isReceptionSchemaError(error)) {
+                return res.status(503).json({ code: 'ENTRADAS_ESQUEMA_INCOMPATIBLE', message: 'La consulta de Entradas no es compatible con las columnas o tipos actuales del ERP. Revisa el log del servidor.' });
+            }
+            if (isTransientDatabaseError(error)) {
+                return res.status(503).json({ code: 'ENTRADAS_BD_TEMPORAL', message: 'No se pudo conectar con PostgreSQL. Se reintentará automáticamente.' });
+            }
+            return res.status(500).json({ message: 'No se pudieron consultar los albaranes de compra. Revisa el log del servidor.' });
         }
     }
 

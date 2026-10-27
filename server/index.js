@@ -1,3 +1,4 @@
+import { createExpenseTestsRouter } from './routes/expenseTests.js';
 import { isTransientDatabaseError } from './db/postgresResilience.js';
 import express, { json } from "express";
 import { createProductRouter } from "./routes/productos.js";
@@ -69,6 +70,9 @@ function cronAuthMiddleware(req, res, next) {
 const corsHandler = corsMiddleware();
 app.use(corsHandler);
 app.options("*", corsHandler);
+
+// Sandbox protegido antes del parser general (fotos limitadas a 3 MB).
+app.use('/api/expense-tests', authMiddleware, createExpenseTestsRouter({ pool }));
 
 // ✅ Body parser después
 app.use(json());

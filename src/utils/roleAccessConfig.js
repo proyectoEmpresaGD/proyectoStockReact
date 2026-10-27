@@ -14,6 +14,7 @@ export const AVAILABLE_PERMISSIONS = [
 ];
 
 export const AVAILABLE_ROUTES = [
+    { path: '/gastos-pruebas', label: 'Gastos · Pruebas', individualAccess: false, showInPermissionEditor: false, accessNote: 'Exclusivo de administrador durante las pruebas' },
     { path: '/', label: 'Inicio' },
     { path: '/clients', label: 'Clientes' },
     { path: '/agenda', label: 'Agenda' },
@@ -410,6 +411,7 @@ const roleCanAccessRoute = (roleName, path) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+    if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones mantiene su control individual específico en backend.
     // Esta capa de rutas no debe impedir que RRHH habilite el módulo.
@@ -438,6 +440,7 @@ export const userCanAccessRoute = (roleName, path, routeAccess = {}) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+    if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones y Gestión de usuarios tienen reglas propias y no admiten
     // excepciones genéricas desde el editor de permisos por usuario.

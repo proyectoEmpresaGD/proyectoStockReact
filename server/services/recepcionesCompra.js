@@ -21,6 +21,15 @@ const validPurchaseLine = `l.cantidad > 0 AND NULLIF(TRIM(l.codprodu::text), '')
 
 const TIME_COLUMNS = new Set(['hora', 'horaentre', 'ninguna']);
 
+// pg: 42703 columna inexistente; 42883 operador/función incompatible;
+// 42846 cast no permitido; 22P02 conversión inválida; 42P01 tabla inexistente.
+// No confundir un fallo de esquema del ERP con un día sin entradas.
+const SCHEMA_ERROR_CODES = new Set(['42703', '42883', '42846', '22P02', '42P01']);
+export function isReceptionSchemaError(error) {
+    return SCHEMA_ERROR_CODES.has(String(error?.code || ''));
+}
+
+
 export class RecepcionesNoConfiguradasError extends Error {
     constructor() {
         super('Configuración de fecha, hora o estados de albarán no válida. La fecha debe ser albcompra.fecha.');
@@ -49,9 +58,19 @@ export function buildReceptionQuery(options) {
         throw new RecepcionesNoConfiguradasError();
     }
     const dateColumn = 'a.fecha';
-    const timeExpression = options.time === 'ninguna' ? 'NULL::time'
-        : `a.${options.time}::time`;
-    const displayedTime = `COALESCE(${timeExpression}, NULLIF(${dateColumn}::time, TIME '00:00:00'))`;
+    // albcompra.fecha puede ser DATE o TIMESTAMP según la sincronización:
+    // DATE -> TIMESTAMP -> TIME evita exigir un cast directo DATE -> TIME.
+    // Cuando fecha solo tiene día (medianoche), no inventamos una hora.
+    const documentTime = `NULLIF((${dateColumn}::timestamp)::time, TIME '00:00:00')`;
+    // Las columnas opcionales hora/horaentre no siempre existen en el ERP.
+    // JSONB permite leerlas sin causar SQLSTATE 42703; un texto inválido
+    // se ignora en vez de lanzar 22P02 y derribar toda la consulta.
+    const configuredTime = options.time === 'ninguna' ? 'NULL::time' : `(
+        CASE WHEN BTRIM(to_jsonb(a)->>'${options.time}') ~
+            '^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\\.[0-9]+)?)?$'
+        THEN BTRIM(to_jsonb(a)->>'${options.time}')::time
+        ELSE NULL::time END)`;
+    const displayedTime = `COALESCE(${configuredTime}, ${documentTime})`;
     const localDatetime = `(${dateColumn}::date + ${displayedTime})`;
     const receivedAt = `CASE WHEN ${displayedTime} IS NOT NULL THEN to_char(
         (${localDatetime} AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'UTC',
@@ -64,7 +83,7 @@ export function buildReceptionQuery(options) {
             l.cantidad AS cantidad,
             ${receivedAt} AS "receivedAt",
             to_char(${dateColumn}::date, 'YYYY-MM-DD') AS "receiptDate",
-            TRIM(a.estalbcompra::text) AS estado,
+            TRIM(to_jsonb(a)->>'estalbcompra') AS estado,
             CONCAT_WS(':', a.ejercicio::text, a.canal::text,
                 TRIM(a.codseralbcompra::text), TRIM(a.nalbcompra::text), l.linea::text) AS "receiptLineId",
             TRIM(a.codseralbcompra::text) AS "serieAlbaran",
@@ -78,7 +97,7 @@ export function buildReceptionQuery(options) {
           AND ${validPurchaseLine}
           ${options.requireReceptionId ? 'AND a.idrecepcion IS NOT NULL' : ''}
           ${excludedServices}
-        ORDER BY ${dateColumn} DESC, ${timeExpression} DESC NULLS LAST,
+        ORDER BY ${dateColumn} DESC, ${displayedTime} DESC NULLS LAST,
                  l.codprodu ASC, a.ejercicio DESC, a.canal, a.codseralbcompra, a.nalbcompra, l.linea
     `;
     return text;
@@ -105,7 +124,11 @@ export async function getRecepcionesCompraByDate(date, env = process.env, db = n
     // La consulta solo incluye $2 cuando se filtra por estados. PostgreSQL
     // rechaza pasar parámetros adicionales aunque no se utilicen en el SQL.
     const values = options.states.length ? [date, options.states] : [date];
-    const { rows } = await actualPool.query(buildReceptionQuery(options), values);
+    const { retryDatabaseRead } = await import('../db/postgresResilience.js');
+    const { rows } = await retryDatabaseRead(
+        () => actualPool.query(buildReceptionQuery(options), values),
+        { maxRetries: 1 },
+    );
     return rows;
 }
 
@@ -156,6 +179,10 @@ export async function getReceptionDiagnosticByDate(date, env = process.env, db =
     const options = getReceptionConfig(env);
     const actualPool = db || (await import('../db/pool.js')).default;
     const values = options.states.length ? [date, options.states] : [date];
-    const { rows } = await actualPool.query(buildReceptionDiagnosticQuery(options), values);
-    return { date, ...rows[0] };
+    const { retryDatabaseRead } = await import('../db/postgresResilience.js');
+    const { rows } = await retryDatabaseRead(
+        () => actualPool.query(buildReceptionDiagnosticQuery(options), values),
+        { maxRetries: 1 },
+    );
+    return { date, ...(rows[0] || {}) };
 }

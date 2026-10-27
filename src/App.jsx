@@ -14,6 +14,7 @@ import { StockActivityProvider } from './features/entradas/StockActivityContext.
 import Login from './components/Login.jsx';
 import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 
+const ExpenseTestsPage = lazy(() => import('./pages/ExpenseTestsPage.jsx'));
 const Home = lazy(() => import('./pages/Home.jsx'));
 const Stock = lazy(() => import('./pages/paginaStock.jsx'));
 const SgaPage = lazy(() => import('./pages/SgaPage.jsx'));
@@ -119,6 +120,7 @@ function AppContent() {
                         <Suspense fallback={<PageLoader />}>
                           <Routes>
                             <Route path="/" element={<WarehouseLanding />} />
+                            <Route path="/gastos-pruebas" element={<ProtectedRoute requiredRole="admin"><ExpenseTestsPage /></ProtectedRoute>} />
                             <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
                             <Route path="/intrastat" element={<ProtectedRoute requiredRole="admin"><Intrastat /></ProtectedRoute>} />
                             <Route path="/analitica-facturacion" element={<ProtectedRoute><FacturacionAnalyticsPage /></ProtectedRoute>} />

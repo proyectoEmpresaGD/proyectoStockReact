@@ -129,6 +129,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 icon: <FaMoneyBillWave className="mr-3 text-lg" />,
                 dropdown: 'contabilidad',
                 links: [
+                    ...(String(user?.role || '').trim().toLowerCase() === 'admin' ? [{ to: '/gastos-pruebas', label: 'Gastos · Pruebas', icon: <FaMoneyBillWave className="mr-3 text-lg" /> }] : []),
                     { to: '/intrastat', label: 'Intrastat', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] }
                 ]
             },
