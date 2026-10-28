@@ -7,9 +7,15 @@ import { createPortal } from 'react-dom';
 import Select from 'react-select';
 import { analyticsClient } from '../services/analyticsClient';
 import {
+    INVOICE_EXPORT_COLUMNS, SERIES_EXPORT_COLUMNS, MAX_INVOICE_EXPORT,
+    exportRowsToCsv, reconcileSeriesSummary, seriesVariationInsights,
+    groupDailyBillingRows, madridISODate,
+} from '../utils/facturacionMejoras';
+import {
     BUSINESS_UNIT_KEYS,
     BUSINESS_UNITS,
     BUSINESS_LINES,
+    SALES_SERIES_CONFIG,
     getBusinessLineLabel,
     getBusinessUnitForSerie,
     getBusinessUnitLabel,
@@ -146,7 +152,7 @@ const ANALYTICS_HELP = Object.freeze({
     pedidosFactura: 'Promedio de pedidos distintos incluidos en cada factura. Ayuda a saber si una factura suele agrupar varios pedidos.',
     rectificativa: 'Factura que corrige total o parcialmente otra factura anterior. Puede representar una devolución, un abono o una corrección.',
     abono: 'Documento que reduce o corrige una venta anterior. Se muestra separado para no confundirlo con una venta nueva.',
-    netoLineas: 'Resultado de sumar las series de venta y descontar las series configuradas como abonos o devoluciones.',
+    netoLineas: 'Suma de los importes originales del ERP, respetando el signo que traen los abonos y las rectificativas. No los descuenta por segunda vez.',
     serie: 'Código usado por el ERP para identificar el tipo de facturación. En este panel también determina la línea de negocio y si es factura o abono.',
     unidadNegocio: 'Agrupación comercial automática: Proyectos reúne las series que empiezan por H y Tejido reúne las demás.',
     lineaNegocio: 'Clasificación más detallada de las series: tejido, papel, wallpaper, muestrarios, contract u operaciones especiales.',
@@ -154,16 +160,17 @@ const ANALYTICS_HELP = Object.freeze({
     porcentajeTotal: 'Parte que representa esa fila sobre el importe total del periodo filtrado.',
     deltaEuro: 'Diferencia en euros: valor actual menos valor del periodo comparado.',
     deltaPercent: 'Diferencia porcentual respecto al periodo comparado. Un valor positivo indica crecimiento y uno negativo, descenso.',
+    comparativaSeries: 'Compara por cada serie el mismo rango de fechas con el año seleccionado, manteniendo los filtros, el importe elegido y los signos originales de los documentos. No se alinea por días laborables: son totales de facturación por fecha.',
     laborableEquivalente: 'Compara el primer día laborable con el primero del otro año, el segundo con el segundo, etc. Evita enfrentar un lunes con un domingo o festivo.',
     fechaExacta: 'Compara la misma fecha del calendario en ambos años, aunque una sea laborable y la otra no.',
     mediaPunto: 'Promedio de los valores representados en la gráfica o tabla. Si la agrupación es diaria, cada punto equivale a un día.',
-    agrupacion: 'Define cómo se agrupan los datos de la evolución: por día, semana o mes. No cambia las facturas incluidas.',
+    agrupacion: 'Agrupa los importes en la tabla de la pestaña Tendencias por día, semana o mes. Las gráficas continúan siendo diarias para que las comparaciones de días laborables no se alteren. No cambia las facturas incluidas.',
     costeCobertura: 'Porcentaje de facturas que tienen un coste positivo informado. Cuanto mayor sea, más fiable será el margen estimado.',
     costeInformado: 'Porcentaje de facturas de la fila que tienen un coste registrado y mayor que cero.',
     margen: 'Estimación de ventas menos coste informado. Solo se muestra como fiable cuando hay suficiente cobertura de costes.',
     puntuacionDatos: 'Indicador interno de calidad. Baja cuando faltan datos importantes o existen importes descuadrados; no es un indicador fiscal oficial.',
     descuadre: 'Factura cuyo total no coincide con la suma de base, IVA, recargo, portes y retenciones dentro del margen de tolerancia definido.',
-    mom: 'MoM significa comparación mes contra mes: muestra el valor del mes anterior.',
+    mom: 'MoM muestra el mes natural anterior solo si ese mes está dentro del intervalo seleccionado y tiene movimientos. Si faltan datos, se muestra —.',
     yoy: 'YoY significa comparación interanual: muestra el valor del mismo periodo del año anterior cuando hay datos suficientes.',
     pareto: 'Ordena clientes de mayor a menor facturación para detectar dónde se concentra la mayor parte de las ventas.',
     compliance: 'Vista de control de los estados fiscales registrados en el ERP. Sirve para localizar incidencias, pero no sustituye una revisión fiscal.',
@@ -308,6 +315,156 @@ function Card({ title, subtitle, help, right, children }) {
             )}
             <div className="px-5 pb-5">{children}</div>
         </div>
+    );
+}
+
+function downloadBillingCsv(csv, filename) {
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function SeriesYearComparison({ rows, compareYear, fromISO, toISO, amountLabel, loading = false, error = null }) {
+    const [orderBy, setOrderBy] = useState('difference');
+    const baseRows = Array.isArray(rows) ? rows : [];
+    const previousRange = shiftRangeToYear(fromISO, toISO, compareYear);
+    const totals = useMemo(() => baseRows.reduce((acc, row) => {
+        acc.current += Number(row.ventas || 0);
+        acc.previous += Number(row.ventas_compare || 0);
+        return acc;
+    }, { current: 0, previous: 0 }), [rows]);
+    const totalDelta = totals.current - totals.previous;
+    const totalPct = totals.previous === 0 ? null : totalDelta / Math.abs(totals.previous) * 100;
+    const sortedRows = useMemo(() => [...baseRows].sort((a, b) => {
+        if (orderBy === 'serie') return String(a.serie || '').localeCompare(String(b.serie || ''));
+        if (orderBy === 'current') return Number(b.ventas || 0) - Number(a.ventas || 0);
+        return Math.abs(Number(b.delta_ventas || 0)) - Math.abs(Number(a.delta_ventas || 0));
+    }), [rows, orderBy]);
+    const signedMoney = (value) => `${Number(value) > 0 ? '+' : ''}${kpiFormat(value, 'money')}`;
+    const signedPct = (value) => value === null || value === undefined
+        ? '—' : `${Number(value) > 0 ? '+' : ''}${pctFormat(value)}`;
+    const changeColor = (value) => Number(value) > 0 ? 'text-emerald-700' : Number(value) < 0 ? 'text-rose-700' : 'text-slate-600';
+
+    return (
+        <Card
+            title="Variación de facturación por serie"
+            help={ANALYTICS_HELP.comparativaSeries}
+            subtitle={`Período actual: ${safeFormatFull(fromISO)} – ${safeFormatFull(toISO)} · ${compareYear}: ${safeFormatFull(previousRange.from)} – ${safeFormatFull(previousRange.to)} · ${amountLabel}`}
+            right={
+                <div className="flex flex-wrap gap-2 items-center">
+                    <button
+                        type="button"
+                        onClick={() => downloadBillingCsv(
+                            exportRowsToCsv(baseRows, SERIES_EXPORT_COLUMNS, { compareYear }),
+                            `comparativa_series_${fromISO}_${toISO}_vs_${compareYear}.csv`
+                        )}
+                        disabled={loading || Boolean(error) || !baseRows.length}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50"
+                        title="Descargar todas las series en formato CSV compatible con Excel"
+                    >
+                        Exportar series (Excel/CSV)
+                    </button>
+                    <select
+                    value={orderBy}
+                    onChange={(event) => setOrderBy(event.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                    aria-label="Ordenar comparativa por serie"
+                >
+                    <option value="difference">Mayor cambio (€)</option>
+                    <option value="current">Mayor facturación actual</option>
+                    <option value="serie">Serie A-Z</option>
+                    </select>
+                </div>
+            }
+        >
+            {loading ? (
+                <div className="py-8 text-sm text-slate-500" role="status"><TranslatedText>Actualizando comparativa por series…</TranslatedText></div>
+            ) : error ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
+                    <TranslatedText>No se pudo cargar la comparativa por series. Revisa el error del servidor y vuelve a intentarlo.</TranslatedText>
+                </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-xs text-slate-500"><TranslatedText>Período actual</TranslatedText></div>
+                            <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{kpiFormat(totals.current, 'money')}</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-xs text-slate-500"><TranslatedText>Período</TranslatedText> {compareYear}</div>
+                            <div className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{kpiFormat(totals.previous, 'money')}</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-xs text-slate-500"><TranslatedText>Variación total de las series</TranslatedText></div>
+                            <div className={`mt-1 text-lg font-semibold tabular-nums ${changeColor(totalDelta)}`}>
+                                {signedMoney(totalDelta)} <span className="ml-1 text-sm">({signedPct(totalPct)})</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {sortedRows.length ? (
+                        <ModernTableShell>
+                            <table className="facturacion-data-table w-full min-w-[880px] text-sm">
+                                <thead className="bg-slate-50 sticky top-0 z-10">
+                                    <tr className="border-b border-slate-200 text-left">
+                                        <th className="px-3 py-3"><TranslatedText>Serie</TranslatedText></th>
+                                        <th className="px-3 py-3"><TranslatedText>Tipo</TranslatedText></th>
+                                        <th className="px-3 py-3 text-right"><TranslatedText>Actual</TranslatedText></th>
+                                        <th className="px-3 py-3 text-right">{compareYear}</th>
+                                        <th className="px-3 py-3 text-right"><HelpLabel help={ANALYTICS_HELP.deltaEuro}>Δ €</HelpLabel></th>
+                                        <th className="px-3 py-3 text-right"><HelpLabel help={ANALYTICS_HELP.deltaPercent}>Δ %</HelpLabel></th>
+                                        <th className="px-3 py-3 text-right"><TranslatedText>Facturas</TranslatedText> (actual / {compareYear})</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedRows.map((row) => {
+                                        const delta = Number(row.delta_ventas || 0);
+                                        const previous = Number(row.ventas_compare || 0);
+                                        const pct = row.variacion_vs_compare;
+                                        return (
+                                            <tr key={String(row.serie ?? 'sin-serie')} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                                                <td className="px-3 py-3">
+                                                    <div className="font-semibold text-slate-900">{row.serie || 'Sin serie'}</div>
+                                                    <div className="text-xs text-slate-500">{getSerieConfig(row.serie).label}</div>
+                                                    <div className="mt-2 space-y-1" aria-label={`Comparación visual serie ${row.serie || 'sin serie'}`}>
+                                                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" title={`Actual: ${kpiFormat(row.ventas, 'money')}`}>
+                                                            <div className="h-full rounded-full bg-teal-600" style={{ width: `${Math.abs(Number(row.ventas || 0)) / Math.max(Math.abs(Number(row.ventas || 0)), Math.abs(previous), 1) * 100}%` }} />
+                                                        </div>
+                                                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" title={`${compareYear}: ${kpiFormat(previous, 'money')}`}>
+                                                            <div className="h-full rounded-full bg-slate-400" style={{ width: `${Math.abs(previous) / Math.max(Math.abs(Number(row.ventas || 0)), Math.abs(previous), 1) * 100}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-3"><SeriesTypeBadge serie={row.serie} /></td>
+                                                <td className="px-3 py-3 tabular-nums text-right font-medium">{kpiFormat(row.ventas, 'money')}</td>
+                                                <td className="px-3 py-3 tabular-nums text-right">{kpiFormat(previous, 'money')}</td>
+                                                <td className={`px-3 py-3 tabular-nums text-right font-semibold ${changeColor(delta)}`}>{signedMoney(delta)}</td>
+                                                <td className={`px-3 py-3 tabular-nums text-right font-semibold ${changeColor(delta)}`}>
+                                                    {previous === 0 ? (Number(row.ventas || 0) === 0 ? '—' : 'Sin base') : signedPct(pct)}
+                                                </td>
+                                                <td className="px-3 py-3 tabular-nums text-right text-slate-600">
+                                                    {kpiFormat(row.numero_facturas)} / {kpiFormat(row.numero_facturas_compare)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </ModernTableShell>
+                    ) : (
+                        <div className="py-6 text-sm text-slate-500"><TranslatedText>No hay facturas en ninguno de los dos períodos con los filtros actuales.</TranslatedText></div>
+                    )}
+                    <div className="mt-3 text-xs text-slate-500">
+                        <TranslatedText>Las barras (verde azulado: actual; gris: anterior) representan la magnitud, aunque el importe sea negativo. Los valores conservan su signo del ERP. Las tablas comparan los mismos días de calendario; solo el gráfico diario utiliza el modo de días laborables. Si el año anterior es cero, la variación se muestra sin porcentaje.</TranslatedText>
+                    </div>
+                </>
+            )}
+        </Card>
     );
 }
 
@@ -603,7 +760,7 @@ function BusinessLinesOverview({ data, compareYear }) {
                 right={topLine ? <MetricBadge tone="teal"><TranslatedText>Líder:</TranslatedText> {topLine.label}</MetricBadge> : null}
             >
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <LocalizedElement><KpiTile label="Neto líneas" value={kpiFormat(data?.totalNeto || 0, 'money')} hint={ANALYTICS_HELP.netoLineas} /></LocalizedElement>
+                    <LocalizedElement><KpiTile label="Total líneas (ERP)" value={kpiFormat(data?.totalNeto || 0, 'money')} hint={ANALYTICS_HELP.netoLineas} /></LocalizedElement>
                     <LocalizedElement><KpiTile label="Ventas" value={kpiFormat(data?.totalVentas || 0, 'money')} hint="Suma de los movimientos clasificados como ventas dentro de las líneas seleccionadas." /></LocalizedElement>
                     <LocalizedElement><KpiTile label="Abonos/devoluciones" value={kpiFormat(data?.totalAbonos || 0, 'money')} hint={ANALYTICS_HELP.abono} /></LocalizedElement>
                     <LocalizedElement><KpiTile label="Facturas" value={kpiFormat(data?.totalFacturas || 0)} hint="Documentos del periodo filtrado." /></LocalizedElement>
@@ -1669,9 +1826,14 @@ function shiftRangeToYear(fromISO, toISO, year) {
         return { from: `${year}-01-01`, to: `${year}-12-31` };
     }
 
+    // Mantener el salto de año del período original (dic-ene, por ejemplo).
+    // Comparar 2026-12/2027-01 con 2025-12/2026-01, no invertir las fechas.
+    const originalFromYear = Number(String(fromISO).slice(0, 4));
+    const originalToYear = Number(String(toISO).slice(0, 4));
+    const targetEndYear = targetYear + (originalToYear - originalFromYear);
     return {
         from: shiftISOToYearSafe(fromISO, targetYear) || `${targetYear}-01-01`,
-        to: shiftISOToYearSafe(toISO, targetYear) || `${targetYear}-12-31`,
+        to: shiftISOToYearSafe(toISO, targetEndYear) || `${targetEndYear}-12-31`,
     };
 }
 
@@ -1822,6 +1984,7 @@ function FacturacionAnalyticsPageInner() {
         businessUnits: null,
         businessLines: null,
         dataQuality: { summary: null, checks: [], by_series: [], recommendations: [] },
+        warnings: [],
     });
 
     const [reqState, setReqState] = useState({
@@ -1830,6 +1993,9 @@ function FacturacionAnalyticsPageInner() {
         lastOkAt: null,
     });
     const [showDebug, setShowDebug] = useState(false);
+    const [exportState, setExportState] = useState({ loading: false, loaded: 0, total: 0, error: null });
+    const exportAbortRef = useRef(null);
+    useEffect(() => () => exportAbortRef.current?.abort(), []);
 
     // ✅ Captura errores globales / promesas rechazadas para NO “pantalla blanca”
     useEffect(() => {
@@ -1893,11 +2059,10 @@ function FacturacionAnalyticsPageInner() {
 
     const reqId = useRef(0);
     const invoicesReqId = useRef(0);
-    const retryTick = useRef(0);
-
+    const [retryTick, setRetryTick] = useState(0);
     const forceRetry = () => {
-        retryTick.current += 1;
-        setFilters((f) => ({ ...f })); // trigger effect
+        // Cambiar explícitamente esta dependencia vuelve a ejecutar las consultas.
+        setRetryTick((tick) => tick + 1);
     };
 
     useEffect(() => {
@@ -1925,10 +2090,10 @@ function FacturacionAnalyticsPageInner() {
                     error: { where: 'getFilters', message: err?.message || String(err), raw: err },
                 }));
             });
-    }, []);
+    }, [retryTick]);
 
     const dashboardFilters = useMemo(() => {
-        const { search, page, pageSize, sort, ...rest } = filters;
+        const { search, page, pageSize, sort, granularity, compareMode, ...rest } = filters;
         return rest;
     }, [
         filters.from,
@@ -1947,8 +2112,6 @@ function FacturacionAnalyticsPageInner() {
         filters.amountMax,
         filters.rectificativas,
         filters.amountMode,
-        filters.granularity,
-        filters.compareMode,
         filters.compareYear,
     ]);
 
@@ -2045,6 +2208,7 @@ function FacturacionAnalyticsPageInner() {
                     businessUnits,
                     businessLines,
                     dataQuality,
+                    warnings: Array.isArray(dashboard.warnings) ? dashboard.warnings : [],
                 }));
                 setReqState((s) => ({ ...s, lastOkAt: new Date().toISOString() }));
             })
@@ -2062,7 +2226,7 @@ function FacturacionAnalyticsPageInner() {
             });
 
         return () => controller.abort();
-    }, [dashboardFilters]);
+    }, [dashboardFilters, retryTick]);
 
     useEffect(() => {
         if (!isValidISODateString(filters.from) || !isValidISODateString(filters.to)) return;
@@ -2096,7 +2260,7 @@ function FacturacionAnalyticsPageInner() {
             });
 
         return () => controller.abort();
-    }, [filters]);
+    }, [filters, retryTick]);
 
     const seriesOptions = useMemo(() => (filtersMeta.series || []).map((s) => ({ value: s, label: s })), [filtersMeta.series]);
     const toSelectOptions = (items = []) => items.map((value) => ({ value, label: value }));
@@ -2152,11 +2316,10 @@ function FacturacionAnalyticsPageInner() {
     };
 
     const applyQuickRange = (days) => {
-        const to = new Date();
-        const from = new Date();
-        from.setDate(to.getDate() - (days - 1));
+        const toISO = madridISODate();
+        const from = safeDateFromISO(toISO);
+        from.setUTCDate(from.getUTCDate() - (days - 1));
         const fromISO = from.toISOString().slice(0, 10);
-        const toISO = to.toISOString().slice(0, 10);
         setDateError(null);
         setFromDraft(fromISO);
         setToDraft(toISO);
@@ -2164,11 +2327,7 @@ function FacturacionAnalyticsPageInner() {
     };
 
     const goToTodaySpain = () => {
-        const parts = new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).formatToParts(new Date());
-        const getPart = (type) => parts.find((item) => item.type === type)?.value;
-        const today = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+        const today = madridISODate();
         commitDates(today, today);
     };
 
@@ -2190,6 +2349,12 @@ function FacturacionAnalyticsPageInner() {
     };
 
     const toggleCompare2025 = () => setFilters((f) => ({ ...f, compareYear: f.compareYear === 2025 ? null : 2025, page: 1 }));
+    // Permite comparar con cualquier ejercicio anterior sin modificar el período actual.
+    const startYear = Number(filters.from.slice(0, 4)) || new Date().getFullYear();
+    const compareYearOptions = Array.from({ length: Math.max(0, Math.min(26, startYear - 2000)) }, (_, index) => startYear - 1 - index);
+    if (filters.compareYear && !compareYearOptions.includes(Number(filters.compareYear))) {
+        compareYearOptions.unshift(Number(filters.compareYear));
+    }
 
     // ✅ Siempre excluir no laborables (sábados/domingos + festivos)
     const excludeNonWorking = true;
@@ -2207,20 +2372,42 @@ function FacturacionAnalyticsPageInner() {
 
     const nonWorkingSet = useMemo(() => buildNonWorkingSetForYears(yearsInPlay), [yearsInPlay]);
 
-    const exportCsv = () => {
-        const headers = ['canal', 'serie', 'nfacventa', 'fecha', 'cliente', 'razentre', 'nomcomer', 'nifentre', 'codforpago', 'codvend', 'impbruto', 'impiva', 'imptotal', 'es_rectificativa', 'estadosii'];
-        const lines = [headers.join(',')].concat(
-            (data.invoices.rows || []).map((r) =>
-                headers.map((h) => `"${(r?.[h] ?? '').toString().replaceAll('"', '""')}"`).join(',')
-            )
-        );
-        const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'facturas_filtradas.csv';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const cancelExport = () => exportAbortRef.current?.abort();
+    const exportCsv = async () => {
+        if (exportAbortRef.current) return;
+        const controller = new AbortController();
+        exportAbortRef.current = controller;
+        setExportState({ loading: true, loaded: 0, total: 0, error: null });
+        try {
+            // Snapshot de filtros: exportación coherente aunque el usuario edite otros controles.
+            const snapshot = { ...filters, series: [...filters.series] };
+            const batchSize = 200;
+            const first = await analyticsClient.getInvoices({ ...snapshot, page: 1, pageSize: batchSize }, { signal: controller.signal });
+            const total = Number(first.total || 0);
+            if (!Number.isSafeInteger(total) || total < 0) throw new Error('El número de facturas recibido no es válido.');
+            if (total > MAX_INVOICE_EXPORT) {
+                throw new Error(`Hay ${number.format(total)} facturas. Por seguridad, el máximo por exportación es ${number.format(MAX_INVOICE_EXPORT)}. Reduce las fechas o filtra las series.`);
+            }
+            const rows = [...(Array.isArray(first.rows) ? first.rows : [])];
+            setExportState({ loading: true, loaded: rows.length, total, error: null });
+            for (let page = 2; rows.length < total; page += 1) {
+                if (controller.signal.aborted) throw new DOMException('Cancelado', 'AbortError');
+                const result = await analyticsClient.getInvoices({
+                    ...snapshot, page, pageSize: batchSize, exportSkipCount: '1',
+                }, { signal: controller.signal });
+                const batch = Array.isArray(result.rows) ? result.rows : [];
+                if (!batch.length) throw new Error('La exportación quedó incompleta. Vuelve a intentarlo.');
+                rows.push(...batch);
+                setExportState({ loading: true, loaded: rows.length, total, error: null });
+            }
+            if (rows.length !== total) throw new Error('La cantidad de facturas ha cambiado durante la exportación. Reinténtalo para obtener un resultado completo.');
+            downloadBillingCsv(exportRowsToCsv(rows, INVOICE_EXPORT_COLUMNS), `facturas_${snapshot.from}_${snapshot.to}.csv`);
+            setExportState({ loading: false, loaded: total, total, error: null });
+        } catch (error) {
+            setExportState({ loading: false, loaded: 0, total: 0, error: error?.name === 'AbortError' ? 'Exportación cancelada.' : (error?.message || 'No se pudo exportar.') });
+        } finally {
+            exportAbortRef.current = null;
+        }
     };
 
     // El selector cambia la métrica de todas las consultas de facturación.
@@ -2262,9 +2449,9 @@ function FacturacionAnalyticsPageInner() {
     const ticketMedioBruto = facturas ? clampFiniteNumber(ventasBruto, 0) / Math.max(clampFiniteNumber(facturas, 1), 1) : 0;
     const rectificativasConteo = clampFiniteNumber(summary?.rectificativas_conteo, 0);
     const rectificativasImpacto = clampFiniteNumber(summary?.rectificativas_impacto, 0);
-    const ventasAjustadasRectificativas = summary?.ventas_ajustadas_rectificativas === null || summary?.ventas_ajustadas_rectificativas === undefined
-        ? null
-        : clampFiniteNumber(summary?.ventas_ajustadas_rectificativas, 0);
+    const ventasSegunERP = summary?.neto_segun_signo_erp === null || summary?.neto_segun_signo_erp === undefined
+        ? summary?.ventas_totales
+        : summary.neto_segun_signo_erp;
     const dataQualitySummary = data.dataQuality?.summary || null;
     const costeCoberturaPct = clampFiniteNumber(dataQualitySummary?.coste_cobertura_pct, 0);
     const margenDisponible = Boolean(dataQualitySummary?.margen_disponible);
@@ -2547,7 +2734,7 @@ function FacturacionAnalyticsPageInner() {
         { key: 'periodo', label: `${fmtFull.format(safeDateFromISO(filters.from) || new Date())} - ${fmtFull.format(safeDateFromISO(filters.to) || new Date())}`, fixed: true },
         { key: 'businessUnit', label: `Unidad: ${activeBusinessUnit === 'custom' ? 'Series manuales' : activeBusinessUnit === BUSINESS_UNIT_KEYS.ALL ? 'Todas' : activeBusinessUnit === BUSINESS_UNIT_KEYS.PROJECTS ? 'Proyectos' : 'Tejido'}`, fixed: true },
         filters.compareYear ? { key: 'compareYear', label: `Comparando con ${filters.compareYear}`, onRemove: () => setFilters((f) => ({ ...f, compareYear: null, page: 1 })) } : null,
-        filters.search ? { key: 'search', label: `Buscar: ${filters.search}`, onRemove: () => { setSearchDraft(''); setFilters((f) => ({ ...f, search: '', page: 1 })); } } : null,
+        filters.search ? { key: 'search', label: `Búsqueda solo en facturas: ${filters.search}`, onRemove: () => { setSearchDraft(''); setFilters((f) => ({ ...f, search: '', page: 1 })); } } : null,
         filters.rectificativas ? { key: 'rectificativas', label: filters.rectificativas === 'yes' ? 'Solo rectificativas' : 'Sin rectificativas', onRemove: () => setFilters((f) => ({ ...f, rectificativas: '', page: 1 })) } : null,
         filters.amountMin ? { key: 'amountMin', label: `Mín. ${filters.amountMin} €`, onRemove: () => setFilters((f) => ({ ...f, amountMin: '', page: 1 })) } : null,
         filters.amountMax ? { key: 'amountMax', label: `Máx. ${filters.amountMax} €`, onRemove: () => setFilters((f) => ({ ...f, amountMax: '', page: 1 })) } : null,
@@ -2556,7 +2743,14 @@ function FacturacionAnalyticsPageInner() {
 
     const topSerie = (data.series || [])[0] || summary?.top_series_by_sales?.[0] || null;
     const totalRowsCount = clampFiniteNumber(data.invoices?.total, 0);
-
+    const dashboardWarnings = data.warnings || [];
+    const seriesLoaded = !reqState.loading && !reqState.error &&
+        !dashboardWarnings.some((warning) => warning.block === 'summary' || warning.block === 'series');
+    const reconciliation = reconcileSeriesSummary(data.summary, data.series, { loaded: seriesLoaded });
+    const variationSignals = compareYear && seriesLoaded ? seriesVariationInsights(data.series) : [];
+    const seriesNoCatalogadas = seriesLoaded ? (data.series || [])
+        .map((row) => String(row.serie || '').trim().toUpperCase())
+        .filter((serie) => serie && !Object.prototype.hasOwnProperty.call(SALES_SERIES_CONFIG, serie)) : [];
 
     return (
         <div className="facturacion-modern cjm-page">
@@ -2569,14 +2763,14 @@ function FacturacionAnalyticsPageInner() {
                             <div className="max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <MetricBadge tone="slate"><TranslatedText>Dashboard</TranslatedText></MetricBadge>
-                                    <MetricBadge tone={reqState.loading ? 'amber' : 'emerald'}>
-                                        {reqState.loading ? 'Actualizando datos' : 'Datos cargados'}
+                                    <MetricBadge tone={reqState.loading || reqState.error || (data.warnings || []).length ? 'amber' : 'emerald'}>
+                                        {reqState.loading ? 'Actualizando datos' : reqState.error ? 'Error de carga' : (data.warnings || []).length ? 'Datos incompletos' : 'Datos cargados'}
                                     </MetricBadge>
                                     {activeBusinessUnit === 'custom' ? <MetricBadge tone="amber"><TranslatedText>Series personalizadas</TranslatedText></MetricBadge> : null}
                                 </div>
                                 <h1 className="mt-4 text-3xl font-semibold tracking-tight app-text md:text-4xl"><TranslatedText>Facturación</TranslatedText></h1>
                                 <p className="cjm-muted mt-2 text-sm md:text-base">
-                                    <TranslatedText>Resumen comercial y fiscal con foco en</TranslatedText> <TranslatedText>{showInvoiceTotal ? 'facturación final con IVA y portes' : 'ventas netas'}</TranslatedText><TranslatedText>, comparativa por periodos y separación visual entre</TranslatedText> <b><TranslatedText>Tejido</TranslatedText></b> <TranslatedText>y</TranslatedText> <b><TranslatedText>Proyectos</TranslatedText></b>.
+                                    <TranslatedText>Resumen comercial y fiscal con foco en</TranslatedText> <TranslatedText>{showInvoiceTotal ? 'facturación final con IVA y portes' : 'importe bruto de facturas del ERP'}</TranslatedText><TranslatedText>, comparativa por periodos y separación visual entre</TranslatedText> <b><TranslatedText>Tejido</TranslatedText></b> <TranslatedText>y</TranslatedText> <b><TranslatedText>Proyectos</TranslatedText></b>.
                                 </p>
                                 <div className="facturacion-help-guide mt-3">
                                     <LocalizedElement><HelpTooltip text="Los símbolos de ayuda explican cada concepto con palabras sencillas. Puedes pasar el ratón, enfocarlos con el teclado o tocarlos en móvil." label="Cómo usar las ayudas" /></LocalizedElement>
@@ -2636,11 +2830,9 @@ function FacturacionAnalyticsPageInner() {
                                     </span>
                                 </button></LocalizedElement>
                                 <div className="flex gap-2 flex-wrap xl:justify-end">
-                                    {showInvoiceTotal ? (
-                                        <LocalizedElement><button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" onClick={goToTodaySpain} title="Mostrar exclusivamente las facturas de hoy en España">
-                                            <TranslatedText>Hoy</TranslatedText>
-                                        </button></LocalizedElement>
-                                    ) : null}
+                                    <LocalizedElement><button type="button" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" onClick={goToTodaySpain} title="Mostrar exclusivamente las facturas de hoy en España">
+                                        <TranslatedText>Hoy</TranslatedText>
+                                    </button></LocalizedElement>
                                     <button className="px-4 py-2 rounded-full text-sm border border-slate-200 bg-white hover:bg-slate-50" onClick={() => applyQuickRange(7)}>
                                         <TranslatedText>7 días</TranslatedText>
                                     </button>
@@ -2662,6 +2854,17 @@ function FacturacionAnalyticsPageInner() {
                                     >
                                         <TranslatedText>Comparar con 2025</TranslatedText>
                                     </button></LocalizedElement>
+
+                                    <select
+                                        value={compareYear || ''}
+                                        onChange={(event) => setFilters((f) => ({ ...f, compareYear: event.target.value ? Number(event.target.value) : null, page: 1 }))}
+                                        className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+                                        aria-label="Seleccionar año de comparación"
+                                        title="Comparar el mismo rango de fechas con un ejercicio anterior"
+                                    >
+                                        <option value="">Sin comparar</option>
+                                        {compareYearOptions.map((year) => <option key={year} value={year}>Comparar con {year}</option>)}
+                                    </select>
 
                                     {compareYear ? (
                                         <LocalizedElement><select
@@ -2714,6 +2917,19 @@ function FacturacionAnalyticsPageInner() {
                                 <TranslatedText>Reintentar</TranslatedText>
                             </button>
                         </div>
+                    </div>
+                ) : null}
+
+                {dashboardWarnings.length > 0 ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
+                        <div className="font-semibold">Algunos datos no se han podido actualizar</div>
+                        <p className="mt-1">Las secciones afectadas podrían estar vacías. No interpretes un cero como facturación cero hasta recargarlas.</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {dashboardWarnings.map((warning) => (
+                                <span key={warning.block} className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs">{({ summary: 'Resumen', series: 'Series', timeseries: 'Gráficos', businessUnits: 'Unidades de negocio', businessLines: 'Líneas', dataQuality: 'Calidad', compliance: 'Cumplimiento' })[warning.block] || warning.block}</span>
+                            ))}
+                        </div>
+                        <button type="button" className="mt-3 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-medium hover:bg-amber-100" onClick={forceRetry}>Volver a cargar</button>
                     </div>
                 ) : null}
 
@@ -2777,17 +2993,17 @@ function FacturacionAnalyticsPageInner() {
                         </div>
 
                         <div className="xl:col-span-3">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Buscar</TranslatedText></div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Buscar (solo listado de facturas)</TranslatedText></div>
                             <LocalizedElement><input
                                 value={searchDraft}
                                 onChange={(e) => setSearchDraft(e.target.value)}
                                 className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                placeholder="Factura / cliente / razón social"
+                                placeholder="Buscar en el listado de facturas"
                             /></LocalizedElement>
                         </div>
 
                         <div className="xl:col-span-2">
-                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.agrupacion}><TranslatedText>Agrupación</TranslatedText></HelpLabel></div>
+                            <div className="text-xs font-medium text-slate-500 mb-1.5"><HelpLabel help={ANALYTICS_HELP.agrupacion}><TranslatedText>Agrupar totales en Tendencias</TranslatedText></HelpLabel></div>
                             <select
                                 className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                 value={filters.granularity}
@@ -3034,6 +3250,45 @@ function FacturacionAnalyticsPageInner() {
                     ))}
                 </div>
 
+                {!reqState.loading && !reqState.error && (tab === 'resumen' || tab === 'comparacion') ? (
+                    <div className="space-y-3" aria-live="polite">
+                        {reconciliation.status === 'mismatch' ? (
+                            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900" role="alert">
+                                <div className="font-semibold">Revisar coherencia de facturación</div>
+                                La suma por series ({kpiFormat(reconciliation.calculated, 'money')}) no coincide con el resumen ({kpiFormat(reconciliation.reported, 'money')}). Diferencia: {kpiFormat(reconciliation.difference, 'money')}. Comprueba filtros, signos del ERP y los datos cargados antes de utilizar la comparativa.
+                            </div>
+                        ) : reconciliation.status === 'ok' ? (
+                            <div className="text-xs text-slate-500" title="Verificación entre dos consultas independientes usando la misma métrica y filtros">✓ Comprobación: el total por series coincide con el resumen (tolerancia 0,02 €).</div>
+                        ) : null}
+                        {seriesNoCatalogadas.length > 0 ? (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                                Hay {seriesNoCatalogadas.length} series del ERP sin clasificación confirmada: {seriesNoCatalogadas.slice(0, 6).join(', ')}{seriesNoCatalogadas.length > 6 ? '…' : ''}. Puedes filtrarlas y consultar sus importes, pero revisa a qué línea de negocio pertenecen antes de utilizar los subtotales de Tejido/Proyectos o de abonos.
+                            </div>
+                        ) : null}
+                        {compareYear && filters.to > madridISODate() ? (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                                El período seleccionado incluye fechas futuras. Para comparar la evolución acumulada de este año con {compareYear}, elige como fecha final el día de hoy.
+                            </div>
+                        ) : null}
+                        {Number(data.summary?.abonos_importe_positivo || 0) > 0 ? (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                                Hay rectificativas con importe positivo en este período. Las gráficas representan los abonos como magnitudes negativas para facilitar su lectura, mientras que el resumen y las comparativas conservan el signo original del ERP. Por ello sus «netos» visuales pueden no coincidir. Confirma el criterio contable antes de usar un neto ajustado.
+                            </div>
+                        ) : null}
+                        {variationSignals.length > 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-sm font-semibold text-slate-900">Cambios destacados por serie frente a {compareYear}</div>
+                                <p className="mt-1 text-xs text-slate-500">Variaciones de al menos un 20 %, con base de comparación de 1.000 € o más. Son avisos informativos, no previsiones.</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {variationSignals.map((signal) => <div key={signal.serie} className={`rounded-xl border px-3 py-2 text-xs ${signal.direction === 'down' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+                                        <strong>Serie {signal.serie}</strong> · {signal.changePct > 0 ? '+' : ''}{pctFormat(signal.changePct)} · {kpiFormat(signal.delta, 'money')}
+                                    </div>)}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {/* Empty */}
                 {!reqState.loading && !reqState.error && !hasAnyData ? (
                     <LocalizedElement><Card
@@ -3057,7 +3312,7 @@ function FacturacionAnalyticsPageInner() {
                 {tab === 'resumen' && summary && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <LocalizedElement><KpiTile label={showInvoiceTotal ? "Facturación total" : "Ventas netas"} value={kpiFormat(ventasBruto, 'money')} hint={showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.ventasNetas} /></LocalizedElement>
+                            <LocalizedElement><KpiTile label={showInvoiceTotal ? "Facturación total" : "Importe bruto ERP"} value={kpiFormat(ventasBruto, 'money')} hint={showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.ventasNetas} /></LocalizedElement>
                             {showInvoiceTotal ? (
                                 <LocalizedElement><KpiTile
                                     label="Facturación de hoy (total)"
@@ -3141,6 +3396,18 @@ function FacturacionAnalyticsPageInner() {
                             <BusinessUnitComparisonCard stats={businessUnitStats} compareYear={compareYear} />
                         </div>
 
+                        {compareYear ? (
+                            <LocalizedElement><SeriesYearComparison
+                                rows={data.series}
+                                compareYear={compareYear}
+                                fromISO={filters.from}
+                                toISO={filters.to}
+                                amountLabel={amountLabel}
+                                loading={reqState.loading}
+                                error={(data.warnings || []).some((warning) => warning.block === 'series') || reqState.error?.where === 'getDashboard'}
+                            /></LocalizedElement>
+                        ) : null}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                             <LocalizedElement><InsightCard
                                 label="Serie líder"
@@ -3158,7 +3425,7 @@ function FacturacionAnalyticsPageInner() {
                                 label="Rectificativas"
                                 hint={ANALYTICS_HELP.rectificativa}
                                 value={kpiFormat(rectificativasConteo)}
-                                detail={rectificativasConteo ? `${kpiFormat(rectificativasImpacto, 'money')} en positivo` : 'Sin rectificativas en el rango'}
+                                detail={rectificativasConteo ? `${kpiFormat(rectificativasImpacto, 'money')} (signo ERP)` : 'Sin rectificativas en el rango'}
                                 tone={rectificativasConteo ? 'amber' : 'emerald'}
                             /></LocalizedElement>
                             <LocalizedElement><InsightCard
@@ -3171,7 +3438,7 @@ function FacturacionAnalyticsPageInner() {
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                            <LocalizedElement><Card title="Top series" subtitle="Ranking por ventas netas">
+                            <LocalizedElement><Card title="Top series" subtitle="Ranking por importe bruto del ERP">
                                 <Ranking title="" rows={summary.top_series_by_sales || []} />
                             </Card></LocalizedElement>
 
@@ -3262,6 +3529,16 @@ function FacturacionAnalyticsPageInner() {
                                         nonWorkingSet={nonWorkingSet}
                                     /></LocalizedElement>
                                 </Card></LocalizedElement>
+
+                                <LocalizedElement><SeriesYearComparison
+                                    rows={data.series}
+                                    compareYear={compareYear}
+                                    fromISO={filters.from}
+                                    toISO={filters.to}
+                                    amountLabel={amountLabel}
+                                    loading={reqState.loading}
+                                    error={(data.warnings || []).some((warning) => warning.block === 'series') || reqState.error?.where === 'getDashboard'}
+                                /></LocalizedElement>
 
                                 {compareStats ? (
                                     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-3">
@@ -3478,6 +3755,9 @@ function FacturacionAnalyticsPageInner() {
                                         <th className="py-3 px-3"><TranslatedText>Serie</TranslatedText></th>
                                         <th className="py-3 px-3"><TranslatedText>Tipo</TranslatedText></th>
                                         <th className="py-3 px-3 text-right"><TranslatedText>Ventas</TranslatedText></th>
+                                        {compareYear ? <th className="py-3 px-3 text-right">{compareYear}</th> : null}
+                                        {compareYear ? <th className="py-3 px-3 text-right">Δ €</th> : null}
+                                        {compareYear ? <th className="py-3 px-3 text-right">Δ %</th> : null}
                                         <th className="py-3 px-3 text-right"><TranslatedText>Facturas</TranslatedText></th>
                                         <th className="py-3 px-3 text-right"><HelpLabel className="justify-end" help={ANALYTICS_HELP.ticketMedio}><TranslatedText>Ticket medio</TranslatedText></HelpLabel></th>
                                         <th className="py-3 px-3 text-right"><TranslatedText>% total</TranslatedText></th>
@@ -3491,6 +3771,9 @@ function FacturacionAnalyticsPageInner() {
                                                 <SeriesTypeBadge serie={row.serie} />
                                             </td>
                                             <td className="py-3 px-3 tabular-nums text-right font-medium">{kpiFormat(row.ventas, 'money')}</td>
+                                            {compareYear ? <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.ventas_compare, 'money')}</td> : null}
+                                            {compareYear ? <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.delta_ventas, 'money')}</td> : null}
+                                            {compareYear ? <td className="py-3 px-3 tabular-nums text-right">{pctFormat(row.variacion_vs_compare)}</td> : null}
                                             <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.numero_facturas)}</td>
                                             <td className="py-3 px-3 tabular-nums text-right">{kpiFormat(row.ticket_medio, 'money')}</td>
                                             <td className="py-3 px-3 tabular-nums text-right">{pctFormat(row.porcentaje_total)}</td>
@@ -3498,7 +3781,7 @@ function FacturacionAnalyticsPageInner() {
                                     ))}
                                     {!data.series?.length && (
                                         <tr>
-                                            <td className="py-4 px-3 text-slate-500" colSpan={6}>
+                                            <td className="py-4 px-3 text-slate-500" colSpan={compareYear ? 9 : 6}>
                                                 <TranslatedText>Sin datos para los filtros actuales.</TranslatedText>
                                             </td>
                                         </tr>
@@ -3540,7 +3823,34 @@ function FacturacionAnalyticsPageInner() {
                             )}
                         </Card></LocalizedElement>
 
-                        <LocalizedElement><Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle={`Mes anterior y mismo periodo del año anterior, sobre el ${amountLabel}.`}>
+                        <LocalizedElement><Card
+                            title="Facturación agrupada por período"
+                            subtitle={`Agrupación seleccionada: ${filters.granularity === 'month' ? 'mes' : filters.granularity === 'week' ? 'semana' : 'día'}. Los gráficos superiores siguen siendo diarios para no alterar la comparativa por días laborables.`}
+                        >
+                            {(() => {
+                                const grouped = groupDailyBillingRows(data.timeseries?.series || [], filters.granularity);
+                                const visible = grouped.slice(-36).reverse();
+                                return (
+                                    <div>
+                                        <div className="max-h-[340px] overflow-y-auto overflow-x-auto">
+                                            <table className="w-full min-w-[260px] text-sm">
+                                                <thead><tr className="border-b border-slate-200 text-left"><th className="py-2 pr-3">Período</th><th className="py-2 text-right">Importe ERP</th></tr></thead>
+                                                <tbody>{visible.map((row) => (
+                                                    <tr key={row.period} className="border-b border-slate-100">
+                                                        <td className="py-2 pr-3 tabular-nums">{row.period}</td>
+                                                        <td className="py-2 text-right tabular-nums">{kpiFormat(row.total, 'money')}</td>
+                                                    </tr>
+                                                ))}</tbody>
+                                            </table>
+                                        </div>
+                                        {grouped.length > 36 ? <p className="mt-2 text-xs text-slate-500">Mostrando los últimos 36 períodos de {grouped.length}. Acota las fechas si necesitas ver los anteriores.</p> : null}
+                                        {!grouped.length ? <p className="mt-2 text-xs text-slate-500">Sin facturación para el período seleccionado.</p> : null}
+                                    </div>
+                                );
+                            })()}
+                        </Card></LocalizedElement>
+
+                        <LocalizedElement><Card title="Comparación mensual (MoM / YoY)" help={`${ANALYTICS_HELP.mom} ${ANALYTICS_HELP.yoy}`} subtitle={`Mes natural anterior y mismo mes del año anterior, si existen dentro del rango filtrado · ${amountLabel}.`}>
                             <div className="max-h-[360px] overflow-auto text-sm">
                                 {(data.timeseries.yoy_mom || []).map((r) => (
                                     <div key={r.month_key} className="py-2 border-b last:border-b-0">
@@ -3572,11 +3882,16 @@ function FacturacionAnalyticsPageInner() {
                             title="Buscador de facturas"
                             subtitle="Busca dentro del periodo y filtros actuales por número, serie, cliente, razón social, NIF, vendedor, forma de pago, zona o ruta."
                             right={
-                                <button className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50" onClick={exportCsv}>
-                                    <TranslatedText>Exportar CSV</TranslatedText>
-                                </button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button type="button" className="px-3 py-2 rounded-xl border border-slate-200 text-sm hover:bg-slate-50 disabled:opacity-50" onClick={exportCsv} disabled={exportState.loading}>
+                                        {exportState.loading ? `Exportando ${number.format(exportState.loaded)} / ${number.format(exportState.total || 0)}` : 'Exportar todas (Excel/CSV)'}
+                                    </button>
+                                    {exportState.loading ? <button type="button" onClick={cancelExport} className="px-3 py-2 rounded-xl border border-slate-200 text-xs">Cancelar</button> : null}
+                                </div>
                             }
                         >
+                            {exportState.error ? <div role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{exportState.error}</div> : null}
+                            <p className="mb-3 text-xs text-slate-500">Exporta todas las facturas que coinciden con fechas, búsqueda y filtros, no solo la página actual. Formato CSV UTF-8 para Excel; máximo {number.format(MAX_INVOICE_EXPORT)} registros por descarga.</p>
                             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
                                 <div>
                                     <div className="text-xs font-medium text-slate-500 mb-1.5"><TranslatedText>Factura / cliente / NIF / vendedor</TranslatedText></div>
@@ -3908,9 +4223,9 @@ function FacturacionAnalyticsPageInner() {
                                 hint={ANALYTICS_HELP.puntuacionDatos}
                             /></LocalizedElement>
                             <LocalizedElement><KpiTile
-                                label="Venta ajustada"
-                                value={ventasAjustadasRectificativas === null ? '—' : kpiFormat(ventasAjustadasRectificativas, 'money')}
-                                hint="Ventas no rectificativas menos rectificativas. Las rectificativas se tratan en positivo según la regla confirmada."
+                                label="Total según ERP"
+                                value={ventasSegunERP === null ? '—' : kpiFormat(ventasSegunERP, 'money')}
+                                hint="Suma de importes registrados en el ERP, respetando el signo de los abonos y sin restarlos una segunda vez. No sustituye una conciliación contable."
                             /></LocalizedElement>
                             <LocalizedElement><KpiTile
                                 label="Rectificativas"

@@ -1,4 +1,6 @@
 import pool from '../../db/pool.js';
+import { mergeSeriesComparison, percentageChange, unionPriorOnlyBusinessLines } from '../../utils/serieComparativa.js';
+import { sanitizeSeriesFilter } from '../../utils/analyticsFilterUtils.js';
 import {
     BUSINESS_UNIT_KEYS,
     BUSINESS_LINES,
@@ -11,6 +13,8 @@ import {
 
 const CACHE_TTL_MS = 90_000;
 const responseCache = new Map();
+// Solicitudes idénticas simultáneas comparten el mismo trabajo en el proceso Node.
+const dashboardInFlight = new Map();
 
 let facVentaColumnsCache = null; // Map<lowercase, realColumnName>
 let albVentaLineaColumnsCache = null; // Map<lowercase, realColumnName>
@@ -115,13 +119,13 @@ function sanitizeAnalyticsFilters(rawFilters = {}) {
     const rangeDays = diffDaysInclusive(norm.from, norm.to);
     const to = rangeDays > MAX_DATE_RANGE_DAYS ? addDaysISO(norm.from, MAX_DATE_RANGE_DAYS - 1) : norm.to;
 
-    const allowedSeries = new Set(Object.keys(SALES_SERIES_CONFIG));
-
     return {
         ...rawFilters,
         from: norm.from,
         to: to || norm.to,
-        series: normalizeSafeArray(getFilterParam(rawFilters, 'series'), { upper: true, allowedValues: allowedSeries }),
+        // No limitar a las series del catálogo: el ERP puede contener series históricas
+        // que getFilters() ofrece y que deben poder filtrarse correctamente.
+        series: sanitizeSeriesFilter(getFilterParam(rawFilters, 'series')),
         canal: normalizeSafeArray(getFilterParam(rawFilters, 'canal')),
         cliente: normalizeSafeArray(getFilterParam(rawFilters, 'cliente')),
         compliance: normalizeSafeArray(getFilterParam(rawFilters, 'compliance')),
@@ -219,8 +223,11 @@ function addDaysISO(iso, deltaDays) {
 
 // ✅ FIX: shiftRangeToYear sin TZ bugs
 function shiftRangeToYear(fromISO, toISO, year) {
+    const originalFromYear = Number(String(fromISO).slice(0, 4));
+    const originalToYear = Number(String(toISO).slice(0, 4));
+    const targetEndYear = Number(year) + (originalToYear - originalFromYear);
     const f = shiftISOToYear(fromISO, year);
-    const t = shiftISOToYear(toISO, year);
+    const t = shiftISOToYear(toISO, targetEndYear);
     const norm = f && t ? normalizeRange(f, t) : null;
     if (!norm) {
         return { from: `${year}-01-01`, to: `${year}-12-31` };
@@ -558,7 +565,9 @@ async function buildContextFilters(rawFilters = {}) {
     // ✅ Si no hay columna fecha, no metemos filtro de fechas (y las funciones harán fallback a vacíos)
     if (fechaCol !== 'NULL') {
         values.push(from, to);
-        where.push(`${fechaCol}::date BETWEEN $1::date AND $2::date`);
+        // Intervalo semiabierto: aprovecha índices B-tree sobre fecha sin aplicar ::date
+        // sobre cada fila. Válido para columnas DATE/TIMESTAMP/TIMESTAMPTZ.
+        where.push(`${fechaCol} >= $1::date AND ${fechaCol} < ($2::date + INTERVAL '1 day')`);
     }
 
     if (series.length && serieKeyExpr !== 'NULL') {
@@ -887,7 +896,7 @@ async function buildFacturedOrdersContext(rawFilters = {}) {
                 ${invoiceSerieExpr} AS serie_factura,
                 ${invoiceNumberExpr} AS numero_factura
             FROM public.facventa
-            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${invoiceCtx.expressions.fechaCol}::date = CURRENT_DATE
+            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${invoiceCtx.expressions.fechaCol}::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Madrid')::date
         )
     `;
 
@@ -947,52 +956,63 @@ export class AnalyticsModel {
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const defaults = {
-            summary: null,
-            series: [],
-            timeseries: { series: [], compare_series: [], series_by_serie: [], yoy_mom: [], heatmap: [] },
-            compliance: { rows: [], alerts: [] },
-            businessUnits: null,
-            businessLines: null,
-            dataQuality: { summary: null, checks: [], by_series: [], recommendations: [] },
-        };
+        const existing = dashboardInFlight.get(key);
+        if (existing) return existing;
 
-        const tasks = {
-            summary: this.getSummary(ctx.filters),
-            series: this.getSeries(ctx.filters),
-            timeseries: this.getTimeSeries(ctx.filters),
-            compliance: this.getCompliance(ctx.filters),
-            businessUnits: this.getBusinessUnits(ctx.filters),
-            businessLines: this.getBusinessLines(ctx.filters),
-            dataQuality: this.getDataQuality(ctx.filters),
-        };
-
-        const entries = await Promise.all(
-            Object.entries(tasks).map(async ([keyName, promise]) => {
-                try {
-                    return [keyName, await promise, null];
-                } catch (error) {
-                    console.error(`Analytics dashboard block failed (${keyName}):`, error);
-                    return [keyName, defaults[keyName], error?.message || String(error)];
+        const pending = (async () => {
+            const defaults = {
+                summary: null,
+                series: [],
+                timeseries: { series: [], compare_series: [], series_by_serie: [], yoy_mom: [], heatmap: [] },
+                compliance: { rows: [], alerts: [] },
+                businessUnits: null,
+                businessLines: null,
+                dataQuality: { summary: null, checks: [], by_series: [], recommendations: [] },
+            };
+            // Reducir la presión del pool: cada bloque puede ejecutar varias consultas.
+            // Máximo dos bloques activos por dashboard, preservando fallos parciales.
+            const tasks = [
+                ['summary', () => this.getSummary(ctx.filters)],
+                ['series', () => this.getSeries(ctx.filters)],
+                ['timeseries', () => this.getTimeSeries(ctx.filters)],
+                ['compliance', () => this.getCompliance(ctx.filters)],
+                ['businessUnits', () => this.getBusinessUnits(ctx.filters)],
+                ['businessLines', () => this.getBusinessLines(ctx.filters)],
+                ['dataQuality', () => this.getDataQuality(ctx.filters)],
+            ];
+            const result = { ...defaults, warnings: [] };
+            for (let i = 0; i < tasks.length; i += 2) {
+                const chunk = tasks.slice(i, i + 2);
+                const entries = await Promise.all(chunk.map(async ([name, task]) => {
+                    try {
+                        return [name, await task(), null];
+                    } catch (error) {
+                        console.error(`Analytics dashboard block failed (${name}):`, error);
+                        return [name, defaults[name], error?.message || String(error)];
+                    }
+                }));
+                for (const [name, value, errorMessage] of entries) {
+                    result[name] = value;
+                    if (errorMessage) result.warnings.push({ block: name, message: errorMessage });
                 }
-            })
-        );
-
-        const result = {
-            ...defaults,
-            warnings: [],
-        };
-
-        for (const [keyName, value, errorMessage] of entries) {
-            result[keyName] = value;
-            if (errorMessage) result.warnings.push({ block: keyName, message: errorMessage });
+            }
+            // No fijar en caché un cero falso cuando una consulta ha fallado.
+            if (result.warnings.length === 0) setInCache(key, result);
+            return result;
+        })();
+        dashboardInFlight.set(key, pending);
+        try {
+            return await pending;
+        } finally {
+            if (dashboardInFlight.get(key) === pending) dashboardInFlight.delete(key);
         }
-
-        setInCache(key, result);
-        return result;
     }
 
     static async getFilters(rawFilters) {
+        // Los valores disponibles no dependen de los filtros activos: reutilizar durante el TTL.
+        const cacheKey = 'analytics:filter-options';
+        const cached = getFromCache(cacheKey);
+        if (cached) return cached;
         const ctx = await buildContextFilters(rawFilters);
         const {
             serieCol,
@@ -1043,7 +1063,7 @@ export class AnalyticsModel {
 
         const normalizedSeries = series.rows.map((r) => r.value).filter(Boolean);
 
-        return {
+        const result = {
             series: normalizedSeries,
             seriesGroups: {
                 tejido: normalizedSeries.filter((serie) => !String(serie || '').trim().toUpperCase().startsWith('H')),
@@ -1061,6 +1081,8 @@ export class AnalyticsModel {
             departamentos: departamentos.rows.map((r) => r.value).filter(Boolean),
             tiposFactura: tiposFactura.rows.map((r) => r.value).filter(Boolean),
         };
+        setInCache(cacheKey, result);
+        return result;
     }
 
 
@@ -1186,7 +1208,7 @@ export class AnalyticsModel {
                 variacion_vs_periodo_anterior: null,
                 ventas_compare: null,
                 variacion_vs_compare: null,
-                compare_year: rawFilters.compareYear ? Number(rawFilters.compareYear) : null,
+                compare_year: ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null,
                 top_series_by_sales: [],
                 top_series_by_count: [],
                 top_clients: [],
@@ -1198,7 +1220,7 @@ export class AnalyticsModel {
 
         const key = getCacheKey('summary', {
             ...ctx.filters,
-            compareYear: rawFilters.compareYear || null,
+            compareYear: ctx.filters.compareYear || null,
         });
         const cached = getFromCache(key);
         if (cached) return cached;
@@ -1242,6 +1264,9 @@ export class AnalyticsModel {
 
                 COUNT(*) FILTER (WHERE ${rectCond})::int AS rectificativas_conteo,
                 COALESCE(SUM(${facturacionExpr}) FILTER (WHERE ${rectCond}), 0) AS rectificativas_impacto,
+                COUNT(*) FILTER (WHERE ${rectCond} AND ${facturacionExpr} > 0)::int AS abonos_importe_positivo,
+                COUNT(*) FILTER (WHERE ${rectCond} AND ${facturacionExpr} < 0)::int AS abonos_importe_negativo,
+                COALESCE(SUM(${facturacionExpr}), 0) AS neto_segun_signo_erp,
                 COALESCE(SUM(${facturacionExpr}) FILTER (WHERE NOT ${rectCond}), 0) AS ventas_no_rectificativas,
                 COALESCE(SUM(${facturacionExpr}) FILTER (WHERE NOT ${rectCond}), 0) - COALESCE(SUM(${facturacionExpr}) FILTER (WHERE ${rectCond}), 0) AS ventas_ajustadas_rectificativas,
 
@@ -1259,11 +1284,8 @@ export class AnalyticsModel {
             ${ctx.whereSql};
         `;
 
-        // En modo total, "hoy" se calcula en la zona horaria de la empresa (España).
-        // Para el modo anterior se conserva CURRENT_DATE exactamente como estaba.
-        const dayCondition = ctx.filters.amountMode === 'total'
-            ? "(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Madrid')::date"
-            : 'CURRENT_DATE';
+        // "Hoy" sigue el mismo calendario empresarial (España) en ambos modos de importe.
+        const dayCondition = "(CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Madrid')::date";
 
         const dailyQ = `
             SELECT
@@ -1271,7 +1293,7 @@ export class AnalyticsModel {
                 COALESCE(SUM(${ivaExpr}), 0) AS iva_dia_total,
                 COALESCE(SUM(${totalExpr}), 0) AS imptotal_dia_total
             FROM public.facventa
-            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${fechaCol}::date = ${dayCondition};
+            ${noDate.whereSql ? `${noDate.whereSql} AND` : 'WHERE'} ${fechaCol} >= ${dayCondition} AND ${fechaCol} < (${dayCondition} + INTERVAL '1 day');
         `;
 
         // ✅ previous period en UTC (same length)
@@ -1285,7 +1307,7 @@ export class AnalyticsModel {
                 : await buildContextFilters({ ...rawFilters, from: ctx.filters.from, to: ctx.filters.to });
 
         // ✅ compare year robusto
-        const compareYear = rawFilters.compareYear ? Number(rawFilters.compareYear) : null;
+        const compareYear = ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null;
         const compareCtx = compareYear
             ? await buildContextFilters({
                 ...rawFilters,
@@ -1354,11 +1376,11 @@ export class AnalyticsModel {
         const ventasTotales = Number(summary.rows[0]?.ventas_totales || 0);
 
         const previousSales = Number(previous.rows[0]?.previous_sales || 0);
-        const variacion = previousSales === 0 ? null : ((ventasTotales - previousSales) / previousSales) * 100;
+        const variacion = percentageChange(ventasTotales, previousSales);
 
         const compareSalesRaw = compare.rows[0]?.compare_sales;
         const compareSales = compareSalesRaw === null || compareSalesRaw === undefined ? null : Number(compareSalesRaw || 0);
-        const variacionVsCompare = compareSales === null || compareSales === 0 ? null : ((ventasTotales - compareSales) / compareSales) * 100;
+        const variacionVsCompare = compareSales === null ? null : percentageChange(ventasTotales, compareSales);
 
         const pedidosStats = pedidos || emptyPedidosSummary(compareYear);
         const numeroFacturas = Number(summary.rows[0]?.numero_facturas || 0);
@@ -1396,36 +1418,42 @@ export class AnalyticsModel {
 
         if (ctx.expressions.fechaCol === 'NULL') return [];
 
-        const key = getCacheKey('series', {
-            ...ctx.filters,
-            compareYear: rawFilters.compareYear || null,
-        });
+        const compareYear = ctx.filters.compareYear;
+        const key = getCacheKey('series', ctx.filters);
         const cached = getFromCache(key);
         if (cached) return cached;
 
-        const { serieKeyExpr, facturacionExpr } = ctx.expressions;
-
-        const q = `
+        // La misma métrica y los mismos filtros en ambos años; solo cambian las fechas.
+        // Evita comparar importes brutos de un año con importes finales del otro.
+        const groupSeriesQuery = (periodCtx) => `
             SELECT
-                ${serieKeyExpr} AS serie,
-                SUM(${facturacionExpr}) AS ventas,
+                ${periodCtx.expressions.serieKeyExpr} AS serie,
+                SUM(${periodCtx.expressions.facturacionExpr}) AS ventas,
                 COUNT(*)::int AS numero_facturas,
-                CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(${facturacionExpr}) / COUNT(*) END AS ticket_medio
+                CASE WHEN COUNT(*) = 0 THEN 0
+                     ELSE SUM(${periodCtx.expressions.facturacionExpr}) / COUNT(*) END AS ticket_medio
             FROM public.facventa
-            ${ctx.whereSql}
+            ${periodCtx.whereSql}
             GROUP BY 1
             ORDER BY ventas DESC;
         `;
 
-        const result = await pool.query(q, ctx.values);
-        const rows = result.rows || [];
+        const compareCtx = compareYear
+            ? await buildContextFilters({
+                ...ctx.filters,
+                ...shiftRangeToYear(ctx.filters.from, ctx.filters.to, compareYear),
+            })
+            : null;
 
-        const totalVentas = rows.reduce((acc, row) => acc + Number(row.ventas || 0), 0);
-        const enriched = rows.map((row) => ({
-            ...row,
-            porcentaje_total: totalVentas === 0 ? 0 : (Number(row.ventas || 0) / totalVentas) * 100,
-        }));
+        const [current, previous] = await Promise.all([
+            pool.query(groupSeriesQuery(ctx), ctx.values),
+            compareCtx
+                ? pool.query(groupSeriesQuery(compareCtx), compareCtx.values)
+                : Promise.resolve({ rows: [] }),
+        ]);
 
+        // Incluye series exclusivas de 2025, que de otro modo desaparecerían del listado.
+        const enriched = mergeSeriesComparison(current.rows, previous.rows, compareYear);
         setInCache(key, enriched);
         return enriched;
     }
@@ -1440,7 +1468,7 @@ export class AnalyticsModel {
                 series_by_serie: [],
                 yoy_mom: [],
                 heatmap: [],
-                compare_year: rawFilters.compareYear ? Number(rawFilters.compareYear) : null,
+                compare_year: ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null,
                 compare_series: [],
                 range_from: ctx.filters.from,
                 range_to: ctx.filters.to,
@@ -1453,7 +1481,7 @@ export class AnalyticsModel {
         const key = getCacheKey('timeseries', {
             ...ctx.filters,
             granularity,
-            compareYear: rawFilters.compareYear || null,
+            compareYear: ctx.filters.compareYear || null,
         });
         const cached = getFromCache(key);
         if (cached) return cached;
@@ -1527,12 +1555,16 @@ export class AnalyticsModel {
             GROUP BY 1
           )
           SELECT
-            TO_CHAR(month_key, 'YYYY-MM-DD') AS month_key,
-            total,
-            LAG(total, 1) OVER (ORDER BY month_key) AS mom_previous,
-            LAG(total, 12) OVER (ORDER BY month_key) AS yoy_previous
-          FROM grouped
-          ORDER BY month_key;
+            TO_CHAR(current_month.month_key, 'YYYY-MM-DD') AS month_key,
+            current_month.total,
+            previous_month.total AS mom_previous,
+            previous_year.total AS yoy_previous
+          FROM grouped current_month
+          LEFT JOIN grouped previous_month
+            ON previous_month.month_key = (current_month.month_key - INTERVAL '1 month')::date
+          LEFT JOIN grouped previous_year
+            ON previous_year.month_key = (current_month.month_key - INTERVAL '1 year')::date
+          ORDER BY current_month.month_key;
         `;
 
         const heatmapQ = `
@@ -1546,7 +1578,7 @@ export class AnalyticsModel {
           ORDER BY 2, 1;
         `;
 
-        const compareYear = rawFilters.compareYear ? Number(rawFilters.compareYear) : null;
+        const compareYear = ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null;
         const compareCtx = compareYear
             ? await buildContextFilters({
                 ...rawFilters,
@@ -1633,7 +1665,7 @@ export class AnalyticsModel {
                 totalFacturas: 0,
                 totalAbonos: 0,
                 totalNeto: 0,
-                compare_year: rawFilters.compareYear ? Number(rawFilters.compareYear) : null,
+                compare_year: ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null,
                 range_from: ctx.filters.from,
                 range_to: ctx.filters.to,
             };
@@ -1641,7 +1673,7 @@ export class AnalyticsModel {
 
         const key = getCacheKey('business-lines', {
             ...ctx.filters,
-            compareYear: rawFilters.compareYear || null,
+            compareYear: ctx.filters.compareYear || null,
         });
         const cached = getFromCache(key);
         if (cached) return cached;
@@ -1694,7 +1726,7 @@ export class AnalyticsModel {
             ORDER BY grupo, linea, serie;
         `;
 
-        const compareYear = rawFilters.compareYear ? Number(rawFilters.compareYear) : null;
+        const compareYear = ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null;
         const compareCtx = compareYear
             ? await buildContextFilters({
                 ...rawFilters,
@@ -1711,13 +1743,15 @@ export class AnalyticsModel {
                     q: `
                         SELECT
                             ${compareCtx.expressions.businessLineExpr} AS linea,
+                            ${compareCtx.expressions.businessLineLabelExpr} AS label,
+                            ${compareCtx.expressions.businessLineGroupExpr} AS grupo,
                             SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN 0 ELSE ${compareCtx.expressions.facturacionExpr} END) AS ventas_compare,
                             SUM(CASE WHEN ${compareCtx.expressions.rectCond} THEN ${compareCtx.expressions.facturacionExpr} ELSE 0 END) AS abonos_compare,
                             SUM(${compareCtx.expressions.facturacionExpr}) AS neto_compare,
                             COUNT(*)::int AS numero_facturas_compare
                         FROM public.facventa
                         ${compareWhere}
-                        GROUP BY 1;
+                        GROUP BY 1, 2, 3;
                     `,
                     values: [...compareCtx.values],
                 };
@@ -1732,12 +1766,15 @@ export class AnalyticsModel {
 
         const compareByLine = new Map((compare.rows || []).map((row) => [row.linea, row]));
         const currentRows = current.rows || [];
+        // Una línea con ventas en el ejercicio previo pero cero ahora también debe
+        // mostrarse: de lo contrario ocultaríamos una caída del 100 %.
+        const allRows = unionPriorOnlyBusinessLines(currentRows, compare.rows || [], Boolean(compareYear));
         const totalVentas = currentRows.reduce((acc, row) => acc + Number(row.ventas || 0), 0);
         const totalAbonos = currentRows.reduce((acc, row) => acc + Number(row.abonos || 0), 0);
         const totalNeto = currentRows.reduce((acc, row) => acc + Number(row.neto || 0), 0);
         const totalFacturas = currentRows.reduce((acc, row) => acc + Number(row.numero_facturas || 0), 0);
 
-        const rows = currentRows.map((row) => {
+        const rows = allRows.map((row) => {
             const compareRow = compareByLine.get(row.linea) || {};
             const ventas = Number(row.ventas || 0);
             const ventasCompare = compareYear ? Number(compareRow.ventas_compare || 0) : null;
@@ -1760,7 +1797,7 @@ export class AnalyticsModel {
                 abonos_compare: compareYear ? Number(compareRow.abonos_compare || 0) : null,
                 neto_compare: compareYear ? netoCompare : null,
                 numero_facturas_compare: compareYear ? Number(compareRow.numero_facturas_compare || 0) : null,
-                variacion_vs_compare: compareYear && netoCompare ? ((neto - netoCompare) / netoCompare) * 100 : null,
+                variacion_vs_compare: compareYear ? percentageChange(neto, netoCompare) : null,
             };
         });
 
@@ -1803,7 +1840,7 @@ export class AnalyticsModel {
                 ],
                 totalVentas: 0,
                 totalFacturas: 0,
-                compare_year: rawFilters.compareYear ? Number(rawFilters.compareYear) : null,
+                compare_year: ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null,
                 range_from: ctx.filters.from,
                 range_to: ctx.filters.to,
             };
@@ -1811,7 +1848,7 @@ export class AnalyticsModel {
 
         const key = getCacheKey('business-units', {
             ...ctx.filters,
-            compareYear: rawFilters.compareYear || null,
+            compareYear: ctx.filters.compareYear || null,
         });
         const cached = getFromCache(key);
         if (cached) return cached;
@@ -1844,7 +1881,7 @@ export class AnalyticsModel {
             ORDER BY 1, ventas DESC, 2;
         `;
 
-        const compareYear = rawFilters.compareYear ? Number(rawFilters.compareYear) : null;
+        const compareYear = ctx.filters.compareYear ? Number(ctx.filters.compareYear) : null;
         const compareCtx = compareYear
             ? await buildContextFilters({
                 ...rawFilters,
@@ -1903,7 +1940,7 @@ export class AnalyticsModel {
                 ventas_compare: compareYear ? ventasCompare : null,
                 numero_facturas_compare: compareYear ? numeroFacturasCompare : null,
                 ticket_medio_compare: compareYear ? ticketMedioCompare : null,
-                variacion_vs_compare: compareYear && ventasCompare ? ((ventas - ventasCompare) / ventasCompare) * 100 : null,
+                variacion_vs_compare: compareYear ? percentageChange(ventas, ventasCompare) : null,
             };
         });
 
@@ -2056,7 +2093,13 @@ export class AnalyticsModel {
             total: `${ctx.expressions.facturacionExpr} DESC`,
             serie: `${serieKeyExpr} ASC`,
         };
-        const sort = sortMap[safeFilters.sort] || sortMap.fecha;
+        // Desempate estable para que la paginación/exportación no repita o salte
+        // documentos al coincidir fechas e importes.
+        const sort = [sortMap[safeFilters.sort] || sortMap.fecha,
+            `${fechaCol} DESC`, `${serieKeyExpr} ASC`, `${nfacCol} DESC`,
+            canalCol !== 'NULL' ? `${canalCol} ASC` : null,
+            clienteCol !== 'NULL' ? `${clienteCol} ASC` : null,
+        ].filter(Boolean).join(', ');
 
         if (fechaCol === 'NULL' || serieKeyExpr === 'NULL' || nfacCol === 'NULL') {
             return { page, pageSize, total: 0, rows: [] };
@@ -2158,12 +2201,18 @@ export class AnalyticsModel {
 
         const countQ = `SELECT COUNT(*)::int AS total FROM public.facventa ${whereSql}`;
 
-        const [rows, count] = await Promise.all([pool.query(q, values), pool.query(countQ, values.slice(0, values.length - 2))]);
+        // En exportación ya se ha obtenido el total en la página 1.
+        // Evitar repetir COUNT(*) (con ILIKE, puede resultar costoso) en cada lote.
+        const skipCount = rawFilters.exportSkipCount === '1';
+        const [rows, count] = await Promise.all([
+            pool.query(q, values),
+            skipCount ? Promise.resolve(null) : pool.query(countQ, values.slice(0, values.length - 2)),
+        ]);
 
         return {
             page,
             pageSize,
-            total: count.rows[0]?.total || 0,
+            total: skipCount ? null : (count.rows[0]?.total || 0),
             rows: rows.rows,
         };
     }
