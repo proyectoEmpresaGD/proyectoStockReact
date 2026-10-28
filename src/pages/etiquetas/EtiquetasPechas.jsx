@@ -208,6 +208,17 @@ function EtiquetaPerchas() {
         return parseFloat(number).toFixed(decimals);
     };
 
+    const hasMantenimiento = (mantenimiento, valorBuscado) => {
+        if (!mantenimiento) return false;
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(mantenimiento, "text/xml");
+        const valores = xmlDoc.getElementsByTagName("Valor");
+
+        return Array.from(valores)
+            .some(node => node.textContent.trim() === valorBuscado);
+    };
+
     const getMantenimientoImages = (mantenimiento) => {
         if (!mantenimiento) return null;
 
@@ -313,13 +324,26 @@ function EtiquetaPerchas() {
                         <span className="font-light items-center break-words relative top-[3px]">{selectedProduct.composicion}</span>
                     </div>
                 </div>
-                <div className="w-[40px] relative right-[90px] top-[4px] flex flex-col items-center">
-                    <img
-                        className="w-[40px]"
-                        src={getLogoUrl(selectedProduct.direcciontela)}
-                        alt={selectedProduct.direcciontela}
-                    />
-                    <p className="text-[4px]">{selectedProduct.direcciontela}</p>
+                <div className="w-[80px] relative right-[90px] top-[4px] flex flex-col items-center">
+                    {selectedProduct.direcciontela === 'NON-DIRECTIONAL' &&
+                        hasMantenimiento(selectedProduct.mantenimiento, 'EASYCLEAN') ? (
+                        <img
+                            src={loadBrandLogosMantenimiento.EASYCLEAN}
+                            alt="EASYCLEAN"
+                            className="w-[90px] h-[32px] object-contain"
+                        />
+                    ) : (
+                        <>
+                            <img
+                                className="w-[40px]"
+                                src={getLogoUrl(selectedProduct.direcciontela)}
+                                alt={selectedProduct.direcciontela}
+                            />
+                            <p className="text-[4px]">
+                                {selectedProduct.direcciontela}
+                            </p>
+                        </>
+                    )}
                 </div>
 
                 <div>
