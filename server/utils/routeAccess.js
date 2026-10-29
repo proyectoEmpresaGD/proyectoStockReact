@@ -64,12 +64,14 @@ export const getRouteOverride = (user, path) => {
 // Caché: la configuración de roles no debe parsearse en cada consulta API.
 let lastDefinitionsSource;
 let lastConfiguredRoleRoutes = {};
+let lastConfiguredRolePermissions = {};
 
 export const getConfiguredRoleRoutes = () => {
     const source = process.env.ROLE_DEFINITIONS_JSON || '';
     if (source === lastDefinitionsSource) return lastConfiguredRoleRoutes;
     lastDefinitionsSource = source;
     lastConfiguredRoleRoutes = {};
+    lastConfiguredRolePermissions = {};
     if (!source) return lastConfiguredRoleRoutes;
     try {
         const parsed = JSON.parse(source);
@@ -80,11 +82,19 @@ export const getConfiguredRoleRoutes = () => {
             lastConfiguredRoleRoutes[role] = definition.routes
                 .map((route) => String(route || '').trim())
                 .filter((route) => route === '*' || route.startsWith('/'));
+            lastConfiguredRolePermissions[role] = Array.isArray(definition.permissions)
+                ? definition.permissions.map((permission) => String(permission || '').trim().toLowerCase())
+                : [];
         }
     } catch {
         // Configuración no válida: no se habilitan permisos adicionales.
     }
     return lastConfiguredRoleRoutes;
+};
+
+export const getConfiguredRolePermissions = (role) => {
+    getConfiguredRoleRoutes(); // conserva una sola caché y se actualiza ante cambios de entorno
+    return lastConfiguredRolePermissions[normalizeRole(role)] || [];
 };
 
 export const userHasAppRouteAccess = (user, path, allowedRoles = []) => {

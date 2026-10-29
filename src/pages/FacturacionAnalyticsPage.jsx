@@ -145,8 +145,8 @@ function normalizeApiResult(result, fallback) {
 }
 
 const ANALYTICS_HELP = Object.freeze({
-    impbruto: 'Importe de venta antes de IVA y otros impuestos. Es el campo principal que usa este panel para comparar facturación.',
-    ventasNetas: 'Suma del importe bruto de las facturas incluidas por los filtros, antes de impuestos. No representa el dinero cobrado ni el total con IVA.',
+    impbruto: 'Importe bruto original del ERP (facventa.impbruto). Si los portes se facturan como un producto, pueden estar incluidos en este importe. El panel los identifica por separado sin alterar el valor original.',
+    ventasNetas: 'Suma del importe bruto original de las facturas filtradas, antes de impuestos. Los portes facturados como producto pueden estar incluidos: se desglosan aparte, sin restarlos automáticamente ni alterar el ERP.',
     ticketMedio: 'Importe medio por factura: ventas del periodo divididas entre el número de facturas.',
     ticketPedido: 'Importe medio de los pedidos que han terminado facturados y pueden relacionarse con sus líneas de factura.',
     pedidosFactura: 'Promedio de pedidos distintos incluidos en cada factura. Ayuda a saber si una factura suele agrupar varios pedidos.',
@@ -2412,7 +2412,7 @@ function FacturacionAnalyticsPageInner() {
 
     // El selector cambia la métrica de todas las consultas de facturación.
     const showInvoiceTotal = filters.amountMode === 'total';
-    const amountLabel = showInvoiceTotal ? 'importe total con IVA y portes' : 'importe antes de IVA y portes';
+    const amountLabel = showInvoiceTotal ? 'importe total con IVA y portes' : 'importe bruto ERP antes de impuestos';
     const amountHelp = showInvoiceTotal ? ANALYTICS_HELP.totalFactura : ANALYTICS_HELP.impbruto;
     const toggleAmountMode = () => {
         // Invalida respuestas anteriores de ambos endpoints ANTES de cambiar el filtro.
@@ -2787,7 +2787,7 @@ function FacturacionAnalyticsPageInner() {
                                         <TranslatedText>días laborables</TranslatedText>
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1">
-                                        <TranslatedText>{showInvoiceTotal ? 'Total con IVA y portes · imptotal' : 'Ventas sin IVA ni portes · impbruto'}</TranslatedText>
+                                        <TranslatedText>{showInvoiceTotal ? 'Total con IVA y portes · imptotal' : 'Importe bruto ERP · impbruto'}</TranslatedText>
                                         <LocalizedElement><HelpTooltip text={amountHelp} label="Cómo se calcula el importe mostrado" /></LocalizedElement>
                                     </span>
                                     {reqState.lastOkAt ? <span className="rounded-full bg-slate-100 px-3 py-1 tabular-nums"><TranslatedText>Última respuesta:</TranslatedText> {reqState.lastOkAt}</span> : null}
@@ -2816,7 +2816,7 @@ function FacturacionAnalyticsPageInner() {
                                     type="button"
                                     onClick={toggleAmountMode}
                                     aria-pressed={showInvoiceTotal}
-                                    title={showInvoiceTotal ? 'Volver al importe original de ventas sin IVA ni portes (impbruto)' : 'Mostrar el total final de las facturas con impuestos y portes (imptotal)'}
+                                    title={showInvoiceTotal ? 'Volver al importe bruto original registrado en el ERP (impbruto)' : 'Mostrar el total final de las facturas con impuestos y portes (imptotal)'}
                                     className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${showInvoiceTotal ? 'border-blue-700 bg-blue-700 text-white hover:bg-blue-800' : 'border-slate-300 bg-white text-slate-800 hover:bg-blue-50'}`}
                                 >
                                     <span className="flex items-center justify-between gap-3">
@@ -3320,6 +3320,11 @@ function FacturacionAnalyticsPageInner() {
                                     hint="Total final (campo imptotal) de las facturas fechadas hoy, aplicando los filtros comerciales activos salvo el rango de fechas. No representa cobros."
                                 /></LocalizedElement>
                             ) : null}
+                            <LocalizedElement><KpiTile
+                                label="Portes facturados"
+                                value={kpiFormat(summary.portes_totales || 0, 'money')}
+                                hint={`Suma de portes de las facturas filtradas. Prioriza el importe impbruto de las líneas del producto configurado como portes en albventa_linea; sólo si no hay líneas utiliza facventa.impportes. Sin duplicarlos. Líneas: ${kpiFormat(summary.portes_lineas_total || 0, 'money')} (${summary.facturas_con_portes_linea || 0} facturas). Cabecera antigua: ${summary.facturas_con_portes_cabecera || 0} facturas. No se añade otra vez a imptotal ni se resta automáticamente de impbruto.`}
+                            /></LocalizedElement>
                             <LocalizedElement><KpiTile label="Facturas" value={kpiFormat(facturas)} hint="Número de facturas emitidas." /></LocalizedElement>
                             <LocalizedElement><KpiTile
                                 label="Pedidos"

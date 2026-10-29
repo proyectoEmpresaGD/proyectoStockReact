@@ -6,11 +6,13 @@ import { useEntryT } from './entryCopy.js';
 import { playActivitySound } from './notificationSound.js';
 
 export default function StockActivityBell() {
-    const { canView, notifications, unreadCount, markAllRead, soundEnabled, changeSoundEnabled, desktopEnabled, changeDesktopEnabled, receiptMode, error, refresh, lastUpdated } = useStockActivity();
+    const { canView, notifications, unreadCount, markAllRead, markRead, soundEnabled, changeSoundEnabled, desktopEnabled, changeDesktopEnabled, receiptMode, error, refresh, lastUpdated } = useStockActivity();
     const t = useEntryT();
     const detectionTime = (value) => value && Number.isFinite(Date.parse(value))
         ? new Date(value).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
     const [open, setOpen] = useState(false);
+    const [filter, setFilter] = useState('all');
+    const [visibleCount, setVisibleCount] = useState(20);
     const wrapperRef = useRef(null);
     const location = useLocation();
     const [soundWarning, setSoundWarning] = useState(false);
@@ -28,6 +30,8 @@ export default function StockActivityBell() {
     };
 
     useEffect(() => { setOpen(false); }, [location.pathname]);
+    const filteredNotices = filter === 'unread' ? notifications.filter((item) => !item.read) : notifications;
+    const shownNotices = filteredNotices.slice(0, visibleCount);
     useEffect(() => {
         if (!open) return undefined;
         const close = (event) => {
@@ -62,11 +66,11 @@ export default function StockActivityBell() {
                 )}
             </button>
             {open && (
-                <section className="absolute right-0 top-14 z-[80] w-[min(22rem,calc(100vw-1.25rem))] overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] shadow-2xl" role="dialog" aria-label={t('Actividad de stock')}>
+                <section className="absolute right-0 top-14 z-[80] w-[min(26rem,calc(100vw-1.25rem))] overflow-hidden rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] shadow-2xl" role="dialog" aria-label={t('Actividad de stock')}>
                     <div className="flex items-start justify-between gap-3 border-b border-[var(--cjm-border)] px-4 py-4">
                         <div>
                             <p className="font-semibold app-text">{t('Actividad de stock')}</p>
-                            <p className="cjm-muted mt-0.5 text-xs">{t(receiptMode ? 'Nuevas líneas de compra detectadas hoy' : 'Cambios detectados hoy en este navegador')}</p>
+                            <p className="cjm-muted mt-0.5 text-xs">{t(receiptMode ? 'Historial de entradas detectadas · todos los días' : 'Cambios registrados en este navegador')}</p>
                         </div>
                         {unreadCount > 0 && (
                             <button type="button" onClick={markAllRead} className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--cjm-primary-deep)] hover:underline">
@@ -89,29 +93,36 @@ export default function StockActivityBell() {
                                 {t(soundEnabled ? 'Activado' : 'Desactivado')}
                             </span>
                         </button>
-                        <p className="cjm-muted px-2 text-[11px] leading-4">{t('Solo al detectar cambios nuevos con la aplicación abierta.')}</p>
+                        <p className="cjm-muted px-2 text-[11px] leading-4">{t('Avisa mientras la aplicación permanece abierta, aunque estés en otro módulo.')}</p>
                         {soundWarning && <p className="px-2 pt-1 text-xs text-amber-700" role="status">{t('Tu navegador ha bloqueado el audio. Interactúa con la pestaña y comprueba el volumen.')}</p>}
                         <button type="button" onClick={toggleDesktop} aria-pressed={desktopEnabled} className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-[var(--cjm-surface-muted)]">
                             <span className="flex items-center gap-2 text-sm font-medium app-text"><MonitorSmartphone size={18} aria-hidden="true" /> {t('Avisos del navegador')}</span>
                             <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${desktopEnabled ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]' : 'bg-[var(--cjm-surface-muted)] cjm-muted'}`}>{t(desktopEnabled ? 'Activado' : 'Desactivado')}</span>
                         </button>
-                        <p className="cjm-muted px-2 text-[11px] leading-4">{t('Avisos opcionales en segundo plano con la aplicación abierta. No funcionan con el navegador cerrado.')}</p>
+                        <p className="cjm-muted px-2 text-[11px] leading-4">{t('Actívalos para recibir avisos del sistema mientras trabajas en otra pestaña. Con el navegador cerrado no hay notificaciones push.')}</p>
                         {desktopWarning && <p className="px-2 pt-1 text-xs text-amber-700" role="status">{t('El navegador no ha autorizado las notificaciones. Revisa los permisos del sitio.')}</p>}
                     </div>
                     {error && <div className="flex items-center justify-between gap-2 border-b border-[var(--cjm-border)] px-4 py-2 text-xs text-amber-700" role="status"><span className="flex items-center gap-1"><AlertCircle size={14} /> {t('No se pudo actualizar Entradas; se conserva la última consulta correcta.')}</span><button type="button" onClick={() => refresh()} className="inline-flex items-center gap-1 font-semibold underline"><RefreshCw size={12} /> {t('Reintentar')}</button></div>}
                     {!error && lastUpdated && <p className="cjm-muted px-4 py-2 text-[11px]">{t('Última consulta')}: {lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>}
-                    <div className="max-h-72 overflow-y-auto">
-                        {notifications.length === 0 ? (
+                    <div className="flex items-center justify-between gap-2 border-b border-[var(--cjm-border)] px-4 py-2">
+                        <div className="flex gap-1" role="group" aria-label="Filtrar avisos de entradas">
+                            <button type="button" onClick={() => { setFilter('all'); setVisibleCount(20); }} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filter === 'all' ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]' : 'cjm-muted'}`}>{t('Todos')} ({notifications.length})</button>
+                            <button type="button" onClick={() => { setFilter('unread'); setVisibleCount(20); }} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filter === 'unread' ? 'bg-[var(--cjm-primary-soft)] text-[var(--cjm-primary-deep)]' : 'cjm-muted'}`}>{t('Pendientes')} ({unreadCount})</button>
+                        </div>
+                        <span className="cjm-muted text-[10px]">{t('Historial en este navegador')}</span>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                        {filteredNotices.length === 0 ? (
                             <div className="px-5 py-9 text-center">
                                 <PackageSearch className="mx-auto text-[var(--cjm-muted)]" size={29} />
-                                <p className="mt-3 text-sm font-medium app-text">{t('Sin cambios detectados')}</p>
-                                <p className="cjm-muted mt-1 text-xs leading-5">{t('La primera consulta sirve como referencia; no genera avisos históricos.')}</p>
+                                <p className="mt-3 text-sm font-medium app-text">{t(filter === 'unread' ? 'No hay avisos pendientes' : 'Sin cambios detectados')}</p>
+                                <p className="cjm-muted mt-1 text-xs leading-5">{t(filter === 'unread' ? 'Todos los avisos están revisados.' : 'La primera consulta establece el punto de partida. Los nuevos avisos se conservarán entre días.')}</p>
                             </div>
-                        ) : notifications.slice(0, 10).map((item) => (
+                        ) : shownNotices.map((item) => (
                             <Link
                                 key={item.id}
                                 to={`/entradas?fecha=${encodeURIComponent(item.date)}&buscar=${encodeURIComponent(item.codprodu)}`}
-                                onClick={() => setOpen(false)}
+                                onClick={() => { markRead(item.id); setOpen(false); }}
                                 className={`block border-b border-[var(--cjm-border)] px-4 py-3 transition hover:bg-[var(--cjm-surface-muted)] ${item.read ? '' : 'bg-[var(--cjm-primary-soft)]'}`}
                             >
                                 <div className="flex items-center justify-between gap-3">
@@ -120,11 +131,15 @@ export default function StockActivityBell() {
                                 </div>
                                 <p className="cjm-muted mt-0.5 truncate text-xs">{item.desprodu}</p>
                                 <p className="mt-1 text-xs text-[var(--cjm-primary-deep)]">{t(item.kind === 'receipt' ? 'Albarán de compra detectado' : item.kind === 'new-reference' ? 'Referencia detectada' : 'Cantidad registrada aumentada')} · +{item.change.toLocaleString('es-ES', { maximumFractionDigits: 2 })}</p>
-                                {detectionTime(item.detectedAt) && <p className="cjm-muted mt-1 text-[11px]">{t('Detectado a las')} {detectionTime(item.detectedAt)}</p>}
+                                <p className="cjm-muted mt-1 text-[11px]">{item.date?.split('-').reverse().join('/')} {detectionTime(item.detectedAt) ? `· Detectado a las ${detectionTime(item.detectedAt)}` : ''}</p>
                             </Link>
                         ))}
                     </div>
-                    <Link to="/entradas" onClick={() => { markAllRead(); setOpen(false); }} className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[var(--cjm-primary-deep)] hover:bg-[var(--cjm-surface-muted)]">
+                    {filteredNotices.length > visibleCount && (
+                        <button type="button" onClick={() => setVisibleCount((count) => count + 30)} className="w-full border-t border-[var(--cjm-border)] py-2 text-xs font-semibold text-[var(--cjm-primary-deep)] hover:bg-[var(--cjm-surface-muted)]">{t('Ver más')} ({filteredNotices.length - visibleCount})</button>
+                    )}
+                    <p className="cjm-muted border-t border-[var(--cjm-border)] px-4 py-2 text-[11px] leading-4">{t('Los avisos se conservan entre días en este navegador (hasta 2.000). Si se borran los datos del navegador, también se borra el historial local.')}</p>
+                    <Link to="/entradas" onClick={() => { setOpen(false); }} className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-[var(--cjm-primary-deep)] hover:bg-[var(--cjm-surface-muted)]">
                         {t('Consultar movimientos')} <ArrowUpRight size={15} />
                     </Link>
                 </section>

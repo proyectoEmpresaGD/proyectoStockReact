@@ -19,7 +19,7 @@ import { useLanguage } from '../i18n/LanguageContext.jsx';
 function Home() {
     const navigate = useNavigate();
     const { language, t } = useLanguage();
-    const { token, logout, user } = useAuthContext();
+    const { token, user } = useAuthContext();
     const { canAccess: canAccessVacations } = useVacationModuleAccess();
     const rolesWithoutKpis = ['comercial', 'decoandyou'];
     const [totalClients, setTotalClients] = useState(0);
@@ -72,9 +72,7 @@ function Home() {
 
             const ensureAuth = async (response, entityName) => {
                 if (response.status === 401) {
-                    logout();
-                    navigate('/login');
-                    throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+                    throw new Error('No se pudo validar la petición. Comprueba la conexión e inténtalo de nuevo.');
                 }
                 if (!response.ok) throw new Error(`Error al obtener ${entityName}: ${response.status}`);
                 return response;

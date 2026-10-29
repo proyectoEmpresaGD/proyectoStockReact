@@ -301,14 +301,17 @@ export default function JornadaModule() {
                     .finally(() => setTeamLoading(false));
             }
         } catch (error) {
-            if (error?.status === 401) return logout();
+            if (error?.status === 401) {
+                if (!quiet) toast.warning('No se pudo validar la sesión; reintenta en unos instantes.');
+                return;
+            }
             console.error(error);
             if (!quiet) toast.error(error.message || 'No se pudo cargar el registro de jornada.');
             setPendingEvents(getPendingJornadaEvents(user.id));
         } finally {
             if (!quiet) setLoading(false);
         }
-    }, [isManager, logout, token, user?.id]);
+    }, [isManager, token, user?.id]);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -350,7 +353,10 @@ export default function JornadaModule() {
                 await refresh({ quiet: true });
             }
         } catch (error) {
-            if (error?.status === 401) return logout();
+            if (error?.status === 401) {
+                toast.warning('No se pudo validar la sesión; reintenta en unos instantes.');
+                return;
+            }
             toast.error(error.message || 'No se pudo registrar la jornada.');
         } finally {
             setSubmitting(false);

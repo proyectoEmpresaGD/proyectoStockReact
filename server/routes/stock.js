@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { StockController } from '../controllers/stock.js';
 import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
+import { requireStockWriteAccess } from '../middlewares/requireStockWriteAccess.js';
 
 export const createStockRouter = () => {
     const stockRouter = Router();
@@ -21,7 +22,7 @@ export const createStockRouter = () => {
     // ✅ endpoint fechas (ANTES de "/:codprodu")
     stockRouter.get('/fechas', stockController.getFechas.bind(stockController));
 
-    stockRouter.post('/', stockController.create.bind(stockController));
+    stockRouter.post('/', requireStockWriteAccess, stockController.create.bind(stockController));
     stockRouter.get('/alerts', stockController.getLowStockAlerts.bind(stockController));
     stockRouter.get('/entradas/stock-totales', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getTotalesParaEntradas.bind(stockController));
     stockRouter.get('/entradas/lotes/:codprodu', requireRouteAccess('/entradas', 'ventas', 'administracion'), stockController.getLotesParaEntradas.bind(stockController));
@@ -31,8 +32,8 @@ export const createStockRouter = () => {
     stockRouter.get('/producto/:codprodu', stockController.getByCodprodu.bind(stockController));
 
     stockRouter.get('/:codprodu', stockController.getById.bind(stockController));
-    stockRouter.patch('/:codprodu', stockController.update.bind(stockController));
-    stockRouter.delete('/:codprodu', stockController.delete.bind(stockController));
+    stockRouter.patch('/:codprodu', requireStockWriteAccess, stockController.update.bind(stockController));
+    stockRouter.delete('/:codprodu', requireStockWriteAccess, stockController.delete.bind(stockController));
 
     return stockRouter;
 };

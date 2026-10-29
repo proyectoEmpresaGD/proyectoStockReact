@@ -1,17 +1,7 @@
 import { retryDatabaseRead } from '../../db/postgresResilience.js';
-import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
-import pg from 'pg';
-import dotenv from 'dotenv';
 
-dotenv.config();
 
-const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: 10000,
-    keepAlive: true,
-});
-attachPoolErrorHandler(pool, 'usuarios');
+import pool from '../../db/pool.js';
 
 const normalizeTextOrNull = (value) => {
     if (value === undefined || value === null) return null;
@@ -304,6 +294,16 @@ export class UserModel {
             console.error('Error storing refresh token:', error);
             throw new Error('Error storing refresh token');
         }
+    }
+
+    // Rotación atómica: evita que dos pestañas reemplacen entre sí el token.
+    static async rotateRefreshToken(userId, currentToken, nextToken) {
+        const { rowCount } = await pool.query(
+            `UPDATE usuarios SET refresh_token = $1, updated_at = now()
+             WHERE id = $2 AND refresh_token = $3`,
+            [nextToken, userId, currentToken]
+        );
+        return rowCount === 1;
     }
 
     static async clearRefreshToken(userId) {

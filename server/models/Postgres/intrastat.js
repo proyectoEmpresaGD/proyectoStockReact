@@ -1,16 +1,7 @@
-import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
-import pg from 'pg';
-import dotenv from 'dotenv';
 
-dotenv.config();
 
-const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false,
-});
-attachPoolErrorHandler(pool, 'intrastat');
+import pool from '../../db/pool.js';
+import { getPortesForInvoice } from '../../services/portesFacturacion.js';
 
 export class IntrastatModel {
 
@@ -165,26 +156,11 @@ export class IntrastatModel {
         return result;
     }
 
-    static async getPortesByFactura({ codserfacventa, nfacventa }) {
-        const query = `
-        SELECT impportes, portes
-        FROM facventa
-        WHERE codserfacventa = $1
-        AND nfacventa = $2
-        ORDER BY ejercicio DESC NULLS LAST
-        LIMIT 1
-    `;
-
-        const { rows } = await pool.query(query, [
-            codserfacventa,
-            String(nfacventa),
-        ]);
-
-        const tipoPortes = this.normalize(rows[0]?.portes);
-
-        if (tipoPortes !== 'P') return 0;
-
-        return Number(rows[0]?.impportes || 0);
+    static async getPortesByFactura({ codserfacventa, nfacventa, canal, ejercicio }) {
+        // Prioridad: producto de portes en albventa_linea; en históricos,
+        // mantener impportes sólo cuando el indicador de portes es P.
+        const resultado = await getPortesForInvoice({ codserfacventa, nfacventa, canal, ejercicio });
+        return resultado?.importe_intrastat ?? 0;
     }
 
     static async getTotalFactura({ codserfacventa, nfacventa }) {

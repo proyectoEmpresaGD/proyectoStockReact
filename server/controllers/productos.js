@@ -94,7 +94,6 @@ export class ProductController {
         return res.status(400).json({ message: 'Query parameter is required' });
       }
       const products = await ProductModel.search({ query, limit: parseInt(limit) || 20 }); // Límite predeterminado
-      console.log('Productos encontrados:', products); // Añadir para verificar
       res.json(products);
     } catch (error) {
       res.status(500).json({ error: error.message });

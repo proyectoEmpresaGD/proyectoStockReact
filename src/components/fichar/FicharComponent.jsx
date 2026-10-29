@@ -40,7 +40,7 @@ const getDaySlots = (items = []) => {
 };
 
 export default function FicharComponent() {
-    const { user, token, logout } = useAuthContext();
+    const { user, token } = useAuthContext();
     const { language, t } = useLanguage();
     const [fichajes, setFichajes] = useState([]);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -57,8 +57,7 @@ export default function FicharComponent() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (response.status === 401) {
-                logout();
-                return;
+                throw new Error('No se pudo validar la sesión. Reintenta cuando se recupere la conexión.');
             }
             if (!response.ok) throw new Error(`No se pudo cargar el registro (${response.status}).`);
             const data = await response.json();
@@ -69,7 +68,7 @@ export default function FicharComponent() {
         } finally {
             setLoading(false);
         }
-    }, [logout, token, user?.id]);
+    }, [token, user?.id]);
 
     useEffect(() => { fetchFichajes(); }, [fetchFichajes]);
 
@@ -110,8 +109,7 @@ export default function FicharComponent() {
                 }),
             });
             if (response.status === 401) {
-                logout();
-                return;
+                throw new Error('No se pudo validar la sesión. Reintenta cuando se recupere la conexión.');
             }
             if (!response.ok) throw new Error(`No se pudo registrar el fichaje (${response.status}).`);
             await fetchFichajes();

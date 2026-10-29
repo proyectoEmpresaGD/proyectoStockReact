@@ -24,7 +24,7 @@ function ProfileField({ icon: Icon, label, value }) {
 }
 
 export default function PerfilUsuario() {
-    const { token, logout } = useAuthContext();
+    const { token } = useAuthContext();
     const { language, setLanguage, t } = useLanguage();
     const { theme, setTheme } = useThemePreference();
     const [savingTheme, setSavingTheme] = useState(false);
@@ -55,15 +55,14 @@ export default function PerfilUsuario() {
             console.error('Error al cargar perfil:', requestError);
             const status = requestError?.response?.status;
             if (status === 401) {
-                toast.warning(t('La sesión ya no es válida.'));
-                logout();
+                setError(t('No se pudo validar la petición. Comprueba la conexión e inténtalo de nuevo.'));
                 return;
             }
             setError(t('No se pudo cargar la información del perfil.'));
         } finally {
             setLoading(false);
         }
-    }, [logout, token, t]);
+    }, [token, t]);
 
     useEffect(() => { fetchProfile(); }, [fetchProfile]);
 

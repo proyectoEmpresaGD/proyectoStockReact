@@ -1,4 +1,5 @@
 import pool from '../../db/pool.js';
+import { getPortesSummaryForFilteredInvoices } from '../../services/portesFacturacion.js';
 import { mergeSeriesComparison, percentageChange, unionPriorOnlyBusinessLines } from '../../utils/serieComparativa.js';
 import { sanitizeSeriesFilter } from '../../utils/analyticsFilterUtils.js';
 import {
@@ -1205,6 +1206,10 @@ export class AnalyticsModel {
                 facturacion_dia_total: 0,
                 iva_dia_total: 0,
                 imptotal_dia_total: 0,
+                portes_totales: 0,
+                portes_lineas_total: 0,
+                facturas_con_portes_linea: 0,
+                facturas_con_portes_cabecera: 0,
                 variacion_vs_periodo_anterior: null,
                 ventas_compare: null,
                 variacion_vs_compare: null,
@@ -1258,7 +1263,7 @@ export class AnalyticsModel {
                 SUM(${ivaExpr}) AS iva_total,
                 SUM(${totalExpr}) AS imptotal_total,
 
-                SUM(${metricExpr(portesCol)}) AS portes_totales,
+                SUM(${metricExpr(portesCol)}) AS portes_cabecera_legacy,
                 SUM(${metricExpr(kilosCol)}) AS kilos_totales,
                 SUM(${metricExpr(comisionCol)}) AS comisiones_totales,
 
@@ -1315,7 +1320,7 @@ export class AnalyticsModel {
             })
             : null;
 
-        const [summary, daily, topBySales, topByCount, topClients, previous, compare, pedidos] = await Promise.all([
+        const [summary, daily, topBySales, topByCount, topClients, previous, compare, pedidos, portes] = await Promise.all([
             pool.query(summaryQ, ctx.values),
             pool.query(dailyQ, noDate.values),
 
@@ -1371,6 +1376,7 @@ export class AnalyticsModel {
                 : Promise.resolve({ rows: [{ compare_sales: null }] }),
 
             AnalyticsModel.getOrdersSummary(ctx.filters),
+            getPortesSummaryForFilteredInvoices({ whereSql: ctx.whereSql, values: ctx.values }),
         ]);
 
         const ventasTotales = Number(summary.rows[0]?.ventas_totales || 0);
@@ -1389,6 +1395,7 @@ export class AnalyticsModel {
         const result = {
             ...summary.rows[0],
             ...daily.rows[0],
+            ...portes,
             ...pedidosStats,
 
             ventas_totales: ventasTotales,
@@ -2318,9 +2325,10 @@ export class AnalyticsModel {
             LIMIT 100;
         `;
 
-        const [summaryResult, bySeriesResult] = await Promise.all([
+        const [summaryResult, bySeriesResult, portes] = await Promise.all([
             pool.query(summaryQ, ctx.values),
             pool.query(bySeriesQ, ctx.values),
+            getPortesSummaryForFilteredInvoices({ whereSql: ctx.whereSql, values: ctx.values }),
         ]);
 
         const row = summaryResult.rows[0] || {};
@@ -2394,6 +2402,12 @@ export class AnalyticsModel {
         const result = {
             summary: {
                 ...row,
+                // portes_total sigue siendo el campo histórico de la cabecera para
+                // el control fiscal original; informamos el nuevo origen aparte.
+                portes_efectivos_total: portes.portes_totales,
+                portes_lineas_total: portes.portes_lineas_total,
+                facturas_con_portes_linea: portes.facturas_con_portes_linea,
+                ...portes,
                 total_facturas: totalFacturas,
                 coste_cobertura_pct: costeCoberturaPct,
                 margen_disponible: margenDisponible,

@@ -1,8 +1,10 @@
+import { validProfileImageBytes } from '../middlewares/profileImageUpload.js';
 import { isTransientDatabaseError } from '../db/postgresResilience.js';
 import bcrypt from 'bcryptjs';
 import moment from 'moment-timezone';
 import { UserModel } from '../models/Postgres/usuarios.js';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'node:crypto';
 import { Client } from 'basic-ftp';
 import path from 'path';
 import { Readable } from 'stream';
@@ -141,7 +143,11 @@ function parseRoleDefinitionsFromEnv() {
 
 export class AuthController {
     static async login(req, res) {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
+        if (typeof username !== 'string' || !username.trim() || username.length > 160 ||
+            typeof password !== 'string' || !password || password.length > 1024) {
+            return res.status(400).json({ message: 'Introduce un usuario y una contraseña válidos.' });
+        }
 
         try {
             const user = await UserModel.findByUsername(username);
@@ -230,7 +236,7 @@ export class AuthController {
     }
 
     static async logout(req, res) {
-        const { userId } = req.body;
+        const userId = req.user.id;
 
         try {
             await UserModel.clearRefreshToken(userId);
@@ -255,7 +261,7 @@ export class AuthController {
     }
 
     static async heartbeat(req, res) {
-        const { userId } = req.body;
+        const userId = req.user.id;
 
         try {
             const lastActivityTime = moment().tz('Europe/Madrid').format('YYYY-MM-DD HH:mm:ss');
@@ -285,7 +291,7 @@ export class AuthController {
         try {
             const user = await UserModel.findById(decoded.id);
 
-            if (!user || user.refresh_token !== refreshToken) {
+            if (!user || user.active_session === false || user.refresh_token !== refreshToken) {
                 return res.status(403).json({ message: 'Invalid refresh token' });
             }
 
@@ -302,7 +308,26 @@ export class AuthController {
                 { expiresIn: '1h' }
             );
 
-            return res.json({ token: newToken });
+            // Extender el refresh SOLO si aún existe una sesión válida y
+            // está a menos de 24 h de su vencimiento. Una sesión inactiva
+            // caduca normalmente; no existe un refresh permanente.
+            let rotatedRefreshToken;
+            if (decoded.exp - Math.floor(Date.now() / 1000) <= 24 * 60 * 60) {
+                rotatedRefreshToken = jwt.sign(
+                    { id: user.id, nonce: randomBytes(16).toString('hex') },
+                    process.env.JWT_REFRESH_SECRET,
+                    { expiresIn: '7d' }
+                );
+                const rotated = await UserModel.rotateRefreshToken(user.id, refreshToken, rotatedRefreshToken);
+                if (!rotated) {
+                    return res.status(409).json({ message: 'La sesión se está renovando en otra pestaña. Reintenta.' });
+                }
+            }
+
+            return res.json({
+                token: newToken,
+                ...(rotatedRefreshToken ? { refreshToken: rotatedRefreshToken } : {}),
+            });
         } catch (error) {
             if (isTransientDatabaseError(error)) {
                 res.setHeader('Retry-After', '2');
@@ -473,6 +498,9 @@ export class AuthController {
         } = req.body;
 
         const file = req.file;
+        if (file && !validProfileImageBytes(file)) {
+            return res.status(400).json({ message: 'La foto de perfil no es una imagen JPG, PNG o WebP válida.' });
+        }
 
         if (!username || !password || !role) {
             return res.status(400).json({
@@ -697,6 +725,9 @@ export class AuthController {
 
         if (!file) {
             return res.status(400).json({ error: 'No se subió ningún archivo' });
+        }
+        if (!validProfileImageBytes(file)) {
+            return res.status(400).json({ error: 'La foto no es una imagen JPG, PNG o WebP válida.' });
         }
 
         const filename = file.originalname;

@@ -19,6 +19,11 @@ if (!process.env.DATABASE_URL) {
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+        max: 12,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
     });
     attachPoolErrorHandler(pool, "principal");
 }

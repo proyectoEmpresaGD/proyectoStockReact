@@ -12,7 +12,7 @@ export function expenseAdminOnly(req, res, next) {
 const uuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
 export function createExpenseTestsRouter({ pool, store = createExpenseTestStore(pool), supplierLookup = createExpenseSupplierLookup(pool), creditorRegistration = createExpenseCreditorRegistration(pool, { enabled: process.env.EXPENSE_CREDITOR_WRITES_ENABLED === 'true' }), ocr = createExpenseOcr({ supplierLookup }) }) {
   const router = Router();
-  router.use(expenseAdminOnly, express.json({ limit: '3mb' }));
+  router.use(expenseAdminOnly, express.json({ limit: '3mb', inflate: false }));
   const route = fn => async (req, res) => {
     try { await fn(req, res); }
     catch (error) {
@@ -57,6 +57,7 @@ export function createExpenseTestsRouter({ pool, store = createExpenseTestStore(
   }));
   // No se contabilizan facturas/asientos en ERP; el alta explícita en PostgreSQL está protegida por flag.
   router.use((error, req, res, next) => {
+    if (error.type === 'encoding.unsupported') return res.status(415).json({ message: 'Envía JSON sin compresión.' });
     if (error.type === 'entity.too.large') return res.status(413).json({ message: 'Las fotos exceden el tamaño permitido. Reduce su tamaño.' });
     if (error instanceof SyntaxError) return res.status(400).json({ message: 'Petición JSON inválida.' });
     return next(error);

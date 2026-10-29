@@ -5,11 +5,13 @@ import { decodeJwtPayload } from '../utils/jwt';
 import { getFirstAccessibleRoute, getRoleDefinition, userCanAccessRoute } from '../utils/roleAccessConfig';
 
 const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
-    const { token, user, roleCatalogLoading } = useAuthContext();
+    const { token, user, roleCatalogLoading, sessionLoading } = useAuthContext();
     const location = useLocation();
 
     if (!token) {
-        return <Navigate to="/login" />;
+        return sessionLoading
+            ? <div role="status" className="p-6 text-center app-text">Recuperando sesión…</div>
+            : <Navigate to="/login" replace />;
     }
 
     try {
@@ -45,7 +47,7 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
                 return <Navigate to={fallbackRoute} replace />;
             }
 
-            return <Navigate to="/login" replace />;
+            return <div role="alert" className="p-6 text-center app-text">No tienes permisos para acceder a este apartado. Contacta con el administrador si necesitas acceso.</div>;
         }
 
         if (
@@ -58,7 +60,7 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
                 return <Navigate to={fallbackRoute} replace />;
             }
 
-            return <Navigate to="/login" replace />;
+            return <div role="alert" className="p-6 text-center app-text">No tienes permisos para acceder a este apartado. Contacta con el administrador si necesitas acceso.</div>;
         }
 
         if (!canAccessCurrentRoute) {
@@ -66,7 +68,7 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
                 return <Navigate to={fallbackRoute} replace />;
             }
 
-            return <Navigate to="/login" replace />;
+            return <div role="alert" className="p-6 text-center app-text">No tienes permisos para acceder a este apartado. Contacta con el administrador si necesitas acceso.</div>;
         }
 
         return children;

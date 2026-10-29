@@ -20,15 +20,20 @@ test('Multer 2.4.0: lock e integridad coherentes con la revisión de seguridad',
   assert.equal(actual.dependencies['concat-stream'], undefined);
 });
 
-test('Las tres rutas de subida mantienen memoryStorage, nombres de campos y sus controles de acceso', () => {
+test('Subidas: campos, permisos, límites y memoria acotada en los routers y middleware actuales', () => {
   const notas = read('server/routes/notas.js');
   const intrastat = read('server/routes/intrastat.js');
   const auth = read('server/routes/auth.js');
+  const profile = read('server/middlewares/profileImageUpload.js');
   const api = read('server/index.js');
-  assert.match(notas, /upload\.array\('imagenes', 3\)/);
+  assert.match(notas, /notesImageUpload\.array\('imagenes', 3\), validateNoteImages/);
   assert.match(intrastat, /upload\.single\('file'\)/);
-  assert.match(auth, /upload\.single\('imagen'\)/);
-  for (const file of [notas, intrastat, auth]) assert.match(file, /multer\.memoryStorage\(\)/);
+  assert.match(auth, /profileImageUpload\.single\('imagen'\)/);
+  for (const file of [read('server/middlewares/notesImageUpload.js'), intrastat, profile]) {
+    assert.match(file, /multer\.memoryStorage\(\)/);
+    assert.match(file, /limits\s*:/);
+  }
+  assert.match(intrastat, /router\.use\(requireRouteAccess\('\/intrastat', 'administrativo'\)\)/);
   assert.match(api, /app\.use\("\/api\/intrastat", authMiddleware, createIntrastatRouter\(\)\)/);
   assert.match(notas, /router\.use\(authMiddleware\)/);
   assert.match(auth, /'\/users\/create-with-image', authMiddleware, requireAdmin/);

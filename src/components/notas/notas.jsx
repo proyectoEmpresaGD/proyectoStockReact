@@ -1023,7 +1023,7 @@ export default function NotasPage() {
                                     📷
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
                                         capture="environment"
                                         className="hidden"
                                         onChange={(e) => {
@@ -1057,7 +1057,7 @@ export default function NotasPage() {
                                     🖼️
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
                                         multiple
                                         className="hidden"
                                         onChange={(e) => {

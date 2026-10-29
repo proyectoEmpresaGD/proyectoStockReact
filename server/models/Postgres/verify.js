@@ -1,15 +1,7 @@
-import { attachPoolErrorHandler } from '../../db/postgresResilience.js';
 // server/models/Postgres/quotes.js
-import pg from 'pg';
-import dotenv from 'dotenv';
 
-dotenv.config();
 
-const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
-attachPoolErrorHandler(pool, 'verify');
+import pool from '../../db/pool.js';
 
 export class VerifyModel {
     /**

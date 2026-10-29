@@ -4,6 +4,8 @@ import { userCanAccessRoute } from '../../utils/roleAccessConfig.js';
 import { baselineForRefresh, reconcileActivityState, groupEntries, groupConfirmedReceipts, localISODate, madridISODate, normalizeStoredActivity, updateStoredActivity } from './entradasUtils.js';
 import { playActivitySound, readSoundPreference, saveSoundPreference, unlockActivitySound } from './notificationSound.js';
 import { readDesktopPreference, requestDesktopPermission, saveDesktopPreference, showDesktopActivity } from './browserNotifications.js';
+import { datesToRecover, inboxKey, mergeInbox, readInbox, readLegacyDailyNotices, readMonitorDate, saveInbox, saveMonitorDate } from './activityInbox.js';
+import { toast } from 'react-toastify';
 
 const StockActivityContext = createContext(null);
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
@@ -32,6 +34,7 @@ export function StockActivityProvider({ children }) {
     const username = String(user?.id || user?.username || '').trim();
     const [entriesToday, setEntriesToday] = useState([]);
     const [activity, setActivity] = useState({ date: '', snapshot: null, notifications: [] });
+    const [inbox, setInbox] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [lastUpdated, setLastUpdated] = useState(null);
@@ -40,6 +43,9 @@ export function StockActivityProvider({ children }) {
     const lastSuccessfulDateRef = useRef(null);
     const lastSuccessAtRef = useRef(0);
     const lastActivityRef = useRef(null);
+    const inboxRef = useRef([]);
+    const recoveryAbortRef = useRef(null);
+    const recoveryPendingRef = useRef(false);
     const [soundEnabled, setSoundEnabled] = useState(false);
     const soundEnabledRef = useRef(false);
     const [desktopEnabled, setDesktopEnabled] = useState(false);
@@ -62,6 +68,41 @@ export function StockActivityProvider({ children }) {
         saveDesktopPreference(username, next);
         return true;
     }, [canView, username]);
+
+    // La lista de avisos vive fuera de la pantalla Entradas y se conserva entre días.
+    // Fusionar el estado persistido para no resucitar avisos marcados como leídos
+    // en una segunda pestaña antes de grabar una nueva recepción.
+    const persistNotices = useCallback((incoming) => {
+        const merged = mergeInbox(mergeInbox(readInbox(username), inboxRef.current), incoming);
+        const current = inboxRef.current;
+        // No reescribir localStorage ni repintar la aplicación cada minuto
+        // cuando no existe ningún cambio real en la bandeja de avisos.
+        if (merged.length === current.length && merged.every((item, index) =>
+            item.id === current[index]?.id && Boolean(item.read) === Boolean(current[index]?.read))) {
+            return current;
+        }
+        inboxRef.current = merged;
+        saveInbox(username, merged);
+        setInbox(merged);
+        return merged;
+    }, [username]);
+
+    const announceNotices = useCallback((items) => {
+        if (!items.length) return;
+        const one = items[0];
+        const message = items.length === 1
+            ? `Nueva entrada: ${one.codprodu} · +${Number(one.change || 0).toLocaleString('es-ES', { maximumFractionDigits: 2 })}`
+            : `${items.length} nuevas líneas de compra detectadas. Consulta Entradas.`;
+        if (document.visibilityState === 'visible') {
+            toast.info(message, {
+                toastId: `cjm-entradas:${one.id}`,
+                autoClose: 9000,
+                onClick: () => { window.location.hash = `#/entradas?fecha=${encodeURIComponent(one.date)}&buscar=${encodeURIComponent(one.codprodu)}`; },
+            });
+        }
+        if (soundEnabledRef.current) void playActivitySound();
+        if (desktopEnabledRef.current && document.visibilityState !== 'visible') showDesktopActivity(items);
+    }, []);
 
     const refresh = useCallback(({ silent = false } = {}) => {
         if (!canView || !token || !username) return Promise.resolve();
@@ -100,16 +141,15 @@ export function StockActivityProvider({ children }) {
                 const existingIds = new Set(previous.notifications.map((item) => item.id));
                 const newNotices = previous.snapshot !== null
                     ? updated.notifications.filter((item) => !existingIds.has(item.id)) : [];
+                const alreadyInInbox = new Set(mergeInbox(readInbox(username), inboxRef.current).map((item) => item.id));
+                const freshNotices = newNotices.filter((item) => !alreadyInInbox.has(item.id));
                 saveActivity(username, date, updated);
+                persistNotices(updated.notifications);
+                if (!recoveryPendingRef.current) saveMonitorDate(username, date);
                 lastActivityRef.current = updated;
                 lastSuccessfulDateRef.current = date;
                 lastSuccessAtRef.current = Date.now();
-                if (newNotices.length && soundEnabledRef.current && document.visibilityState === 'visible') {
-                    void playActivitySound();
-                }
-                if (newNotices.length && desktopEnabledRef.current && document.visibilityState !== 'visible') {
-                    showDesktopActivity(newNotices);
-                }
+                announceNotices(freshNotices);
                 setActivity(updated);
                 setEntriesToday(grouped);
                 setLastUpdated(new Date());
@@ -126,7 +166,7 @@ export function StockActivityProvider({ children }) {
         inFlightRef.current = task;
         void task.finally(() => { if (inFlightRef.current === task) inFlightRef.current = null; });
         return task;
-    }, [canView, token, username]);
+    }, [canView, token, username, persistNotices, announceNotices]);
 
     useEffect(() => {
         const enabled = canView && readSoundPreference(username);
@@ -156,6 +196,10 @@ export function StockActivityProvider({ children }) {
             lastSuccessfulDateRef.current = null;
             lastSuccessAtRef.current = 0;
             lastActivityRef.current = null;
+            inboxRef.current = [];
+            recoveryAbortRef.current?.abort();
+            recoveryPendingRef.current = false;
+            setInbox([]);
             setLoading(false);
             setEntriesToday([]);
             setActivity({ date: '', snapshot: null, notifications: [] });
@@ -168,8 +212,66 @@ export function StockActivityProvider({ children }) {
         setEntriesToday([]);
         lastActivityRef.current = readActivity(username, businessDate());
         setActivity(lastActivityRef.current);
+        // Migrar los avisos del día del modelo anterior sin perder los ya leídos.
+        persistNotices([...readLegacyDailyNotices(username), ...lastActivityRef.current.notifications]);
         setLastUpdated(null);
+        const lastMonitorDate = readMonitorDate(username);
+        // Si ayer se vigiló el módulo, las entradas ya existentes de HOY
+        // al volver a abrir la aplicación también deben generar aviso.
+        // Sin una vigilancia previa, la primera consulta sigue siendo referencia.
+        if (lastMonitorDate && lastMonitorDate < businessDate()) {
+            lastSuccessfulDateRef.current = lastMonitorDate;
+        }
+        // Recuperar entradas de fechas anteriores cuando se vuelve a abrir la web.
+        // Solo albaranes de compra: el modo antiguo no permite reconstruir novedades.
+        const recoveryController = new AbortController();
+        recoveryAbortRef.current = recoveryController;
+        const pastDates = USING_CONFIRMED_RECEIPTS ? datesToRecover(lastMonitorDate, businessDate()) : [];
+        recoveryPendingRef.current = pastDates.length > 0;
         refresh();
+        if (pastDates.length) {
+            void (async () => {
+                let allRecovered = true;
+                for (const date of pastDates) {
+                    if (recoveryController.signal.aborted) break;
+                    const timeout = window.setTimeout(() => recoveryController.abort(), REQUEST_TIMEOUT_MS);
+                    try {
+                        const response = await fetch(`${API_BASE}/api/stock/entradas/recepciones?date=${encodeURIComponent(date)}`, {
+                            headers: { Authorization: `Bearer ${token}` },
+                            signal: recoveryController.signal, cache: 'no-store',
+                        });
+                        if (!response.ok) throw new Error(`No se pudo recuperar ${date}`);
+                        const payload = await response.json();
+                        if (!Array.isArray(payload)) throw new Error('Respuesta de entradas no válida');
+                        const grouped = groupConfirmedReceipts(payload);
+                        const stored = readActivity(username, date);
+                        // El primer día vigilado puede tener una referencia guardada;
+                        // los siguientes representan documentos creados mientras la web estuvo cerrada.
+                        const baseline = stored.snapshot !== null ? stored
+                            : { ...stored, snapshot: {}, receiptIds: [] };
+                        const updated = updateStoredActivity(baseline, grouped, date, true);
+                        if (recoveryController.signal.aborted) break;
+                        const existing = new Set(mergeInbox(readInbox(username), inboxRef.current).map((item) => item.id));
+                        const fresh = updated.notifications.filter((item) => !existing.has(item.id));
+                        saveActivity(username, date, updated);
+                        persistNotices(updated.notifications);
+                        announceNotices(fresh);
+                    } catch (error) {
+                        allRecovered = false;
+                        if (!recoveryController.signal.aborted) console.warn('No se recuperaron entradas anteriores:', date, error);
+                        // Continuar el resto de días; el siguiente inicio vuelve a intentar lo fallido.
+                    } finally { window.clearTimeout(timeout); }
+                }
+                if (!recoveryController.signal.aborted) {
+                    if (allRecovered && lastSuccessfulDateRef.current === businessDate()) {
+                        saveMonitorDate(username, businessDate());
+                    }
+                    // Si falló una fecha, conservar la marca anterior para
+                    // intentar recuperarla en la siguiente sesión.
+                    recoveryPendingRef.current = !allRecovered;
+                }
+            })();
+        }
         // También comprobar con la pestaña en segundo plano si el navegador
         // permite sus temporizadores. Los avisos de escritorio son optativos.
         const timer = window.setInterval(() => {
@@ -189,10 +291,15 @@ export function StockActivityProvider({ children }) {
                 catch { before = normalizeStoredActivity(null, date); }
                 const after = readActivity(username, date);
                 const known = new Set(before.notifications.map((item) => item.id));
+                // Otro navegador/pestaña ya anunció estas novedades. Evitar sonido duplicado.
                 const newcomers = after.notifications.filter((item) => !known.has(item.id));
-                if (newcomers.length && soundEnabledRef.current && document.visibilityState === 'visible') void playActivitySound();
+                if (newcomers.length) persistNotices(newcomers);
                 lastActivityRef.current = reconcileActivityState(after, lastActivityRef.current, date);
                 setActivity(lastActivityRef.current);
+            } else if (event.key === inboxKey(username)) {
+                const merged = mergeInbox(inboxRef.current, readInbox(username));
+                inboxRef.current = merged;
+                setInbox(merged);
             } else if (event.key === `cjm:stock-activity:sound:v1:${username}`) {
                 const enabled = readSoundPreference(username);
                 soundEnabledRef.current = enabled;
@@ -214,28 +321,71 @@ export function StockActivityProvider({ children }) {
             window.removeEventListener('focus', onFocus);
             window.removeEventListener('storage', onStorage);
             abortRef.current?.abort();
+            recoveryController.abort();
+            recoveryPendingRef.current = false;
             inFlightRef.current = null;
         };
-    }, [canView, username, refresh]);
+    }, [canView, username, token, refresh, persistNotices, announceNotices]);
 
     const markAllRead = useCallback(() => {
         if (!canView || !username) return;
+        const updated = mergeInbox(readInbox(username), inboxRef.current)
+            .map((item) => ({ ...item, read: true }));
+        inboxRef.current = updated;
+        saveInbox(username, updated);
+        setInbox(updated);
+        // Mantener sincronizada la vista del día para no resucitar pendientes.
         setActivity((current) => {
-            const updated = {
-                ...current,
-                notifications: current.notifications.map((item) => ({ ...item, read: true })),
-            };
-            if (current.date) saveActivity(username, current.date, updated);
-            lastActivityRef.current = updated;
-            return updated;
+            const daily = { ...current, notifications: current.notifications.map((item) => ({ ...item, read: true })) };
+            if (daily.date) saveActivity(username, daily.date, daily);
+            lastActivityRef.current = daily;
+            return daily;
         });
     }, [canView, username]);
 
-    const notifications = activity.notifications;
+    const markRead = useCallback((id) => {
+        if (!canView || !username) return;
+        const updated = mergeInbox(readInbox(username), inboxRef.current)
+            .map((item) => item.id === id ? { ...item, read: true } : item);
+        inboxRef.current = updated;
+        saveInbox(username, updated);
+        setInbox(updated);
+        setActivity((current) => {
+            if (!current.notifications.some((item) => item.id === id)) return current;
+            const daily = {
+                ...current,
+                notifications: current.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
+            };
+            if (daily.date) saveActivity(username, daily.date, daily);
+            lastActivityRef.current = daily;
+            return daily;
+        });
+    }, [canView, username]);
+
+    const markTodayRead = useCallback(() => {
+        if (!canView || !username) return;
+        const date = businessDate();
+        const updated = mergeInbox(readInbox(username), inboxRef.current).map((item) =>
+            item.date === date ? { ...item, read: true } : item);
+        inboxRef.current = updated;
+        saveInbox(username, updated);
+        setInbox(updated);
+        setActivity((current) => {
+            if (current.date !== date) return current;
+            const daily = { ...current, notifications: current.notifications.map((item) => ({ ...item, read: true })) };
+            saveActivity(username, date, daily);
+            lastActivityRef.current = daily;
+            return daily;
+        });
+    }, [canView, username]);
+
+    const notifications = inbox;
+    const todayNotifications = activity.notifications;
     const unreadCount = notifications.filter((item) => !item.read).length;
+    const todayUnreadCount = notifications.filter((item) => !item.read && item.date === businessDate()).length;
     return (
         <StockActivityContext.Provider value={{
-            canView, entriesToday, notifications, unreadCount, lastUpdated, loading, error, refresh, markAllRead,
+            canView, entriesToday, notifications, todayNotifications, unreadCount, todayUnreadCount, lastUpdated, loading, error, refresh, markAllRead, markRead, markTodayRead,
             soundEnabled, changeSoundEnabled, desktopEnabled, changeDesktopEnabled, receiptMode: USING_CONFIRMED_RECEIPTS,
         }}>
             {children}

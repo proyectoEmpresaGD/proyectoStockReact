@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ProductController } from '../controllers/productos.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js'; // Importar el middleware de autenticación
+import { requireStockWriteAccess } from '../middlewares/requireStockWriteAccess.js';
 
 export const createProductRouter = () => {
     const productsRouter = Router();
@@ -8,7 +9,7 @@ export const createProductRouter = () => {
 
     // Rutas protegidas por autenticación para todos los roles ('comercial', 'almacen', 'user', 'admin')
     productsRouter.get('/', authMiddleware, productController.getAll.bind(productController));
-    productsRouter.post('/', authMiddleware, productController.create.bind(productController));
+    productsRouter.post('/', authMiddleware, requireStockWriteAccess, productController.create.bind(productController));
 
     // Rutas de filtros protegidas por autenticación
     productsRouter.get('/filters', authMiddleware, productController.getFilters.bind(productController));
@@ -24,8 +25,8 @@ export const createProductRouter = () => {
 
     // Rutas para operaciones específicas de un producto protegidas por autenticación
     productsRouter.get('/:id', authMiddleware, productController.getById.bind(productController));
-    productsRouter.patch('/:id', authMiddleware, productController.update.bind(productController));
-    productsRouter.delete('/:id', authMiddleware, productController.delete.bind(productController));
+    productsRouter.patch('/:id', authMiddleware, requireStockWriteAccess, productController.update.bind(productController));
+    productsRouter.delete('/:id', authMiddleware, requireStockWriteAccess, productController.delete.bind(productController));
 
     return productsRouter;
 };

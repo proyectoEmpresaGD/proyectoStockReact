@@ -15,6 +15,7 @@ export const createAuthMiddleware = ({ verifyToken, findUser }) => async (req, r
   try {
     const user = await findUser(decoded.id);
     if (!user) return res.status(401).json({ message: 'User not found' });
+    if (user.active_session === false) return res.status(401).json({ message: 'Session revoked' });
     // Conservamos el objeto de usuario completo, incluyendo route_access.
     req.user = user;
     return next();

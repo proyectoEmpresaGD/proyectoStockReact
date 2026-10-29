@@ -99,7 +99,7 @@ function EntryCard({ entry, canViewStock, token, expanded, onToggle, isChanged, 
 export default function EntradasPage() {
     const { user, token } = useAuthContext();
     const t = useEntryT();
-    const { entriesToday, notifications, unreadCount, loading: todayLoading, error: todayError, lastUpdated, refresh, markAllRead } = useStockActivity();
+    const { entriesToday, todayNotifications, todayUnreadCount, loading: todayLoading, error: todayError, lastUpdated, refresh, markTodayRead } = useStockActivity();
     const [searchParams] = useSearchParams();
     const today = USING_CONFIRMED_RECEIPTS ? madridISODate() : localISODate();
     const initialDate = searchParams.get('fecha');
@@ -198,12 +198,12 @@ export default function EntradasPage() {
     const totalRecords = useMemo(() => entries.reduce((sum, item) => sum + item.recordCount, 0), [entries]);
     const changedDetails = useMemo(() => {
         const map = new Map();
-        for (const notice of notifications) {
+        for (const notice of todayNotifications) {
             const key = String(notice.codprodu || '').toUpperCase();
             if (!map.has(key)) map.set(key, notice);
         }
         return map;
-    }, [notifications]);
+    }, [todayNotifications]);
     const changedCodes = useMemo(() => new Set(changedDetails.keys()), [changedDetails]);
     const filtered = useMemo(() => {
         const terms = normalizeSearch(search).split(/\s+/).filter(Boolean);
@@ -282,7 +282,7 @@ export default function EntradasPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Metric icon={Package} label={t(USING_CONFIRMED_RECEIPTS ? 'Referencias en albaranes' : 'Referencias con actividad')} value={entries.length.toLocaleString('es-ES')} note={dateLabel} />
                 <Metric icon={Activity} label={t(USING_CONFIRMED_RECEIPTS ? 'Líneas documentadas' : 'Registros consultados')} value={totalRecords.toLocaleString('es-ES')} note={t('Agrupados por referencia')} />
-                <Metric icon={Bell} label={t('Avisos pendientes')} value={isToday ? unreadCount : '—'} note={t(isToday ? 'Cambios detectados en este navegador' : 'Disponibles en la vista de hoy')} />
+                <Metric icon={Bell} label={t('Avisos pendientes')} value={isToday ? todayUnreadCount : '—'} note={t(isToday ? 'Cambios detectados en este navegador' : 'Disponibles en la vista de hoy')} />
             </div>
 
             <section className="mt-5 rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-4 sm:p-5" aria-label="Buscar y filtrar entradas">
@@ -357,10 +357,10 @@ export default function EntradasPage() {
                 )}
             </section>
 
-            {isToday && unreadCount > 0 && (
+            {isToday && todayUnreadCount > 0 && (
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-primary-soft)] p-4 text-sm">
-                    <span className="flex items-center gap-2 font-medium app-text"><Bell size={17} /> {t('Tienes')} {unreadCount} {t(unreadCount === 1 ? 'cambio sin revisar' : 'cambios sin revisar')}.</span>
-                    <button type="button" onClick={markAllRead} className="inline-flex items-center gap-2 font-semibold text-[var(--cjm-primary-deep)] hover:underline"><CheckCheck size={17} /> {t('Marcar revisados')}</button>
+                    <span className="flex items-center gap-2 font-medium app-text"><Bell size={17} /> {t('Tienes')} {todayUnreadCount} {t(todayUnreadCount === 1 ? 'cambio sin revisar' : 'cambios sin revisar')}.</span>
+                    <button type="button" onClick={markTodayRead} className="inline-flex items-center gap-2 font-semibold text-[var(--cjm-primary-deep)] hover:underline"><CheckCheck size={17} /> {t('Marcar revisados')}</button>
                 </div>
             )}
             <footer className="mt-5 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-4 py-3 text-xs leading-5 text-[var(--cjm-muted)]">

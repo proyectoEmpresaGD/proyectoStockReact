@@ -16,14 +16,16 @@ const EXTRA_ORIGINS = (process.env.FRONTEND_ORIGIN || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const ALLOWED_ORIGINS = new Set([DEFAULT_FRONTEND, ...LOCALHOSTS, ...EXTRA_ORIGINS]);
+const ALLOWED_ORIGINS = new Set([DEFAULT_FRONTEND, ...EXTRA_ORIGINS]);
 const VERCEL_PREVIEW_REGEX = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 
-function isAllowedOrigin(origin) {
+export function isAllowedOrigin(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Localhost solo durante desarrollo, nunca por defecto en producción.
+  if (process.env.NODE_ENV !== 'production' && LOCALHOSTS.includes(origin)) return true;
 
-  const allowVercelPreviews = (process.env.ALLOW_VERCEL_PREVIEW_ORIGINS || "true")
+  const allowVercelPreviews = (process.env.ALLOW_VERCEL_PREVIEW_ORIGINS || "false")
     .toLowerCase()
     .trim() !== "false";
 
