@@ -4,6 +4,7 @@ import { sessionManager } from './Auth/sessionManager.js'
 import { installAuthenticatedFetch, installAuthenticatedAxios } from './Auth/authTransport.js'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import AppUpdateNotice from './components/AppUpdateNotice.jsx'
 import './index.css'
 
 // Las peticiones protegidas usan siempre el JWT vigente, incluso tras 401 por caducidad.
@@ -14,6 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
 
     <App />
+    <AppUpdateNotice />
 
   </React.StrictMode>,
 )
