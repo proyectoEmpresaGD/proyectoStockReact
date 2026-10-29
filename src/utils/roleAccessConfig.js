@@ -54,7 +54,7 @@ export const AVAILABLE_ROUTES = [
         label: 'Carteles producto almacen'
     },
     { path: '/gestionusuarios', label: 'Gestión de usuarios', individualAccess: false, accessNote: 'Solo administradores' },
-    { path: '/perfilusuario', label: 'Perfil usuario' },
+    { path: '/perfilusuario', label: 'Perfil usuario', individualAccess: false, showInPermissionEditor: false, accessNote: 'Disponible para todos los usuarios autenticados' },
     { path: '/fichar', label: 'Fichar', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Registro de jornada' },
     { path: '/rrhh/jornada', label: 'RRHH registro de jornada' },
     { path: '/rrhh/vacaciones', label: 'RRHH vacaciones', individualAccess: false, fallback: false, accessNote: 'Se gestiona desde el módulo de Vacaciones' }
@@ -440,6 +440,12 @@ export const userCanAccessRoute = (roleName, path, routeAccess = {}) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+
+    // Mi perfil es un apartado personal, no un permiso configurable por módulo.
+    // Los usuarios autenticados deben poder acceder aunque su rol sea personalizado
+    // o existan denegaciones antiguas en route_access.
+    if (normalizedPath === '/perfilusuario') return true;
+
     if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones y Gestión de usuarios tienen reglas propias y no admiten

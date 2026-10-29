@@ -24,7 +24,7 @@ function ProfileField({ icon: Icon, label, value }) {
 }
 
 export default function PerfilUsuario() {
-    const { token } = useAuthContext();
+    const { token, logout } = useAuthContext();
     const { language, setLanguage, t } = useLanguage();
     const { theme, setTheme } = useThemePreference();
     const [savingTheme, setSavingTheme] = useState(false);

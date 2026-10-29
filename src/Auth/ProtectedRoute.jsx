@@ -14,6 +14,14 @@ const ProtectedRoute = ({ children, requiredRole, allowedRoles }) => {
             : <Navigate to="/login" replace />;
     }
 
+    // Esta pantalla permite gestionar el perfil propio a cualquier usuario con sesión.
+    // No depende del catálogo de roles ni de permisos individualizados.
+    // El backend verifica igualmente el token en GET /api/auth/me.
+    const isOwnProfileRoute = location.pathname.replace(/\/+$/, '').toLowerCase() === '/perfilusuario';
+    if (isOwnProfileRoute && !requiredRole && (!allowedRoles || allowedRoles.length === 0)) {
+        return children;
+    }
+
     try {
         const decoded = user || decodeJwtPayload(token);
         const currentRole = decoded.role;
