@@ -292,16 +292,18 @@ function EtiquetasLibro35Tipo1() {
             const valores = xmlDoc.getElementsByTagName('Valor');
 
             const mantenimientoList = Array.from(valores)
-                .map((node) => node.textContent.trim())
+                .map((node) => node.textContent.trim().replace(/[\s_-]+/g, '').toUpperCase())
                 .filter((m) => allowedMantenimientos.includes(m))
-                .filter((m) => loadBrandLogosMantenimiento[m]);
+                .filter((m) => loadBrandLogosMantenimiento[m])
+                .filter((m, index, lista) => lista.indexOf(m) === index);
 
             return mantenimientoList.map((m, index) => (
                 <img
                     key={`${m}-${index}`}
                     src={loadBrandLogosMantenimiento[m]}
                     alt={m}
-                    className="w-9 h-4 mx-0 md:mx-1 cursor-pointer"
+                    className="w-[72px] h-[28px] object-contain cursor-pointer"
+                    style={{ position: 'relative', top: '4px' }}
                     title={m}
                 />
             ));
@@ -432,7 +434,7 @@ function EtiquetasLibro35Tipo1() {
 
                     <div className="ml-2 flex min-w-0 flex-1 flex-nowrap items-start justify-end gap-[4px]">
                         <div className="flex shrink-0 flex-nowrap justify-end">
-                            {getUsoImagesImportantes(
+                            {getMantenimientoImagesImportantes(
                                 selectedProduct.mantenimiento
                             )}
                         </div>

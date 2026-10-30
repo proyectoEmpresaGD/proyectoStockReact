@@ -1,0 +1,10 @@
+--- a/src/pages/etiquetas/EtiquetasLibro35Tipo1.jsx
++++ b/src/pages/etiquetas/EtiquetasLibro35Tipo1.jsx
+@@ -303,6 +303,7 @@
+                     src={loadBrandLogosMantenimiento[m]}
+                     alt={m}
+                     className="w-[72px] h-[28px] object-contain cursor-pointer"
++                    style={{ position: 'relative', top: '4px' }}
+                     title={m}
+                 />
+             ));
