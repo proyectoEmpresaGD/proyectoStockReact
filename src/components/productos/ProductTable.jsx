@@ -416,13 +416,13 @@ const ProductTable = ({ products, fetchProductLots }) => {
                 <div className="flex flex-col gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <div className="text-sm font-semibold app-text md:text-base">
-                            <TranslatedText>Pendiente recibir</TranslatedText>
+                            <TranslatedText>Pendiente de fabricar</TranslatedText>
                         </div>
                     </div>
 
                     <div className={`shrink-0 flex justify-end ${RIGHT_W}`}>
                         <div className="w-full rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5 text-center text-sm font-extrabold tabular-nums app-text md:text-base">
-                            {safeValue(p?.canpenrecib)}
+                            {safeValue(p?.canpenfabri)}
                         </div>
                     </div>
                 </div>

@@ -11,10 +11,12 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
     const subscribers = new Set();
     let pendingRefresh = null;
     let status = 'ok';
+    let sessionEndReason = storage.getItem('cjmSessionEndReason') || null;
 
     const getToken = () => storage.getItem('token');
     const getRefreshToken = () => storage.getItem('refreshToken');
     const getStatus = () => status;
+    const getSessionEndReason = () => sessionEndReason;
     const emit = (reason = 'changed') => {
         for (const listener of subscribers) listener({ token: getToken(), status, reason });
     };
@@ -39,6 +41,8 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
         storage.removeItem('token');
         storage.removeItem('refreshToken');
         status = 'ok';
+        sessionEndReason = reason;
+        storage.setItem('cjmSessionEndReason', reason);
         emit(reason);
     };
     const login = (token, refreshToken) => {
@@ -46,6 +50,8 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
         if (refreshToken) storage.setItem('refreshToken', refreshToken);
         storage.setItem('token', token);
         status = 'ok';
+        sessionEndReason = null;
+        storage.removeItem('cjmSessionEndReason');
         emit('login');
     };
 
@@ -62,7 +68,12 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
             }
             const refreshAtStart = getRefreshToken();
             if (!refreshAtStart) {
-                if (getExpiry(getToken()) <= now()) clearSession('expired');
+                if (getExpiry(getToken()) <= now()) {
+                    clearSession('expired');
+                    return null;
+                }
+                // Si la sesión carece de renovación, avisar antes de que caduque.
+                setStatus('reauth-required');
                 return getToken();
             }
             const tokenAtStart = getToken();
@@ -81,6 +92,13 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
                     // puede estar escribiendo una renovación simultánea.
                     await new Promise((resolve) => setTimeout(resolve, 350));
                     if (getRefreshToken() !== refreshAtStart) return getToken();
+                    // No ocultar una revocación, pero tampoco cerrar la pantalla
+                    // mientras el JWT de acceso sigue vigente: el usuario puede
+                    // guardar su trabajo y volver a identificarse.
+                    if (getExpiry(getToken()) > now()) {
+                        setStatus('reauth-required');
+                        return getToken();
+                    }
                     clearSession('expired');
                     return null;
                 }
@@ -124,6 +142,13 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
         const token = getToken();
         if (!token && !getRefreshToken()) return null;
         const expiresAt = getExpiry(token);
+        if (status === 'reauth-required') {
+            if (expiresAt <= now()) {
+                clearSession('expired');
+                return null;
+            }
+            return token;
+        }
         if (expiresAt > now() + RENEW_BEFORE_MS) {
             if (status !== 'ok') setStatus('ok');
             return token;
@@ -133,10 +158,14 @@ export function createSessionManager({ storage, fetchImpl, now = () => Date.now(
 
     const syncExternalChange = () => {
         status = 'ok';
-        emit('external');
+        // La razón se comparte entre pestañas para no redirigir en silencio.
+        sessionEndReason = !getToken() && !getRefreshToken()
+            ? (storage.getItem('cjmSessionEndReason') || 'external')
+            : null;
+        emit(sessionEndReason === 'expired' ? 'expired' : 'external');
     };
 
-    return { getToken, getRefreshToken, getStatus, getExpiry, subscribe, login, clearSession, refresh, ensureFreshToken, syncExternalChange };
+    return { getToken, getRefreshToken, getStatus, getSessionEndReason, getExpiry, subscribe, login, clearSession, refresh, ensureFreshToken, syncExternalChange };
 }
 
 export const sessionManager = typeof window !== 'undefined'

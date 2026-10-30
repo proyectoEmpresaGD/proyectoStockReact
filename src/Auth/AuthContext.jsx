@@ -16,6 +16,8 @@ export const AuthProvider = ({ children }) => {
             sessionManager.getExpiry(sessionManager.getToken()) <= Date.now(),
     );
     const [sessionStatus, setSessionStatus] = useState(sessionManager.getStatus());
+    const [sessionEndReason, setSessionEndReason] = useState(sessionManager.getSessionEndReason());
+    const [timeLeftMs, setTimeLeftMs] = useState(() => Math.max(0, sessionManager.getExpiry(sessionManager.getToken()) - Date.now()));
     const [roleCatalogLoading, setRoleCatalogLoading] = useState(() => Boolean(sessionManager.getToken()));
 
     const logout = useCallback(() => {
@@ -39,7 +41,9 @@ export const AuthProvider = ({ children }) => {
         const unsubscribe = sessionManager.subscribe(({ token: nextToken, status, reason }) => {
             setToken(nextToken);
             setSessionStatus(status);
+            if (reason === 'login') setSessionEndReason(null);
             if (!nextToken) {
+                if (['expired', 'logout', 'reauth', 'external'].includes(reason)) setSessionEndReason(sessionManager.getSessionEndReason() || reason);
                 setUser(null);
                 setRoleCatalogLoading(false);
                 if (reason === 'expired') {
@@ -71,6 +75,7 @@ export const AuthProvider = ({ children }) => {
                     // Sin conexión y solo refresh token: mantener la pantalla de
                     // recuperación hasta conseguir un JWT o recibir un rechazo real.
                     setSessionLoading(Boolean(sessionManager.getRefreshToken() && !sessionManager.getToken()));
+                    setTimeLeftMs(Math.max(0, sessionManager.getExpiry(sessionManager.getToken()) - Date.now()));
                 }
             }
         };
@@ -147,11 +152,25 @@ export const AuthProvider = ({ children }) => {
         };
     }, [token]);
 
+    const minutesRemaining = Math.max(0, Math.ceil(timeLeftMs / 60_000));
     return (
         <AuthContext.Provider value={{ token, user, roleCatalogLoading, sessionLoading, sessionStatus, login, logout, refreshAuthToken }}>
             {sessionStatus === 'temporary-error' && token && (
                 <div role="status" className="pointer-events-none fixed left-0 right-0 top-20 z-[70] border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
-                    No se ha podido renovar la conexión. Se volverá a intentar automáticamente; tu sesión no se ha cerrado.
+                    No se ha podido renovar la conexión. Seguiremos intentándolo sin cerrar tu sesión. Guarda los cambios pendientes si el problema continúa.
+                </div>
+            )}
+            {sessionStatus === 'reauth-required' && token && (
+                <div role="alert" className="fixed inset-x-0 top-20 z-[80] border-b border-orange-400 bg-orange-50 px-4 py-3 text-center text-sm text-orange-950 shadow-md">
+                    <strong>Tu sesión necesita renovarse.</strong> Guarda lo que estés haciendo y vuelve a iniciar sesión.
+                    {minutesRemaining > 0 && ` Quedan aproximadamente ${minutesRemaining} minuto${minutesRemaining === 1 ? '' : 's'} de acceso.`}
+                    <button type="button" onClick={() => sessionManager.clearSession('reauth')} className="ml-3 rounded bg-orange-900 px-3 py-1 font-semibold text-white hover:bg-orange-800">Volver a iniciar sesión</button>
+                </div>
+            )}
+            {!token && ['expired', 'external', 'reauth'].includes(sessionEndReason) && !sessionLoading && (
+                <div role="alert" className="fixed inset-x-0 top-0 z-[80] bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 shadow-md">
+                    Tu sesión ha caducado o se ha cerrado desde otro dispositivo. Inicia sesión de nuevo para continuar.
+                    <button type="button" onClick={() => setSessionEndReason(null)} className="ml-3 underline">Entendido</button>
                 </div>
             )}
             {children}

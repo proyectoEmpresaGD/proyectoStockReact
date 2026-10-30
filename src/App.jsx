@@ -17,6 +17,7 @@ import AppErrorBoundary from './common/AppErrorBoundary.jsx';
 const ExpenseTestsPage = lazy(() => import('./pages/ExpenseTestsPage.jsx'));
 const Home = lazy(() => import('./pages/Home.jsx'));
 const Stock = lazy(() => import('./pages/paginaStock.jsx'));
+const CatalogosPage = lazy(() => import('./pages/CatalogosPage.jsx'));
 const SgaPage = lazy(() => import('./pages/SgaPage.jsx'));
 const Clients = lazy(() => import('./pages/paginaclients.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
@@ -125,6 +126,7 @@ function AppContent() {
                             <Route path="/intrastat" element={<ProtectedRoute requiredRole="admin"><Intrastat /></ProtectedRoute>} />
                             <Route path="/analitica-facturacion" element={<ProtectedRoute><FacturacionAnalyticsPage /></ProtectedRoute>} />
                             <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                            <Route path="/catalogos" element={<ProtectedRoute><CatalogosPage /></ProtectedRoute>} />
                             <Route path="/sga" element={<ProtectedRoute><SgaPage /></ProtectedRoute>} />
                             <Route path="/reservasTejido" element={<ProtectedRoute><ReservasTejido /></ProtectedRoute>} />
                             <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />

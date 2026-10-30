@@ -75,11 +75,19 @@ test('un 503 de PostgreSQL no cierra la sesión y la siguiente renovación funci
     assert.equal(manager.getStatus(), 'ok');
 });
 
-test('un 403 inequívoco en refresh sí finaliza la sesión', async () => {
+test('un 403 de renovación avisa y conserva el acceso hasta que caduque', async () => {
     const { manager, store } = create({ token: oldToken(), refreshToken: 'refresh-A' }, async () => response(403));
-    assert.equal(await manager.ensureFreshToken(), null);
-    assert.equal(store.getItem('token'), null);
-    assert.equal(store.getItem('refreshToken'), null);
+    assert.equal(await manager.ensureFreshToken(), oldToken());
+    assert.equal(store.getItem('token'), oldToken());
+    assert.equal(store.getItem('refreshToken'), 'refresh-A');
+    assert.equal(manager.getStatus(), 'reauth-required');
+    const initial = clock.ms;
+    try {
+        clock.ms += 3 * 60_000;
+        assert.equal(await manager.ensureFreshToken(), null);
+        assert.equal(store.getItem('token'), null);
+        assert.equal(manager.getSessionEndReason(), 'expired');
+    } finally { clock.ms = initial; }
 });
 
 test('sin refresh token y con acceso caducado finaliza la sesión', async () => {
@@ -190,4 +198,45 @@ test('no expulsa en una carrera entre pestañas cuando el token de renovación c
     });
     assert.equal(await manager.ensureFreshToken(), nextToken());
     assert.equal(store.getItem('refreshToken'), 'refresh-B');
+});
+
+test('avisa si un JWT va a caducar y falta el token de renovación', async () => {
+    const { manager, store } = create({ token: oldToken() }, () => { throw Error('No llamar'); });
+    assert.equal(await manager.ensureFreshToken(), oldToken());
+    assert.equal(manager.getStatus(), 'reauth-required');
+    assert.equal(store.getItem('token'), oldToken());
+});
+
+test('volver a iniciar sesión limpia solo el almacenamiento local y un login nuevo recupera el estado', async () => {
+    const { manager, store } = create({ token: oldToken(), refreshToken: 'refresh-A' }, async () => response(403));
+    await manager.ensureFreshToken();
+    manager.clearSession('reauth');
+    assert.equal(store.getItem('token'), null);
+    assert.equal(store.getItem('refreshToken'), null);
+    manager.login(nextToken(), 'refresh-B');
+    assert.equal(manager.getStatus(), 'ok');
+    assert.equal(manager.getSessionEndReason(), null);
+    assert.equal(store.getItem('refreshToken'), 'refresh-B');
+});
+
+test('el 403 tras caducar el token no mantiene acceso inválido', async () => {
+    const { manager, store } = create({ token: sign(clock.ms - 1000), refreshToken: 'refresh-A' }, async () => response(403));
+    assert.equal(await manager.ensureFreshToken(), null);
+    assert.equal(store.getItem('token'), null);
+    assert.equal(manager.getSessionEndReason(), 'expired');
+});
+
+test('comunica a otras pestañas el motivo de la salida y no pierde la explicación', () => {
+    const store = storage({ token: oldToken(), refreshToken: 'refresh-A' });
+    const config = { storage: store, fetchImpl: async () => response(503), now: () => clock.ms };
+    const first = createSessionManager(config);
+    const second = createSessionManager(config);
+    first.clearSession('expired');
+    let notice;
+    second.subscribe(({ reason }) => { notice = reason; });
+    second.syncExternalChange();
+    assert.equal(notice, 'expired');
+    assert.equal(second.getSessionEndReason(), 'expired');
+    second.login(nextToken(), 'refresh-B');
+    assert.equal(store.getItem('cjmSessionEndReason'), null);
 });

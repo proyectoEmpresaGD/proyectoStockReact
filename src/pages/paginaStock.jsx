@@ -172,7 +172,7 @@ function Stock() {
                         stockactual: Number.isFinite(stockDisponible) ? stockDisponible.toFixed(2) : '0.00',
                         stocktotal: Number.isFinite(stockTotal) ? stockTotal.toFixed(2) : '0.00',
                         stockreservado: Number.isFinite(stockReservado) ? stockReservado.toFixed(2) : '0.00',
-                        canpenrecib: stock ? parseFloat(stock.canpenrecib || 0).toFixed(2) : '0.00',
+                        canpenfabri: stock ? parseFloat(stock.canpenfabri || 0).toFixed(2) : '0.00',
                         canpenservir: stock ? parseFloat(stock.canpenservir || 0).toFixed(2) : '0.00',
                         fechaestimada: fechasByCode[key] || null,
                         plaentre: stock?.plaentre || null,

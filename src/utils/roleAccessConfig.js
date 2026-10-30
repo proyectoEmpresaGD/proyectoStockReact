@@ -20,6 +20,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/agenda', label: 'Agenda' },
     { path: '/notas', label: 'Notas' },
     { path: '/stock', label: 'Stock' },
+    { path: '/catalogos', label: 'Catálogos y muestrarios' },
     { path: '/sga', label: 'SGA · Operaciones de almacén', accessNote: 'Solo usuarios con rol Almacén' },
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
@@ -54,7 +55,7 @@ export const AVAILABLE_ROUTES = [
         label: 'Carteles producto almacen'
     },
     { path: '/gestionusuarios', label: 'Gestión de usuarios', individualAccess: false, accessNote: 'Solo administradores' },
-    { path: '/perfilusuario', label: 'Perfil usuario', individualAccess: false, showInPermissionEditor: false, accessNote: 'Disponible para todos los usuarios autenticados' },
+    { path: '/perfilusuario', label: 'Perfil usuario' },
     { path: '/fichar', label: 'Fichar', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Registro de jornada' },
     { path: '/rrhh/jornada', label: 'RRHH registro de jornada' },
     { path: '/rrhh/vacaciones', label: 'RRHH vacaciones', individualAccess: false, fallback: false, accessNote: 'Se gestiona desde el módulo de Vacaciones' }
@@ -82,6 +83,7 @@ const WAREHOUSE_ROUTES = [
 
     '/',
     '/stock',
+    '/catalogos',
     '/sga',
     '/equivalencias',
     '/fichaTecnica',
@@ -114,6 +116,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/agenda',
             '/notas',
             '/stock',
+            '/catalogos',
             '/perfilusuario',
             '/fichar',
             '/rrhh/jornada',
@@ -128,6 +131,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/',
             '/clients',
             '/stock',
+            '/catalogos',
             '/perfilusuario'
         ]
 
@@ -149,6 +153,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/stock',
+            '/catalogos',
             '/reservasTejido',
             '/entradas',
             '/comprobacionExcel',
@@ -164,6 +169,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/stock',
+            '/catalogos',
             '/fichaTecnica',
             ...DOCUMENT_LABEL_ROUTES,
             '/perfilusuario',
@@ -185,6 +191,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/agenda',
             '/notas',
             '/stock',
+            '/catalogos',
             '/reservasTejido',
             '/fichaTecnica',
             ...DOCUMENT_LABEL_ROUTES,
@@ -440,12 +447,6 @@ export const userCanAccessRoute = (roleName, path, routeAccess = {}) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
-
-    // Mi perfil es un apartado personal, no un permiso configurable por módulo.
-    // Los usuarios autenticados deben poder acceder aunque su rol sea personalizado
-    // o existan denegaciones antiguas en route_access.
-    if (normalizedPath === '/perfilusuario') return true;
-
     if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones y Gestión de usuarios tienen reglas propias y no admiten

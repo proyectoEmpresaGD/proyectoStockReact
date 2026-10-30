@@ -4,6 +4,7 @@ import express, { json } from "express";
 import { createProductRouter } from "./routes/productos.js";
 import { createImagenRouter } from "./routes/imagenes.js";
 import { createStockRouter } from "./routes/stock.js";
+import { createCatalogosRouter } from './routes/catalogos.js';
 import { createStockLotesRouter } from "./routes/stockLotes.js";
 import { createClienteRouter } from "./routes/clients.js";
 import { createPedVentaRouter } from "./routes/pedventa.js";
@@ -40,14 +41,6 @@ const __dirname = dirname(__filename);
 
 const app = express();
 app.disable("x-powered-by");
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('X-Frame-Options', 'DENY');
-  // No cachear accidentalmente documentos, datos personales ni tokens de la API.
-  if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
-  next();
-});
 
 function cronAuthMiddleware(req, res, next) {
   const cronSecret = process.env.CRON_SECRET;
@@ -83,7 +76,7 @@ app.options("*", corsHandler);
 app.use('/api/expense-tests', authMiddleware, createExpenseTestsRouter({ pool }));
 
 // ✅ Body parser después
-app.use(json({ inflate: false })); // Mitiga DoS de body-parser < 1.20.9 con cuerpos comprimidos
+app.use(json());
 
 // ✅ Static (solo si lo necesitas)
 app.use(express.static(join(__dirname, "web")));
@@ -127,6 +120,7 @@ try {
 app.use("/api/products", authMiddleware, createProductRouter({ pool }));
 app.use("/api/images", authMiddleware, createImagenRouter({ pool }));
 app.use("/api/stock", authMiddleware, createStockRouter({ pool }));
+app.use('/api/catalogos', authMiddleware, createCatalogosRouter({ pool }));
 // Bloqueo técnico de pedidos para pruebas del SGA; no escribe en stock ni ERP.
 app.use("/api/sga/order-locks", authMiddleware, createSgaOrderLocksRouter({ pool }));
 // Bitácora persistente de operaciones de prueba; no escribe existencias ni pedidos del ERP.
@@ -188,10 +182,6 @@ async function getNextWeekVisits() {
   return rows;
 }
 
-const escapeEmailHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-})[character]);
-
 async function sendWeeklyVisitsEmail() {
   try {
     const visits = await getNextWeekVisits();
@@ -205,9 +195,9 @@ async function sendWeeklyVisitsEmail() {
     for (const [email, list] of Object.entries(byEmail)) {
       let html = `<h1>Visitas Próxima Semana</h1>`;
       list.forEach((v) => {
-        html += `<p><strong>Cliente:</strong> ${escapeEmailHtml(v.cliente_nombre)}<br/>
+        html += `<p><strong>Cliente:</strong> ${v.cliente_nombre}<br/>
                  <strong>Fecha:</strong> ${new Date(v.fecha).toLocaleString()}<br/>
-                 <strong>Creado por:</strong> ${escapeEmailHtml(v.creado_por)}</p><hr/>`;
+                 <strong>Creado por:</strong> ${v.creado_por}</p><hr/>`;
       });
 
       await transporter.sendMail({
@@ -283,15 +273,6 @@ app.get('/api/proxy', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   if (res.headersSent) return next(err);
-  if (err?.type === 'encoding.unsupported') {
-    return res.status(415).json({ message: 'Envía JSON sin compresión (Content-Encoding no permitido).' });
-  }
-  if (err?.type === 'entity.too.large') {
-    return res.status(413).json({ message: 'La petición supera el límite de tamaño permitido.' });
-  }
-  if (err instanceof SyntaxError && 'body' in err) {
-    return res.status(400).json({ message: 'El JSON enviado no es válido.' });
-  }
   if (isTransientDatabaseError(err)) {
     res.set('Retry-After', '2');
     return res.status(503).json({ error: 'Conexión temporal con la base de datos no disponible.' });

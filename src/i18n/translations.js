@@ -237,6 +237,7 @@ export const english = Object.freeze({
   'PASO 3 DE 4': 'STEP 3 OF 4',
   'PASO 4 DE 4': 'STEP 4 OF 4',
   'Pendiente de recibir': 'Pending receipt',
+  'Pendiente de fabricar': 'Pending production',
   'DOCUMENTO DE DEMOSTRACIÓN · NO VÁLIDO': 'DEMO DOCUMENT · NOT VALID',
   'Atrás': 'Back',
   'Imprimir / PDF': 'Print / PDF',

@@ -6,6 +6,7 @@ import {
     FaCog,
     FaRocket,
     FaBox,
+    FaBookOpen,
     FaChevronDown,
     FaTimes,
     FaCubes,
@@ -148,6 +149,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'productos',
                 links: [
                     { to: '/stock', label: 'Stock', icon: <FaBox className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'comercial', 'user', 'administracion', 'decoandyou'] },
+                    { to: '/catalogos', label: 'Catálogos', icon: <FaBookOpen className="mr-3 text-lg" />, roles: ['admin', 'almacen', 'compras', 'comercial', 'ventas', 'user', 'administracion', 'decoandyou'] },
                     // Enlace de pruebas dentro de Productos, únicamente para admin.
                     ...(canAccessSgaPreview(user)
                         ? [{ to: '/sga', label: 'SGA · Pruebas', icon: <FaCubes className="mr-3 text-lg" />, roles: ['admin'] }]
