@@ -293,6 +293,17 @@ export class StockModel {
             ? `WHERE ${stockFilters.map(offsetStockPlaceholder).join(' AND ')}`
             : '';
 
+        // La disponibilidad sigue limitada al almacén 00. La fabricación pendiente
+        // puede registrarse en 01 u otros almacenes, por lo que aquí se aplican
+        // los filtros de empresa, ejercicio y producto, pero NO el de almacén 00.
+        // Se reutilizan los parámetros de stock ya desplazados tras los de lotes.
+        const fabricacionFilters = stockFilters.slice(1).map((filter) =>
+            offsetStockPlaceholder(filter.replace(/\bs\./g, 'sf.'))
+        );
+        const fabricacionWhereClause = fabricacionFilters.length
+            ? `WHERE ${fabricacionFilters.join(' AND ')}`
+            : '';
+
         const lotesWhereClause = lotesFilters.length
             ? `WHERE ${lotesFilters.join(' AND ')}`
             : '';
@@ -335,6 +346,16 @@ export class StockModel {
                    AND reservas.codlote = TRIM(sl.codlote)
                 ${lotesWhereClause}
                 GROUP BY sl.codprodu
+            ),
+            pendiente_fabricacion AS (
+                SELECT
+                    UPPER(TRIM(sf.codprodu::text)) AS codprodu_key,
+                    sf.empresa,
+                    sf.ejercicio,
+                    SUM(COALESCE(sf.canpenfabri, 0))::numeric AS canpenfabri
+                FROM stock sf
+                ${fabricacionWhereClause}
+                GROUP BY UPPER(TRIM(sf.codprodu::text)), sf.empresa, sf.ejercicio
             )
             SELECT
                 s.codprodu,
@@ -361,7 +382,7 @@ export class StockModel {
                 COALESCE(s.canpenservir, 0) AS canpenservir,
                 COALESCE(s.canpenentra, 0) AS canpenentra,
                 COALESCE(s.canpensalida, 0) AS canpensalida,
-                COALESCE(s.canpenfabri, 0) AS canpenfabri,
+                COALESCE(pendiente_fabricacion.canpenfabri, 0) AS canpenfabri,
                 COALESCE(s.canpenconsum, 0) AS canpenconsum,
                 s.stockprevisto,
                 s.empresa,
@@ -370,6 +391,10 @@ export class StockModel {
             FROM stock s
             LEFT JOIN stock_lotes_resumido
                 ON UPPER(stock_lotes_resumido.codprodu) = UPPER(s.codprodu)
+            LEFT JOIN pendiente_fabricacion
+                ON pendiente_fabricacion.codprodu_key = UPPER(TRIM(s.codprodu::text))
+               AND pendiente_fabricacion.empresa IS NOT DISTINCT FROM s.empresa
+               AND pendiente_fabricacion.ejercicio IS NOT DISTINCT FROM s.ejercicio
             LEFT JOIN productos p
                 ON UPPER(p.codprodu) = UPPER(s.codprodu)
             ${stockWhereClause}

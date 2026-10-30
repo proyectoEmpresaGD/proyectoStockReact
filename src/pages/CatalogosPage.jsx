@@ -66,7 +66,7 @@ function CatalogCard({ item, canViewStock }) {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Quantity icon={Boxes} label="En stock" value={item.stock_registrado ? item.stockactual : null} emphasis />
-        <Quantity icon={Factory} label="Por fabricar" value={item.stock_registrado ? item.canpenfabri : null} />
+        <Quantity icon={Factory} label="Por fabricar" value={item.fabricacion_registrada ? item.canpenfabri : null} />
         <Quantity icon={PackageCheck} label="Por servir" value={item.stock_registrado ? item.canpenservir : null} />
         <Quantity icon={Truck} label="Por recibir" value={item.stock_registrado ? item.canpenrecib : null} />
       </div>
@@ -195,7 +195,7 @@ export default function CatalogosPage() {
       </div>
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-[var(--cjm-muted)]" aria-live="polite"><strong className="app-text">{fmt(stats.total)}</strong> artículos {loading ? '· Actualizando…' : ''} · Almacén 00</p>
+        <p className="text-sm text-[var(--cjm-muted)]" aria-live="polite"><strong className="app-text">{fmt(stats.total)}</strong> artículos {loading ? '· Actualizando…' : ''} · Stock: almacén 00 · Fabricación: todos los almacenes</p>
         <div className="flex items-center gap-3">
           {stats.obsoletos > 0 && <button type="button" onClick={() => changeStatus('obsoletos')} className="text-xs font-semibold text-amber-700 hover:underline dark:text-amber-200">{fmt(stats.obsoletos)} obsoletos</button>}
           {(tipo !== 'todos' || estado !== 'todos' || marca || buscar) && <button type="button" onClick={clearFilters} className="text-xs font-semibold text-[var(--cjm-primary-deep)] hover:underline">Limpiar filtros</button>}
@@ -219,7 +219,7 @@ export default function CatalogosPage() {
           <button type="button" disabled={pagina === totalPaginas || loading} onClick={() => setPagina((current) => Math.min(totalPaginas, current + 1))} className="rounded-xl border border-[var(--cjm-border)] px-4 py-2 text-sm font-semibold app-text disabled:opacity-40">Siguiente</button>
         </nav>
       )}
-      <div className="mt-5 flex items-start gap-2 rounded-xl bg-[var(--cjm-surface-muted)] p-3 text-xs leading-5 text-[var(--cjm-muted)]"><HelpCircle size={17} className="mt-0.5 shrink-0"/><p><strong>En stock</strong> es la cantidad registrada en el almacén 00. <strong>Por fabricar</strong>, <strong>Por servir</strong> y <strong>Por recibir</strong> son cantidades pendientes; no se suman al stock disponible. Si no hay registro de existencias, mostramos «—» en lugar de inventar un cero.</p></div>
+      <div className="mt-5 flex items-start gap-2 rounded-xl bg-[var(--cjm-surface-muted)] p-3 text-xs leading-5 text-[var(--cjm-muted)]"><HelpCircle size={17} className="mt-0.5 shrink-0"/><p><strong>En stock</strong> es la cantidad registrada en el almacén 00. <strong>Por fabricar</strong> suma las cantidades pendientes de todos los almacenes (incluido el 01). <strong>Por servir</strong> y <strong>Por recibir</strong> corresponden al almacén 00. Los pendientes no se suman al stock disponible. Cuando no existe un registro para una cantidad, mostramos «—» en lugar de inventar un cero.</p></div>
     </PageShell>
   );
 }

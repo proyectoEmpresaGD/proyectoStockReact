@@ -1,5 +1,6 @@
 // Consulta de SOLO LECTURA para libros, perchas y Carré Game.
-// Misma convención de almacén central ('0', '00', '000') usada en control de stock.
+// Existencias, pendientes de servir y por recibir: solo almacén central (0, 00, 000...).
+// Pendiente de fabricar: todos los almacenes (incluido 01), agregado aparte.
 export const CATALOGOS_ALMACEN_FILTER = "TRIM(COALESCE(s.codalmac::text, '')) ~ '^0+$'";
 
 export const CATALOGOS_TIPOS = Object.freeze(['todos', 'libros', 'perchas', 'carre']);
@@ -55,7 +56,6 @@ WITH catalogo AS (
 ), resumen_stock AS (
   SELECT TRIM(UPPER(s.codprodu::text)) AS codprodu,
          SUM(COALESCE(s.stockactual, 0))::numeric AS stockactual,
-         SUM(COALESCE(s.canpenfabri, 0))::numeric AS canpenfabri,
          SUM(COALESCE(s.canpenservir, 0))::numeric AS canpenservir,
          SUM(COALESCE(s.canpenrecib, 0))::numeric AS canpenrecib,
          COUNT(*)::integer AS registros_stock
@@ -64,13 +64,24 @@ WITH catalogo AS (
       ON p.codprodu = UPPER(TRIM(s.codprodu::text))
    WHERE ${CATALOGOS_ALMACEN_FILTER}
    GROUP BY TRIM(UPPER(s.codprodu::text))
+), pendiente_fabricacion AS (
+  SELECT TRIM(UPPER(sf.codprodu::text)) AS codprodu,
+         SUM(COALESCE(sf.canpenfabri, 0))::numeric AS canpenfabri,
+         COUNT(*)::integer AS registros_fabricacion
+    FROM stock sf
+    JOIN (SELECT DISTINCT UPPER(TRIM(codprodu)) AS codprodu FROM productos_catalogo) p
+      ON p.codprodu = UPPER(TRIM(sf.codprodu::text))
+   -- NO filtrar por codalmac: puede registrarse en 01 u otros almacenes.
+   GROUP BY TRIM(UPPER(sf.codprodu::text))
 ), resultados AS (
   SELECT p.codprodu, p.codtipo, p.desprodu, p.codmarca, p.coleccion, p.categoria,
          UPPER(TRIM(p.obsoleto)) = 'S' AS obsoleto,
-         s.stockactual, s.canpenfabri, s.canpenservir, s.canpenrecib,
-         COALESCE(s.registros_stock, 0) > 0 AS stock_registrado
+         s.stockactual, f.canpenfabri, s.canpenservir, s.canpenrecib,
+         COALESCE(s.registros_stock, 0) > 0 AS stock_registrado,
+         COALESCE(f.registros_fabricacion, 0) > 0 AS fabricacion_registrada
     FROM productos_catalogo p
     LEFT JOIN resumen_stock s ON s.codprodu = UPPER(TRIM(p.codprodu))
+    LEFT JOIN pendiente_fabricacion f ON f.codprodu = UPPER(TRIM(p.codprodu))
 ), filtrados AS (
   SELECT * FROM resultados
   -- Al elegir un tipo se filtra por el codtipo real del ERP, no por el nombre.
