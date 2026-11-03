@@ -10,13 +10,18 @@ export const CATALOGOS_ESTADOS = Object.freeze([
 
 const safeChoice = (value, choices) => choices.includes(String(value || '').toLowerCase())
   ? String(value).toLowerCase() : 'todos';
+const ALLOWED_BRANDS = new Set(['ARE', 'BAS', 'HAR', 'FLA', 'CJM']);
+export function normalizeCatalogBrand(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  return ALLOWED_BRANDS.has(normalized) ? normalized : '';
+}
 
 export function parseCatalogosFilters(query = {}) {
   const pagina = Number.parseInt(String(query.pagina ?? '1'), 10);
   return {
     tipo: safeChoice(query.tipo, CATALOGOS_TIPOS),
     estado: safeChoice(query.estado, CATALOGOS_ESTADOS),
-    marca: String(query.marca || '').trim().toUpperCase().slice(0, 30),
+    marca: normalizeCatalogBrand(query.marca),
     buscar: String(query.buscar || '').trim().slice(0, 120),
     pagina: Number.isFinite(pagina) ? Math.min(Math.max(pagina, 1), 10000) : 1,
     porPagina: 24,
@@ -51,6 +56,8 @@ WITH catalogo AS (
     FROM productos p
    WHERE p.codprodu IS NOT NULL AND TRIM(p.codprodu::text) <> ''
      AND TRIM(COALESCE(p.codtipo::text, '')) IN ('105', '106', '109')
+     -- La exclusión se aplica antes de las agregaciones, paginación y estadísticas.
+     AND UPPER(TRIM(COALESCE(p.codmarca::text, ''))) IN ('ARE', 'BAS', 'HAR', 'FLA', 'CJM')
 ), productos_catalogo AS (
   SELECT * FROM catalogo WHERE categoria IS NOT NULL
 ), resumen_stock AS (
@@ -118,8 +125,8 @@ WITH catalogo AS (
 SELECT row_to_json(e) AS estadisticas,
        (SELECT COALESCE(json_agg(row_to_json(pg)), '[]'::json) FROM pagina pg) AS articulos,
        (SELECT COALESCE(json_agg(m.codmarca ORDER BY m.codmarca), '[]'::json)
-          FROM (SELECT DISTINCT UPPER(TRIM(codmarca)) AS codmarca FROM productos_catalogo
-                 WHERE TRIM(codmarca) <> '') m) AS marcas
+          FROM (SELECT DISTINCT UPPER(TRIM(codmarca)) AS codmarca
+            FROM productos_catalogo) m) AS marcas
   FROM estadisticas e`;
 
 export function createCatalogosModel(pool) {

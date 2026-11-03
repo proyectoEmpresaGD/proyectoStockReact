@@ -114,9 +114,17 @@ function Stock() {
             .filter((lote) => lote.codlote !== '');
     }, []);
 
+    // Contractalia queda excluida incluso si se abre una referencia directa desde Entradas.
+    const isExcludedBrand = useCallback(
+        (product) => ['CTL', 'CONTRACTALIA'].includes(
+            String(getAny(product, ['codmarca', 'CODMARCA', 'marca', 'MARCA']) ?? '').trim().toUpperCase()
+        ),
+        []
+    );
+
     const isValidProduct = useCallback(
         (product) =>
-            ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(product.codmarca) &&
+            ['ARE', 'FLA', 'CJM', 'HAR', 'BAS'].includes(String(product.codmarca || '').trim().toUpperCase()) &&
             !/^(PORTADA|KIT|COMPOSICION ESPECIAL|COLECCIÓN|CUTTING|QUALITY|ALFOMBRA|ANUNCIADA|MULETON|ATLAS|ALQUILER|CALCUTA C35|TAPILLA|LÁMINA|ACCESORIOS MUESTRARIOS|CONTRAPORTADA|ALFOMBRAS|AGARRADERAS|ARRENDAMIENTOS INTRACOMUNITARIOS|\d+)/i.test(
                 product.desprodu
             ) &&
@@ -151,7 +159,7 @@ function Stock() {
     const computeCombined = useCallback(
         (productsList) =>
             productsList
-                .filter((product) => isValidProduct(product) || matchesLinkedProduct(product, linkedProductCode))
+                .filter((product) => !isExcludedBrand(product) && (isValidProduct(product) || matchesLinkedProduct(product, linkedProductCode)))
                 .map((product) => {
                     const key = normStr(product.codprodu).toUpperCase();
                     const stock = stockByProd.get(key);
@@ -173,13 +181,14 @@ function Stock() {
                         stocktotal: Number.isFinite(stockTotal) ? stockTotal.toFixed(2) : '0.00',
                         stockreservado: Number.isFinite(stockReservado) ? stockReservado.toFixed(2) : '0.00',
                         canpenfabri: stock ? parseFloat(stock.canpenfabri || 0).toFixed(2) : '0.00',
+                        canpenrecib: stock ? parseFloat(stock.canpenrecib || 0).toFixed(2) : '0.00',
                         canpenservir: stock ? parseFloat(stock.canpenservir || 0).toFixed(2) : '0.00',
                         fechaestimada: fechasByCode[key] || null,
                         plaentre: stock?.plaentre || null,
                         cantminima: stock?.cantminima || null,
                     };
                 }),
-        [stockByProd, isValidProduct, normStr, fechasByCode, linkedProductCode]
+        [stockByProd, isValidProduct, isExcludedBrand, normStr, fechasByCode, linkedProductCode]
     );
 
     useEffect(() => {
@@ -406,6 +415,9 @@ function Stock() {
                 if (!matchesLinkedProduct(product, linkedQueryCode)) {
                     throw new Error('La referencia solicitada no coincide con el producto recibido.');
                 }
+                if (isExcludedBrand(product)) {
+                    throw new Error('Este artículo no está disponible en Stock.');
+                }
                 setResultsRaw([product]);
                 setCurrentPage(1);
                 window.scrollTo({ top: 0, behavior: 'auto' });
@@ -417,7 +429,7 @@ function Stock() {
             })
             .finally(() => { if (!controller.signal.aborted) setLoadingSearch(false); });
         return () => controller.abort();
-    }, [linkedQueryCode, token]);
+    }, [linkedQueryCode, token, isExcludedBrand]);
 
     const handleSearchKeyPress = (event, explicitValue) => {
         if (event.key !== 'Enter') return;

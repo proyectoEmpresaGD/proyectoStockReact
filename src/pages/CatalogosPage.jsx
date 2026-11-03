@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Archive, ArrowRight, BookOpen, Boxes, CheckCircle2, Factory, HelpCircle,
@@ -16,6 +16,17 @@ const CATEGORIES = [
   { value: 'perchas', label: 'Perchas', icon: Archive },
   { value: 'carre', label: 'Carré Game', icon: PackageCheck },
 ];
+// Códigos internos del ERP; al usuario solo se le muestran nombres de marca.
+const BRAND_OPTIONS = [
+  { value: 'ARE', label: 'Arena' },
+  { value: 'BAS', label: 'Bassari' },
+  { value: 'HAR', label: 'Harbour' },
+  { value: 'FLA', label: 'Flamenco' },
+  { value: 'CJM', label: 'CJM' },
+];
+const brandLabel = (value) => BRAND_OPTIONS.find(({ value: code }) =>
+  code === String(value || '').trim().toUpperCase()
+)?.label || value;
 const STATUS = [
   { value: 'todos', label: 'Cualquier estado' },
   { value: 'disponibles', label: 'Con stock' },
@@ -61,7 +72,7 @@ function CatalogCard({ item, canViewStock }) {
       <h3 className="mt-3 min-h-10 break-words text-base font-bold leading-snug app-text">{item.desprodu || item.codprodu}</h3>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--cjm-muted)]">
         <span className="font-mono font-semibold">{item.codprodu}</span>
-        {item.codmarca && <span>Marca: {item.codmarca}</span>}
+        {item.codmarca && <span>Marca: {brandLabel(item.codmarca)}</span>}
         {item.coleccion && <span className="truncate" title={item.coleccion}>{item.coleccion}</span>}
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -148,7 +159,6 @@ export default function CatalogosPage() {
   const stats = result.estadisticas || initialStats;
   const articulos = result.articulos || [];
   const totalPaginas = Math.max(1, Math.ceil(Number(stats.total || 0) / (result.porPagina || 24)));
-  const marcaOptions = useMemo(() => [...new Set([...(result.marcas || []), ...(marca ? [marca] : [])])].filter(Boolean).sort(), [result.marcas, marca]);
   const changeStatus = (value) => { setEstado((old) => old === value ? 'todos' : value); setPagina(1); };
   const clearFilters = () => { setTipo('todos'); setEstado('todos'); setMarca(''); setBuscar(''); setBusquedaAplicada(''); setPagina(1); };
 
@@ -189,7 +199,7 @@ export default function CatalogosPage() {
               className="cjm-input w-full rounded-xl py-2.5 pl-10 pr-9 text-sm" />
             {buscar && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setBuscar('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--cjm-muted)]"><X size={17}/></button>}
           </label>
-          <label className="block"><span className="sr-only">Filtrar por marca</span><select className="cjm-input w-full rounded-xl px-3 py-2.5 text-sm" value={marca} onChange={(e) => { setMarca(e.target.value); setPagina(1); }}><option value="">Todas las marcas</option>{marcaOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label className="block"><span className="sr-only">Filtrar por marca</span><select className="cjm-input w-full rounded-xl px-3 py-2.5 text-sm" value={marca} onChange={(e) => { setMarca(e.target.value); setPagina(1); }}><option value="">Todas las marcas</option>{BRAND_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="relative block"><SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--cjm-muted)]"/><span className="sr-only">Filtrar por disponibilidad</span><select className="cjm-input w-full rounded-xl py-2.5 pl-9 pr-3 text-sm" value={estado} onChange={(e) => { setEstado(e.target.value); setPagina(1); }}>{STATUS.map((value) => <option key={value.value} value={value.value}>{value.label}</option>)}</select></label>
         </div>
       </div>
