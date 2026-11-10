@@ -13,6 +13,7 @@ import {
 } from 'react-icons/ai';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { userCanAccessRoute } from '../utils/roleAccessConfig.js';
+import { canAccessSgaPreview } from '../sga/sgaPreviewAccess.js';
 import useVacationModuleAccess from '../hooks/useVacationModuleAccess.js';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 
@@ -136,11 +137,13 @@ function Home() {
                 icon: <AiOutlineStock size={27} />,
             }]
             : []),
-        ...(String(user?.role || '').toLowerCase() === 'almacen' && userCanAccessRoute(user?.role, '/sga', user?.route_access)
+        // Mientras CDI TEST no esté validado, el SGA solo admite administradores.
+        // No ofrecer a Almacén un acceso que la propia pantalla rechazaría.
+        ...(canAccessSgaPreview(user)
             ? [{
-                title: t('SGA · Almacén'),
-                eyebrow: t('Tablet · Modo simulación'),
-                description: t('Entradas, salidas con merma y regularizaciones. Sin modificar existencias.'),
+                title: t('SGA · Pruebas'),
+                eyebrow: t('Pedidos y albaranes de ensayo'),
+                description: t('Preparar pedidos, validar lotes y comprobar albaranes desde el puesto de almacén.'),
                 to: '/sga',
                 icon: <AiOutlineInbox size={27} />,
             }]

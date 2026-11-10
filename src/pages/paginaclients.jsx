@@ -11,6 +11,7 @@ import {
     FiShield,
     FiTrendingUp,
     FiUsers,
+    FiUserCheck,
 } from 'react-icons/fi';
 import { useAuthContext } from '../Auth/AuthContext';
 import { provinces, countryCodes } from '../Constants/constants';
@@ -24,7 +25,7 @@ import PageHeader from '../common/PageHeader.jsx';
 import { mapWithConcurrency } from '../utils/mapWithConcurrency.js';
 
 export default function Clients() {
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [clients, setClients] = useState([]);
@@ -43,6 +44,21 @@ export default function Clients() {
     const [selectedProvince, setSelectedProvince] = useState(null);
     const [sortByBilling, setSortByBilling] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [onlyOwnClients, setOnlyOwnClients] = useState(false);
+
+    // codrepre identifica al comercial; codrepres contiene su equipo.
+    // Solo se ofrece el botón si hay otro representante autorizado a su cargo.
+    const ownRepresentative = String(user?.codrepre || '').trim();
+    const teamRepresentatives = Array.isArray(user?.codrepres)
+        ? user.codrepres
+        : String(user?.codrepres || '').replace(/[{}"]/g, '').split(',');
+    const hasTeamRepresentatives = Boolean(
+        ['comercial', 'ventas'].includes(String(user?.role || '').toLowerCase())
+        && String(user?.username || '').trim().toUpperCase() !== 'DECOANDYOU'
+        && ownRepresentative
+        && teamRepresentatives.some((code) => String(code || '').trim() && String(code).trim() !== ownRepresentative)
+    );
+    const portfolioView = hasTeamRepresentatives && onlyOwnClients ? 'propia' : 'equipo';
 
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedClientDetails, setSelectedClientDetails] = useState(null);
@@ -88,6 +104,7 @@ export default function Clients() {
                 if (debouncedSearchTerm) url += `&query=${encodeURIComponent(debouncedSearchTerm)}`;
                 if (selectedCountry) url += `&codpais=${selectedCountry}`;
                 if (selectedProvince) url += `&codprovi=${selectedProvince.value}`;
+                if (portfolioView === 'propia') url += '&cartera=propia';
 
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -159,6 +176,7 @@ export default function Clients() {
         selectedCountry,
         selectedProvince,
         sortByBilling,
+        portfolioView,
     ]);
 
     const updateSearchParams = (updates) => {
@@ -178,6 +196,7 @@ export default function Clients() {
         setSelectedCountry(null);
         setSelectedProvince(null);
         setSortByBilling(false);
+        setOnlyOwnClients(false);
         setCurrentPage(1);
         setSearchParams({});
     };
@@ -207,7 +226,7 @@ export default function Clients() {
     const totalPages = Math.max(1, Math.ceil(totalClients / itemsPerPage));
     const startItem = totalClients ? (currentPage - 1) * itemsPerPage + 1 : 0;
     const endItem = totalClients ? Math.min(startItem + itemsPerPage - 1, totalClients) : 0;
-    const hasActiveFilters = Boolean(searchTerm || selectedCountry || selectedProvince || sortByBilling);
+    const hasActiveFilters = Boolean(searchTerm || selectedCountry || selectedProvince || sortByBilling || portfolioView === 'propia');
 
     return (
         <PageShell maxWidth="max-w-[1800px]" className="mt-16 sm:mt-20 clients-directory">
@@ -235,6 +254,28 @@ export default function Clients() {
             /></LocalizedElement>
 
             <LocalizedElement><section className="cjm-toolbar mt-5 space-y-4 sm:mt-6" aria-label="Filtros de clientes">
+                {hasTeamRepresentatives && (
+                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] p-3">
+                        <button
+                            type="button"
+                            aria-pressed={portfolioView === 'propia'}
+                            onClick={() => {
+                                setOnlyOwnClients((value) => !value);
+                                setCurrentPage(1);
+                                setSuggestions([]);
+                            }}
+                            className={`${portfolioView === 'propia' ? 'cjm-primary-button' : 'cjm-secondary-button'} min-h-11 rounded-xl px-4 text-sm font-semibold`}
+                        >
+                            {portfolioView === 'propia' ? <FiUsers aria-hidden="true" /> : <FiUserCheck aria-hidden="true" />}
+                            {portfolioView === 'propia' ? 'Ver equipo completo' : 'Solo mis clientes'}
+                        </button>
+                        <span className="cjm-muted text-sm">
+                            {portfolioView === 'propia'
+                                ? 'Mostrando únicamente los clientes asignados directamente a ti.'
+                                : 'Mostrando tus clientes y los de tus representantes.'}
+                        </span>
+                    </div>
+                )}
                 <div className="clients-directory__search">
                     <SearchBar
                         searchTerm={searchTerm}
@@ -248,6 +289,7 @@ export default function Clients() {
                             setCurrentPage(1);
                         }}
                         handleSearchEnter={() => setCurrentPage(1)}
+                        portfolioView={portfolioView}
                     />
                 </div>
 
@@ -347,6 +389,7 @@ export default function Clients() {
                     <div className="flex flex-wrap items-center gap-2">
                         {hasActiveFilters && <span className="cjm-badge"><TranslatedText>Filtros activos</TranslatedText></span>}
                         {sortByBilling && <span className="cjm-badge"><TranslatedText>Orden por facturación</TranslatedText></span>}
+                        {portfolioView === 'propia' && <span className="cjm-badge">Solo mis clientes</span>}
                     </div>
                 </div>
             </section></LocalizedElement>

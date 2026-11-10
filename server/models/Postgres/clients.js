@@ -17,6 +17,13 @@ const buildNormalizedClientSearch = (fieldName) => `
 `;
 
 
+// El directorio y sus búsquedas solo muestran clientes activos. La columna
+// puede venir con espacios de relleno del ERP (por ejemplo, 'S '), así que
+// normalizamos antes de comparar. Los detalles por código se conservan para
+// consultas históricas y no se modifica ningún registro.
+const buildActiveClientFilter = (alias = 'clientes') =>
+    `COALESCE(UPPER(TRIM(${alias}.dadobaja::text)), '') <> 'S'`;
+
 const normalizeClientSearchTerm = (value = '') =>
     value
         .toString()
@@ -113,7 +120,7 @@ export class ClienteModel {
         let queryText = `
             SELECT * 
             FROM clientes 
-            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+            WHERE ${buildActiveClientFilter()}
         `;
 
         const params = [];
@@ -171,7 +178,7 @@ export class ClienteModel {
         let queryText = `
             SELECT COUNT(*) 
             FROM clientes 
-            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+            WHERE ${buildActiveClientFilter()}
         `;
 
         const params = [];
@@ -224,7 +231,7 @@ export class ClienteModel {
             let searchQuery = `
                 SELECT * 
                 FROM clientes
-                WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+                WHERE ${buildActiveClientFilter()}
                 AND ${buildNormalizedClientSearch('razclien')} LIKE $1
             `;
 
@@ -320,7 +327,7 @@ export class ClienteModel {
                     ELSE 1
                 END AS match_priority
             FROM clientes
-            WHERE COALESCE(UPPER(dadobaja), '') <> 'S'
+            WHERE ${buildActiveClientFilter()}
               AND (
                     ${nameExpression} LIKE '%' || $1 || '%'
                  OR ${nifExpression} LIKE '%' || $2 || '%'
@@ -637,7 +644,7 @@ export class ClienteModel {
                 SELECT *
                 FROM clientes
                 WHERE codprovi = $1
-                  AND COALESCE(UPPER(dadobaja), '') <> 'S'
+                  AND ${buildActiveClientFilter()}
             `;
             const params = [codprovi];
 
@@ -671,7 +678,7 @@ export class ClienteModel {
                              (1 - COALESCE(p.dt3, 0) / 100)), 0) AS total_billing
         FROM clientes c
         LEFT JOIN pedventa p ON c.codclien = p.codclien
-        WHERE COALESCE(UPPER(c.dadobaja), '') <> 'S'
+        WHERE ${buildActiveClientFilter('c')}
     `;
 
         const params = [];

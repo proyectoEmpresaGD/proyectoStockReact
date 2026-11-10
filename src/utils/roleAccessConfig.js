@@ -21,7 +21,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/notas', label: 'Notas' },
     { path: '/stock', label: 'Stock' },
     { path: '/catalogos', label: 'Catálogos y muestrarios' },
-    { path: '/sga', label: 'SGA · Operaciones de almacén', accessNote: 'Solo usuarios con rol Almacén' },
+    { path: '/sga', label: 'SGA · Operaciones de almacén', accessNote: 'Fase de pruebas: acceso a la pantalla limitado a administradores; futura habilitación de operarios pendiente de validación' },
     { path: '/equivalencias', label: 'Equivalencias' },
     { path: '/stock-alerts', label: 'Control de stock' },
     { path: '/fichaTecnica', label: 'Ficha Técnica' },

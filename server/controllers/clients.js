@@ -2,7 +2,7 @@ import { ClienteModel } from '../models/Postgres/clients.js';
 import { ClientPendingOrdersModel } from '../models/Postgres/clientPendingOrders.js';
 import { UserModel } from '../models/Postgres/usuarios.js';
 import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
-import { normalizeUserClientAccess, ensureClientAccess } from '../utils/clientPortfolioAccess.js';
+import { normalizeUserClientAccess, resolveClientDirectoryAccess, ensureClientAccess } from '../utils/clientPortfolioAccess.js';
 
 const COMMERCIAL_ROLE = 'comercial';
 
@@ -72,7 +72,7 @@ export class ClienteController {
             const { page = 1, limit = 10, codpais, codprovi, query, status } = req.query;
             const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
             const offset = (Math.max(Number.parseInt(page, 10) || 1, 1) - 1) * safeLimit;
-            const { codclien, codrepres } = normalizeUserClientAccess(req.user);
+            const { codclien, codrepres } = resolveClientDirectoryAccess(req.user, req.query.cartera);
 
             // Ambas lecturas son independientes: ejecutarlas a la vez reduce
             // la latencia sin alterar los filtros ni la respuesta del API.
@@ -179,7 +179,7 @@ export class ClienteController {
     async search(req, res) {
         try {
             const { query = '', limit = 10 } = req.query;
-            const { codclien, codrepres } = normalizeUserClientAccess(req.user);
+            const { codclien, codrepres } = resolveClientDirectoryAccess(req.user, req.query.cartera);
 
             const results = await ClienteModel.search({
                 query,
@@ -287,7 +287,7 @@ export class ClienteController {
     async getByProvince(req, res) {
         try {
             const { codprovi } = req.params;
-            const { codclien, codrepres } = normalizeUserClientAccess(req.user);
+            const { codclien, codrepres } = resolveClientDirectoryAccess(req.user, req.query.cartera);
             const clients = await ClienteModel.getByProvince({ codprovi, codclien, codrepres });
             res.json(clients);
         } catch (error) {
@@ -300,7 +300,7 @@ export class ClienteController {
             const { page = 1, limit = 10, order = 'DESC', codpais, codprovi, query, status } = req.query;
             const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
             const offset = (Math.max(Number.parseInt(page, 10) || 1, 1) - 1) * safeLimit;
-            const { codclien, codrepres } = normalizeUserClientAccess(req.user);
+            const { codclien, codrepres } = resolveClientDirectoryAccess(req.user, req.query.cartera);
 
             const filters = { codpais, codprovi, query, status, codclien, codrepres };
             const [clients, total] = await Promise.all([

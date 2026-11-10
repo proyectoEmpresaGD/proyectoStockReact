@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Archive, ArrowRight, BookOpen, Boxes, CheckCircle2, Factory, HelpCircle,
+  Archive, ArrowRight, BookOpen, Boxes, CheckCircle2, Download, Factory, HelpCircle,
   Info, PackageCheck, PackageX, RefreshCw, Search, SlidersHorizontal, Truck, X,
 } from 'lucide-react';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
@@ -112,6 +112,11 @@ export default function CatalogosPage() {
   const [result, setResult] = useState({ articulos: [], estadisticas: initialStats, marcas: [], porPagina: 24 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showExport, setShowExport] = useState(false);
+  const [exportTipo, setExportTipo] = useState('todos');
+  const [incluirObsoletos, setIncluirObsoletos] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const canViewStock = userCanAccessRoute(String(user?.role || '').toLowerCase(), '/stock', user?.route_access);
 
   useEffect(() => {
@@ -156,6 +161,59 @@ export default function CatalogosPage() {
     return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); };
   }, [refresh]);
 
+  const openExport = () => {
+    if (!showExport) {
+      setExportTipo(tipo);
+      setIncluirObsoletos(estado === 'obsoletos');
+      setExportError('');
+    }
+    setShowExport((previous) => !previous);
+  };
+
+  const exportarExcel = async () => {
+    if (exporting) return;
+    if (estado === 'obsoletos' && !incluirObsoletos) {
+      setExportError('Tienes activo el filtro «Obsoletos». Marca «Incluir obsoletos» o cambia ese filtro.');
+      return;
+    }
+    setExporting(true);
+    setExportError('');
+    try {
+      const params = new URLSearchParams({
+        tipo: exportTipo,
+        marca,
+        estado,
+        buscar: buscar.trim(),
+        incluirObsoletos: incluirObsoletos ? '1' : '0',
+      });
+      const response = await fetch(`${API_BASE}/api/catalogos/exportar?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(response.status === 403
+          ? 'No tienes permiso para exportar los catálogos.'
+          : payload.message || 'No se ha podido generar el archivo Excel.');
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('El archivo Excel se ha recibido vacío.');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `catalogos_${exportTipo === 'todos' ? 'completo' : exportTipo}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (reason) {
+      setExportError(reason.message || 'No se ha podido completar la exportación.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const stats = result.estadisticas || initialStats;
   const articulos = result.articulos || [];
   const totalPaginas = Math.max(1, Math.ceil(Number(stats.total || 0) / (result.porPagina || 24)));
@@ -166,8 +224,50 @@ export default function CatalogosPage() {
     <PageShell maxWidth="max-w-7xl">
       <PageHeader eyebrow="Productos · Inventario de muestrarios" title="Catálogos" icon={BookOpen}
         description="Libros, perchas y Carré Game. Consulta el stock, lo que hay por fabricar, por servir y por recibir."
-        actions={<button type="button" onClick={refresh} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-4 py-2.5 text-sm font-semibold app-text hover:bg-[var(--cjm-surface-muted)] disabled:opacity-50"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Actualizar</button>}
+        actions={<div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={openExport} aria-expanded={showExport} aria-controls="catalogos-export-panel" className="inline-flex items-center gap-2 rounded-xl bg-[var(--cjm-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"><Download size={16} /> Exportar Excel</button>
+          <button type="button" onClick={refresh} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] px-4 py-2.5 text-sm font-semibold app-text hover:bg-[var(--cjm-surface-muted)] disabled:opacity-50"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Actualizar</button>
+        </div>}
       />
+
+
+      {showExport && (
+        <section id="catalogos-export-panel" aria-label="Opciones de exportación de catálogos" className="mb-5 rounded-2xl border border-[var(--cjm-primary-border)] bg-[var(--cjm-surface)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold app-text"><Download size={19} /> Exportar catálogo a Excel</h2>
+              <p className="mt-1 text-sm text-[var(--cjm-muted)]">Descarga todos los artículos que cumplan los filtros, no solo los de la página visible.</p>
+            </div>
+            <button type="button" onClick={() => setShowExport(false)} disabled={exporting} aria-label="Cerrar exportación" className="rounded-lg p-2 text-[var(--cjm-muted)] hover:bg-[var(--cjm-surface-muted)] disabled:opacity-50"><X size={19} /></button>
+          </div>
+          <div className="mt-4 grid grid-cols-1 items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold app-text">Qué productos exportar</span>
+              <select value={exportTipo} onChange={(event) => { setExportTipo(event.target.value); setExportError(''); }} disabled={exporting} className="cjm-input w-full rounded-xl px-3 py-2.5 text-sm">
+                <option value="todos">Todos los tipos</option>
+                <option value="libros">Solo Libros</option>
+                <option value="carre">Solo Carré Game</option>
+                <option value="perchas">Solo Perchas</option>
+              </select>
+            </label>
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl bg-[var(--cjm-surface-muted)] px-4 py-2.5 text-sm font-semibold app-text">
+              <input type="checkbox" checked={incluirObsoletos} onChange={(event) => { setIncluirObsoletos(event.target.checked); setExportError(''); }} disabled={exporting} className="h-4 w-4 accent-[var(--cjm-primary)]" />
+              Incluir artículos obsoletos
+            </label>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-[var(--cjm-muted)]">Se respetan también los filtros de la pantalla: <strong>marca</strong> ({marca ? brandLabel(marca) : 'todas'}), <strong>estado</strong> ({STATUS.find((entry) => entry.value === estado)?.label || 'todos'}) y <strong>búsqueda</strong> ({buscar.trim() || 'sin filtro'}). El tipo se elige arriba de forma independiente.</p>
+          <p className="mt-1 text-xs text-[var(--cjm-muted)]">El archivo tendrá solo dos hojas: «Resumen» y «Todos». La hoja «Todos» incluirá los artículos del tipo elegido y únicamente cinco columnas: referencia, descripción, stock, por servir y por fabricar.</p>
+          {exportError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{exportError}</p>}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={exportarExcel} disabled={exporting || !token || (estado === 'obsoletos' && !incluirObsoletos)} className="inline-flex items-center gap-2 rounded-xl bg-[var(--cjm-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+              {exporting ? <RefreshCw size={17} className="animate-spin" /> : <Download size={17} />}
+              {exporting ? 'Preparando archivo…' : 'Descargar Excel (.xlsx)'}
+            </button>
+            <span className="text-xs text-[var(--cjm-muted)]">Columnas: referencia, descripción, stock, por servir y por fabricar. Solo lectura.</span>
+          </div>
+          {estado === 'obsoletos' && !incluirObsoletos && <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">El filtro de estado está en «Obsoletos». Marca «Incluir artículos obsoletos» para poder exportar esos resultados.</p>}
+        </section>
+      )}
 
       <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
         <div className="flex gap-2"><Info size={19} className="mt-0.5 shrink-0" /><p><strong>¿Qué significa obsoleto?</strong> Es un artículo que ya no se fabricará. Puedes utilizar las existencias que queden, pero cuando llegue a 0 no se volverá a fabricar, <strong>salvo petición expresa</strong>.</p></div>

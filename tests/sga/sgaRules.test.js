@@ -6,13 +6,13 @@ const product = { code:'P1', unit:'m' };
 const lot = { code:'L1', physical:'20.00', reserved:'3.00' };
 const common = { product, lot, warehouse:'A', location:'Z', reference:'P-123', reason:'inventario', note:'' };
 test('comas y precisión a centésimas', () => { assert.equal(toHundredths('1,25'), 125); assert.equal(toHundredths('1.234'), null); assert.equal(toHundredths('-1'), null); });
-test('salida diferencia entrega merma y stock físico', () => {
+test('salida distingue entrega, merma fija de 0,10 m y stock físico', () => {
  const p = buildSgaPreview({ ...common, type:MOVEMENT_TYPES.EXIT, quantity:'4.50', waste:'0,20' });
- assert.equal(p.valid,true); assert.equal(p.movement.billableQuantity, 4.5); assert.equal(p.movement.wasteQuantity,.2);
- assert.equal(p.movement.stockDelta,-4.7); assert.equal(p.movement.physicalAfter,15.3);
+ assert.equal(p.valid,true); assert.equal(p.movement.billableQuantity, 4.5); assert.equal(p.movement.wasteQuantity,.1);
+ assert.equal(p.movement.stockDelta,-4.6); assert.equal(p.movement.physicalAfter,15.4);
 });
 test('merma no puede consumir stock reservado de otros pedidos', () => {
- const p = buildSgaPreview({ ...common, type:MOVEMENT_TYPES.EXIT, quantity:'16.80', waste:'0.30' });
+ const p = buildSgaPreview({ ...common, type:MOVEMENT_TYPES.EXIT, quantity:'16.95', waste:'0.30' });
  assert.equal(p.valid,false); assert.ok(p.errors.some((e)=>e.includes('suficiente')));
 });
 test('entrada solo suma stock', () => {

@@ -10,7 +10,7 @@ export function validateSgaStep(step, { type, product, lot, form }) {
         if (!product?.code) errors.push('Selecciona primero un producto.');
         if (!form.warehouse) errors.push('Selecciona un almacén.');
         if (!form.location) errors.push('Selecciona una ubicación.');
-        if (!lot?.code) errors.push('Selecciona un lote o introduce el código del nuevo lote.');
+        if (product?.tracksLots !== false && !lot?.code) errors.push('Selecciona un lote o introduce el código del nuevo lote.');
         if (form.lotCode === '__NEW__' && type !== MOVEMENT_TYPES.ENTRY) errors.push('Solo se puede crear un lote desde una entrada.');
         if (form.lotCode === '__NEW__' && !String(form.newLotCode || '').trim()) errors.push('Introduce el código del nuevo lote.');
     }

@@ -1,3 +1,5 @@
+import { validateIntrastatFile } from '../../shared/intrastatFileValidation.js';
+
 const API_BASE = (
     import.meta.env.VITE_API_BASE_URL ||
     'http://localhost:1234'
@@ -47,10 +49,9 @@ export async function uploadIntrastatExcel(
 ) {
     requireToken(token);
 
-    if (!file) {
-        throw new Error(
-            'Debes seleccionar un archivo Excel.'
-        );
+    const validation = validateIntrastatFile(file);
+    if (!validation.valid) {
+        throw new Error(validation.message);
     }
 
     const formData = new FormData();
@@ -62,16 +63,16 @@ export async function uploadIntrastatExcel(
         mesIntrastat || ''
     );
 
-    const response = await fetch(
-        `${API_BASE}/api/intrastat/ventas`,
-        {
+    let response;
+    try {
+        response = await fetch(`${API_BASE}/api/intrastat/ventas`, {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
             body: formData,
-        }
-    );
+        });
+    } catch {
+        throw new Error('No se ha podido conectar con el servidor. Comprueba la conexión y vuelve a intentarlo.');
+    }
 
     if (!response.ok) {
         const errorMessage =

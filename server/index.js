@@ -33,6 +33,9 @@ import { createClientPurchasesRouter } from "./routes/clientPurchases.js";
 import { createJornadaRouter } from "./routes/jornada.js";
 import { createSgaOrderLocksRouter } from "./routes/sgaOrderLocks.js";
 import { createSgaAuditRouter } from "./routes/sgaAudit.js";
+import { createSgaCdiReadRouter } from "./routes/sgaCdiRead.js";
+import { createSgaCdiTestRouter } from "./routes/sgaCdiTest.js";
+import { createSgaCdiLogisticsRouter } from "./routes/sgaCdiLogistics.js";
 import { ensureJornadaSchema } from "./services/jornadaMigrations.js";
 import { ensureUserAccessSchema } from "./services/userAccessMigrations.js";
 import { fetchAllowedImage, parseAllowedImageProxyUrl } from "./utils/imageProxy.js";
@@ -125,6 +128,12 @@ app.use('/api/catalogos', authMiddleware, createCatalogosRouter({ pool }));
 app.use("/api/sga/order-locks", authMiddleware, createSgaOrderLocksRouter({ pool }));
 // Bitácora persistente de operaciones de prueba; no escribe existencias ni pedidos del ERP.
 app.use("/api/sga/audit", authMiddleware, createSgaAuditRouter({ pool }));
+// Integración CDI V2: diagnóstico y consultas de solo lectura, admin, desactivada por defecto.
+app.use("/api/sga/cdi", authMiddleware, createSgaCdiReadRouter());
+// Ensayos aislados: exige una empresa CDI distinta de producción, admin e idempotencia persistida.
+app.use("/api/sga/cdi-test", authMiddleware, createSgaCdiTestRouter({ pool }));
+// Entradas PP y regularizaciones: CDI de lectura o empresa TEST expresamente habilitada.
+app.use("/api/sga/cdi-logistics", authMiddleware, createSgaCdiLogisticsRouter({ pool }));
 app.use("/api/stocklotes", authMiddleware, createStockLotesRouter({ pool }));
 app.use("/api/clients", authMiddleware, createClienteRouter({ pool }));
 app.use("/api/jornada", authMiddleware, createJornadaRouter({ pool }));

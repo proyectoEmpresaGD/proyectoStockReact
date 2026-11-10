@@ -23,6 +23,25 @@ export function normalizeUserClientAccess(user) {
     };
 }
 
+// Filtra únicamente el directorio y sus sugerencias. No cambia los permisos
+// originales sobre las fichas ni permite que el navegador envíe códigos ajenos.
+export function resolveClientDirectoryAccess(user, portfolioView) {
+    const access = normalizeUserClientAccess(user);
+    if (portfolioView !== 'propia' || access.codclien !== undefined) return access;
+
+    const role = String(user?.role || '').trim().toLowerCase();
+    if (role !== 'comercial' && role !== 'ventas') return access;
+
+    const ownRepresentative = String(user?.codrepre || '').trim();
+    // Sin código propio, se devuelve una lista vacía (nunca una cartera abierta).
+    return {
+        ...access,
+        codrepres: ownRepresentative && access.codrepres?.includes(ownRepresentative)
+            ? [ownRepresentative]
+            : [],
+    };
+}
+
 export async function ensureClientAccess(req, res, codclien) {
     const access = normalizeUserClientAccess(req.user);
     const allowed = await ClienteModel.userCanAccessClient({

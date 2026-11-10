@@ -43,8 +43,8 @@ test('documento de cliente NO contiene merma ni cantidades de stock', () => {
 test('parte interno recoge salida física y merma', () => {
     const preview = buildSgaPreview({ ...data, ...form });
     const internal = buildSgaDraft({ operation: MOVEMENT_TYPES.EXIT, preview, product, lot, kind: 'interno' });
-    assert.ok(internal.resultRows.some(([label, value]) => label.includes('Merma') && value === '0,2 m'));
-    assert.ok(internal.resultRows.some(([label, value]) => label.includes('Descuento total') && value === '4,7 m'));
+    assert.ok(internal.resultRows.some(([label, value]) => label.includes('Merma') && value === '0,1 m'));
+    assert.ok(internal.resultRows.some(([label, value]) => label.includes('Descuento total') && value === '4,6 m'));
 });
 test('no se puede generar documento de datos inválidos', () => {
     assert.throws(() => buildSgaDraft({ operation: MOVEMENT_TYPES.EXIT, preview: { valid: false }, product, lot }), /sin validar/);

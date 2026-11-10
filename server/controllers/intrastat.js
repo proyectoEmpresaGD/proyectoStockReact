@@ -1,5 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { IntrastatModel } from '../models/Postgres/intrastat.js';
+import { validateIntrastatFile } from '../../shared/intrastatFileValidation.js';
+import { readIntrastatCsv } from '../utils/intrastatCsv.js';
 
 export class IntrastatController {
 
@@ -1440,42 +1442,50 @@ export class IntrastatController {
                     .mesIntrastat ||
                 '';
 
-            if (
-                !req.file ||
-                !req.file.buffer
-            ) {
-                return res
-                    .status(400)
-                    .json({
-                        error:
-                            'No file uploaded',
-                    });
+            const validation = validateIntrastatFile(req.file);
+            if (!validation.valid || !req.file?.buffer?.length) {
+                return res.status(400).json({
+                    error: validation.valid ? 'El archivo seleccionado está vacío.' : validation.message,
+                    code: 'INTRASTAT_ARCHIVO_INVALIDO',
+                });
             }
 
-            const workbook =
-                XLSX.read(
-                    req.file.buffer,
-                    {
-                        type:
-                            'buffer',
-                    }
-                );
+            if (tipo !== 'ventas' && tipo !== 'compras') {
+                return res.status(400).json({
+                    error: 'Selecciona Ventas o Compras.',
+                    code: 'INTRASTAT_TIPO_INVALIDO',
+                });
+            }
 
-            const sheet =
-                workbook.Sheets[
-                workbook
-                    .SheetNames[0]
-                ];
-
-            let rows =
-                XLSX.utils
-                    .sheet_to_json(
-                        sheet,
-                        {
-                            defval: '',
-                            raw: false,
-                        }
-                    );
+            // Un archivo dañado o renombrado como .xlsx no debe acabar como un error 500.
+            let rows;
+            try {
+                // Los CSV se transforman en una hoja temporal manteniendo cada
+                // celda como texto: no se alteran referencias, fechas ni decimales.
+                // Los Excel existentes conservan exactamente su lectura anterior.
+                const isCsv = /\.csv$/i.test(req.file.originalname || '');
+                const sheet = isCsv
+                    ? XLSX.utils.aoa_to_sheet(readIntrastatCsv(req.file.buffer))
+                    : (() => {
+                        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+                        return workbook.Sheets?.[workbook.SheetNames?.[0]];
+                    })();
+                if (!sheet) {
+                    return res.status(400).json({
+                        error: 'No se encontró ninguna hoja de cálculo en el archivo.',
+                        code: 'INTRASTAT_SIN_HOJAS',
+                    });
+                }
+                rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+            } catch (error) {
+                console.warn('Intrastat: archivo de entrada no interpretable:', error?.message);
+                return res.status(400).json({
+                    error: /\.csv$/i.test(req.file.originalname || '')
+                        ? (error?.message || 'No se ha podido interpretar el CSV original.')
+                        : 'No se ha podido leer el Excel. Comprueba que sea un archivo .xlsx, .xls o .xlsm válido y no esté dañado.',
+                    code: 'INTRASTAT_EXCEL_ILEGIBLE',
+                });
+            }
 
             if (
                 !rows.length

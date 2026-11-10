@@ -8,7 +8,7 @@ import {
     AlertTriangle, LockKeyhole, RefreshCw,
     CheckCircle2, Scissors, FileText, ChevronRight,
     Warehouse, ArrowLeft, ArrowRight, ClipboardList, Boxes, Tag,
-    CalendarCheck, CalendarDays, Clock3, UserRound, PackageCheck, Activity, ShieldCheck, ArrowUpRight, ScanLine,
+    CalendarCheck, CalendarDays, Clock3, UserRound, PackageCheck, Activity, ShieldCheck, ArrowUpRight, ScanLine, Save, RotateCcw, PauseCircle,
 } from 'lucide-react';
 import { useAuthContext } from '../Auth/AuthContext';
 import useVacationModuleAccess from '../hooks/useVacationModuleAccess.js';
@@ -22,19 +22,25 @@ import { matchesSgaSearch } from '../sga/sgaSearch.js';
 import { buildSgaPreview, MOVEMENT_TYPES, qtyText, toHundredths } from '../sga/sgaRules.js';
 import { SGA_STEPS, validateSgaStep, validateSgaOperation } from '../sga/sgaSteps.js';
 import SgaDocument from '../sga/SgaDocument.jsx';
-import SgaOrderPicking from '../sga/SgaOrderPicking.jsx';
+import SgaCdiOrderPicking from '../sga/SgaCdiOrderPicking.jsx';
 import SgaPurchaseReceiving from '../sga/SgaPurchaseReceiving.jsx';
+import SgaCdiLogisticsTablet from '../sga/SgaCdiLogisticsTablet.jsx';
 import SgaSuggestInput from '../sga/SgaSuggestInput.jsx';
 import { sgaAuditGateway } from '../sga/sgaAuditGateway.js';
 import SgaAuditHistory from '../sga/SgaAuditHistory.jsx';
+import { readDemoDraft, saveDemoDraft, removeDemoDraft } from '../sga/sgaTabletDemoDrafts.js';
+import SgaCdiReadPanel from '../sga/SgaCdiReadPanel.jsx';
+import SgaCdiTestPanel from '../sga/SgaCdiTestPanel.jsx';
+import SgaCdiInvoiceQueue from '../sga/SgaCdiInvoiceQueue.jsx';
 import { useLanguage } from '../i18n/LanguageContext.jsx';
 import './SgaPage.css';
 import './SgaTabletRedesign.css';
 import './SgaOperator2026.css';
 import './SgaOperationsTheme.css';
+import './SgaReceivingAdjustmentsTablet.css';
 
 const OPERATIONS = [
-    { type: MOVEMENT_TYPES.EXIT, label: 'Preparar pedidos', caption: 'Escanear lotes, cortar tejido y controlar mermas', icon: Scissors },
+    { type: MOVEMENT_TYPES.EXIT, label: 'Preparar pedidos', caption: 'Preparar artículos por unidades o lotes y revisar el albarán', icon: Scissors },
     { type: MOVEMENT_TYPES.ENTRY, label: 'Entradas', caption: 'Recibir pedidos de compra y dar de alta piezas por lote', icon: ArrowDownToLine },
     { type: MOVEMENT_TYPES.ADJUST, label: 'Regularizaciones', caption: 'Ajustar diferencias de inventario', icon: ClipboardCheck },
 ];
@@ -64,7 +70,7 @@ function TouchField({ label, value, onChange, unit, helper, id }) {
     return <label className="sga-w-field" htmlFor={id}>
         <span>{label}</span>
         <div className="sga-w-qty">
-            <input id={id} type="text" inputMode="decimal" autoComplete="off" value={value}
+            <input id={id} type="text" inputMode={unit === 'm' ? 'decimal' : 'numeric'} autoComplete="off" value={value}
                 onChange={(event) => onChange(event.target.value)} placeholder="0,00" />
             <b>{unit}</b>
         </div>
@@ -93,6 +99,7 @@ export default function SgaPage() {
     const role = String(activeUser?.role || '').trim().toLowerCase();
     const warehouseAccess = canAccessSgaPreview(activeUser);
     const [operation, setOperation] = useState(null);
+    const [logisticsDemo, setLogisticsDemo] = useState(false);
     const [showAudit, setShowAudit] = useState(false);
     const [auditBusy, setAuditBusy] = useState(false);
     const [step, setStep] = useState(0);
@@ -108,6 +115,11 @@ export default function SgaPage() {
     const [loading, setLoading] = useState(true);
     const [dataError, setDataError] = useState('');
     const [workload, setWorkload] = useState({ sales: null, purchases: null, error: false });
+    const [adjustmentRestore, setAdjustmentRestore] = useState(null);
+    const [adjustmentSaveState, setAdjustmentSaveState] = useState('');
+    const [countDoubleChecked, setCountDoubleChecked] = useState(false);
+    const draftStorage = () => { try { return window.localStorage; } catch { return null; } };
+    const recuentoIdentity = { kind: 'recuento', operator: activeUser?.username || 'operario' };
 
     useEffect(() => {
         if (!warehouseAccess) return undefined;
@@ -160,8 +172,32 @@ export default function SgaPage() {
     const countedHundredths = toHundredths(form.counted);
     const countDifference = countedHundredths === null ? null : countedHundredths / 100 - movement.physicalBefore;
     const selectedOperation = OPERATIONS.find((item) => item.type === operation);
+    // Solo datos de DEMOSTRACIÓN y solo en este navegador: nunca equivale a registrar stock en CDI.
+    useEffect(() => {
+        if (operation !== MOVEMENT_TYPES.ADJUST || !productCode || adjustmentRestore || step === 4 || auditBusy) return;
+        const saved = saveDemoDraft(draftStorage(), { ...recuentoIdentity, data: {
+            productCode, form, step: Math.min(3, step),
+        } });
+        setAdjustmentSaveState(saved ? 'Borrador guardado en esta tablet' : 'No se pudo guardar el borrador local');
+    }, [operation, productCode, form, step, adjustmentRestore, auditBusy]);
+    const restoreRecount = () => {
+        const draft = adjustmentRestore;
+        const item = catalog.find((entry) => entry.code === draft?.productCode);
+        if (!item) { removeDemoDraft(draftStorage(), recuentoIdentity); setAdjustmentRestore(null); setErrors(['El artículo del borrador ya no está disponible. Elige otro.']); return; }
+        setProductCode(item.code); setQuery(item.code);
+        const safeForm = Object.fromEntries(Object.keys(initialForm()).map((field) => [field,
+            typeof draft.form?.[field] === 'string' ? draft.form[field].slice(0, 250) : '']));
+        setForm(safeForm); setStep(Number.isInteger(draft.step) ? Math.max(0, Math.min(3, draft.step)) : 0);
+        setReviewConfirmed(false); setCountDoubleChecked(false);
+        setAdjustmentRestore(null); setErrors([]);
+        setAdjustmentSaveState('Borrador recuperado: revisa el producto, almacén y recuento antes de confirmar.');
+    };
 
     const beginOperation = (type) => {
+        const draft = type === MOVEMENT_TYPES.ADJUST ? readDemoDraft(draftStorage(), recuentoIdentity) : null;
+        setAdjustmentRestore(draft?.productCode ? draft : null);
+        setAdjustmentSaveState(''); setCountDoubleChecked(false);
+        setLogisticsDemo(false);
         setOperation(type);
         setStep(0);
         setProductCode('');
@@ -178,7 +214,7 @@ export default function SgaPage() {
     const changeField = (field, value) => {
         setForm((old) => ({ ...old, [field]: value }));
         setErrors([]);
-        setReviewConfirmed(false);
+        setReviewConfirmed(false); setCountDoubleChecked(false);
     };
     const chooseProduct = (item) => {
         setProductCode(item.code);
@@ -187,13 +223,16 @@ export default function SgaPage() {
             ...old, lotCode: '', newLotCode: '', quantity: '', counted: '',
         }));
         setErrors([]);
-        setReviewConfirmed(false);
+        setReviewConfirmed(false); setCountDoubleChecked(false);
     };
     const goNext = async () => {
         if (step === 3) {
             const issues = validateSgaOperation({ type: operation, product, lot, form });
             if (issues.length) { setErrors(issues); setReviewConfirmed(false); return; }
             if (!reviewConfirmed) { setErrors(['Marca «He comprobado los datos» antes de preparar el documento.']); return; }
+            if (operation === MOVEMENT_TYPES.ADJUST && countDifference < 0 && !countDoubleChecked) {
+                setErrors(['Confirma una segunda comprobación del recuento: esta diferencia reduce existencias.']); return;
+            }
             if (auditBusy) return;
             setAuditBusy(true);
             try {
@@ -214,6 +253,10 @@ export default function SgaPage() {
                 return;
             }
             setAuditBusy(false);
+            if (operation === MOVEMENT_TYPES.ADJUST) {
+                removeDemoDraft(draftStorage(), recuentoIdentity);
+                setAdjustmentSaveState('Recuento de demostración revisado. No se ha modificado CDI.');
+            }
         } else {
             const issues = validateSgaStep(step, { type: operation, product, lot, form });
             if (issues.length) { setErrors(issues); return; }
@@ -221,10 +264,15 @@ export default function SgaPage() {
         setErrors([]);
         setStep((previous) => Math.min(4, previous + 1));
     };
-    const goBack = () => { setErrors([]); setReviewConfirmed(false); setStep((previous) => Math.max(0, previous - 1)); };
+    const goBack = () => { setErrors([]); setReviewConfirmed(false); setCountDoubleChecked(false); setStep((previous) => Math.max(0, previous - 1)); };
     const goHome = () => {
-        if (operation && step > 0 && !window.confirm(translateCurrent('¿Salir? Los datos de esta simulación se perderán.'))) return;
-        setOperation(null); setStep(0); setErrors([]); setReviewConfirmed(false);
+        if (operation === MOVEMENT_TYPES.ADJUST && productCode && step < 4) {
+            const saved = saveDemoDraft(draftStorage(), { ...recuentoIdentity, data: { productCode, form, step: Math.min(3, step) } });
+            if (!saved) { setErrors(['No se ha guardado el recuento en la tablet. No cierres esta pantalla.']); return; }
+        }
+        if (operation && operation !== MOVEMENT_TYPES.ADJUST && step > 0
+            && !window.confirm(translateCurrent('¿Salir? Los datos de esta simulación se perderán.'))) return;
+        setLogisticsDemo(false); setOperation(null); setStep(0); setErrors([]); setReviewConfirmed(false); setAdjustmentRestore(null);
     };
     const availableShortcuts = SHORTCUTS.filter((item) =>
         (!item.requiresVacationAccess || canAccessVacations) &&
@@ -236,23 +284,28 @@ export default function SgaPage() {
     if (operation === MOVEMENT_TYPES.EXIT) {
         return <div className="sga-w-page" data-testid="sga-order-picking">
             <header className="sga-w-top"><div className="sga-w-brand"><Warehouse size={27}/><div><small><TranslatedText>STOCK+ · ALMACÉN</TranslatedText></small><h1>{t('Preparar pedidos')}</h1></div></div>
-                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> <TranslatedText>MODO PRUEBA · NO MODIFICA STOCK</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
+                <div className="sga-w-header-side"><span className="sga-w-simulation"><ShieldCheck size={16}/> <TranslatedText>CDI · COMPROBAR ORIGEN ANTES DE ENVIAR</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
             </header>
-            <SgaOrderPicking operator={activeUser?.username} token={token} onHome={goHome}/>
+            <SgaCdiOrderPicking operator={activeUser?.username} token={token} onHome={goHome}/>
         </div>;
     }
     if (operation === MOVEMENT_TYPES.ENTRY) {
         return <div className="sga-w-page" data-testid="sga-purchase-receiving">
             <header className="sga-w-top"><div className="sga-w-brand"><Warehouse size={27}/><div><small><TranslatedText>STOCK+ · ALMACÉN</TranslatedText></small><h1>{t('Entradas de mercancía')}</h1></div></div>
-                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> <TranslatedText>MODO PRUEBA · NO MODIFICA STOCK</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
+                <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> <TranslatedText>{logisticsDemo ? 'SIMULACIÓN · NO MODIFICA STOCK' : 'CDI · CONSULTA O ENSAYO AUTORIZADO'}</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
             </header>
-            <SgaPurchaseReceiving operator={activeUser?.username} token={token} onHome={goHome}/>
+            {logisticsDemo ? <SgaPurchaseReceiving operator={activeUser?.username} token={token} onHome={goHome}/>
+                : <SgaCdiLogisticsTablet kind="RECEIPT" token={token} onHome={goHome} onDemo={() => setLogisticsDemo(true)}/>}
         </div>;
     }
+    if (operation === MOVEMENT_TYPES.ADJUST && !logisticsDemo) return <div className="sga-w-page" data-testid="sga-inventory-cdi">
+        <header className="sga-w-top"><div className="sga-w-brand"><Warehouse size={27}/><div><small>STOCK+ · ALMACÉN</small><h1>Regularizaciones</h1></div></div></header>
+        <SgaCdiLogisticsTablet kind="INVENTORY" token={token} onHome={goHome} onDemo={() => setLogisticsDemo(true)}/>
+    </div>;
     return <div className="sga-w-page" data-testid="sga-wizard">
         <header className="sga-w-top">
             <div className="sga-w-brand"><Warehouse size={27}/><div><small><TranslatedText>STOCK+ · ALMACÉN</TranslatedText></small><h1>{t(selectedOperation ? selectedOperation.label : 'Mi almacén')}</h1></div></div>
-            <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> <TranslatedText>MODO PRUEBA · NO MODIFICA STOCK</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
+            <div className="sga-w-header-side"><span className="sga-w-simulation"><LockKeyhole size={16}/> <TranslatedText>{operation === MOVEMENT_TYPES.ADJUST ? 'RECUENTO DE PRUEBA · NO MODIFICA CDI' : 'CONSULTA EL MODO ACTIVO ANTES DE ENVIAR'}</TranslatedText></span><span className="sga-w-operator"><UserRound size={16} aria-hidden="true"/> {activeUser?.username || 'Operario'}</span></div>
         </header>
 
         {operation === null && showAudit ? <SgaAuditHistory token={token} onBack={() => setShowAudit(false)} /> : operation === null ? <>
@@ -260,15 +313,15 @@ export default function SgaPage() {
                 <div className="min-w-0">
                     <span className="inline-flex items-center gap-2 text-[11px] font-extrabold tracking-[.09em] text-emerald-100"><Warehouse size={15}/> <TranslatedText>PUESTO DE TRABAJO · SGA</TranslatedText></span>
                     <h2 className="mt-1 text-xl font-extrabold leading-tight sm:text-2xl">{t('Mi almacén')}</h2>
-                    <p className="mt-1 max-w-[570px] text-sm text-slate-100"><TranslatedText>Elige una tarea. El sistema te guiará por producto, lote, cantidad y confirmación.</TranslatedText></p>
+                    <p className="mt-1 max-w-[570px] text-sm text-slate-100"><TranslatedText>Elige una tarea. En cada pantalla encontrarás instrucciones sencillas y botones grandes para continuar.</TranslatedText></p>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-amber-200/40 bg-amber-950/25 px-3 py-2 text-xs font-bold text-amber-100"><LockKeyhole size={17}/> <TranslatedText>Entorno de pruebas · sin movimientos reales</TranslatedText></span>
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-amber-200/40 bg-amber-950/25 px-3 py-2 text-xs font-bold text-amber-100"><LockKeyhole size={17}/> <TranslatedText>El piloto autorizado puede generar albaranes reales · comprueba el modo</TranslatedText></span>
             </section></LocalizedElement>
             <div className="sga-ops-section-heading mb-4 flex items-end justify-between gap-4"><div><span className="sga-w-eyebrow"><TranslatedText>PUESTO DE TRABAJO</TranslatedText></span><h2 className="text-[clamp(22px,2.3vw,29px)] font-extrabold leading-tight tracking-tight text-[#18334b]"><TranslatedText>¿Qué necesitas hacer?</TranslatedText></h2></div><span className="whitespace-nowrap text-sm font-semibold text-[#597486] max-[699px]:hidden"><TranslatedText>Selecciona una operación</TranslatedText></span></div>
             <LocalizedElement><div className="sga-ops-workload mb-4 grid grid-cols-2 gap-3 min-[700px]:grid-cols-3" aria-label="Resumen de tareas de demostración">
                 <div className="flex min-h-[100px] min-w-0 items-center gap-3 rounded-2xl border border-[#dbe5e9] bg-white p-4 shadow-[0_10px_35px_rgba(23,49,72,.055)] max-[699px]:min-h-[87px] max-[699px]:p-3"><span className="sga-ops-kpi-icon grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#e8f0fa] text-[#305b8a]"><Scissors size={22}/></span><span className="flex min-w-0 flex-col gap-1"><small className="text-xs font-semibold text-[#526a7d]"><TranslatedText>Pedidos por preparar</TranslatedText> <em className="not-italic text-[#678698]"><TranslatedText>· demo</TranslatedText></em></small><strong className="text-[27px] font-extrabold leading-tight tabular-nums text-[#18334b]">{workload.sales === null ? '—' : workload.sales}</strong></span></div>
                 <div className="flex min-h-[100px] min-w-0 items-center gap-3 rounded-2xl border border-[#dbe5e9] bg-white p-4 shadow-[0_10px_35px_rgba(23,49,72,.055)] max-[699px]:min-h-[87px] max-[699px]:p-3"><span className="sga-ops-kpi-icon sga-ops-kpi-green grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#e7f5ed] text-[#237451]"><ArrowDownToLine size={22}/></span><span className="flex min-w-0 flex-col gap-1"><small className="text-xs font-semibold text-[#526a7d]"><TranslatedText>Compras por recibir</TranslatedText> <em className="not-italic text-[#678698]"><TranslatedText>· demo</TranslatedText></em></small><strong className="text-[27px] font-extrabold leading-tight tabular-nums text-[#18334b]">{workload.purchases === null ? '—' : workload.purchases}</strong></span></div>
-                <div className="flex min-h-[100px] min-w-0 items-center gap-3 rounded-2xl border border-[#dbe5e9] bg-white p-4 shadow-[0_10px_35px_rgba(23,49,72,.055)] max-[699px]:col-span-2 max-[699px]:min-h-[73px] max-[699px]:p-3"><span className="sga-ops-kpi-icon sga-ops-kpi-neutral grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#eef2f5] text-[#4d6878]"><ShieldCheck size={22}/></span><span className="flex min-w-0 flex-col gap-1"><small className="text-xs font-semibold text-[#526a7d]"><TranslatedText>Estado del entorno</TranslatedText></small><strong className="sga-ops-kpi-label text-xl font-extrabold leading-tight text-[#446275]"><TranslatedText>Simulación</TranslatedText></strong></span></div>
+                <div className="flex min-h-[100px] min-w-0 items-center gap-3 rounded-2xl border border-[#dbe5e9] bg-white p-4 shadow-[0_10px_35px_rgba(23,49,72,.055)] max-[699px]:col-span-2 max-[699px]:min-h-[73px] max-[699px]:p-3"><span className="sga-ops-kpi-icon sga-ops-kpi-neutral grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#eef2f5] text-[#4d6878]"><ShieldCheck size={22}/></span><span className="flex min-w-0 flex-col gap-1"><small className="text-xs font-semibold text-[#526a7d]"><TranslatedText>Origen de estos contadores</TranslatedText></small><strong className="sga-ops-kpi-label text-xl font-extrabold leading-tight text-[#446275]"><TranslatedText>Datos de demostración</TranslatedText></strong></span></div>
                 {workload.error && <p role="status" className="sga-ops-count-error col-span-full text-sm text-amber-800"><TranslatedText>Los contadores de prueba no están disponibles.</TranslatedText></p>}
             </div></LocalizedElement>
             <div className="sga-w-home-grid">
@@ -288,7 +341,18 @@ export default function SgaPage() {
                 <div className="flex min-w-0 items-center gap-3.5"><span className="sga-ops-audit-icon grid h-[52px] w-[52px] shrink-0 place-items-center rounded-xl border border-[#e0e8eb] bg-white text-[#316275]"><ClipboardList size={26}/></span><div><strong className="text-base font-extrabold text-[#1b374b]"><TranslatedText>Registro de actividad</TranslatedText></strong><p className="mt-1 max-w-[690px] text-sm leading-relaxed text-[#587083]"><TranslatedText>Consulta los cortes, recepciones y regularizaciones anotados en el historial de pruebas, con fecha y operario.</TranslatedText></p></div></div>
                 <button type="button" className="sga-w-secondary" onClick={() => setShowAudit(true)}><TranslatedText>Ver historial</TranslatedText> <ChevronRight size={21}/></button>
             </div>
-            <p className="sga-w-demo-foot mt-4 flex items-center gap-2 text-xs text-[#718395]"><LockKeyhole size={15}/> <TranslatedText>Este módulo trabaja con datos de demostración. Los pedidos y las existencias del ERP no se modifican.</TranslatedText></p>
+            <details className="mt-5 rounded-2xl border-2 border-slate-200 bg-white p-4">
+                <summary className="flex min-h-14 cursor-pointer items-center text-base font-bold text-[#18334b]">Administración · albaranes para revisar</summary>
+                <p className="mb-3 text-sm text-slate-700">Este apartado es para comprobar albaranes; no hace falta abrirlo para preparar un pedido.</p>
+                <SgaCdiInvoiceQueue token={token}/>
+            </details>
+            <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                <summary className="cursor-pointer text-sm font-bold">Diagnósticos CDI · solo administradores</summary>
+                <p className="mt-3 text-sm text-slate-600">Para preparar pedidos utiliza «Preparar pedidos». Las herramientas siguientes son únicamente de diagnóstico técnico.</p>
+                <SgaCdiReadPanel token={token}/>
+                <SgaCdiTestPanel token={token}/>
+            </details>
+            <p className="sga-w-demo-foot mt-4 flex items-center gap-2 text-xs text-[#718395]"><LockKeyhole size={15}/> <TranslatedText>En «Preparar pedidos», consulta siempre el modo activo: el piloto autorizado puede crear un albarán real en CDI Gest.</TranslatedText></p>
         </> : <>
             <div className="sga-w-trail"><button type="button" onClick={goHome}><ArrowLeft size={19}/> <TranslatedText>Volver a las tareas</TranslatedText></button><span>{t(selectedOperation?.caption || '')}</span></div>
             <LocalizedElement><nav className="sga-w-steps" aria-label="Progreso del proceso">
@@ -299,8 +363,18 @@ export default function SgaPage() {
             <LocalizedElement><div className="sga-ops-step-progress mx-1 mb-5 h-[5px] overflow-hidden rounded-b bg-[#e8eef1]" role="progressbar" aria-label="Avance de la regularización" aria-valuemin={0} aria-valuemax={5} aria-valuenow={step + 1}>
                 <span className="block h-full rounded-r bg-[#20847a] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${(step + 1) * 20}%` }} />
             </div></LocalizedElement>
-            <div className="sga-w-workspace">
+            {operation === MOVEMENT_TYPES.ADJUST && <div className="sga-tablet-mode"><LockKeyhole size={20}/><span><b>REGULARIZACIÓN EN DEMOSTRACIÓN.</b> Las existencias visibles son de ejemplo. Confirmar aquí no ajusta el stock en CDI.</span></div>}
+            {operation === MOVEMENT_TYPES.ADJUST && adjustmentRestore ? <section className="sga-tablet-choice" role="alert">
+                <RotateCcw size={38}/><h2>Hay un recuento sin terminar</h2>
+                <p>Se guardó un recuento de demostración en esta tablet. Comprueba de nuevo el artículo, la ubicación y lo que has contado.</p>
+                <div className="sga-tablet-choice-actions">
+                    <button type="button" className="sga-w-primary" onClick={restoreRecount}><RotateCcw size={22}/> Continuar mi recuento</button>
+                    <button type="button" className="sga-w-secondary" onClick={() => { removeDemoDraft(draftStorage(), recuentoIdentity); setAdjustmentRestore(null); }}>Empezar otro recuento (borrar borrador)</button>
+                    <button type="button" className="sga-w-secondary" onClick={goHome}>Volver a tareas</button>
+                </div>
+            </section> : <div className="sga-w-workspace">
                 <main className="sga-w-card" aria-live="polite">
+                    {operation === MOVEMENT_TYPES.ADJUST && productCode && step < 4 && <div className="sga-tablet-savebar" role="status"><Save size={18}/><span>{adjustmentSaveState || 'Guardando borrador en esta tablet...'}</span><button type="button" onClick={goHome}><PauseCircle size={19}/> Guardar y pausar</button></div>}
                     {step === 0 && <>
                         <div className="sga-w-step-header"><span><TranslatedText>PASO 1 DE 5</TranslatedText></span><h2><TranslatedText>¿Qué producto vas a registrar?</TranslatedText></h2><p><TranslatedText>Busca por referencia o descripción y selecciona el artículo.</TranslatedText></p></div>
                         <LocalizedElement><SgaSuggestInput label="Producto o referencia" value={query} onChange={setQuery} options={searchResults}
@@ -313,7 +387,7 @@ export default function SgaPage() {
                         </div>}
                     </>}
                     {step === 1 && <>
-                        <div className="sga-w-step-header"><span><TranslatedText>PASO 2 DE 5</TranslatedText></span><h2><TranslatedText>¿En qué almacén y lote?</TranslatedText></h2><p><TranslatedText>Comprueba el lote y la ubicación antes de introducir cantidades.</TranslatedText></p></div>
+                        <div className="sga-w-step-header"><span><TranslatedText>PASO 2 DE 5</TranslatedText></span><h2><TranslatedText>{product?.tracksLots === false ? '¿Dónde está el artículo?' : '¿En qué almacén y lote?'}</TranslatedText></h2><p><TranslatedText>{product?.tracksLots === false ? 'Este producto se controla por unidades, sin lotes. Indica el almacén y la ubicación.' : 'Comprueba el lote y la ubicación antes de introducir cantidades.'}</TranslatedText></p></div>
                         <div className="sga-w-fields">
                             <label className="sga-w-field"><span>{t('Almacén')}</span><select value={form.warehouse} onChange={(e) => changeField('warehouse', e.target.value)}><option value="">{t('Elegir almacén…')}</option>{warehouses.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
                             {product?.tracksLots !== false && <label className="sga-w-field"><span><TranslatedText>Lote</TranslatedText></span><select value={form.lotCode} onChange={(e) => { setForm((old) => ({ ...old, lotCode: e.target.value, newLotCode: '' }));setErrors([]);setReviewConfirmed(false); }}><option value="">{t('Elegir lote…')}</option>{lots.map((item) => <option key={item.code} value={item.code}>{item.code}</option>)}{operation === MOVEMENT_TYPES.ENTRY && <option value="__NEW__"><TranslatedText>+ Crear lote nuevo (simulación)</TranslatedText></option>}</select></label>}
@@ -336,6 +410,12 @@ export default function SgaPage() {
                                     <span className="is-difference"><TranslatedText>Diferencia</TranslatedText> <strong>{countDifference > 0 ? '+' : ''}{formatAmount(countDifference, unit)}</strong></span>
                                     {countDifference === 0 && <p><TranslatedText>Sin diferencia: no hace falta regularizar. Este asistente no generará un ajuste con variación cero.</TranslatedText></p>}
                                 </div>}
+                                <div className={`sga-tablet-count-result ${countDifference < 0 ? 'is-loss' : countDifference > 0 ? 'is-gain' : 'is-same'}`} role="status">
+                                    {countDifference === null ? <p>Introduce lo que has contado físicamente para calcular la diferencia.</p>
+                                        : countDifference === 0 ? <p><strong>Todo coincide.</strong> No es necesaria una regularización.</p>
+                                        : countDifference < 0 ? <p><strong>Hay menos stock del registrado.</strong> La diferencia sería {formatAmount(Math.abs(countDifference), unit)} menos. Cuenta una segunda vez antes de continuar.</p>
+                                        : <p><strong>Hay más stock del registrado.</strong> La diferencia sería {formatAmount(countDifference, unit)} más.</p>}
+                                </div>
                                 <label className="sga-w-field"><span>{t('¿Por qué regularizas?')}</span><select value={form.reason} onChange={(e) => changeField('reason', e.target.value)}><option value="">{t('Elegir motivo…')}</option>{REASONS.map((item) => <option key={item.value} value={item.value}>{t(item.label)}</option>)}</select></label></>}
                             <label className="sga-w-field"><span><TranslatedText>{operation === MOVEMENT_TYPES.ENTRY ? 'Documento de recepción' : operation === MOVEMENT_TYPES.EXIT ? 'Número de pedido o referencia' : 'Referencia interna (opcional)'}</TranslatedText></span><LocalizedElement><input value={form.reference} onChange={(e) => changeField('reference', e.target.value)} placeholder="Escribir referencia" autoComplete="off" /></LocalizedElement></label>
                             <label className="sga-w-field"><span><TranslatedText>{form.reason === 'OTROS' ? 'Explica el motivo' : 'Observaciones (opcional)'}</TranslatedText></span><LocalizedElement><input value={form.note} onChange={(e) => changeField('note', e.target.value)} placeholder="Notas de la operación" autoComplete="off" /></LocalizedElement></label>
@@ -349,7 +429,8 @@ export default function SgaPage() {
                             {operation === MOVEMENT_TYPES.EXIT && <><LocalizedElement><SummaryItem label="Para el cliente / albarán" value={formatAmount(movement.billableQuantity, unit)} important/></LocalizedElement><LocalizedElement></LocalizedElement><LocalizedElement><SummaryItem label="Merma interna (no facturar)" value={formatAmount(movement.wasteQuantity, unit)} /></LocalizedElement></>}
                             <LocalizedElement><SummaryItem label="Variación de stock" value={`${movement.stockDelta > 0 ? '+' : ''}${formatAmount(movement.stockDelta, unit)}`} /></LocalizedElement><LocalizedElement></LocalizedElement><LocalizedElement><SummaryItem label="Stock después (simulado)" value={formatAmount(movement.physicalAfter, unit)} important /></LocalizedElement>
                         </div>
-                        <label className="sga-w-confirm"><input type="checkbox" checked={reviewConfirmed} onChange={(e) => { setReviewConfirmed(e.target.checked); setErrors([]); }}/><span><TranslatedText>He comprobado el producto, el lote y las cantidades de esta simulación.</TranslatedText></span></label>
+                        {operation === MOVEMENT_TYPES.ADJUST && countDifference < 0 && <label className="sga-w-confirm sga-tablet-recount-confirm"><input type="checkbox" checked={countDoubleChecked} onChange={(e) => { setCountDoubleChecked(e.target.checked); setErrors([]); }}/><span>He contado una segunda vez y confirmo que faltan {formatAmount(Math.abs(countDifference), unit)}. Esto es solo una simulación.</span></label>}
+                        <label className="sga-w-confirm"><input type="checkbox" checked={reviewConfirmed} onChange={(e) => { setReviewConfirmed(e.target.checked); setErrors([]); }}/><span><TranslatedText>He comprobado el artículo, el almacén, el lote si corresponde y la cantidad contada.</TranslatedText></span></label>
                     </>}
                     {step === 4 && <>
                         <div className="sga-w-step-header"><span><TranslatedText>PASO 5 DE 5</TranslatedText></span><h2><TranslatedText>Documento de la operación</TranslatedText></h2><p><TranslatedText>Elige el borrador que necesitas e imprímelo o guárdalo como PDF desde la tablet.</TranslatedText></p></div>
@@ -367,8 +448,7 @@ export default function SgaPage() {
                         {step < 4 ? <button type="button" className="sga-w-primary" onClick={goNext} disabled={auditBusy}>{step === 3 ? 'Preparar documento' : 'Continuar'}<ArrowRight size={21}/></button> : <button type="button" className="sga-w-secondary" onClick={() => beginOperation(operation)}><RefreshCw size={19}/> <TranslatedText>Nueva simulación</TranslatedText></button>}
                     </footer>
                 </main>
-                
-            </div>
+            </div>}
         </>}
     </div>;
 }

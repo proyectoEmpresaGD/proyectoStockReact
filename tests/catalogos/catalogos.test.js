@@ -10,10 +10,10 @@ test('clasifica por tipo ERP: libros, perchas y Carré Game', () => {
   assert.equal(classifyCatalogItem({ codtipo: 105, desprodu: 'XX' }), 'perchas');
   assert.equal(classifyCatalogItem({ codtipo: 109, desprodu: 'XX' }), 'carre');
 });
-test('reconoce descripciones antiguas sin tipo', () => {
-  assert.equal(classifyCatalogItem({ desprodu: 'Libro muestrario Arena' }), 'libros');
-  assert.equal(classifyCatalogItem({ desprodu: 'PERCHA COLECCION' }), 'perchas');
-  assert.equal(classifyCatalogItem({ desprodu: 'CARRÉ GAME' }), 'carre');
+test('no clasifica por descripciones sin tipo oficial del ERP', () => {
+  assert.equal(classifyCatalogItem({ desprodu: 'Libro muestrario Arena' }), null);
+  assert.equal(classifyCatalogItem({ desprodu: 'PERCHA COLECCION' }), null);
+  assert.equal(classifyCatalogItem({ desprodu: 'CARRÉ GAME' }), null);
 });
 test('descarta accesorios con LIBRO o PERCHA en el nombre sin tipo oficial', () => {
   assert.equal(classifyCatalogItem({ desprodu: 'TAPILLA LIBRO' }), null);
@@ -35,9 +35,9 @@ test('obsoleto no se excluye y se indica por bandera S', () => {
 });
 test('cantidades de fabricación y recepción no se suman al disponible', () => {
   assert.match(CATALOGOS_QUERY, /SUM\(COALESCE\(s\.stockactual, 0\)\)/);
-  assert.match(CATALOGOS_QUERY, /SUM\(COALESCE\(s\.canpenfabri, 0\)\)/);
+  assert.match(CATALOGOS_QUERY, /SUM\(COALESCE\(sf\.canpenfabri, 0\)\)/);
   assert.match(CATALOGOS_QUERY, /SUM\(COALESCE\(s\.canpenrecib, 0\)\)/);
-  assert.match(CATALOGOS_QUERY, /s\.stockactual, s\.canpenfabri, s\.canpenrecib/);
+  assert.match(CATALOGOS_QUERY, /s\.stockactual, f\.canpenfabri, s\.canpenservir, s\.canpenrecib/);
   assert.ok(!/stockactual\s*\+\s*canpenrecib/.test(CATALOGOS_QUERY));
 });
 test('stock únicamente del almacén 00 con existencia de registro explícita', () => {

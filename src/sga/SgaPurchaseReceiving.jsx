@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2,
     LockKeyhole, PackageCheck, PackagePlus, Printer, ScanLine,
-    Trash2, Tag, QrCode, Plus,
+    Trash2, Tag, QrCode, Plus, Save, RotateCcw, PauseCircle, ShieldAlert,
 } from 'lucide-react';
 import { sgaGateway, sgaPurchaseGateway } from './sgaGateway.js';
 import { qtyText, toHundredths } from './sgaRules.js';
@@ -21,6 +21,7 @@ import SgaReceiptLabel from './SgaReceiptLabel.jsx';
 import SgaTaskLine from './SgaTaskLine.jsx';
 import { sgaAuditGateway } from './sgaAuditGateway.js';
 import './SgaPurchaseReceiving.css';
+import { readDemoDraft, saveDemoDraft, removeDemoDraft, safeReceiptDraft } from './sgaTabletDemoDrafts.js';
 
 const SCREENS = ['Pedido de compra', 'Recibir mercancía', 'Revisar', 'Documento'];
 const fmt = (quantity, unit = 'm') => `${qtyText(Number(quantity) || 0)} ${unit}`;
@@ -54,6 +55,11 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
     const [loading, setLoading] = useState(true);
     const auditBusy = useRef(false);
     const [auditPending, setAuditPending] = useState(false);
+    const [restoreChoice, setRestoreChoice] = useState(null);
+    const [localSaveState, setLocalSaveState] = useState('');
+    const [exitChoice, setExitChoice] = useState(false);
+    const draftStorage = () => { try { return window.localStorage; } catch { return null; } };
+    const draftIdentity = (id) => ({ kind: 'recepcion', operator: operator || 'operario', resource: String(id) });
     const issuedLotCodes = useRef(new Set()); // No reutilizar etiquetas generadas o revisadas durante la sesión.
 
     useEffect(() => {
@@ -72,11 +78,13 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
 
     useEffect(() => { if (screen !== 1) window.scrollTo(0, 0); }, [screen]);
     useEffect(() => {
-        if (!receipts.length) return undefined;
+        // Solo avisar si el guardado local ha fallado o hay una auditoría en curso.
+        // Un borrador guardado no necesita diálogos del navegador al cerrar la tablet.
+        if (!(receipts.length && localSaveState.startsWith('No se pudo')) && !auditPending) return undefined;
         const warn = (event) => { event.preventDefault(); event.returnValue = ''; };
         window.addEventListener('beforeunload', warn);
         return () => window.removeEventListener('beforeunload', warn);
-    }, [receipts.length]);
+    }, [receipts.length, localSaveState, auditPending]);
 
     const availableOrders = useMemo(() => orders.filter((item) =>
         pendingPurchaseLines(item).length > 0
@@ -122,15 +130,48 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
         catch { return null; }
     }, [screen, order, receipts, products, operator, confirmedPending]);
 
-    const start = (item) => {
+    const activateOrder = (item, draft = null) => {
         const selected = pendingPurchaseLines(item);
-        setOrder(item); setScreen(1); setActiveLineId(selected[0]?.id || null); setShowAllReceiptLines(false); setLineChooserOpen(false);
-        setReceipts([]);
-        setWarehouse(warehouses.length === 1 ? warehouses[0].code : '');
-        setLocation(locations.length === 1 ? locations[0].code : '');
-        setQuantity('');
-        resetPiece(); setConfirmedPending([]); setLabelReceipt(null);
-        setConfirmedReview(false); setError(''); setMessage('');
+        setOrder(item); setScreen(1); setActiveLineId(draft?.activeLineId || selected[0]?.id || null);
+        setShowAllReceiptLines(false); setLineChooserOpen(false);
+        setReceipts(draft?.receipts || []);
+        issuedLotCodes.current = new Set(draft?.issuedLots || []);
+        setWarehouse(draft?.warehouse || (warehouses.length === 1 ? warehouses[0].code : ''));
+        setLocation(draft?.location || (locations.length === 1 ? locations[0].code : ''));
+        setQuantity(''); resetPiece(); setConfirmedPending([]); setLabelReceipt(null);
+        setConfirmedReview(false); setError('');
+        setMessage(draft ? 'Recepción recuperada en esta tablet. Comprueba físicamente cada pieza antes de seguir.' : '');
+        setRestoreChoice(null); setExitChoice(false);
+    };
+    const start = (item) => {
+        const saved = readDemoDraft(draftStorage(), draftIdentity(item.id));
+        const valid = safeReceiptDraft(saved, item, products, validateReceiptReview, pendingPurchaseLines);
+        if (valid) { setRestoreChoice({ order: item, draft: valid }); setError(''); return; }
+        activateOrder(item);
+    };
+    useEffect(() => {
+        if (!order?.id || auditPending || screen === 3) return;
+        if (!receipts.length) {
+            removeDemoDraft(draftStorage(), draftIdentity(order.id));
+            setLocalSaveState('Sin anotaciones guardadas');
+            return;
+        }
+        const saved = saveDemoDraft(draftStorage(), { ...draftIdentity(order.id), data: {
+            orderId: order.id, receipts, issuedLots: [...issuedLotCodes.current],
+            activeLineId, warehouse, location,
+        } });
+        setLocalSaveState(saved ? 'Guardado en esta tablet · demostración' : 'No se pudo guardar en esta tablet');
+    }, [order?.id, receipts, activeLineId, warehouse, location, screen, auditPending]);
+    const pauseReceipt = () => {
+        if (auditPending) return;
+        if (order?.id && receipts.length) {
+            const saved = saveDemoDraft(draftStorage(), { ...draftIdentity(order.id), data: {
+                orderId: order.id, receipts, issuedLots: [...issuedLotCodes.current], activeLineId, warehouse, location,
+            } });
+            if (!saved) { setError('No se ha guardado la recepción en esta tablet. No cierres la pantalla.'); return; }
+        }
+        setOrder(null); setReceipts([]); setRestoreChoice(null); setExitChoice(false);
+        setScreen(0); setSearch(''); setMessage(''); setError('');
     };
     const selectLine = (id) => {
         setLineChooserOpen(false);
@@ -199,12 +240,14 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
         setError(''); setScreen(3);
     });
     const backHome = () => {
-        if (receipts.length && !window.confirm(t('Esta recepción es una simulación. Se perderá la preparación de esta pantalla, pero el historial de acciones seguirá guardado. ¿Salir?'))) return;
+        if (auditPending) return;
+        if (receipts.length) { setExitChoice(true); return; }
         onHome();
     };
 
     return <div className="sga-receiving-flow">
         <div className="sga-w-trail"><button type="button" onClick={backHome}><ArrowLeft size={19}/> <TranslatedText>Mi almacén</TranslatedText></button><span><TranslatedText>Entrada · Desde pedido de compra</TranslatedText></span></div>
+        <div className="sga-tablet-mode"><ShieldAlert size={20}/><span><b>ENTRADAS EN DEMOSTRACIÓN.</b> Ninguna anotación crea albaranes, lotes ni existencias en CDI.</span></div>
         <LocalizedElement><nav className="sga-order-steps" aria-label="Pasos de recepción">
             {SCREENS.map((item, i) => <span key={item} className={screen === i ? 'is-current' : i < screen ? 'is-past' : ''}>
                 <b>{i < screen ? <CheckCircle2 size={19}/> : i + 1}</b>{t(item)}
@@ -213,7 +256,26 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
         <LocalizedElement><div className="sga-ops-step-progress mx-1 mb-5 h-[5px] overflow-hidden rounded-b bg-[#e8eef1]" role="progressbar" aria-label="Avance del proceso de recepción" aria-valuemin={0} aria-valuemax={4} aria-valuenow={screen + 1}>
             <span className="block h-full rounded-r bg-[#20847a] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${(screen + 1) * 25}%` }}/>
         </div></LocalizedElement>
-        {screen === 0 && <section className="sga-order-panel">
+        {restoreChoice && <section className="sga-order-panel sga-tablet-choice" role="alert" aria-live="assertive">
+            <RotateCcw size={36} aria-hidden="true"/>
+            <h2>Hay una recepción sin terminar</h2>
+            <p><b>{restoreChoice.order.number}</b> · {restoreChoice.draft.receipts.length} anotaciones guardadas en esta tablet.</p>
+            <p>Antes de continuar, comprueba que las piezas siguen donde las dejaste. Este borrador no se ha enviado al ERP.</p>
+            <div className="sga-tablet-choice-actions">
+                <button type="button" className="sga-w-primary" onClick={() => activateOrder(restoreChoice.order, restoreChoice.draft)}><RotateCcw size={22}/> Recuperar recepción</button>
+                <button type="button" className="sga-w-secondary" onClick={() => { const item = restoreChoice.order; removeDemoDraft(draftStorage(), draftIdentity(item.id)); activateOrder(item); }}>Empezar de cero (borrar borrador)</button>
+                <button type="button" className="sga-w-secondary" onClick={() => setRestoreChoice(null)}>Volver a pedidos</button>
+            </div>
+        </section>}
+        {exitChoice && <section className="sga-order-panel sga-tablet-choice" role="dialog" aria-modal="true" aria-label="Salir de la recepción">
+            <PauseCircle size={36}/><h2>¿Quieres dejar esta recepción para después?</h2>
+            <p>Se conservarán las anotaciones de demostración en esta tablet, pero no se registrará nada en CDI.</p>
+            <div className="sga-tablet-choice-actions">
+                <button type="button" className="sga-w-primary" onClick={() => { const id = order?.id; if (id && receipts.length) { const saved = saveDemoDraft(draftStorage(), { ...draftIdentity(id), data: { orderId: id, receipts, issuedLots: [...issuedLotCodes.current], activeLineId, warehouse, location } }); if (!saved) { setError('No se pudo guardar. Sigue trabajando sin cerrar la tablet.'); setExitChoice(false); return; } } setExitChoice(false); onHome(); }}><Save size={22}/> Guardar y salir</button>
+                <button type="button" className="sga-w-secondary" onClick={() => setExitChoice(false)}>Seguir recibiendo</button>
+            </div>
+        </section>}
+        {screen === 0 && !restoreChoice && !exitChoice && <section className="sga-order-panel">
             <div className="sga-w-step-header"><span><TranslatedText>PASO 1 DE 4</TranslatedText></span><h2><TranslatedText>Elige el pedido de compra</TranslatedText></h2><p><TranslatedText>Busca por número o proveedor y selecciona el pedido que está llegando al almacén.</TranslatedText></p></div>
             <LocalizedElement><SgaSuggestInput label="Buscar pedido o proveedor" value={search} onChange={setSearch}
                 options={availableOrders} getKey={(item) => item.id} getLabel={(item) => `Compra ${item.number}`}
@@ -224,11 +286,14 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
                     <div><strong>{item.number}</strong><small>{item.supplier}</small><small>{pendingPurchaseLines(item).length} <TranslatedText>productos pendientes</TranslatedText></small></div><ArrowRight size={23}/>
                 </button>)}{!availableOrders.length && <p className="sga-w-message"><TranslatedText>No hay pedidos coincidentes.</TranslatedText></p>}</div>}
         </section>}
-        {screen === 1 && order && <>
+        {screen === 1 && order && !exitChoice && <>
             <div className="sga-receiving-context"><div><small><TranslatedText>PEDIDO DE COMPRA · DEMOSTRACIÓN</TranslatedText></small><h2>{order.number}</h2><p>{order.supplier}</p></div>
                 <div className="sga-receiving-metrics"><span><strong>{progress.completed}/{progress.total}</strong> <TranslatedText>líneas completas</TranslatedText></span><span><strong>{progress.pieces}</strong> <TranslatedText>piezas con lote</TranslatedText></span></div>
             </div>
             <div className="sga-ops-session-line flex flex-wrap items-center justify-between gap-x-5 gap-y-2 px-1 pb-3 text-xs font-bold text-[#4c6c7b] max-[699px]:flex-col max-[699px]:items-start"><span className="inline-flex items-center gap-2 text-[#23736c]"><PackagePlus size={16}/> <TranslatedText>Recepción por pedido de compra</TranslatedText></span><span className="inline-flex items-center gap-2"><Tag size={17}/> <TranslatedText>Identifica y etiqueta cada pieza</TranslatedText></span></div>
+            <div className="sga-tablet-savebar" role="status"><Save size={19}/><span>{receipts.length ? (localSaveState || 'Anotaciones de demostración en esta tablet') : 'Todavía no hay piezas anotadas'}</span>
+                <button type="button" onClick={pauseReceipt} disabled={auditPending}><PauseCircle size={20}/> Guardar y pausar</button>
+            </div>
             <div className="sga-receiving-workspace">
                 <LocalizedElement><aside className="sga-receiving-lines !flex min-w-0 !flex-col gap-3" aria-label="Productos pendientes del pedido">
                     <div className="sga-task-section-heading flex items-center justify-between gap-2">
@@ -255,11 +320,12 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
                 </aside></LocalizedElement>
                 <section className="sga-receiving-form">
                     <div className="sga-w-step-header"><span><TranslatedText>PASO 2 DE 4</TranslatedText></span><h2>{product?.description || 'Selecciona un producto'}</h2><p>{product?.code || ''}</p></div>
-                    {line && product ? <>
+                    {line && product ? <fieldset disabled={auditPending} className="sga-tablet-fieldset">
                         <div className="sga-receiving-remaining"><span><TranslatedText>Pendiente de recibir</TranslatedText></span><strong>{fmt(activeProgress.remaining, product.unit)}</strong></div>
                         <div className="sga-ops-line-progress my-4"><div className="mb-2 flex items-center justify-between gap-2"><strong className="text-xs font-extrabold text-[#385467]"><TranslatedText>Avance de este producto</TranslatedText></strong><span className="whitespace-nowrap text-xs font-extrabold text-[#26766e]">{linePercent}<TranslatedText>% recibido</TranslatedText></span></div>
                             <div className="sga-ops-line-track h-2 w-full overflow-hidden rounded-full bg-[#e7eff0]" role="progressbar" aria-label={`Recepción de ${line.description}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={linePercent}><span className="block h-full rounded-full bg-[#24877d] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${linePercent}%` }}/></div>
                         </div>
+                        {product?.tracksLots === false && <div className="sga-tablet-help"><CheckCircle2 size={22}/><p><strong>Artículo por unidades, sin lotes.</strong> Indica cuántas unidades han llegado. No necesitas crear ni escanear lotes.</p></div>}
                         {activeProgress.remaining > 0 ? <>
                             <div className="sga-receiving-field-grid">
                                 <label className="sga-w-field"><span><TranslatedText>Almacén de destino</TranslatedText></span><select value={warehouse} onChange={(event) => setWarehouse(event.target.value)}>
@@ -314,13 +380,13 @@ export default function SgaPurchaseReceiving({ operator = '', token, onHome }) {
                         {receipts.filter((receipt) => receipt.lineId === line.id).length > 0 && <div className="sga-receiving-added"><h3><TranslatedText>Piezas / cantidades anotadas</TranslatedText></h3>
                             {receipts.filter((receipt) => receipt.lineId === line.id).map((receipt) => <div key={receipt.id}><span><b>{receipt.lotCode || 'Sin lote'}</b> · {fmt(receipt.quantity, receipt.unit)}{receipt.equivalenceCode ? ` · Eq. ${receipt.equivalenceCode}` : ''}{receipt.lotCode && <button type="button" onClick={() => setLabelReceipt(receipt)} className="sga-receiving-label-link"><QrCode size={16}/> <TranslatedText>Ver etiqueta</TranslatedText></button>}</span><button type="button" onClick={() => remove(receipt.id)} disabled={auditPending} aria-label={`Quitar ${receipt.lotCode || 'cantidad recibida'}`}><Trash2 size={18}/> <TranslatedText>Quitar</TranslatedText></button></div>)}
                         </div>}
-                    </> : <p className="sga-w-message"><TranslatedText>Selecciona una línea del pedido.</TranslatedText></p>}
+                    </fieldset> : <p className="sga-w-message"><TranslatedText>Selecciona una línea del pedido.</TranslatedText></p>}
                 </section>
             </div>
-            <div className="sga-order-bottom sga-order-sticky-actions"><button type="button" className="sga-w-secondary" onClick={() => { if (!receipts.length || window.confirm(t('Los datos simulados se perderán. ¿Cambiar pedido?'))) setScreen(0); }}><ArrowLeft size={20}/> <TranslatedText>Cambiar pedido</TranslatedText></button>
+            <div className="sga-order-bottom sga-order-sticky-actions"><button type="button" className="sga-w-secondary" onClick={pauseReceipt}><ArrowLeft size={20}/> <TranslatedText>Guardar y elegir otro pedido</TranslatedText></button>
                 <button type="button" className="sga-w-primary" onClick={openReview}><TranslatedText>Revisar entrada</TranslatedText> <ArrowRight size={20}/></button></div>
         </>}
-        {screen === 2 && order && <section className="sga-order-panel">
+        {screen === 2 && order && !exitChoice && <section className="sga-order-panel">
             <div className="sga-w-step-header"><span><TranslatedText>PASO 3 DE 4</TranslatedText></span><h2><TranslatedText>Revisa las piezas recibidas</TranslatedText></h2><p><TranslatedText>Confirma qué parte del pedido se ha recibido realmente antes de preparar el borrador.</TranslatedText></p></div>
             <div className="sga-receiving-review">
                 {progress.lines.map((item) => <div key={item.id}><div><strong>{item.description}</strong><small>{item.productCode} <TranslatedText>· Recibido</TranslatedText> {fmt(item.received, item.unit)}</small></div>

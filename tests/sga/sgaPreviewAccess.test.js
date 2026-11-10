@@ -26,8 +26,12 @@ test('Los permisos históricos de Almacén no cambian', () => {
   assert.equal(getFirstAccessibleRoute('almacen'), '/');
 });
 
-test('SGA sigue fuera del catálogo de permisos configurable', () => {
-  assert.equal(AVAILABLE_ROUTES.some((item) => item.path === '/sga'), false);
+test('La ruta SGA está catalogada para la futura habilitación de operarios, pero la pantalla de pruebas sigue limitada a admin', () => {
+  const route = AVAILABLE_ROUTES.find((item) => item.path === '/sga');
+  assert.ok(route);
+  assert.match(route.accessNote, /administradores/);
+  assert.equal(canAccessSgaPreview({ role: 'almacen' }), false);
+  assert.equal(canAccessSgaPreview({ role: 'admin' }), true);
 });
 
 test('El acceso de aplicación no depende de .env y la pantalla también admite admin', async () => {
@@ -37,8 +41,8 @@ test('El acceso de aplicación no depende de .env y la pantalla también admite 
     readFile(new URL('../../src/components/navbar.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/pages/Home.jsx', import.meta.url), 'utf8'),
   ]);
-  assert.match(app, /<Route path="\/sga" element=\{<SgaPreviewGate>/);
-  assert.match(app, /canAccessSgaPreview\(activeUser\)/);
+  assert.match(app, /<Route path="\/sga" element=\{<ProtectedRoute><SgaPage \/><\/ProtectedRoute>\}/);
+  assert.doesNotMatch(app, /<SgaPreviewGate>/);
   assert.doesNotMatch(app, /VITE_SGA_PREVIEW|import\.meta\.env\.DEV/);
   assert.match(sga, /canAccessSgaPreview\(activeUser\)/);
   assert.doesNotMatch(sga, /role === 'almacen' && userCanAccessRoute\(role, '\/sga'/);
@@ -51,5 +55,6 @@ test('El acceso de aplicación no depende de .env y la pantalla también admite 
   assert.match(products, /to: '\/stock'[\s\S]*to: '\/sga'/, 'SGA aparece después de Stock dentro de Productos');
   assert.match(products, /canAccessSgaPreview\(user\)/, 'Solo admin recibe el enlace SGA');
   assert.equal((navbar.match(/to: '\/sga'/g) || []).length, 1, 'No hay enlaces SGA duplicados');
-  assert.doesNotMatch(home, /['"]\/sga['"]/);
+  assert.match(home, /canAccessSgaPreview\(user\)/, 'El acceso directo del inicio también respeta el bloqueo de administrador');
+  assert.match(home, /to: ['"]\/sga['"]/);
 });

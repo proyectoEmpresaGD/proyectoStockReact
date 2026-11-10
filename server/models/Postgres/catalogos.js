@@ -44,7 +44,7 @@ const CATEGORY_SQL = `CASE
   WHEN TRIM(COALESCE(p.codtipo::text, '')) = '106' THEN 'libros'
   ELSE NULL END`;
 
-export const CATALOGOS_QUERY = `
+const CATALOGOS_BASE_CTE = `
 WITH catalogo AS (
   SELECT TRIM(p.codprodu::text) AS codprodu,
          TRIM(COALESCE(p.codtipo::text, '')) AS codtipo,
@@ -106,7 +106,9 @@ WITH catalogo AS (
        OR ($4 = 'servir' AND canpenservir > 0)
        OR ($4 = 'recepcion' AND canpenrecib > 0)
        OR ($4 = 'obsoletos' AND obsoleto))
-), estadisticas AS (
+)`;
+
+export const CATALOGOS_QUERY = `${CATALOGOS_BASE_CTE}, estadisticas AS (
   SELECT COUNT(*)::integer AS total,
          COUNT(*) FILTER (WHERE stockactual > 0)::integer AS disponibles,
          COUNT(*) FILTER (WHERE stock_registrado AND COALESCE(stockactual, 0) <= 0)::integer AS sin_stock,
@@ -129,8 +131,33 @@ SELECT row_to_json(e) AS estadisticas,
             FROM productos_catalogo) m) AS marcas
   FROM estadisticas e`;
 
+export const CATALOGOS_EXPORT_QUERY = `${CATALOGOS_BASE_CTE}
+SELECT codprodu, desprodu, codmarca, coleccion, categoria, obsoleto,
+       stockactual, canpenfabri, canpenservir, canpenrecib,
+       stock_registrado, fabricacion_registrada
+  FROM filtrados
+ WHERE ($5::boolean OR NOT obsoleto)
+ ORDER BY CASE WHEN stockactual > 0 THEN 0 WHEN NOT stock_registrado THEN 2 ELSE 1 END,
+          desprodu COLLATE "C", codprodu COLLATE "C"
+ LIMIT $6`;
+
+export const CATALOGOS_EXPORT_MAX_ITEMS = 10000;
+
 export function createCatalogosModel(pool) {
   return {
+    async exportar(filters, incluirObsoletos = false) {
+      // Una sola consulta sin OFFSET para exportar TODOS los artículos filtrados.
+      // Una fila adicional permite detectar el límite sin generar un fichero truncado.
+      const params = [filters.tipo, filters.marca, filters.buscar, filters.estado,
+        Boolean(incluirObsoletos), CATALOGOS_EXPORT_MAX_ITEMS + 1];
+      const { rows } = await pool.query(CATALOGOS_EXPORT_QUERY, params);
+      if (rows.length > CATALOGOS_EXPORT_MAX_ITEMS) {
+        const error = new Error('La exportación supera el máximo permitido. Acota la búsqueda o la marca y vuelve a intentarlo.');
+        error.status = 413;
+        throw error;
+      }
+      return rows;
+    },
     async listar(filters) {
       const params = [filters.tipo, filters.marca, filters.buscar, filters.estado,
         filters.porPagina, (filters.pagina - 1) * filters.porPagina];

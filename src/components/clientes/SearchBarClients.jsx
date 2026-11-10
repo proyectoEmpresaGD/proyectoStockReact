@@ -22,6 +22,7 @@ export default function SearchBar({
     handleSuggestionClick,
     handleSearchEnter,
     searchScope = 'clientes',
+    portfolioView = 'equipo',
 }) {
     const { token } = useAuthContext();
     const wrapperRef = useRef(null);
@@ -54,6 +55,14 @@ export default function SearchBar({
 
     useEffect(() => () => suggestionAbortRef.current?.abort(), []);
 
+    // Evita conservar sugerencias de la cartera anterior tras cambiar el filtro.
+    useEffect(() => {
+        suggestionAbortRef.current?.abort();
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+    }, [portfolioView, setSuggestions]);
+
     function fuzzyFilter(client, term) {
         const haystack = normalizeString(`${client.razclien} ${client.codclien}`);
         return normalizeString(term).split(' ').every((part) => haystack.includes(part));
@@ -70,6 +79,7 @@ export default function SearchBar({
         const path = isReserva ? '/api/reservas/clientes/search' : '/api/clients/search';
         const params = new URLSearchParams({ query: value });
         if (isReserva) params.set('limit', '50');
+        else if (portfolioView === 'propia') params.set('cartera', 'propia');
 
         try {
             const response = await fetch(

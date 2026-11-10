@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { IntrastatController } from '../controllers/intrastat.js';
 import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
+import { INTRASTAT_MAX_FILE_BYTES, validateIntrastatFile } from '../../shared/intrastatFileValidation.js';
 
 export const createIntrastatRouter = () => {
     const router = Router();
@@ -9,10 +10,11 @@ export const createIntrastatRouter = () => {
 
     const upload = multer({
         storage: multer.memoryStorage(),
-        limits: { files: 1, fileSize: 12 * 1024 * 1024 },
+        limits: { files: 1, fileSize: INTRASTAT_MAX_FILE_BYTES },
         fileFilter(req, file, cb) {
-            if (!/\.(xlsx|xls|xlsm)$/i.test(file.originalname || '')) {
-                const error = new Error('Selecciona un archivo Excel (.xlsx, .xls o .xlsm).');
+            const validation = validateIntrastatFile(file);
+            if (!validation.valid) {
+                const error = new Error(validation.message);
                 error.status = 400;
                 return cb(error);
             }
