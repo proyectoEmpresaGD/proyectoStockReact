@@ -2,7 +2,6 @@ import XLSX from 'xlsx-js-style';
 import { IntrastatModel } from '../models/Postgres/intrastat.js';
 import { validateIntrastatFile } from '../../shared/intrastatFileValidation.js';
 import { readIntrastatCsv } from '../utils/intrastatCsv.js';
-import { CODIGOS_IVA_INTRASTAT_COMPRAS, claveFacturaCompra, motivoExclusionCompra, diagnosticoCompra } from '../utils/intrastatComprasDiagnostico.js';
 
 export class IntrastatController {
 
@@ -1316,7 +1315,6 @@ export class IntrastatController {
             return {
                 rows,
                 facturasList,
-                facturasExcluidas: [],
             };
         }
 
@@ -1370,7 +1368,6 @@ export class IntrastatController {
             return {
                 rows,
                 facturasList,
-                facturasExcluidas: [],
             };
         }
 
@@ -1420,14 +1417,8 @@ export class IntrastatController {
 
         return {
             rows: rowsFiltradas,
-            facturasList: facturasListFiltradas,
-            facturasExcluidas: tipo === 'compras'
-                ? facturasFueraDeMes.map(f => diagnosticoCompra(
-                    { ...f, fecha_contable: f.fecha_factura },
-                    f.motivo || 'Fecha contable fuera del mes seleccionado.',
-                    'EXCEL ORIGINAL'
-                ))
-                : [],
+            facturasList:
+                facturasListFiltradas,
         };
     }
 
@@ -1454,13 +1445,6 @@ export class IntrastatController {
                 return res.status(400).json({
                     error: 'Selecciona Ventas o Compras.',
                     code: 'INTRASTAT_TIPO_INVALIDO',
-                });
-            }
-
-            if (tipo === 'compras' && !IntrastatModel.getRangoMesIntrastat(mesIntrastat)) {
-                return res.status(400).json({
-                    error: 'Selecciona un mes válido para Intrastat de Compras. La fecha contable determinará el periodo.',
-                    code: 'INTRASTAT_COMPRAS_MES_OBLIGATORIO',
                 });
             }
 
@@ -2741,21 +2725,6 @@ export class IntrastatController {
                     .mesIntrastat ||
                 '';
 
-            if (!IntrastatModel.getRangoMesIntrastat(mesIntrastat)) {
-                return res.status(400).json({
-                    error: 'Selecciona el mes contable de Intrastat de Compras.',
-                    code: 'INTRASTAT_COMPRAS_MES_OBLIGATORIO',
-                });
-            }
-
-            const exclusionesMap = new Map();
-            const registrarExclusion = (registro) => {
-                if (registro.factura && registro.motivo && !exclusionesMap.has(registro.factura)) {
-                    exclusionesMap.set(registro.factura, registro);
-                }
-            };
-            const facturasRecuperadas = new Set();
-
             const FACTURA_KEY =
                 this.getColumnKey(
                     rows,
@@ -2894,24 +2863,30 @@ export class IntrastatController {
 
             let facturasList = [];
 
-            for (const [indexExcel, row] of rows.entries()) {
-                const facturaRaw = row[FACTURA_KEY];
+            for (
+                const row
+                of rows
+            ) {
+                const facturaRaw =
+                    row[
+                    FACTURA_KEY
+                    ];
+
                 if (!facturaRaw) {
-                    registrarExclusion({
-                        factura: `FILA ${indexExcel + 2}`,
-                        motivo: 'La fila del Excel tiene importe, pero no tiene referencia de factura.',
-                        origen: 'EXCEL ORIGINAL',
-                    });
                     continue;
                 }
 
-                const parsed = this.parseFacturaCompra(facturaRaw);
-                if (!parsed?.codserfaccompra) {
-                    registrarExclusion({
-                        factura: String(facturaRaw).trim().toUpperCase().slice(0, 100),
-                        motivo: 'Referencia de factura sin serie o con formato no reconocido en el Excel.',
-                        origen: 'EXCEL ORIGINAL',
-                    });
+                const parsed =
+                    this
+                        .parseFacturaCompra(
+                            facturaRaw
+                        );
+
+                if (
+                    !parsed ||
+                    !parsed
+                        .codserfaccompra
+                ) {
                     continue;
                 }
 
@@ -2995,56 +2970,97 @@ export class IntrastatController {
                 resultadoFiltroMesCompras
                     .facturasList;
 
-            // Toda factura del Excel debe existir en faccompra y tener fecconta
-            // del mes. Se informa de las excluidas, incluidas las no encontradas.
-            for (const exclusion of resultadoFiltroMesCompras.facturasExcluidas || []) {
-                registrarExclusion(exclusion);
-            }
+            const facturasCompraConIvaNoPermitido =
+                await IntrastatModel
+                    .getFacturasCompraConIvaNoPermitidoByList({
+                        facturasList,
 
-            // Fuente de verdad: faccompra.fecconta. Se auditan TODAS las
-            // facturas contabilizadas en el mes, aunque se emitieran en agosto
-            // o septiembre y no estén en el Excel original.
-            const resumenContable = await IntrastatModel
-                .getResumenComprasPorFechaContable({
-                    mesIntrastat,
-                    codigosPermitidos: CODIGOS_IVA_INTRASTAT_COMPRAS,
+                        codigosPermitidos: [
+                            '04',
+                            '16'
+                        ],
+                    });
+
+            const facturasCompraConIvaNoPermitidoSet =
+                new Set(
+                    facturasCompraConIvaNoPermitido
+                        .map(
+                            factura =>
+                                `${factura.codserfaccompra}-${factura.nfaccompra}`
+                                    .replace(
+                                        /\s+/g,
+                                        ''
+                                    )
+                                    .toUpperCase()
+                        )
+                );
+
+            rows =
+                rows.filter(row => {
+                    const parsed =
+                        this
+                            .parseFacturaCompra(
+                                row[
+                                FACTURA_KEY
+                                ]
+                            );
+
+                    if (
+                        !parsed ||
+                        !parsed
+                            .codserfaccompra
+                    ) {
+                        return false;
+                    }
+
+                    const key =
+                        this
+                            .normalizeFacturaKey({
+                                serie:
+                                    parsed
+                                        .codserfaccompra,
+
+                                numero:
+                                    parsed
+                                        .nfaccompra,
+                            });
+
+                    return (
+                        !facturasCompraConIvaNoPermitidoSet
+                            .has(key)
+                    );
                 });
 
-            const facturasPermitidas = new Set();
-            for (const registro of resumenContable) {
-                const factura = claveFacturaCompra(
-                    registro.codserfaccompra, registro.nfaccompra
+            for (
+                const factura
+                of facturasCompraConIvaNoPermitidoSet
+            ) {
+                facturasMap.delete(
+                    factura
                 );
-                if (!factura) continue;
-                const motivo = motivoExclusionCompra(registro);
-                if (motivo) {
-                    registrarExclusion(diagnosticoCompra(registro, motivo));
-                } else {
-                    facturasPermitidas.add(factura);
-                }
             }
 
-            // Aplica los mismos criterios a las líneas aportadas en Excel y a
-            // las recuperadas de BD. No permitir IVA 04 en un camino y 16 en otro.
-            rows = rows.filter(row => {
-                const parsed = this.parseFacturaCompra(row[FACTURA_KEY]);
-                return parsed?.codserfaccompra && facturasPermitidas.has(
-                    this.normalizeFacturaKey({
-                        serie: parsed.codserfaccompra,
-                        numero: parsed.nfaccompra,
-                    })
-                );
-            });
+            facturasList =
+                facturasList.filter(
+                    factura => {
+                        const key =
+                            this
+                                .normalizeFacturaKey({
+                                    serie:
+                                        factura
+                                            .codserfaccompra,
 
-            for (const factura of Array.from(facturasMap.keys())) {
-                if (!facturasPermitidas.has(factura)) facturasMap.delete(factura);
-            }
-            facturasList = facturasList.filter(f => facturasPermitidas.has(
-                this.normalizeFacturaKey({
-                    serie: f.codserfaccompra,
-                    numero: f.nfaccompra,
-                })
-            ));
+                                    numero:
+                                        factura
+                                            .nfaccompra,
+                                });
+
+                        return (
+                            !facturasCompraConIvaNoPermitidoSet
+                                .has(key)
+                        );
+                    }
+                );
 
             if (mesIntrastat) {
                 const facturasExistentes =
@@ -3057,8 +3073,6 @@ export class IntrastatController {
                         .getLineasComprasIntrastatFaltantesPorMes({
                             mesIntrastat,
                             facturasExistentes,
-                            facturasPermitidas: Array.from(facturasPermitidas),
-                            codigosPermitidos: CODIGOS_IVA_INTRASTAT_COMPRAS,
                         });
 
                 for (
@@ -3165,8 +3179,9 @@ export class IntrastatController {
                             'SI - FACTURA DEL MES NO INCLUIDA EN EXCEL',
                     };
 
-                    rows.push(nuevaRow);
-                    facturasRecuperadas.add(facturaKey);
+                    rows.push(
+                        nuevaRow
+                    );
 
                     if (
                         !facturasMap
@@ -3201,20 +3216,6 @@ export class IntrastatController {
                         .push(
                             nuevaRow
                         );
-                }
-            }
-
-            // Un código IVA permitido no garantiza que las relaciones SQL
-            // permitan reconstruir la factura. Nunca omitirla en silencio.
-            for (const factura of facturasPermitidas) {
-                if (!facturasMap.has(factura)) {
-                    const registro = resumenContable.find(r =>
-                        claveFacturaCompra(r.codserfaccompra, r.nfaccompra) === factura
-                    );
-                    registrarExclusion(diagnosticoCompra(
-                        registro || {},
-                        'La factura tiene líneas potencialmente válidas, pero no se recuperó ninguna línea para el Excel. Revisar las relaciones entre factura y albaranes.'
-                    ));
                 }
             }
 
@@ -4114,11 +4115,7 @@ export class IntrastatController {
                 errores:
                     erroresFacturas,
 
-                facturasIvaIncorrecto,
-                facturasExcluidas: Array.from(exclusionesMap.values())
-                    .sort((a, b) => String(a.factura).localeCompare(String(b.factura))),
-                facturasRecuperadas: facturasRecuperadas.size,
-                fechaSeleccion: 'fecconta',
+                facturasIvaIncorrecto
             });
 
         } catch (error) {

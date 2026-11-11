@@ -1,0 +1,1063 @@
+--- a/server/models/Postgres/intrastat.js
++++ b/server/models/Postgres/intrastat.js
+@@ -876,129 +876,62 @@
+         if (!Array.isArray(facturasList) || facturasList.length === 0) {
+             return [];
+         }
++
++        const rangoMes = this.getRangoMesIntrastat(mesIntrastat);
++
++        if (!rangoMes) {
++            return [];
++        }
++
++        const facturasNormalizadas = facturasList
++            .filter(factura =>
++                factura?.codserfaccompra !== undefined &&
++                factura?.codserfaccompra !== null &&
++                factura?.nfaccompra !== undefined &&
++                factura?.nfaccompra !== null
+-        const rango = this.getRangoMesIntrastat(mesIntrastat);
+-        if (!rango) return [];
+-
+-        // LEFT JOIN: también detecta referencias presentes en el Excel que NO
+-        // existen en faccompra (antes pasaban silenciosamente al resultado).
+-        // BOOL_OR impide descartar una referencia repetida en distintos ejercicios
+-        // cuando al menos un asiento pertenece al mes solicitado.
+-        const series = facturasList.map(f => String(f.codserfaccompra).trim().toUpperCase());
+-        const numeros = facturasList.map(f => String(f.nfaccompra).trim());
+-        const query = `
+-            WITH solicitadas AS (
+-                SELECT DISTINCT serie, numero
+-                FROM UNNEST($1::text[], $2::text[]) AS s(serie, numero)
+-            ), estados AS (
+-                SELECT s.serie AS codserfaccompra,
+-                       s.numero AS nfaccompra,
+-                       MAX(f.fecconta) AS fecha_factura,
+-                       COUNT(f.nfaccompra) > 0 AS existe,
+-                       COALESCE(BOOL_OR(
+-                           f.fecconta >= $3::date AND f.fecconta < $4::date
+-                       ), FALSE) AS en_mes
+-                FROM solicitadas s
+-                LEFT JOIN faccompra f
+-                    ON UPPER(TRIM(CAST(f.codserfaccompra AS text))) = s.serie
+-                   AND TRIM(CAST(f.nfaccompra AS text)) = s.numero
+-                GROUP BY s.serie, s.numero
+             )
++            .map(factura =>
++                `${factura.codserfaccompra}-${factura.nfaccompra}`
++                    .replace(/\s+/g, '')
++                    .toUpperCase()
++            );
++
++        if (facturasNormalizadas.length === 0) {
++            return [];
++        }
++
++        const query = `
++        SELECT DISTINCT
++            TRIM(CAST(codserfaccompra AS text)) AS codserfaccompra,
++            TRIM(CAST(nfaccompra AS text)) AS nfaccompra,
++            fecconta AS fecha_factura
++        FROM faccompra
++        WHERE
++            UPPER(
++                REPLACE(
++                    TRIM(CAST(codserfaccompra AS text))
++                    || '-' ||
++                    TRIM(CAST(nfaccompra AS text)),
++                    ' ',
++                    ''
++                )
++            ) = ANY($1::text[])
++            AND (
++                fecconta IS NULL
++                OR fecconta < $2::date
++                OR fecconta >= $3::date
++            )
++        ORDER BY
++            codserfaccompra,
++            nfaccompra
++    `;
++
+-            SELECT codserfaccompra, nfaccompra, fecha_factura,
+-                   CASE
+-                     WHEN NOT existe THEN 'No existe en faccompra.'
+-                     WHEN fecha_factura IS NULL THEN 'Sin fecha contable (fecconta).'
+-                     ELSE 'Fecha contable fuera del mes seleccionado.'
+-                   END AS motivo
+-            FROM estados
+-            WHERE NOT en_mes
+-            ORDER BY codserfaccompra, nfaccompra
+-        `;
+         const { rows } = await pool.query(query, [
++            facturasNormalizadas,
++            rangoMes.fechaInicio,
++            rangoMes.fechaFin,
+-            series, numeros, rango.fechaInicio, rango.fechaFin,
+         ]);
++
+-        return rows;
+-    }
+-
+-    /**
+-     * Revisión del universo de facturas del periodo. La fecha del documento o
+-     * del albarán nunca determina la pertenencia al mes: solo f.fecconta.
+-     * El diagnóstico se hace por factura para no esconder exclusiones.
+-     */
+-    static async getResumenComprasPorFechaContable({
+-        mesIntrastat,
+-        codigosPermitidos = ['04', '16'],
+-    }) {
+-        const rango = this.getRangoMesIntrastat(mesIntrastat);
+-        if (!rango) return [];
+-
+-        const query = `
+-            SELECT
+-                TRIM(CAST(f.codserfaccompra AS text)) AS codserfaccompra,
+-                TRIM(CAST(f.nfaccompra AS text)) AS nfaccompra,
+-                MAX(f.fecconta) AS fecha_contable,
+-                MAX(COALESCE(
+-                    NULLIF(to_jsonb(f)->>'fecha', ''),
+-                    NULLIF(to_jsonb(f)->>'fecfactura', '')
+-                )) AS fecha_documento,
+-                MAX(CAST(f.codprove AS text)) AS codprove,
+-                COUNT(DISTINCT (TRIM(CAST(a.codseralbcompra AS text))
+-                    || '|' || TRIM(CAST(a.nalbcompra AS text)))) AS albaranes,
+-                COUNT(l.linea) AS lineas,
+-                STRING_AGG(DISTINCT LPAD(TRIM(CAST(l.codiva AS text)), 2, '0'), ', ')
+-                    FILTER (WHERE l.linea IS NOT NULL) AS codigos_iva,
+-                COUNT(l.linea) FILTER (
+-                    WHERE COALESCE(l.impbruto, 0) <> 0
+-                      AND (
+-                        l.codiva IS NULL
+-                        OR LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') <> ALL($3::text[])
+-                      )
+-                ) AS lineas_iva_no_permitido,
+-                COUNT(l.linea) FILTER (
+-                    WHERE COALESCE(l.impbruto, 0) = 0
+-                ) AS lineas_sin_importe,
+-                COUNT(l.linea) FILTER (
+-                    WHERE COALESCE(l.impbruto, 0) <> 0
+-                      AND (
+-                        UPPER(TRIM(COALESCE(CAST(l.codprodu AS text), '')))
+-                            IN ('PORTES75', 'COMPRAS')
+-                        OR UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
+-                            LIKE '%METROS FACTURADOS DE MÁS%'
+-                        OR UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
+-                            LIKE '%METROS FACTURADOS DE MAS%'
+-                      )
+-                ) AS lineas_auxiliares,
+-                COUNT(l.linea) FILTER (
+-                    WHERE COALESCE(l.impbruto, 0) <> 0
+-                      AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) = ''
+-                ) AS lineas_sin_producto,
+-                COUNT(l.linea) FILTER (
+-                    WHERE LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = ANY($3::text[])
+-                      AND COALESCE(l.impbruto, 0) <> 0
+-                      AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) <> ''
+-                      AND UPPER(TRIM(CAST(l.codprodu AS text))) NOT IN ('PORTES75', 'COMPRAS')
+-                      AND UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
+-                          NOT LIKE '%METROS FACTURADOS DE MÁS%'
+-                      AND UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
+-                          NOT LIKE '%METROS FACTURADOS DE MAS%'
+-                ) AS lineas_aptas
+-            FROM faccompra f
+-            LEFT JOIN albcompra a
+-              ON UPPER(TRIM(CAST(a.codserfaccompra AS text)))
+-                   = UPPER(TRIM(CAST(f.codserfaccompra AS text)))
+-             AND TRIM(CAST(a.nfaccompra AS text)) = TRIM(CAST(f.nfaccompra AS text))
+-            LEFT JOIN albcompra_linea l
+-              ON TRIM(CAST(l.nalbcompra AS text)) = TRIM(CAST(a.nalbcompra AS text))
+-             AND UPPER(TRIM(CAST(l.codseralbcompra AS text)))
+-                   = UPPER(TRIM(CAST(a.codseralbcompra AS text)))
+-            WHERE f.fecconta >= $1::date AND f.fecconta < $2::date
+-            GROUP BY f.codserfaccompra, f.nfaccompra
+-            ORDER BY f.codserfaccompra, f.nfaccompra
+-        `;
+-        const { rows } = await pool.query(query, [
+-            rango.fechaInicio,
+-            rango.fechaFin,
+-            codigosPermitidos,
+-        ]);
+         return rows;
+     }
+ 
+@@ -2017,22 +1950,35 @@
+     static async getLineasComprasIntrastatFaltantesPorMes({
+         mesIntrastat,
+         facturasExistentes = [],
+-        facturasPermitidas = [],
+-        codigosPermitidos = ['04', '16'],
+     }) {
++        if (!mesIntrastat) {
+-        const rango = this.getRangoMesIntrastat(mesIntrastat);
+-        // Nunca ampliar la selección a todas las facturas si no hay elegibles.
+-        if (!rango || !Array.isArray(facturasPermitidas) || !facturasPermitidas.length) {
+             return [];
+         }
+ 
++        const [year, month] =
++            String(mesIntrastat)
++                .split('-')
++                .map(Number);
++
++        if (!year || !month) {
++            return [];
++        }
++
++        const fechaInicioSql =
++            `${year}-${String(month).padStart(2, '0')}-01`;
++
++        const fechaFinDate =
++            new Date(year, month, 1);
++
++        const fechaFinSql =
++            fechaFinDate
++                .toISOString()
++                .slice(0, 10);
++
++        const valores = [
++            fechaInicioSql,
++            fechaFinSql,
++        ];
+-        const valores = [rango.fechaInicio, rango.fechaFin];
+-        const permitidasNormalizadas = facturasPermitidas
+-            .map(value => String(value).trim().replace(/\s+/g, '').toUpperCase())
+-            .filter(Boolean);
+-        if (!permitidasNormalizadas.length) return [];
+-        valores.push(permitidasNormalizadas);
+-        const indicePermitidas = valores.length;
+ 
+         const facturasExistentesNormalizadas =
+             facturasExistentes
+@@ -2079,9 +2025,6 @@
+             )
+         `;
+         }
+-
+-        valores.push(codigosPermitidos);
+-        const indiceCodigosIva = valores.length;
+ 
+         const query = `
+         WITH lineas AS (
+@@ -2278,15 +2221,16 @@
+                 f.fecconta >= $1
+                 AND f.fecconta < $2
+ 
++                AND LPAD(
++                    TRIM(
++                        CAST(
++                            l.codiva
++                            AS text
++                        )
++                    ),
++                    2,
++                    '0'
++                ) = '04'
+-                AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0')
+-                    = ANY($${indiceCodigosIva}::text[])
+-
+-                AND UPPER(REPLACE(
+-                    TRIM(CAST(a.codserfaccompra AS text)) || '-' ||
+-                    TRIM(CAST(a.nfaccompra AS text)), ' ', ''
+-                )) = ANY($${indicePermitidas}::text[])
+-
+-                AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) <> ''
+ 
+                 AND COALESCE(
+                     l.impbruto,
+@@ -2396,7 +2340,7 @@
+             AND TRIM(COALESCE(l.nfaccompra, '')) = TRIM(sub.nfaccompra)
+             AND l.codiva IS NOT NULL
+             AND TRIM(l.codiva) <> ''
++            AND TRIM(l.codiva) <> '04'
+-            AND LPAD(TRIM(l.codiva), 2, '0') NOT IN ('04', '16')
+         GROUP BY sub.codserfaccompra, sub.nfaccompra
+         ORDER BY sub.codserfaccompra, sub.nfaccompra
+     `;
+--- a/server/controllers/intrastat.js
++++ b/server/controllers/intrastat.js
+@@ -2,7 +2,6 @@
+ import { IntrastatModel } from '../models/Postgres/intrastat.js';
+ import { validateIntrastatFile } from '../../shared/intrastatFileValidation.js';
+ import { readIntrastatCsv } from '../utils/intrastatCsv.js';
+-import { CODIGOS_IVA_INTRASTAT_COMPRAS, claveFacturaCompra, motivoExclusionCompra, diagnosticoCompra } from '../utils/intrastatComprasDiagnostico.js';
+ 
+ export class IntrastatController {
+ 
+@@ -1316,7 +1315,6 @@
+             return {
+                 rows,
+                 facturasList,
+-                facturasExcluidas: [],
+             };
+         }
+ 
+@@ -1370,7 +1368,6 @@
+             return {
+                 rows,
+                 facturasList,
+-                facturasExcluidas: [],
+             };
+         }
+ 
+@@ -1420,14 +1417,8 @@
+ 
+         return {
+             rows: rowsFiltradas,
++            facturasList:
++                facturasListFiltradas,
+-            facturasList: facturasListFiltradas,
+-            facturasExcluidas: tipo === 'compras'
+-                ? facturasFueraDeMes.map(f => diagnosticoCompra(
+-                    { ...f, fecha_contable: f.fecha_factura },
+-                    f.motivo || 'Fecha contable fuera del mes seleccionado.',
+-                    'EXCEL ORIGINAL'
+-                ))
+-                : [],
+         };
+     }
+ 
+@@ -1454,13 +1445,6 @@
+                 return res.status(400).json({
+                     error: 'Selecciona Ventas o Compras.',
+                     code: 'INTRASTAT_TIPO_INVALIDO',
+-                });
+-            }
+-
+-            if (tipo === 'compras' && !IntrastatModel.getRangoMesIntrastat(mesIntrastat)) {
+-                return res.status(400).json({
+-                    error: 'Selecciona un mes válido para Intrastat de Compras. La fecha contable determinará el periodo.',
+-                    code: 'INTRASTAT_COMPRAS_MES_OBLIGATORIO',
+                 });
+             }
+ 
+@@ -2741,21 +2725,6 @@
+                     .mesIntrastat ||
+                 '';
+ 
+-            if (!IntrastatModel.getRangoMesIntrastat(mesIntrastat)) {
+-                return res.status(400).json({
+-                    error: 'Selecciona el mes contable de Intrastat de Compras.',
+-                    code: 'INTRASTAT_COMPRAS_MES_OBLIGATORIO',
+-                });
+-            }
+-
+-            const exclusionesMap = new Map();
+-            const registrarExclusion = (registro) => {
+-                if (registro.factura && registro.motivo && !exclusionesMap.has(registro.factura)) {
+-                    exclusionesMap.set(registro.factura, registro);
+-                }
+-            };
+-            const facturasRecuperadas = new Set();
+-
+             const FACTURA_KEY =
+                 this.getColumnKey(
+                     rows,
+@@ -2894,24 +2863,30 @@
+ 
+             let facturasList = [];
+ 
++            for (
++                const row
++                of rows
++            ) {
++                const facturaRaw =
++                    row[
++                    FACTURA_KEY
++                    ];
++
+-            for (const [indexExcel, row] of rows.entries()) {
+-                const facturaRaw = row[FACTURA_KEY];
+                 if (!facturaRaw) {
+-                    registrarExclusion({
+-                        factura: `FILA ${indexExcel + 2}`,
+-                        motivo: 'La fila del Excel tiene importe, pero no tiene referencia de factura.',
+-                        origen: 'EXCEL ORIGINAL',
+-                    });
+                     continue;
+                 }
+ 
++                const parsed =
++                    this
++                        .parseFacturaCompra(
++                            facturaRaw
++                        );
++
++                if (
++                    !parsed ||
++                    !parsed
++                        .codserfaccompra
++                ) {
+-                const parsed = this.parseFacturaCompra(facturaRaw);
+-                if (!parsed?.codserfaccompra) {
+-                    registrarExclusion({
+-                        factura: String(facturaRaw).trim().toUpperCase().slice(0, 100),
+-                        motivo: 'Referencia de factura sin serie o con formato no reconocido en el Excel.',
+-                        origen: 'EXCEL ORIGINAL',
+-                    });
+                     continue;
+                 }
+ 
+@@ -2995,56 +2970,97 @@
+                 resultadoFiltroMesCompras
+                     .facturasList;
+ 
++            const facturasCompraConIvaNoPermitido =
++                await IntrastatModel
++                    .getFacturasCompraConIvaNoPermitidoByList({
++                        facturasList,
++
++                        codigosPermitidos: [
++                            '04',
++                            '16'
++                        ],
++                    });
++
++            const facturasCompraConIvaNoPermitidoSet =
++                new Set(
++                    facturasCompraConIvaNoPermitido
++                        .map(
++                            factura =>
++                                `${factura.codserfaccompra}-${factura.nfaccompra}`
++                                    .replace(
++                                        /\s+/g,
++                                        ''
++                                    )
++                                    .toUpperCase()
++                        )
+-            // Toda factura del Excel debe existir en faccompra y tener fecconta
+-            // del mes. Se informa de las excluidas, incluidas las no encontradas.
+-            for (const exclusion of resultadoFiltroMesCompras.facturasExcluidas || []) {
+-                registrarExclusion(exclusion);
+-            }
+-
+-            // Fuente de verdad: faccompra.fecconta. Se auditan TODAS las
+-            // facturas contabilizadas en el mes, aunque se emitieran en agosto
+-            // o septiembre y no estén en el Excel original.
+-            const resumenContable = await IntrastatModel
+-                .getResumenComprasPorFechaContable({
+-                    mesIntrastat,
+-                    codigosPermitidos: CODIGOS_IVA_INTRASTAT_COMPRAS,
+-                });
+-
+-            const facturasPermitidas = new Set();
+-            for (const registro of resumenContable) {
+-                const factura = claveFacturaCompra(
+-                    registro.codserfaccompra, registro.nfaccompra
+                 );
++
++            rows =
++                rows.filter(row => {
++                    const parsed =
++                        this
++                            .parseFacturaCompra(
++                                row[
++                                FACTURA_KEY
++                                ]
++                            );
++
++                    if (
++                        !parsed ||
++                        !parsed
++                            .codserfaccompra
++                    ) {
++                        return false;
++                    }
++
++                    const key =
++                        this
++                            .normalizeFacturaKey({
++                                serie:
++                                    parsed
++                                        .codserfaccompra,
++
++                                numero:
++                                    parsed
++                                        .nfaccompra,
++                            });
++
++                    return (
++                        !facturasCompraConIvaNoPermitidoSet
++                            .has(key)
++                    );
++                });
++
++            for (
++                const factura
++                of facturasCompraConIvaNoPermitidoSet
++            ) {
++                facturasMap.delete(
++                    factura
+-                if (!factura) continue;
+-                const motivo = motivoExclusionCompra(registro);
+-                if (motivo) {
+-                    registrarExclusion(diagnosticoCompra(registro, motivo));
+-                } else {
+-                    facturasPermitidas.add(factura);
+-                }
+-            }
+-
+-            // Aplica los mismos criterios a las líneas aportadas en Excel y a
+-            // las recuperadas de BD. No permitir IVA 04 en un camino y 16 en otro.
+-            rows = rows.filter(row => {
+-                const parsed = this.parseFacturaCompra(row[FACTURA_KEY]);
+-                return parsed?.codserfaccompra && facturasPermitidas.has(
+-                    this.normalizeFacturaKey({
+-                        serie: parsed.codserfaccompra,
+-                        numero: parsed.nfaccompra,
+-                    })
+                 );
++            }
++
++            facturasList =
++                facturasList.filter(
++                    factura => {
++                        const key =
++                            this
++                                .normalizeFacturaKey({
++                                    serie:
++                                        factura
++                                            .codserfaccompra,
++
++                                    numero:
++                                        factura
++                                            .nfaccompra,
++                                });
++
++                        return (
++                            !facturasCompraConIvaNoPermitidoSet
++                                .has(key)
++                        );
++                    }
++                );
+-            });
+-
+-            for (const factura of Array.from(facturasMap.keys())) {
+-                if (!facturasPermitidas.has(factura)) facturasMap.delete(factura);
+-            }
+-            facturasList = facturasList.filter(f => facturasPermitidas.has(
+-                this.normalizeFacturaKey({
+-                    serie: f.codserfaccompra,
+-                    numero: f.nfaccompra,
+-                })
+-            ));
+ 
+             if (mesIntrastat) {
+                 const facturasExistentes =
+@@ -3057,8 +3073,6 @@
+                         .getLineasComprasIntrastatFaltantesPorMes({
+                             mesIntrastat,
+                             facturasExistentes,
+-                            facturasPermitidas: Array.from(facturasPermitidas),
+-                            codigosPermitidos: CODIGOS_IVA_INTRASTAT_COMPRAS,
+                         });
+ 
+                 for (
+@@ -3165,8 +3179,9 @@
+                             'SI - FACTURA DEL MES NO INCLUIDA EN EXCEL',
+                     };
+ 
++                    rows.push(
++                        nuevaRow
++                    );
+-                    rows.push(nuevaRow);
+-                    facturasRecuperadas.add(facturaKey);
+ 
+                     if (
+                         !facturasMap
+@@ -3201,20 +3216,6 @@
+                         .push(
+                             nuevaRow
+                         );
+-                }
+-            }
+-
+-            // Un código IVA permitido no garantiza que las relaciones SQL
+-            // permitan reconstruir la factura. Nunca omitirla en silencio.
+-            for (const factura of facturasPermitidas) {
+-                if (!facturasMap.has(factura)) {
+-                    const registro = resumenContable.find(r =>
+-                        claveFacturaCompra(r.codserfaccompra, r.nfaccompra) === factura
+-                    );
+-                    registrarExclusion(diagnosticoCompra(
+-                        registro || {},
+-                        'La factura tiene líneas potencialmente válidas, pero no se recuperó ninguna línea para el Excel. Revisar las relaciones entre factura y albaranes.'
+-                    ));
+                 }
+             }
+ 
+@@ -4114,11 +4115,7 @@
+                 errores:
+                     erroresFacturas,
+ 
++                facturasIvaIncorrecto
+-                facturasIvaIncorrecto,
+-                facturasExcluidas: Array.from(exclusionesMap.values())
+-                    .sort((a, b) => String(a.factura).localeCompare(String(b.factura))),
+-                facturasRecuperadas: facturasRecuperadas.size,
+-                fechaSeleccion: 'fecconta',
+             });
+ 
+         } catch (error) {
+--- a/src/pages/Intrastat.jsx
++++ b/src/pages/Intrastat.jsx
+@@ -13,8 +13,6 @@
+     const [file, setFile] = useState(null);
+     const [errores, setErrores] = useState([]);
+     const [facturasIva, setFacturasIva] = useState([]);
+-    const [facturasExcluidas, setFacturasExcluidas] = useState([]);
+-    const [facturasRecuperadas, setFacturasRecuperadas] = useState(0);
+     const [loading, setLoading] = useState(false);
+     const [tipo, setTipo] = useState('ventas');
+     const [mesIntrastat, setMesIntrastat] = useState('');
+@@ -31,8 +29,6 @@
+     const limpiarResultado = () => {
+         setErrores([]);
+         setFacturasIva([]);
+-        setFacturasExcluidas([]);
+-        setFacturasRecuperadas(0);
+         setErrorGeneracion('');
+         setDescargaCorrecta('');
+         setAnalisisCompletado(false);
+@@ -54,10 +50,6 @@
+     const handleGenerar = async () => {
+         if (generandoRef.current) return;
+         const validacion = validateIntrastatFile(file);
+-        if (tipo === 'compras' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(mesIntrastat)) {
+-            setErrorGeneracion('Selecciona un mes contable válido antes de generar Intrastat de Compras.');
+-            return;
+-        }
+         if (!validacion.valid) {
+             setErrorGeneracion(validacion.message);
+             return;
+@@ -101,8 +93,6 @@
+             }
+ 
+             setFacturasIva(result.facturasIvaIncorrecto || []);
+-            setFacturasExcluidas(result.facturasExcluidas || []);
+-            setFacturasRecuperadas(Number(result.facturasRecuperadas || 0));
+             setErrores(result.errores || []);
+             setAnalisisCompletado(true);
+             setDescargaCorrecta(`Archivo ${link.download} preparado. Comprueba la carpeta de descargas.`);
+@@ -150,8 +140,6 @@
+                             <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
+                                 <input
+                                     type="month"
+-                                    required={tipo === 'compras'}
+-                                    aria-required={tipo === 'compras'}
+                                     value={mesIntrastat}
+                                     onChange={(event) => { setMesIntrastat(event.target.value); limpiarResultado(); }}
+                                     className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none"
+@@ -179,12 +167,6 @@
+                         </label>
+                     </div>
+ 
+-                    {tipo === 'compras' && (
+-                        <p className="cjm-muted mt-4 text-sm leading-6">
+-                            <strong className="app-text">Periodo obligatorio:</strong> Compras se selecciona por la fecha contable (<code>faccompra.fecconta</code>), aunque la factura esté fechada en un mes anterior. Las facturas que no puedan incorporarse se detallarán abajo con el motivo.
+-                        </p>
+-                    )}
+-
+                     {errorGeneracion && (
+                         <div role="alert" className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+@@ -262,8 +244,8 @@
+                                         <tbody>
+                                             {facturasIva.map((f, i) => (
+                                                 <tr key={i}>
++                                                    <td>{f.codserfacventa}</td>
++                                                    <td>{f.nfacventa}</td>
+-                                                    <td>{f.codserfaccompra ?? f.codserfacventa}</td>
+-                                                    <td>{f.nfaccompra ?? f.nfacventa}</td>
+                                                     <td className="font-semibold text-red-600">{f.codigos_iva}</td>
+                                                 </tr>
+                                             ))}
+@@ -278,11 +260,11 @@
+                                         <div className="grid grid-cols-2 gap-3">
+                                             <div>
+                                                 <p className="cjm-data-label"><TranslatedText>Serie</TranslatedText></p>
++                                                <p className="mt-1 app-text">{f.codserfacventa}</p>
+-                                                <p className="mt-1 app-text">{f.codserfaccompra ?? f.codserfacventa}</p>
+                                             </div>
+                                             <div>
+                                                 <p className="cjm-data-label"><TranslatedText>Factura</TranslatedText></p>
++                                                <p className="mt-1 app-text">{f.nfacventa}</p>
+-                                                <p className="mt-1 app-text">{f.nfaccompra ?? f.nfacventa}</p>
+                                             </div>
+                                         </div>
+                                         <div className="mt-3 border-t border-[var(--cjm-border)] pt-3">
+@@ -293,68 +275,6 @@
+                                 ))}
+                             </div>
+                         </>
+-                    )}
+-                </section>
+-            )}
+-
+-            {analisisCompletado && tipo === 'compras' && (
+-                <section className="cjm-card mt-6 overflow-hidden rounded-3xl" aria-labelledby="compras-auditoria-title">
+-                    <header className="flex flex-wrap items-start gap-3 border-b border-[var(--cjm-border)] px-4 py-4 sm:px-6">
+-                        <FileSpreadsheet className="mt-0.5 h-5 w-5 shrink-0 app-text" aria-hidden="true" />
+-                        <div className="min-w-0 flex-1">
+-                            <h2 id="compras-auditoria-title" className="font-semibold app-text">
+-                                <TranslatedText>Control de facturas de Compras por fecha contable</TranslatedText>
+-                            </h2>
+-                            <p className="cjm-muted mt-1 text-sm">
+-                                Se han recuperado {facturasRecuperadas} facturas que faltaban en el Excel original. {facturasExcluidas.length} facturas requieren revisión y no se han incorporado al documento.
+-                            </p>
+-                        </div>
+-                        <span className="rounded-full border border-[var(--cjm-border)] px-3 py-1 text-xs font-bold app-text">
+-                            {facturasExcluidas.length} por revisar
+-                        </span>
+-                    </header>
+-
+-                    {facturasExcluidas.length === 0 ? (
+-                        <div className="p-4 sm:p-6">
+-                            <div className="cjm-alert cjm-alert-success flex items-center gap-3">
+-                                <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+-                                No se han detectado facturas excluidas por los controles de selección.
+-                            </div>
+-                        </div>
+-                    ) : (
+-                        <div className="p-4 sm:p-6">
+-                            <p className="mb-4 text-sm cjm-muted">
+-                                Revisa estas facturas antes de presentar Intrastat. La existencia de un IVA 04 o 16 no confirma por sí sola que la operación sea declarable.
+-                            </p>
+-                            <div className="cjm-table-scroller max-h-[540px] overflow-auto">
+-                                <table className="cjm-table">
+-                                    <thead>
+-                                        <tr>
+-                                            <th>Factura</th>
+-                                            <th>Fecha contable</th>
+-                                            <th>Fecha factura</th>
+-                                            <th>Proveedor</th>
+-                                            <th>Procedencia</th>
+-                                            <th>IVA</th>
+-                                            <th>Motivo de exclusión</th>
+-                                        </tr>
+-                                    </thead>
+-                                    <tbody>
+-                                        {facturasExcluidas.map((item, index) => (
+-                                            <tr key={`${item.factura}-${index}`}>
+-                                                <td className="font-semibold">{item.factura || 'Sin referencia'}</td>
+-                                                <td>{item.fechaContable ? String(item.fechaContable).slice(0, 10) : 'Sin fecha'}</td>
+-                                                <td>{item.fechaDocumento ? String(item.fechaDocumento).slice(0, 10) : '—'}</td>
+-                                                <td>{item.proveedor || '—'}</td>
+-                                                <td>{item.origen || 'BD'}</td>
+-                                                <td>{item.codigosIva || '—'}</td>
+-                                                <td className="min-w-[260px]">{item.motivo}</td>
+-                                            </tr>
+-                                        ))}
+-                                    </tbody>
+-                                </table>
+-                            </div>
+-                        </div>
+                     )}
+                 </section>
+             )}
+--- a/server/utils/intrastatComprasDiagnostico.js
++++ /dev/null
+@@ -1,51 +0,0 @@
+-/**
+- * Reglas compartidas de validación para Intrastat Compras.
+- * La configuración 04/16 procede del flujo actual del ERP, no implica que
+- * cualquier factura con ese IVA sea automáticamente declarable en Intrastat.
+- */
+-export const CODIGOS_IVA_INTRASTAT_COMPRAS = Object.freeze(['04', '16']);
+-
+-export function claveFacturaCompra(serie, numero) {
+-    if (serie === null || serie === undefined || numero === null || numero === undefined) {
+-        return '';
+-    }
+-    return `${serie}-${numero}`.replace(/\s+/g, '').toUpperCase();
+-}
+-
+-export function motivoExclusionCompra(registro) {
+-    const albaranes = Number(registro?.albaranes || 0);
+-    const lineas = Number(registro?.lineas || 0);
+-    const ivaNoPermitido = Number(registro?.lineas_iva_no_permitido || 0);
+-    const aptas = Number(registro?.lineas_aptas || 0);
+-    const sinImporte = Number(registro?.lineas_sin_importe || 0);
+-    const auxiliares = Number(registro?.lineas_auxiliares || 0);
+-    const sinProducto = Number(registro?.lineas_sin_producto || 0);
+-    const codigos = String(registro?.codigos_iva || '').trim();
+-
+-    if (!albaranes) return 'No se encontraron albaranes de compra asociados a la factura.';
+-    if (!lineas) return 'La factura tiene albaranes, pero no se encontraron sus líneas.';
+-    if (ivaNoPermitido > 0) {
+-        return `Hay ${ivaNoPermitido} línea(s) con IVA distinto de 04/16 o sin IVA${codigos ? ` (códigos: ${codigos})` : ''}. Revisar antes de declarar.`;
+-    }
+-    if (aptas > 0) return '';
+-    if (sinImporte === lineas) return 'Todas las líneas tienen importe cero.';
+-    if (auxiliares > 0 && auxiliares + sinImporte >= lineas) {
+-        return 'Solo hay portes, conceptos auxiliares o líneas sin importe declarable.';
+-    }
+-    if (sinProducto > 0 && sinProducto + sinImporte >= lineas) {
+-        return 'Las líneas carecen de referencia de producto o tienen importe cero.';
+-    }
+-    return 'Ninguna línea cumple los criterios de recuperación de Compras (IVA 04/16, artículo e importe).';
+-}
+-
+-export function diagnosticoCompra(registro, motivo, origen = 'BASE DE DATOS') {
+-    return {
+-        factura: claveFacturaCompra(registro?.codserfaccompra, registro?.nfaccompra),
+-        fechaContable: registro?.fecha_contable || registro?.fecha_factura || null,
+-        fechaDocumento: registro?.fecha_documento || null,
+-        proveedor: registro?.codprove || '',
+-        codigosIva: registro?.codigos_iva || '',
+-        motivo,
+-        origen,
+-    };
+-}
+--- a/server/tests/intrastatComprasFechaContable.test.mjs
++++ /dev/null
+@@ -1,112 +0,0 @@
+-import test from 'node:test';
+-import assert from 'node:assert/strict';
+-import { readFile } from 'node:fs/promises';
+-import { fileURLToPath } from 'node:url';
+-import path from 'node:path';
+-import vm from 'node:vm';
+-
+-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+-const modelSource = await readFile(path.join(root, 'server/models/Postgres/intrastat.js'), 'utf8');
+-const controllerSource = await readFile(path.join(root, 'server/controllers/intrastat.js'), 'utf8');
+-const utilsSource = await readFile(path.join(root, 'server/utils/intrastatComprasDiagnostico.js'), 'utf8');
+-const { motivoExclusionCompra, diagnosticoCompra } = await import('data:text/javascript;base64,' + Buffer.from(utilsSource).toString('base64'));
+-
+-function methodBody(source, begin, next) {
+-    const start = source.indexOf(begin);
+-    const end = source.indexOf(next, start + begin.length);
+-    assert.ok(start >= 0 && end > start, `Debe existir ${begin}`);
+-    return source.slice(start, end);
+-}
+-function createModel(queryResult = []) {
+-    const calls = [];
+-    const pool = { async query(sql, params) {
+-        calls.push({ sql, params });
+-        return { rows: queryResult };
+-    } };
+-    const source = [
+-        methodBody(modelSource, '    static getRangoMesIntrastat(', '    static async getFacturasVentaFueraDeMes('),
+-        methodBody(modelSource, '    static async getFacturasCompraFueraDeMes(', '    static async getFacturasCompraByList('),
+-        methodBody(modelSource, '    static async getLineasComprasIntrastatFaltantesPorMes(', '    static async getFacturasCompraConIvaIncorrectoByList('),
+-    ].join('\n');
+-    // El bloque del filtro por mes ya contiene el método de resumen.
+-    const Klass = vm.runInNewContext(`(class IntraTest { ${source} })`, { pool, Date, String, Number });
+-    return { Klass, calls };
+-}
+-
+-test('agosto/septiembre se incluyen por la fecha contable de octubre, no por la fecha del documento', async () => {
+-    const { Klass, calls } = createModel([{
+-        codserfaccompra: 'C', nfaccompra: '120', fecha_factura: '2026-10-03', codiva: '16',
+-    }]);
+-    const rows = await Klass.getLineasComprasIntrastatFaltantesPorMes({
+-        mesIntrastat: '2026-10',
+-        facturasExistentes: ['C-019'],
+-        facturasPermitidas: ['C-120'],
+-        codigosPermitidos: ['04', '16'],
+-    });
+-    assert.equal(rows.length, 1);
+-    assert.deepEqual(Array.from(calls[0].params.slice(0, 2)), ['2026-10-01', '2026-11-01']);
+-    assert.deepEqual(Array.from(calls[0].params[2]), ['C-120']);
+-    assert.deepEqual(Array.from(calls[0].params[4]), ['04', '16']);
+-    assert.match(calls[0].sql, /f\.fecconta >= \$1/);
+-    assert.match(calls[0].sql, /f\.fecconta < \$2/);
+-    assert.match(calls[0].sql, /l\.codiva AS text\)\), 2, '0'\)\s*= ANY\(\$5::text\[\]\)/);
+-    assert.doesNotMatch(calls[0].sql, /a\.fecha\s*[<>]/);
+-});
+-
+-test('sin mes válido o sin facturas elegibles no selecciona facturas sin restricciones', async () => {
+-    const { Klass, calls } = createModel();
+-    assert.equal((await Klass.getLineasComprasIntrastatFaltantesPorMes({ mesIntrastat: '2026-10' })).length, 0);
+-    assert.equal((await Klass.getLineasComprasIntrastatFaltantesPorMes({ mesIntrastat: '2026-13', facturasPermitidas: ['C-120'] })).length, 0);
+-    assert.equal(calls.length, 0);
+-});
+-
+-test('el diagnóstico inspecciona todas las facturas del mes con 04 y 16', async () => {
+-    const { Klass, calls } = createModel([{ codserfaccompra: 'C', nfaccompra: '120' }]);
+-    await Klass.getResumenComprasPorFechaContable({ mesIntrastat: '2026-10' });
+-    assert.deepEqual(Array.from(calls[0].params.slice(0, 2)), ['2026-10-01', '2026-11-01']);
+-    assert.deepEqual(Array.from(calls[0].params[2]), ['04', '16']);
+-    assert.match(calls[0].sql, /FROM faccompra f\s+LEFT JOIN albcompra a/);
+-    assert.match(calls[0].sql, /lineas_iva_no_permitido/);
+-    assert.match(calls[0].sql, /lineas_aptas/);
+-});
+-
+-test('el filtro del Excel también detecta referencias inexistentes en faccompra', async () => {
+-    const { Klass, calls } = createModel([]);
+-    await Klass.getFacturasCompraFueraDeMes({
+-        mesIntrastat: '2026-10',
+-        facturasList: [{ codserfaccompra: 'C', nfaccompra: '120' }],
+-    });
+-    assert.match(calls[0].sql, /LEFT JOIN faccompra f/);
+-    assert.match(calls[0].sql, /WHEN NOT existe THEN/);
+-    assert.deepEqual(Array.from(calls[0].params.slice(2)), ['2026-10-01', '2026-11-01']);
+-});
+-
+-test('factura de IVA 16 con líneas válidas no se excluye', () => {
+-    assert.equal(motivoExclusionCompra({ albaranes: 1, lineas: 2, lineas_aptas: 2, codigos_iva: '16' }), '');
+-});
+-
+-test('las exclusiones indican albarán ausente, falta de líneas e IVA no permitido', () => {
+-    assert.match(motivoExclusionCompra({ albaranes: 0 }), /albaranes/i);
+-    assert.match(motivoExclusionCompra({ albaranes: 1, lineas: 0 }), /líneas/i);
+-    assert.match(motivoExclusionCompra({ albaranes: 1, lineas: 2, lineas_iva_no_permitido: 1, codigos_iva: '21' }), /21/);
+-});
+-
+-test('las facturas sin importe y solo auxiliares se explican', () => {
+-    assert.match(motivoExclusionCompra({ albaranes: 1, lineas: 2, lineas_sin_importe: 2 }), /cero/);
+-    assert.match(motivoExclusionCompra({ albaranes: 1, lineas: 1, lineas_auxiliares: 1 }), /auxiliares/);
+-    assert.match(motivoExclusionCompra({ albaranes: 1, lineas: 1, lineas_sin_producto: 1 }), /referencia/);
+-});
+-
+-test('diagnóstico conserva la referencia y el origen de la exclusión', () => {
+-    const result = diagnosticoCompra({ codserfaccompra: ' C ', nfaccompra: ' 003 ', fecha_contable: '2026-10-06', codprove: 'P2' }, 'IVA ajeno');
+-    assert.equal(result.factura, 'C-003');
+-    assert.equal(result.fechaContable, '2026-10-06');
+-    assert.equal(result.origen, 'BASE DE DATOS');
+-});
+-
+-test('controller exige mes contable solo a Compras y devuelve diagnóstico fuera del Excel', () => {
+-    assert.match(controllerSource, /tipo === 'compras' && !IntrastatModel\.getRangoMesIntrastat\(mesIntrastat\)/);
+-    assert.match(controllerSource, /getResumenComprasPorFechaContable\(/);
+-    assert.match(controllerSource, /facturasExcluidas: Array\.from\(exclusionesMap\.values\(\)\)/);
+-    assert.match(controllerSource, /facturasPermitidas: Array\.from\(facturasPermitidas\)/);
+-});
+--- a/server/tests/intrastatComprasFlujo.test.mjs
++++ /dev/null
+@@ -1,89 +0,0 @@
+-import test from 'node:test';
+-import assert from 'node:assert/strict';
+-import { readFile } from 'node:fs/promises';
+-import { fileURLToPath } from 'node:url';
+-import path from 'node:path';
+-import vm from 'node:vm';
+-
+-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+-const controllerText = await readFile(path.join(root, 'server/controllers/intrastat.js'), 'utf8');
+-const modelText = await readFile(path.join(root, 'server/models/Postgres/intrastat.js'), 'utf8');
+-const helpersText = await readFile(path.join(root, 'server/utils/intrastatComprasDiagnostico.js'), 'utf8');
+-const helpers = await import('data:text/javascript;base64,' + Buffer.from(helpersText).toString('base64'));
+-const modelRangoStart = modelText.indexOf('    static getRangoMesIntrastat(');
+-const modelRangoEnd = modelText.indexOf('    static async getFacturasVentaFueraDeMes(', modelRangoStart);
+-const range = vm.runInNewContext(`(class Rango { ${modelText.slice(modelRangoStart, modelRangoEnd)} })`);
+-
+-function execute({ audit, faltantes = [], input = [{ FACTURA: 'A-999', 'IMPORTE FACTURADO': '8' }], fuera = [] }) {
+-    const calls = [];
+-    const IntrastatModel = {
+-        getRangoMesIntrastat: range.getRangoMesIntrastat.bind(range),
+-        async getFacturasCompraFueraDeMes() { return fuera; },
+-        async getResumenComprasPorFechaContable() { return audit; },
+-        async getLineasComprasIntrastatFaltantesPorMes(args) { calls.push(args); return faltantes; },
+-        async getFacturasCompraByList() { return {}; },
+-        async getProveedoresByFacturas() { return {}; },
+-        async getKmByProveedores() { return {}; },
+-        async getLineasAlbaranCompraPorFactura() { return {}; },
+-        async getImportesExtraByFacturaCompra() { return {}; },
+-        async getIncotermsCompraByFacturaList() { return {}; },
+-        async getFacturasCompraConIvaIncorrectoByList() { return []; },
+-        async getDescripcionByCodproduList() { return {}; },
+-        async getPortesByFacturaCompra() { return 0; },
+-        async getPortes75ByFacturaCompra() { return 0; },
+-        async getComprasByFacturaCompra() { return 0; },
+-        async getTotalFacturaCompra() { return 0; },
+-    };
+-    const XLSX = {
+-        utils: { json_to_sheet(rows) { calls.push({ rows }); return { '!ref': 'A1:B2' }; }, book_new() { return {}; }, book_append_sheet() {} },
+-        write() { return Buffer.from('PK_FAKE_EXCEL'); },
+-    };
+-    const classDefinition = controllerText.slice(controllerText.indexOf('export class IntrastatController'))
+-        .replace(/^export class /, 'class ');
+-    const Controller = vm.runInNewContext(`(function () { ${classDefinition}; return IntrastatController; })()`, {
+-        XLSX,
+-        IntrastatModel,
+-        ...helpers,
+-        console: { error() {}, warn() {}, log() {} },
+-        Buffer,
+-        Date,
+-    });
+-    const instance = new Controller();
+-    instance.applyComprasSheetStyle = () => {};
+-    instance.formatComprasOutputRows = rows => rows;
+-    instance.sanitizeRowsForExcel = rows => rows;
+-    instance.sortRowsByFactura = rows => rows;
+-    instance.getComprasOutputHeaders = () => ['FACTURA', 'IMPORTE FACTURADO'];
+-    let result;
+-    let statusCode = 200;
+-    const res = { json(value) { result = value; return this; }, status(status) { statusCode = status; return this; } };
+-    return instance.generarCompras({ body: { mesIntrastat: '2026-10' } }, res, input)
+-        .then(() => ({ result, statusCode, calls }));
+-}
+-
+-test('recupera una factura de agosto contabilizada en octubre con IVA 16 y señala la exclusión del Excel fuera de mes', async () => {
+-    const { result, statusCode, calls } = await execute({
+-        audit: [{ codserfaccompra: 'A', nfaccompra: '321', fecha_contable: '2026-10-10', fecha_documento: '2026-08-28', albaranes: 1, lineas: 1, lineas_aptas: 1, codigos_iva: '16' }],
+-        fuera: [{ codserfaccompra: 'A', nfaccompra: '999', fecha_factura: '2026-09-20', motivo: 'Fecha contable fuera del mes seleccionado.' }],
+-        faltantes: [{ codserfaccompra: 'A', nfaccompra: '321', importe_facturado: '150', codprodu: 'P001', codpais_proveedor: 'FR', codiva: '16' }],
+-    });
+-    assert.equal(statusCode, 200, JSON.stringify(result));
+-    assert.equal(result.fechaSeleccion, 'fecconta');
+-    assert.equal(result.facturasRecuperadas, 1);
+-    assert.ok(result.fileBase64);
+-    assert.equal(result.facturasExcluidas.length, 1);
+-    assert.equal(result.facturasExcluidas[0].factura, 'A-999');
+-    assert.equal(calls.find(c => c.facturasPermitidas)?.facturasPermitidas[0], 'A-321');
+-    assert.ok(calls.find(c => c.rows)?.rows?.some(r => r.FACTURA === 'A-321'));
+-});
+-
+-test('IVA no permitido se excluye del Excel y muestra el motivo', async () => {
+-    const { result, statusCode, calls } = await execute({
+-        input: [{ FACTURA: 'A-555', 'IMPORTE FACTURADO': 100 }],
+-        audit: [{ codserfaccompra: 'A', nfaccompra: '555', fecha_contable: '2026-10-10', albaranes: 1, lineas: 2, lineas_iva_no_permitido: 1, lineas_aptas: 1, codigos_iva: '04, 21' }],
+-    });
+-    assert.equal(statusCode, 200, JSON.stringify(result));
+-    assert.equal(result.facturasExcluidas.length, 1);
+-    assert.match(result.facturasExcluidas[0].motivo, /21/);
+-    assert.equal(calls.find(c => c.rows)?.rows?.length, 0);
+-});
+--- a/docs/INTRASTAT_COMPRAS_FECCONTA_DIAGNOSTICO.md
++++ /dev/null
+@@ -1,40 +0,0 @@
+-# Intrastat de Compras — fecha contable y diagnóstico de exclusiones
+-
+-## Instalación
+-
+-Copiar estos archivos sobre la raíz de `proyectoStockReact`, respetando su estructura:
+-
+-- `server/models/Postgres/intrastat.js`
+-- `server/controllers/intrastat.js`
+-- `server/utils/intrastatComprasDiagnostico.js` (nuevo)
+-- `src/pages/Intrastat.jsx`
+-- `server/tests/intrastatComprasFechaContable.test.mjs` y `server/tests/intrastatComprasFlujo.test.mjs` (pruebas nuevas)
+-
+-Reiniciar el backend y el frontend, y realizar un backup/diff de cualquier versión de estos archivos que se haya editado después de la última actualización de Intrastat. **No hay migraciones SQL ni nuevas variables `.env`.**
+-
+-## Reglas
+-
+-1. El periodo de Compras es obligatorio y se define con el campo `faccompra.fecconta`. Por ejemplo, 2026-10 corresponde al intervalo `[2026-10-01, 2026-11-01)`.
+-2. Una factura con fecha de documento de agosto o septiembre y `fecconta` de octubre se considera candidata para octubre, independientemente de su fecha de emisión o fecha de albarán.
+-3. Las validaciones de Compras y la recuperación automática utilizan IVA `04` y `16`, siguiendo los códigos previamente admitidos por la aplicación. **La validez fiscal efectiva de cada operación Intrastat debe confirmarse con el ERP y la normativa aplicable**; no se interpreta un código IVA, por sí solo, como prueba de que la operación sea declarable.
+-4. La consulta de diagnóstico parte de todas las facturas de `faccompra` con `fecconta` del mes elegido; las que no cumplen los criterios de selección se indican en pantalla con el motivo. Las referencias del Excel inexistentes en `faccompra`, o cuya fecha contable no corresponde al mes, se excluyen también con explicación.
+-5. No se añaden columnas ni hojas al Excel, y se mantienen sus cálculos, formato, columnas y ausencia de autofiltro. Intrastat Ventas no cambia su lógica.
+-6. Si faltan relaciones con albaranes o líneas, **no se inventan datos**: la factura queda indicada para revisión.
+-
+-## Comprobación manual recomendada
+-
+-- Elegir **Compras** y el mes 2026-10.
+-- Subir el Excel/CSV real del ERP y generar el archivo.
+-- Revisar el apartado «Control de facturas de Compras por fecha contable» y el contador de facturas recuperadas.
+-- Buscar una factura real emitida en agosto/septiembre con `fecconta` de octubre, comprobar si aparece en el Excel de octubre o en el listado de exclusiones y cotejar su IVA y sus albaranes en la BD.
+-- Confirmar que el Excel mantiene las columnas, los importes y los formatos anteriores, sin autofiltro. Generar Ventas para comprobar que su comportamiento es el mismo.
+-
+-## Pruebas automatizadas
+-
+-Desde `server/` (Node.js con ESM):
+-
+-```bash
+-node --test tests/intrastatComprasFechaContable.test.mjs tests/intrastatComprasFlujo.test.mjs
+-```
+-
+-Los tests verifican periodos, parametrización SQL, criterios de IVA, motivos de exclusión y el flujo de generación con datos simulados. La descarga real desde Vite, la conexión al PostgreSQL de producción y el contraste fiscal de IVA 04/16 **no pueden verificarse solo con esos tests**.

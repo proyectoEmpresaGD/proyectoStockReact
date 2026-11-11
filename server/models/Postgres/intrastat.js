@@ -876,129 +876,62 @@ export class IntrastatModel {
         if (!Array.isArray(facturasList) || facturasList.length === 0) {
             return [];
         }
-        const rango = this.getRangoMesIntrastat(mesIntrastat);
-        if (!rango) return [];
 
-        // LEFT JOIN: también detecta referencias presentes en el Excel que NO
-        // existen en faccompra (antes pasaban silenciosamente al resultado).
-        // BOOL_OR impide descartar una referencia repetida en distintos ejercicios
-        // cuando al menos un asiento pertenece al mes solicitado.
-        const series = facturasList.map(f => String(f.codserfaccompra).trim().toUpperCase());
-        const numeros = facturasList.map(f => String(f.nfaccompra).trim());
-        const query = `
-            WITH solicitadas AS (
-                SELECT DISTINCT serie, numero
-                FROM UNNEST($1::text[], $2::text[]) AS s(serie, numero)
-            ), estados AS (
-                SELECT s.serie AS codserfaccompra,
-                       s.numero AS nfaccompra,
-                       MAX(f.fecconta) AS fecha_factura,
-                       COUNT(f.nfaccompra) > 0 AS existe,
-                       COALESCE(BOOL_OR(
-                           f.fecconta >= $3::date AND f.fecconta < $4::date
-                       ), FALSE) AS en_mes
-                FROM solicitadas s
-                LEFT JOIN faccompra f
-                    ON UPPER(TRIM(CAST(f.codserfaccompra AS text))) = s.serie
-                   AND TRIM(CAST(f.nfaccompra AS text)) = s.numero
-                GROUP BY s.serie, s.numero
+        const rangoMes = this.getRangoMesIntrastat(mesIntrastat);
+
+        if (!rangoMes) {
+            return [];
+        }
+
+        const facturasNormalizadas = facturasList
+            .filter(factura =>
+                factura?.codserfaccompra !== undefined &&
+                factura?.codserfaccompra !== null &&
+                factura?.nfaccompra !== undefined &&
+                factura?.nfaccompra !== null
             )
-            SELECT codserfaccompra, nfaccompra, fecha_factura,
-                   CASE
-                     WHEN NOT existe THEN 'No existe en faccompra.'
-                     WHEN fecha_factura IS NULL THEN 'Sin fecha contable (fecconta).'
-                     ELSE 'Fecha contable fuera del mes seleccionado.'
-                   END AS motivo
-            FROM estados
-            WHERE NOT en_mes
-            ORDER BY codserfaccompra, nfaccompra
-        `;
-        const { rows } = await pool.query(query, [
-            series, numeros, rango.fechaInicio, rango.fechaFin,
-        ]);
-        return rows;
-    }
+            .map(factura =>
+                `${factura.codserfaccompra}-${factura.nfaccompra}`
+                    .replace(/\s+/g, '')
+                    .toUpperCase()
+            );
 
-    /**
-     * Revisión del universo de facturas del periodo. La fecha del documento o
-     * del albarán nunca determina la pertenencia al mes: solo f.fecconta.
-     * El diagnóstico se hace por factura para no esconder exclusiones.
-     */
-    static async getResumenComprasPorFechaContable({
-        mesIntrastat,
-        codigosPermitidos = ['04', '16'],
-    }) {
-        const rango = this.getRangoMesIntrastat(mesIntrastat);
-        if (!rango) return [];
+        if (facturasNormalizadas.length === 0) {
+            return [];
+        }
 
         const query = `
-            SELECT
-                TRIM(CAST(f.codserfaccompra AS text)) AS codserfaccompra,
-                TRIM(CAST(f.nfaccompra AS text)) AS nfaccompra,
-                MAX(f.fecconta) AS fecha_contable,
-                MAX(COALESCE(
-                    NULLIF(to_jsonb(f)->>'fecha', ''),
-                    NULLIF(to_jsonb(f)->>'fecfactura', '')
-                )) AS fecha_documento,
-                MAX(CAST(f.codprove AS text)) AS codprove,
-                COUNT(DISTINCT (TRIM(CAST(a.codseralbcompra AS text))
-                    || '|' || TRIM(CAST(a.nalbcompra AS text)))) AS albaranes,
-                COUNT(l.linea) AS lineas,
-                STRING_AGG(DISTINCT LPAD(TRIM(CAST(l.codiva AS text)), 2, '0'), ', ')
-                    FILTER (WHERE l.linea IS NOT NULL) AS codigos_iva,
-                COUNT(l.linea) FILTER (
-                    WHERE COALESCE(l.impbruto, 0) <> 0
-                      AND (
-                        l.codiva IS NULL
-                        OR LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') <> ALL($3::text[])
-                      )
-                ) AS lineas_iva_no_permitido,
-                COUNT(l.linea) FILTER (
-                    WHERE COALESCE(l.impbruto, 0) = 0
-                ) AS lineas_sin_importe,
-                COUNT(l.linea) FILTER (
-                    WHERE COALESCE(l.impbruto, 0) <> 0
-                      AND (
-                        UPPER(TRIM(COALESCE(CAST(l.codprodu AS text), '')))
-                            IN ('PORTES75', 'COMPRAS')
-                        OR UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
-                            LIKE '%METROS FACTURADOS DE MÁS%'
-                        OR UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
-                            LIKE '%METROS FACTURADOS DE MAS%'
-                      )
-                ) AS lineas_auxiliares,
-                COUNT(l.linea) FILTER (
-                    WHERE COALESCE(l.impbruto, 0) <> 0
-                      AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) = ''
-                ) AS lineas_sin_producto,
-                COUNT(l.linea) FILTER (
-                    WHERE LPAD(TRIM(CAST(l.codiva AS text)), 2, '0') = ANY($3::text[])
-                      AND COALESCE(l.impbruto, 0) <> 0
-                      AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) <> ''
-                      AND UPPER(TRIM(CAST(l.codprodu AS text))) NOT IN ('PORTES75', 'COMPRAS')
-                      AND UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
-                          NOT LIKE '%METROS FACTURADOS DE MÁS%'
-                      AND UPPER(TRIM(COALESCE(CAST(l.desprodu AS text), '')))
-                          NOT LIKE '%METROS FACTURADOS DE MAS%'
-                ) AS lineas_aptas
-            FROM faccompra f
-            LEFT JOIN albcompra a
-              ON UPPER(TRIM(CAST(a.codserfaccompra AS text)))
-                   = UPPER(TRIM(CAST(f.codserfaccompra AS text)))
-             AND TRIM(CAST(a.nfaccompra AS text)) = TRIM(CAST(f.nfaccompra AS text))
-            LEFT JOIN albcompra_linea l
-              ON TRIM(CAST(l.nalbcompra AS text)) = TRIM(CAST(a.nalbcompra AS text))
-             AND UPPER(TRIM(CAST(l.codseralbcompra AS text)))
-                   = UPPER(TRIM(CAST(a.codseralbcompra AS text)))
-            WHERE f.fecconta >= $1::date AND f.fecconta < $2::date
-            GROUP BY f.codserfaccompra, f.nfaccompra
-            ORDER BY f.codserfaccompra, f.nfaccompra
-        `;
+        SELECT DISTINCT
+            TRIM(CAST(codserfaccompra AS text)) AS codserfaccompra,
+            TRIM(CAST(nfaccompra AS text)) AS nfaccompra,
+            fecconta AS fecha_factura
+        FROM faccompra
+        WHERE
+            UPPER(
+                REPLACE(
+                    TRIM(CAST(codserfaccompra AS text))
+                    || '-' ||
+                    TRIM(CAST(nfaccompra AS text)),
+                    ' ',
+                    ''
+                )
+            ) = ANY($1::text[])
+            AND (
+                fecconta IS NULL
+                OR fecconta < $2::date
+                OR fecconta >= $3::date
+            )
+        ORDER BY
+            codserfaccompra,
+            nfaccompra
+    `;
+
         const { rows } = await pool.query(query, [
-            rango.fechaInicio,
-            rango.fechaFin,
-            codigosPermitidos,
+            facturasNormalizadas,
+            rangoMes.fechaInicio,
+            rangoMes.fechaFin,
         ]);
+
         return rows;
     }
 
@@ -2017,22 +1950,35 @@ export class IntrastatModel {
     static async getLineasComprasIntrastatFaltantesPorMes({
         mesIntrastat,
         facturasExistentes = [],
-        facturasPermitidas = [],
-        codigosPermitidos = ['04', '16'],
     }) {
-        const rango = this.getRangoMesIntrastat(mesIntrastat);
-        // Nunca ampliar la selección a todas las facturas si no hay elegibles.
-        if (!rango || !Array.isArray(facturasPermitidas) || !facturasPermitidas.length) {
+        if (!mesIntrastat) {
             return [];
         }
 
-        const valores = [rango.fechaInicio, rango.fechaFin];
-        const permitidasNormalizadas = facturasPermitidas
-            .map(value => String(value).trim().replace(/\s+/g, '').toUpperCase())
-            .filter(Boolean);
-        if (!permitidasNormalizadas.length) return [];
-        valores.push(permitidasNormalizadas);
-        const indicePermitidas = valores.length;
+        const [year, month] =
+            String(mesIntrastat)
+                .split('-')
+                .map(Number);
+
+        if (!year || !month) {
+            return [];
+        }
+
+        const fechaInicioSql =
+            `${year}-${String(month).padStart(2, '0')}-01`;
+
+        const fechaFinDate =
+            new Date(year, month, 1);
+
+        const fechaFinSql =
+            fechaFinDate
+                .toISOString()
+                .slice(0, 10);
+
+        const valores = [
+            fechaInicioSql,
+            fechaFinSql,
+        ];
 
         const facturasExistentesNormalizadas =
             facturasExistentes
@@ -2079,9 +2025,6 @@ export class IntrastatModel {
             )
         `;
         }
-
-        valores.push(codigosPermitidos);
-        const indiceCodigosIva = valores.length;
 
         const query = `
         WITH lineas AS (
@@ -2278,15 +2221,16 @@ export class IntrastatModel {
                 f.fecconta >= $1
                 AND f.fecconta < $2
 
-                AND LPAD(TRIM(CAST(l.codiva AS text)), 2, '0')
-                    = ANY($${indiceCodigosIva}::text[])
-
-                AND UPPER(REPLACE(
-                    TRIM(CAST(a.codserfaccompra AS text)) || '-' ||
-                    TRIM(CAST(a.nfaccompra AS text)), ' ', ''
-                )) = ANY($${indicePermitidas}::text[])
-
-                AND TRIM(COALESCE(CAST(l.codprodu AS text), '')) <> ''
+                AND LPAD(
+                    TRIM(
+                        CAST(
+                            l.codiva
+                            AS text
+                        )
+                    ),
+                    2,
+                    '0'
+                ) = '04'
 
                 AND COALESCE(
                     l.impbruto,
@@ -2396,7 +2340,7 @@ export class IntrastatModel {
             AND TRIM(COALESCE(l.nfaccompra, '')) = TRIM(sub.nfaccompra)
             AND l.codiva IS NOT NULL
             AND TRIM(l.codiva) <> ''
-            AND LPAD(TRIM(l.codiva), 2, '0') NOT IN ('04', '16')
+            AND TRIM(l.codiva) <> '04'
         GROUP BY sub.codserfaccompra, sub.nfaccompra
         ORDER BY sub.codserfaccompra, sub.nfaccompra
     `;

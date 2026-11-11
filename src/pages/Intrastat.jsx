@@ -13,8 +13,6 @@ function Intrastat() {
     const [file, setFile] = useState(null);
     const [errores, setErrores] = useState([]);
     const [facturasIva, setFacturasIva] = useState([]);
-    const [facturasExcluidas, setFacturasExcluidas] = useState([]);
-    const [facturasRecuperadas, setFacturasRecuperadas] = useState(0);
     const [loading, setLoading] = useState(false);
     const [tipo, setTipo] = useState('ventas');
     const [mesIntrastat, setMesIntrastat] = useState('');
@@ -31,8 +29,6 @@ function Intrastat() {
     const limpiarResultado = () => {
         setErrores([]);
         setFacturasIva([]);
-        setFacturasExcluidas([]);
-        setFacturasRecuperadas(0);
         setErrorGeneracion('');
         setDescargaCorrecta('');
         setAnalisisCompletado(false);
@@ -54,10 +50,6 @@ function Intrastat() {
     const handleGenerar = async () => {
         if (generandoRef.current) return;
         const validacion = validateIntrastatFile(file);
-        if (tipo === 'compras' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(mesIntrastat)) {
-            setErrorGeneracion('Selecciona un mes contable válido antes de generar Intrastat de Compras.');
-            return;
-        }
         if (!validacion.valid) {
             setErrorGeneracion(validacion.message);
             return;
@@ -101,8 +93,6 @@ function Intrastat() {
             }
 
             setFacturasIva(result.facturasIvaIncorrecto || []);
-            setFacturasExcluidas(result.facturasExcluidas || []);
-            setFacturasRecuperadas(Number(result.facturasRecuperadas || 0));
             setErrores(result.errores || []);
             setAnalisisCompletado(true);
             setDescargaCorrecta(`Archivo ${link.download} preparado. Comprueba la carpeta de descargas.`);
@@ -150,8 +140,6 @@ function Intrastat() {
                             <span className="flex min-w-0 rounded-xl border border-[var(--cjm-border)] bg-[var(--cjm-surface-muted)] px-3 py-2.5">
                                 <input
                                     type="month"
-                                    required={tipo === 'compras'}
-                                    aria-required={tipo === 'compras'}
                                     value={mesIntrastat}
                                     onChange={(event) => { setMesIntrastat(event.target.value); limpiarResultado(); }}
                                     className="block w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none"
@@ -178,12 +166,6 @@ function Intrastat() {
                             <span className="cjm-muted mt-1.5 block text-xs">Admite Excel (.xlsx, .xls, .xlsm) y CSV (.csv), hasta 12 MB. Los CSV se convierten automáticamente sin modificar el archivo original.</span>
                         </label>
                     </div>
-
-                    {tipo === 'compras' && (
-                        <p className="cjm-muted mt-4 text-sm leading-6">
-                            <strong className="app-text">Periodo obligatorio:</strong> Compras se selecciona por la fecha contable (<code>faccompra.fecconta</code>), aunque la factura esté fechada en un mes anterior. Las facturas que no puedan incorporarse se detallarán abajo con el motivo.
-                        </p>
-                    )}
 
                     {errorGeneracion && (
                         <div role="alert" className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
@@ -262,8 +244,8 @@ function Intrastat() {
                                         <tbody>
                                             {facturasIva.map((f, i) => (
                                                 <tr key={i}>
-                                                    <td>{f.codserfaccompra ?? f.codserfacventa}</td>
-                                                    <td>{f.nfaccompra ?? f.nfacventa}</td>
+                                                    <td>{f.codserfacventa}</td>
+                                                    <td>{f.nfacventa}</td>
                                                     <td className="font-semibold text-red-600">{f.codigos_iva}</td>
                                                 </tr>
                                             ))}
@@ -278,11 +260,11 @@ function Intrastat() {
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <p className="cjm-data-label"><TranslatedText>Serie</TranslatedText></p>
-                                                <p className="mt-1 app-text">{f.codserfaccompra ?? f.codserfacventa}</p>
+                                                <p className="mt-1 app-text">{f.codserfacventa}</p>
                                             </div>
                                             <div>
                                                 <p className="cjm-data-label"><TranslatedText>Factura</TranslatedText></p>
-                                                <p className="mt-1 app-text">{f.nfaccompra ?? f.nfacventa}</p>
+                                                <p className="mt-1 app-text">{f.nfacventa}</p>
                                             </div>
                                         </div>
                                         <div className="mt-3 border-t border-[var(--cjm-border)] pt-3">
@@ -293,68 +275,6 @@ function Intrastat() {
                                 ))}
                             </div>
                         </>
-                    )}
-                </section>
-            )}
-
-            {analisisCompletado && tipo === 'compras' && (
-                <section className="cjm-card mt-6 overflow-hidden rounded-3xl" aria-labelledby="compras-auditoria-title">
-                    <header className="flex flex-wrap items-start gap-3 border-b border-[var(--cjm-border)] px-4 py-4 sm:px-6">
-                        <FileSpreadsheet className="mt-0.5 h-5 w-5 shrink-0 app-text" aria-hidden="true" />
-                        <div className="min-w-0 flex-1">
-                            <h2 id="compras-auditoria-title" className="font-semibold app-text">
-                                <TranslatedText>Control de facturas de Compras por fecha contable</TranslatedText>
-                            </h2>
-                            <p className="cjm-muted mt-1 text-sm">
-                                Se han recuperado {facturasRecuperadas} facturas que faltaban en el Excel original. {facturasExcluidas.length} facturas requieren revisión y no se han incorporado al documento.
-                            </p>
-                        </div>
-                        <span className="rounded-full border border-[var(--cjm-border)] px-3 py-1 text-xs font-bold app-text">
-                            {facturasExcluidas.length} por revisar
-                        </span>
-                    </header>
-
-                    {facturasExcluidas.length === 0 ? (
-                        <div className="p-4 sm:p-6">
-                            <div className="cjm-alert cjm-alert-success flex items-center gap-3">
-                                <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-                                No se han detectado facturas excluidas por los controles de selección.
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="p-4 sm:p-6">
-                            <p className="mb-4 text-sm cjm-muted">
-                                Revisa estas facturas antes de presentar Intrastat. La existencia de un IVA 04 o 16 no confirma por sí sola que la operación sea declarable.
-                            </p>
-                            <div className="cjm-table-scroller max-h-[540px] overflow-auto">
-                                <table className="cjm-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Factura</th>
-                                            <th>Fecha contable</th>
-                                            <th>Fecha factura</th>
-                                            <th>Proveedor</th>
-                                            <th>Procedencia</th>
-                                            <th>IVA</th>
-                                            <th>Motivo de exclusión</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {facturasExcluidas.map((item, index) => (
-                                            <tr key={`${item.factura}-${index}`}>
-                                                <td className="font-semibold">{item.factura || 'Sin referencia'}</td>
-                                                <td>{item.fechaContable ? String(item.fechaContable).slice(0, 10) : 'Sin fecha'}</td>
-                                                <td>{item.fechaDocumento ? String(item.fechaDocumento).slice(0, 10) : '—'}</td>
-                                                <td>{item.proveedor || '—'}</td>
-                                                <td>{item.origen || 'BD'}</td>
-                                                <td>{item.codigosIva || '—'}</td>
-                                                <td className="min-w-[260px]">{item.motivo}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
                     )}
                 </section>
             )}
