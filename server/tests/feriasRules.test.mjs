@@ -120,3 +120,9 @@ test('ambos correos llevan logotipo corporativo embebido y estructura de marca',
    assert.match(html,/width="100%"/);
  }
 });
+
+test('permite registrar visita de cliente existente aunque no realice pedido',()=>{
+ const data=normalizeFairSubmission({...lead,type:'CONTACTO',clientKind:'EXISTENTE',clientCode:'00012',client:{},privacyConfirmed:false,thankYou:true});
+ assert.equal(data.type,'CONTACTO');assert.equal(data.client.code,'00012');
+ assert.equal(data.thankYou,false);assert.deepEqual(data.lines,[]);
+});

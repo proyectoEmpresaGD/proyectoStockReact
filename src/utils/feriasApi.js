@@ -33,3 +33,29 @@ export async function requestFerias({path,token,options={},apiBase='',fetchImpl=
   if (body===null) throw new Error('El servidor ha devuelto una respuesta incompleta. Comprueba la conexión antes de repetir la operación.');
   return body;
 }
+
+/** Descarga autorizada: la API comprueba en el servidor la cartera del representante. */
+export async function downloadFeriasReport({fair,representative,token,apiBase='',fetchImpl=fetch}) {
+  const query=new URLSearchParams({feria:fair,representante:representative});
+  let response;
+  try {
+    response=await fetchImpl(feriasUrl(`/informes/excel?${query}`,apiBase),{
+      method:'GET',headers:{...(token?{Authorization:`Bearer ${token}`}:{})},credentials:'include',
+    });
+  } catch {throw new Error('No se ha podido conectar con el servidor para descargar el informe.');}
+  if(!response.ok) {
+    const data=await response.json().catch(()=>({}));
+    throw new Error(data.message || 'No se pudo generar el Excel. Comprueba tus permisos y la feria seleccionada.');
+  }
+  const blob=await response.blob();
+  if(!blob.size) throw new Error('El archivo generado está vacío.');
+  const url=URL.createObjectURL(blob);
+  const disposition=response.headers?.get('content-disposition')||'';
+  const match=disposition.match(/filename="([^"\\]+)"/);
+  const safe=v=>String(v||'').replace(/[^a-z0-9_-]/gi,'_').slice(0,35);
+  const filename=match?.[1]||`CJM_Feria_${safe(fair)}_Comercial_${safe(representative)}.xlsx`;
+  try {
+    const a=document.createElement('a');a.href=url;a.download=filename;
+    document.body.append(a);a.click();a.remove();
+  } finally {setTimeout(()=>URL.revokeObjectURL(url),10000);}
+}

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthContext } from '../Auth/AuthContext.jsx';
 import { FAIR_CLIENT_GROUPS, emptyFairClient, fairClientCompletion } from '../../shared/feriasClientFields.js';
-import { requestFerias } from '../utils/feriasApi.js';
+import { requestFerias, downloadFeriasReport } from '../utils/feriasApi.js';
 import { newFairRequestId } from '../utils/feriasRequestId.js';
 import { FiCamera, FiCheckCircle, FiClipboard, FiMail, FiPlus, FiSearch, FiTrash2, FiUsers, FiShield } from 'react-icons/fi';
 
@@ -73,6 +73,13 @@ export default function FeriasPage() {
   const [receipt,setReceipt]=useState(null);
   const [recent,setRecent]=useState([]);
   const [recentOpen,setRecentOpen]=useState(false);
+  const [reportsOpen,setReportsOpen]=useState(false);
+  const [fairChoices,setFairChoices]=useState([]);
+  const [reportRepresentatives,setReportRepresentatives]=useState([]);
+  const [reportFair,setReportFair]=useState('');
+  const [reportRepresentative,setReportRepresentative]=useState('');
+  const [reportLoading,setReportLoading]=useState(false);
+  const [reportMessage,setReportMessage]=useState('');
   const [erpRef,setErpRef]=useState('');
   const [verifiedStock,setVerifiedStock]=useState(false);
   const [closing,setClosing]=useState(null);
@@ -118,6 +125,23 @@ export default function FeriasPage() {
       setOcrNotice({error:false,text:'Tarjeta leída. Revisa los datos y corrige cualquier error antes de continuar.'});
     }catch(err){setOcrNotice({error:true,text:err.message});}finally{setWorking(false);}
   };
+  const loadReports=async()=>{
+    setReportsOpen(true);setReportMessage('');setReportLoading(true);
+    try {
+      const [fairs,reps]=await Promise.all([api('/ferias'),api('/informes/representantes')]);
+      setFairChoices(fairs.fairs||[]);setReportRepresentatives(reps.representatives||[]);
+      setReportFair(previous=> previous || fairs.fairs?.[0]?.name || '');
+      setReportRepresentative(previous=>previous || (reps.representatives?.length===1?reps.representatives[0].code:''));
+    } catch(e){setReportMessage(e.message);} finally{setReportLoading(false);}
+  };
+  const exportReport=async()=>{
+    if(!reportFair || !reportRepresentative) return setReportMessage('Selecciona una feria y un representante.');
+    setReportLoading(true);setReportMessage('');
+    try {await downloadFeriasReport({fair:reportFair,representative:reportRepresentative,token,
+      apiBase:import.meta.env.VITE_API_BASE_URL || ''});
+      setReportMessage('Informe generado. Revisa la carpeta Descargas de la tablet o del ordenador.');
+    }catch(e){setReportMessage(e.message);}finally{setReportLoading(false);}
+  };
   const loadRecent=async()=>{
     setRecentOpen(true);
     try {const data=await api('/solicitudes');setRecent(data.requests||[]);}
@@ -144,7 +168,7 @@ export default function FeriasPage() {
     if(kind==='NUEVO'&&thankYou&&!client.email.trim())return warn('No hay correo para enviar el agradecimiento. Introduce uno o desmarca esa opción.');
     if(kind==='NUEVO'&&!privacy)return warn('Confirma que el cliente facilitó sus datos para esta gestión.');
     if(type==='PEDIDO'&&(!lines.length||!availability?.canSubmit))return warn('Añade artículos y comprueba su disponibilidad antes de enviar.');
-    if(!window.confirm(type==='PEDIDO'?'Enviar esta SOLICITUD DE PEDIDO a Administración (sin crear pedido en ERP ni reservar stock)?':'Guardar el nuevo contacto y enviar las notificaciones seleccionadas?'))return;
+    if(!window.confirm(type==='PEDIDO'?'Enviar esta SOLICITUD DE PEDIDO a Administración (sin crear pedido en ERP ni reservar stock)?':'Registrar la visita y enviar las notificaciones seleccionadas?'))return;
     setWorking(true);setMessage('');
     try {const response=await api('/solicitudes',{method:'POST',body:JSON.stringify(build())});setReceipt(response);
     }catch(e){warn(`${e.message} Si el envío se interrumpió, no repitas a ciegas: conserva la pantalla y consulta el estado de la solicitud.`);}
@@ -166,6 +190,32 @@ export default function FeriasPage() {
     {mailTestRecipient&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-base font-semibold text-amber-950">
       Modo prueba de correos activado: todas las notificaciones y agradecimientos se enviarán únicamente a <strong>{mailTestRecipient}</strong>. Ningún cliente recibirá correos de esta prueba.
     </div>}
+    <section className={`${panel} space-y-3`}>
+      <button type="button" onClick={loadReports} className={`${big} w-full border-2 border-blue-200 bg-blue-50 text-left text-blue-900`}>
+        <FiUsers className="mr-2 inline"/> Visitantes por representante · Informe de feria
+      </button>
+      {reportsOpen && <div className="space-y-4 rounded-xl bg-slate-50 p-4">
+        <h2 className="text-xl font-bold">Informes de asistencia y pedidos</h2>
+        <p className="text-sm text-slate-600">Cada Excel compara la cartera activa de un representante con los clientes que se registraron en la feria. Los pedidos son solicitudes; no equivalen necesariamente a pedidos confirmados en CDI.</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="font-semibold">Feria
+            <select className={`${field} mt-2`} value={reportFair} onChange={e=>setReportFair(e.target.value)}>
+              <option value="">Elegir feria</option>{fairChoices.map(f=><option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          </label>
+          <label className="font-semibold">Representante
+            <select className={`${field} mt-2`} value={reportRepresentative} onChange={e=>setReportRepresentative(e.target.value)}>
+              <option value="">Elegir representante</option>{reportRepresentatives.map(r=><option key={r.code} value={r.code}>{r.name || `Comercial ${r.code}`} · {r.clients} clientes activos</option>)}
+            </select>
+          </label>
+        </div>
+        <button type="button" disabled={reportLoading || !reportFair || !reportRepresentative} onClick={exportReport} className={`${big} w-full bg-blue-700 text-white`}>
+          {reportLoading?'Preparando…':'Descargar Excel de este representante'}
+        </button>
+        <p className="text-sm text-slate-600">Incluye hojas de resumen, cartera (visitó / no visitó / solicitó pedido), nuevos contactos y solicitudes de pedido. Descarga uno por representante para enviárselo sin mezclar carteras.</p>
+        {reportMessage&&<p role="status" className="rounded-xl bg-white p-3 text-sm font-semibold">{reportMessage}</p>}
+      </div>}
+    </section>
     <section className={`${panel} space-y-3`}>
       <button onClick={loadRecent} className={`${big} w-full border border-slate-300 bg-slate-50 text-left`}>
         <FiClipboard className="mr-2 inline"/> Mis solicitudes recientes / seguimiento
@@ -196,7 +246,7 @@ export default function FeriasPage() {
       <section className={panel}>
         <h2 className="mb-3 text-xl font-bold">1. ¿Qué necesitas hacer?</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button onClick={()=>{setType('CONTACTO');setKind('NUEVO');setClient(blankClient());setClientCode('');setClientQuery('');setAvailability(null);}} className={`${big} flex items-center gap-3 border-2 text-left ${type==='CONTACTO'?'border-blue-700 bg-blue-50':'border-slate-200 bg-white'}`}><FiUsers size={28}/> Nuevo cliente / contacto</button>
+          <button onClick={()=>{setType('CONTACTO');setKind('NUEVO');setClient(blankClient());setClientCode('');setClientQuery('');setAvailability(null);}} className={`${big} flex items-center gap-3 border-2 text-left ${type==='CONTACTO'?'border-blue-700 bg-blue-50':'border-slate-200 bg-white'}`}><FiUsers size={28}/> Registrar visita (cliente nuevo o existente)</button>
           <button onClick={()=>{setType('PEDIDO');setAvailability(null);}} className={`${big} flex items-center gap-3 border-2 text-left ${type==='PEDIDO'?'border-blue-700 bg-blue-50':'border-slate-200 bg-white'}`}><FiClipboard size={28}/> Solicitar pedido</button>
         </div>
         <label className="mt-5 block font-semibold" htmlFor="fair">Nombre de la feria *</label>
@@ -204,10 +254,11 @@ export default function FeriasPage() {
       </section>
       <section className={panel}>
         <h2 className="mb-4 text-xl font-bold">2. Datos del cliente</h2>
-        {type==='PEDIDO'&&<div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-950">Si el visitante ya es cliente de CJM, selecciónalo en «Ya es cliente» aunque solo venga a saludarnos. Así figurará correctamente como visitante en el Excel de su representante.</p>
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button className={`${big} border-2 ${kind==='EXISTENTE'?'border-blue-700 bg-blue-50':'border-slate-200'}`} onClick={()=>{setKind('EXISTENTE');setClient(blankClient());setClientCode('');setClientQuery('');setAvailability(null);}}>Ya es cliente</button>
           <button className={`${big} border-2 ${kind==='NUEVO'?'border-blue-700 bg-blue-50':'border-slate-200'}`} onClick={()=>{setKind('NUEVO');setClient(blankClient());setClientCode('');setClientQuery('');setAvailability(null);}}>Es un cliente nuevo</button>
-        </div>}
+        </div>
         {kind==='EXISTENTE'?<>
           <label className="block font-semibold" htmlFor="search-client">Buscar por nombre de empresa</label>
           <div className="relative mt-2"><FiSearch className="absolute left-4 top-4"/><input id="search-client" className={`${field} pl-11`} value={clientQuery} onChange={e=>{setClientQuery(e.target.value);setClientCode('');}} placeholder="Escribe el nombre del cliente"/></div>

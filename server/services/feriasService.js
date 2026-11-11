@@ -6,6 +6,8 @@ import { StockModel } from '../models/Postgres/stock.js';
 import { normalizeUserClientAccess } from '../utils/clientPortfolioAccess.js';
 import { normalizeFairSubmission, assertAvailability, mailHtml, summarizeFairInventory, FAIR_LOGO_CID, escapeHtml } from './feriasRules.js';
 import { createFeriasMailPolicy, FERIAS_TEST_MAILBOX, isFeriasTestMessage, prepareFeriasMailSubject } from './feriasMailRouting.js';
+import { getFairRepresentative, getFairVisitorScope, isFairAdmin, fairVisitorIdentitySQL } from './feriasVisitorRegistry.js';
+import { buildFairRepresentativeReport, createFairRepresentativeWorkbook } from './feriasReport.js';
 
 const fairLogoPath = fileURLToPath(new URL('../assets/cjm-marca-negro.png', import.meta.url));
 const error = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -39,6 +41,7 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
       taxPersonType: text(found.codtippersona), taxRegime: text(found.codiva),
       tariffPreference: text(found.codtarifa), paymentTerms: text(found.codforpago),
       shippingTerms: text(found.portes), shippingMethod: text(found.forenvio),
+      representativeCode: text(found.codrepre),
       notes: '',
     };
   }
@@ -126,6 +129,15 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
         throw error('Demasiadas solicitudes de feria. Contacta con Administración antes de continuar.',429);
       let client = data.client;
       if (data.clientKind === 'EXISTENTE') client = await selectClient(data.client.code, user);
+      // El representante lo fija el servidor desde la sesión o la ficha ERP.
+      const assigned = getFairRepresentative(user, client, data.clientKind);
+      let representativeName = assigned.name;
+      if (assigned.code && !representativeName) {
+        const representative = await db.query(`SELECT nombre,apellido1,apellido2,username
+          FROM usuarios WHERE BTRIM(codrepre::text)=$1 ORDER BY id LIMIT 1`, [assigned.code]);
+        const rep = representative.rows[0];
+        if (rep) representativeName = [rep.nombre,rep.apellido1,rep.apellido2].map(text).filter(Boolean).join(' ') || text(rep.username);
+      }
       let lines = [];
       if (data.type === 'PEDIDO') {
         for (const code of [...new Set(data.lines.map(l => l.code))].sort()) await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`FERIA_STOCK:${code}`]);
@@ -134,9 +146,9 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
       }
       const id = randomUUID();
       await db.query(`INSERT INTO ferias_solicitudes
-       (id,request_key,tipo,feria,usuario_id,comercial,cliente_tipo,cliente_codigo,cliente,lineas,observaciones,entrega_solicitada,direccion_entrega,enviar_agradecimiento,idioma_correo)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15)`,
-       [id,data.requestKey,data.type,data.fair,userId,commercial(user),data.clientKind,client.code||null,JSON.stringify(client),JSON.stringify(lines),data.observations,data.requestedDelivery,data.deliveryAddress,data.thankYou,data.language]);
+       (id,request_key,tipo,feria,usuario_id,comercial,registrador_username,representante_codigo,representante_nombre,cliente_tipo,cliente_codigo,cliente,lineas,observaciones,entrega_solicitada,direccion_entrega,enviar_agradecimiento,idioma_correo)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14,$15,$16,$17,$18)`,
+       [id,data.requestKey,data.type,data.fair,userId,commercial(user),text(user?.username)||null,assigned.code,representativeName,data.clientKind,client.code||null,JSON.stringify(client),JSON.stringify(lines),data.observations,data.requestedDelivery,data.deliveryAddress,data.thankYou,data.language]);
       for (const [purpose,intendedTo] of [['INTERNO',notificationAddress],...(data.thankYou ? [['CLIENTE',client.email]] : [])]) {
         const stable = createHash('sha256').update(`${id}:${purpose}`).digest('hex').slice(0,32);
         // El destino de la cola se fija al registrar: apagar el modo prueba
@@ -159,7 +171,9 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
     if (!record) return;
     if (record.usuario_id !== normalizeUser(user) && text(user?.role).toLowerCase() !== 'admin') return;
     const mailRecord = { id:record.id, fair:record.feria, type:record.tipo,
-      salesperson:record.comercial, client:record.cliente, lines:record.lineas,
+      salesperson:record.comercial, registrarUsername:record.registrador_username,
+      representativeCode:record.representante_codigo, representativeName:record.representante_nombre,
+      client:record.cliente, lines:record.lineas,
       observations:record.observaciones, requestedDelivery:record.entrega_solicitada, deliveryAddress:record.direccion_entrega, language:record.idioma_correo };
     for (const purpose of ['INTERNO','CLIENTE']) {
       const { rows: pending } = await pool.query(`UPDATE ferias_correos
@@ -223,19 +237,136 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
     return rows[0];
   }
   async function listRecent(user) {
-    const isAdmin=text(user?.role).toLowerCase()==='admin';
-    const args=isAdmin?[]:[normalizeUser(user)];
-    const {rows}=await pool.query(`SELECT id,tipo,feria,cliente->>'company' AS empresa,estado,created_at
-      FROM ferias_solicitudes ${isAdmin?'':'WHERE usuario_id=$1'} ORDER BY created_at DESC LIMIT 30`,args);
+    const admin=isFairAdmin(user);
+    const args=admin?[]:[normalizeUser(user)];
+    const {rows}=await pool.query(`SELECT id,tipo,feria,cliente->>'company' AS empresa,
+      estado,created_at,comercial,representante_codigo,representante_nombre
+      FROM ferias_solicitudes ${admin?'':'WHERE usuario_id=$1'} ORDER BY created_at DESC LIMIT 30`,args);
     return rows;
   }
-  async function getStatus(id,user) {
-    const { rows }=await pool.query('SELECT id,tipo,feria,usuario_id,estado,created_at FROM ferias_solicitudes WHERE id=$1',[id]);
-    const found=rows[0];
-    if (!found || (found.usuario_id !== normalizeUser(user) && text(user?.role).toLowerCase() !== 'admin')) throw error('Solicitud no encontrada.',404);
-    const { rows: mails }=await pool.query('SELECT destino_tipo,estado FROM ferias_correos WHERE solicitud_id=$1 ORDER BY destino_tipo',[id]);
-    return { id:found.id, type:found.tipo, fair:found.feria, status:found.estado, mails, createdAt:found.created_at };
+  async function listVisitors(query, user) {
+    const scope = getFairVisitorScope(user, normalizeUserClientAccess(user));
+    const page = Math.min(10000, Math.max(1, Number.parseInt(query?.page, 10) || 1));
+    const limit = 25;
+    const fair = text(query?.feria).slice(0, 120);
+    const search = text(query?.q).slice(0, 100);
+    const representative = text(query?.representante).slice(0, 60);
+    const onlyMine = String(query?.soloMios || '') === 'true';
+    const params = [scope.isAdmin && !onlyMine, scope.userId, scope.representatives,
+      fair || null, search || null, representative || null, onlyMine];
+    const base = `FROM ferias_solicitudes f
+      WHERE ($1::boolean OR f.usuario_id=$2 OR ($7::boolean IS FALSE AND f.representante_codigo=ANY($3::text[])))
+        AND ($4::text IS NULL OR f.feria ILIKE '%'||$4||'%')
+        AND ($5::text IS NULL OR f.cliente->>'company' ILIKE '%'||$5||'%'
+          OR f.cliente->>'contact' ILIKE '%'||$5||'%'
+          OR f.cliente_codigo ILIKE '%'||$5||'%'
+          OR f.cliente->>'email' ILIKE '%'||$5||'%')
+        AND ($6::text IS NULL OR f.representante_codigo=$6)`;
+    const [listing, metrics] = await Promise.all([
+      pool.query(`SELECT f.id, f.tipo, f.feria, f.cliente_tipo, f.cliente_codigo,
+          f.cliente->>'company' AS empresa, f.cliente->>'contact' AS contacto,
+          f.cliente->>'email' AS email, f.cliente->>'phone' AS telefono,
+          f.cliente->>'mobile' AS movil, f.usuario_id, f.registrador_username,
+          f.comercial, f.representante_codigo, f.representante_nombre,
+          f.estado, f.created_at
+        ${base} ORDER BY f.created_at DESC, f.id DESC LIMIT $8 OFFSET $9`,
+        [...params, limit, (page - 1) * limit]),
+      pool.query(`SELECT COUNT(*)::int AS registros,
+        COUNT(DISTINCT ${fairVisitorIdentitySQL})::int AS visitantes ${base}`, params),
+    ]);
+    return { visits:listing.rows, total:metrics.rows[0]?.registros || 0,
+      visitors:metrics.rows[0]?.visitantes || 0, page, limit };
   }
-  return { lookupClients, searchProducts, checkAvailability, storeSubmission, dispatch, getStatus, listRecent, markRegistered, sendUnsent, mailReady,
+  async function listFairs(user) {
+    // Compartir únicamente el nombre de una feria, no datos de visitantes ni de otras carteras.
+    getFairVisitorScope(user,normalizeUserClientAccess(user));
+    const {rows}=await pool.query(`SELECT feria AS name FROM ferias_solicitudes
+      GROUP BY feria ORDER BY MAX(created_at) DESC LIMIT 80`);
+    return rows;
+  }
+  async function listReportRepresentatives(user) {
+    const scope=getFairVisitorScope(user,normalizeUserClientAccess(user));
+    const {rows}=await pool.query(`SELECT BTRIM(c.codrepre::text) AS code,
+        COUNT(*)::int AS clients,
+        (SELECT CONCAT_WS(' ',NULLIF(BTRIM(u.nombre),'') ,NULLIF(BTRIM(u.apellido1),''),NULLIF(BTRIM(u.apellido2),''))
+           FROM usuarios u WHERE BTRIM(u.codrepre::text)=BTRIM(c.codrepre::text)
+           ORDER BY u.id LIMIT 1) AS name
+      FROM clientes c
+      WHERE COALESCE(UPPER(BTRIM(c.dadobaja::text)),'') <> 'S'
+        AND NULLIF(BTRIM(c.codrepre::text),'') IS NOT NULL
+        AND ($1::boolean OR BTRIM(c.codrepre::text)=ANY($2::text[]))
+      GROUP BY BTRIM(c.codrepre::text) ORDER BY code`,[scope.isAdmin,scope.representatives]);
+    if(scope.isAdmin) {
+      const {rows:missing}=await pool.query(`SELECT
+        (SELECT COUNT(*)::int FROM clientes WHERE COALESCE(UPPER(BTRIM(dadobaja::text)),'') <> 'S'
+          AND NULLIF(BTRIM(codrepre::text),'') IS NULL) AS clientes,
+        (SELECT COUNT(*)::int FROM ferias_solicitudes WHERE cliente_tipo='NUEVO'
+          AND NULLIF(BTRIM(representante_codigo),'') IS NULL) AS contactos`);
+      if(Number(missing[0]?.clientes)||Number(missing[0]?.contactos))
+        rows.push({code:'SIN_ASIGNAR',name:'Sin representante asignado (revisión)',clients:Number(missing[0]?.clientes||0)});
+    }
+    return rows;
+  }
+  async function getFairReport({fair,representativeCode},user) {
+    const scope=getFairVisitorScope(user,normalizeUserClientAccess(user));
+    const code=text(representativeCode).slice(0,60);
+    const unassigned=code==='SIN_ASIGNAR';
+    const fairName=text(fair).slice(0,120);
+    if(!fairName || !code) throw error('Selecciona la feria y el representante para descargar el informe.',400);
+    if(!scope.isAdmin && !scope.representatives.includes(code))
+      throw error('No tienes permiso para consultar la cartera de este representante.',403);
+    const catalog=await listReportRepresentatives(user);
+    const rep=catalog.find(r=>r.code===code);
+    if(!rep) throw error('El representante no tiene clientes activos en la cartera autorizada.',404);
+    const check=await pool.query(`SELECT feria FROM ferias_solicitudes
+      WHERE LOWER(BTRIM(feria))=LOWER(BTRIM($1)) LIMIT 1`,[fairName]);
+    if(!check.rows.length) throw error('No hay registros de esta feria. Comprueba el nombre elegido.',404);
+    const clientRows=await pool.query(`SELECT c.codclien::text AS codigo,
+        COALESCE(c.razclien,'') AS empresa, COALESCE(c.localidad,'') AS localidad,
+        COALESCE(c.codpais,'') AS pais, COALESCE(c.email,'') AS email
+      FROM clientes c WHERE COALESCE(UPPER(BTRIM(c.dadobaja::text)),'') <> 'S'
+        AND (($2::boolean AND NULLIF(BTRIM(c.codrepre::text),'') IS NULL) OR
+          (NOT $2::boolean AND BTRIM(c.codrepre::text)=$1))
+        ORDER BY c.razclien,c.codclien LIMIT 20001`,[code,unassigned]);
+    if(clientRows.rows.length>20000) throw error('La cartera es demasiado grande para un único Excel.',413);
+    const [known, newClients] = await Promise.all([
+      pool.query(`SELECT f.* FROM ferias_solicitudes f
+        JOIN clientes c ON BTRIM(f.cliente_codigo::text)=BTRIM(c.codclien::text)
+        WHERE LOWER(BTRIM(f.feria))=LOWER(BTRIM($1))
+          AND f.cliente_tipo='EXISTENTE'
+          AND (($3::boolean AND NULLIF(BTRIM(c.codrepre::text),'') IS NULL) OR
+            (NOT $3::boolean AND BTRIM(c.codrepre::text)=$2))
+          AND COALESCE(UPPER(BTRIM(c.dadobaja::text)),'') <> 'S'
+        ORDER BY f.created_at LIMIT 20001`,[fairName,code,unassigned]),
+      pool.query(`SELECT f.* FROM ferias_solicitudes f
+        WHERE LOWER(BTRIM(f.feria))=LOWER(BTRIM($1))
+          AND f.cliente_tipo='NUEVO'
+          AND (($3::boolean AND NULLIF(BTRIM(f.representante_codigo::text),'') IS NULL) OR
+            (NOT $3::boolean AND BTRIM(f.representante_codigo::text)=$2))
+        ORDER BY f.created_at LIMIT 20001`,[fairName,code,unassigned]),
+    ]);
+    if(known.rows.length>20000 || newClients.rows.length>20000)
+      throw error('La feria tiene demasiados registros. Solicita un informe por periodos.',413);
+    return buildFairRepresentativeReport({fair:check.rows[0].feria,representativeCode:code,
+      representativeName:rep.name || `Comercial ${code}`,clients:clientRows.rows,
+      submissions:known.rows,newSubmissions:newClients.rows});
+  }
+  async function exportFairReport(filters,user) {
+    const report=await getFairReport(filters,user);
+    const {default:XLSX}=await import('xlsx-js-style');
+    return {buffer:createFairRepresentativeWorkbook(report,XLSX),
+      filename:`CJM_Feria_${report.fair.replace(/[^a-z0-9_-]/gi,'_').slice(0,35)}_Comercial_${report.representativeCode.replace(/[^a-z0-9_-]/gi,'_')}.xlsx`,
+      summary:report.summary};
+  }
+  async function getStatus(id,user) {
+    const { rows }=await pool.query('SELECT id,tipo,feria,usuario_id,comercial,registrador_username,representante_codigo,representante_nombre,estado,created_at FROM ferias_solicitudes WHERE id=$1',[id]);
+    const found=rows[0];
+    if (!found || (found.usuario_id !== normalizeUser(user) && !isFairAdmin(user))) throw error('Solicitud no encontrada.',404);
+    const { rows: mails }=await pool.query('SELECT destino_tipo,estado FROM ferias_correos WHERE solicitud_id=$1 ORDER BY destino_tipo',[id]);
+    return { id:found.id, type:found.tipo, fair:found.feria, status:found.estado, mails, createdAt:found.created_at,
+      registrar:found.comercial, registrarUsername:found.registrador_username,
+      representativeCode:found.representante_codigo, representativeName:found.representante_nombre };
+  }
+  return { lookupClients, searchProducts, checkAvailability, storeSubmission, dispatch, getStatus, listRecent, listVisitors, listFairs, listReportRepresentatives, getFairReport, exportFairReport, markRegistered, sendUnsent, mailReady,
     mailTestMode: mailPolicy.testMode, mailTestRecipient: mailPolicy.testMailbox };
 }

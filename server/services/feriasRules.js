@@ -16,7 +16,7 @@ export function normalizeFairSubmission(input = {}) {
   if (fair.length < 3) throw fault('Indica la feria en la que se ha conocido al cliente.');
   const kind = clean(input.clientKind, 15).toUpperCase();
   if (!['NUEVO', 'EXISTENTE'].includes(kind)) throw fault('Indica si el cliente es nuevo o existente.');
-  if (type === 'CONTACTO' && kind !== 'NUEVO') throw fault('El alta de contacto corresponde a clientes nuevos.');
+  // Registrar la visita de un cliente existente sin pedido también es un contacto legítimo.
   const source = input.client && typeof input.client === 'object' && !Array.isArray(input.client) ? input.client : {};
   const client = Object.fromEntries(FAIR_CLIENT_FIELDS.map(([key,,max,type]) => {
     const value = clean(source[key], max);
@@ -122,7 +122,8 @@ export function mailHtml(record, internal = true) {
       <p style="font-size:16px;line-height:1.65;margin:0;">${h(closing)}<br/><strong>${h(signature)}</strong></p>`;
     return brandedEmail({title:`${title} ${record.fair}`,subtitle:'CJM Group · Ferias',body,language:record.language});
   }
-  const fields = [['Feria',record.fair],['Tipo',record.type],['Comercial',record.salesperson],['Código cliente',c.code]];
+  const fields = [['Feria',record.fair],['Tipo',record.type],['Registrado por',record.salesperson],['Usuario de Stock+',record.registrarUsername],
+    ['Representante responsable',record.representativeName ? `${record.representativeName} (${record.representativeCode || 'sin código'})` : record.representativeCode ? `Código ${record.representativeCode}` : 'Pendiente de asignar'],['Código cliente',c.code]];
   const groups = FAIR_CLIENT_GROUPS.map(group => {
     const rows=group.fields.filter(([key])=>c[key]).map(([key,label])=>displayPair(label,c[key])).join('');
     return rows ? `${sectionTitle(group.title)}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>` : '';

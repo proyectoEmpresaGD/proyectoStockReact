@@ -26,6 +26,16 @@ export function createFeriasRouter({pool, service=createFairService({pool}), ocr
     res.json({fields,reviewRequired:true,message:'Comprueba cada dato con la tarjeta antes de enviarlo.'});
   }));
   router.get('/solicitudes',wrap(async(req,res)=>res.json({requests:await service.listRecent(req.user)})));
+  router.get('/visitas',wrap(async(req,res)=>res.json(await service.listVisitors(req.query, req.user))));
+  router.get('/ferias',wrap(async(req,res)=>res.json({fairs:await service.listFairs(req.user)})));
+  router.get('/informes/representantes',wrap(async(req,res)=>res.json({representatives:await service.listReportRepresentatives(req.user)})));
+  router.get('/informes/excel',wrap(async(req,res)=>{
+    const result=await service.exportFairReport({fair:req.query.feria,representativeCode:req.query.representante},req.user);
+    res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',`attachment; filename="${result.filename}"`);
+    res.setHeader('Cache-Control','private, no-store');
+    res.send(result.buffer);
+  }));
   router.post('/solicitudes',wrap(async(req,res)=>{
     const result=await service.storeSubmission(req.body,req.user);
     if(!result.existing) {
