@@ -17,6 +17,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/gastos-pruebas', label: 'Gastos · Pruebas', individualAccess: false, showInPermissionEditor: false, accessNote: 'Exclusivo de administrador durante las pruebas' },
     { path: '/', label: 'Inicio' },
     { path: '/clients', label: 'Clientes' },
+    { path: '/ferias', label: 'Ferias · Contactos y pedidos' },
     { path: '/agenda', label: 'Agenda' },
     { path: '/notas', label: 'Notas' },
     { path: '/stock', label: 'Stock' },
@@ -113,6 +114,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/clients',
+            '/ferias',
             '/agenda',
             '/notas',
             '/stock',
@@ -188,6 +190,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
         permissions: ['stock.read', 'analytics.read', 'labels.read'],
         routes: [
             '/clients',
+            '/ferias',
             '/agenda',
             '/notas',
             '/stock',

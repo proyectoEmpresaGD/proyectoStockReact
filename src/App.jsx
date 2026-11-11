@@ -20,6 +20,7 @@ const Stock = lazy(() => import('./pages/paginaStock.jsx'));
 const CatalogosPage = lazy(() => import('./pages/CatalogosPage.jsx'));
 const SgaPage = lazy(() => import('./pages/SgaPage.jsx'));
 const Clients = lazy(() => import('./pages/paginaclients.jsx'));
+const FeriasPage = lazy(() => import('./pages/FeriasPage.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const Intrastat = lazy(() => import('./pages/Intrastat.jsx'));
 const Etiquetas = lazy(() => import('./pages/etiquetas/Etiquetas.jsx'));
@@ -131,6 +132,7 @@ function AppContent() {
                             <Route path="/reservasTejido" element={<ProtectedRoute><ReservasTejido /></ProtectedRoute>} />
                             <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />
                             <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
+                            <Route path="/ferias" element={<ProtectedRoute><FeriasPage /></ProtectedRoute>} />
                             <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
                             <Route
                               path="/EtiquetaLibroIconos"

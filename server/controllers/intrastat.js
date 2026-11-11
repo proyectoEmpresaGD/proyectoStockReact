@@ -1248,18 +1248,9 @@ export class IntrastatController {
             },
         ];
 
-        sheet['!autofilter'] = {
-            ref: XLSX.utils.encode_range({
-                s: {
-                    r: 0,
-                    c: 0,
-                },
-                e: {
-                    r: range.e.r,
-                    c: range.e.c,
-                },
-            }),
-        }
+        // El Excel de Intrastat Compras se entrega sin autofiltro.
+        // Mantener el resto del estilo, las columnas y todas las filas.
+        delete sheet['!autofilter'];
     }
 
 

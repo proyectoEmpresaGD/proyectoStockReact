@@ -111,6 +111,7 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'clientes',
                 links: [
                     { to: '/clients', label: 'Clientes', icon: <FaUsers className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion', 'decoandyou'] },
+                    { to: '/ferias', label: 'Ferias · Contactos y pedidos', icon: <FaShoppingCart className="mr-3 text-lg" />, roles: ['admin', 'comercial', 'administracion'] },
                     {
                         to: '/agenda',
                         label: 'Agenda comercial',

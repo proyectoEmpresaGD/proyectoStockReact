@@ -1,3 +1,4 @@
+import { createFeriasRouter } from './routes/ferias.js';
 import { createExpenseTestsRouter } from './routes/expenseTests.js';
 import { isTransientDatabaseError } from './db/postgresResilience.js';
 import express, { json } from "express";
@@ -78,6 +79,17 @@ app.options("*", corsHandler);
 // Sandbox protegido antes del parser general (fotos limitadas a 3 MB).
 app.use('/api/expense-tests', authMiddleware, createExpenseTestsRouter({ pool }));
 
+// Fotos de tarjetas: autorización y límite de JSON específico ANTES del
+// parser general de Express (100 KB), que de otro modo rechaza los JPG en base64.
+// No aumentar el límite para el resto de la API.
+app.use('/api/ferias/tarjeta/leer', authMiddleware, json({ limit: '1mb' }));
+// Mensaje estructurado cuando se intenta enviar una foto demasiado pesada.
+app.use((err, req, res, next) => {
+  if (req.path === '/api/ferias/tarjeta/leer' && err?.type === 'entity.too.large') {
+    return res.status(413).json({ code: 'FERIAS_IMAGEN_GRANDE', message: 'La foto ocupa demasiado. Hazla más cerca, con buena luz, o utiliza los campos manuales.' });
+  }
+  return next(err);
+});
 // ✅ Body parser después
 app.use(json());
 
@@ -136,6 +148,8 @@ app.use("/api/sga/cdi-test", authMiddleware, createSgaCdiTestRouter({ pool }));
 app.use("/api/sga/cdi-logistics", authMiddleware, createSgaCdiLogisticsRouter({ pool }));
 app.use("/api/stocklotes", authMiddleware, createStockLotesRouter({ pool }));
 app.use("/api/clients", authMiddleware, createClienteRouter({ pool }));
+// Ferias: captación y solicitudes de pedido por correo, SIN escritura en ERP.
+app.use("/api/ferias", authMiddleware, createFeriasRouter({ pool }));
 app.use("/api/jornada", authMiddleware, createJornadaRouter({ pool }));
 app.use("/api/pedventa", authMiddleware, createPedVentaRouter());
 app.use("/api/equivalencias", authMiddleware, createEquivalenciasRouter());
