@@ -1,4 +1,5 @@
 import pool from '../../db/pool.js';
+import { buildClientHInvoiceVisibilitySql } from '../../utils/clientInvoiceSeriesAccess.js';
 
 export class ClientPurchasesModel {
     // Sólo códigos para la clasificación del catálogo: no se descargan líneas históricas.
@@ -13,7 +14,7 @@ export class ClientPurchasesModel {
             WHERE av.codclien = $1
               AND avl.codprodu IS NOT NULL
               AND TRIM(avl.codprodu) <> ''
-              AND ($2::boolean OR UPPER(BTRIM(COALESCE(av.codserfacventa::text, ''))) NOT IN ('H', 'HH'))
+              AND ($2::boolean OR ${buildClientHInvoiceVisibilitySql('av')})
         `, [codclien, canViewHInvoices === true]);
         return rows.map((row) => row.codprodu);
     }
@@ -49,7 +50,7 @@ export class ClientPurchasesModel {
             WHERE av.codclien = $1
                 AND avl.codprodu IS NOT NULL
                 AND TRIM(avl.codprodu) <> ''
-                AND ($2::boolean OR UPPER(BTRIM(COALESCE(av.codserfacventa::text, ''))) NOT IN ('H', 'HH'))
+                AND ($2::boolean OR ${buildClientHInvoiceVisibilitySql('av')})
         `;
 
         if (ejercicio && ejercicio.trim() !== '') {

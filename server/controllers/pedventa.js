@@ -1,5 +1,6 @@
 import { PedVentaModel } from '../models/Postgres/pedventa.js';
 import { ensureClientAccess } from '../utils/clientPortfolioAccess.js';
+import { canViewClientHInvoices } from '../utils/clientInvoiceSeriesAccess.js';
 
 export class PedVentaController {
 
@@ -23,10 +24,13 @@ export class PedVentaController {
             const { codclien } = req.params;
             if (!await ensureClientAccess(req, res, codclien)) return;
             const { ejercicio } = req.query;           // <-- nuevo
-            const ventas = await PedVentaModel.getByClient({ codclien, ejercicio });
+            const ventas = await PedVentaModel.getByClient({
+                codclien, ejercicio, canViewHInvoices: canViewClientHInvoices(req.user),
+            });
 
             // Un cliente existente puede no tener pedidos/ventas en pedventa.
             // Eso no es un recurso inexistente: devolvemos una colección vacía con 200.
+            res.setHeader('Cache-Control', 'no-store');
             res.json(ventas);
         } catch (error) {
             res.status(500).json({ error: error.message });

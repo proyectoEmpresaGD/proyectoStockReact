@@ -314,7 +314,10 @@ export class ClienteController {
 
             const filters = { codpais, codprovi, query, status, codclien, codrepres };
             const [clients, total] = await Promise.all([
-                ClienteModel.getClientsWithBilling({ ...filters, limit: safeLimit, offset, order }),
+                ClienteModel.getClientsWithBilling({
+                    ...filters, limit: safeLimit, offset, order,
+                    canViewHInvoices: canViewClientHInvoices(req.user),
+                }),
                 ClienteModel.getCount(filters),
             ]);
 

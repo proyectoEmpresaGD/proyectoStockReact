@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canViewClientHInvoices, isClientHInvoiceSeries } from '../../server/utils/clientInvoiceSeriesAccess.js';
+import { canViewClientHInvoices, isClientHInvoiceSeries, buildClientHInvoiceVisibilitySql, CLIENT_H_INVOICE_CUTOFF_DATE } from '../../server/utils/clientInvoiceSeriesAccess.js';
 import { AVAILABLE_ROUTES } from '../../src/utils/roleAccessConfig.js';
 
 const permission = '/clients/series-h-hh';
@@ -72,7 +72,7 @@ test('permiso especial disponible en Gestión de usuarios, sin permitir herencia
 
 test('SQL de historial y catálogo filtra H y HH en el servidor por defecto', async () => {
     const pool = fakePool([{codprodu:'A1'}]);
-    const Model = loadModel('server/models/Postgres/clientPurchases.js','ClientPurchasesModel',{pool});
+    const Model = loadModel('server/models/Postgres/clientPurchases.js','ClientPurchasesModel',{pool,buildClientHInvoiceVisibilitySql});
     await Model.getByClient({codclien:'CLIENTE',ejercicio:'2026'});
     await Model.getPurchasedCodes('CLIENTE');
     assert.equal(pool.queries.length,2);
@@ -82,11 +82,17 @@ test('SQL de historial y catálogo filtra H y HH en el servidor por defecto', as
         assert.deepEqual(entry.params.slice(0,2),['CLIENTE',false]);
     }
     assert.deepEqual(pool.queries[0].params,['CLIENTE',false,2026]);
+    for (const {sql} of pool.queries) {
+        assert.match(sql, /FROM facventa fv_historica/);
+        assert.ok(sql.includes(`DATE '${CLIENT_H_INVOICE_CUTOFF_DATE}'`));
+        assert.match(sql, /fv_historica\.fecha::date < DATE/);
+        assert.doesNotMatch(sql, /av\.fecha::date < DATE/);
+    }
 });
 
 test('un usuario autorizado ve todas las series en las dos consultas sin alterar sus campos', async () => {
     const pool = fakePool([{codprodu:'A1'}]);
-    const Model = loadModel('server/models/Postgres/clientPurchases.js','ClientPurchasesModel',{pool});
+    const Model = loadModel('server/models/Postgres/clientPurchases.js','ClientPurchasesModel',{pool,buildClientHInvoiceVisibilitySql});
     await Model.getByClient({codclien:'CLIENTE',canViewHInvoices:true});
     await Model.getPurchasedCodes('CLIENTE',{canViewHInvoices:true});
     assert.deepEqual(pool.queries[0].params,['CLIENTE',true]);
@@ -123,6 +129,7 @@ test('histórico contable antiguo filtra series cuando existen en la tabla', asy
     const data = await Model.getBillingHistory('CL', {canViewHInvoices:false});
     assert.deepEqual(data,[{importe:12}]);
     assert.match(pool.queries[1].sql,/NOT IN \('H', 'HH', ''\)/);
+    assert.match(pool.queries[1].sql,/f\.fecha::date < DATE '2026-11-12'/);
     assert.deepEqual(pool.queries[1].params,['CL']);
 });
 
@@ -134,4 +141,17 @@ test('histórico sin identificador de serie no filtra a ciegas ni revela importe
     await Model.getBillingHistory('CL',{canViewHInvoices:true});
     assert.equal(pool.queries.length,2);
     assert.doesNotMatch(pool.queries[1].sql,/NOT IN \('H', 'HH', ''\)/);
+});
+
+
+test('corte temporal fijo: únicamente H/HH históricas con fecha de factura acreditada son visibles', () => {
+    assert.equal(CLIENT_H_INVOICE_CUTOFF_DATE, '2026-11-12');
+    const sql = buildClientHInvoiceVisibilitySql('av');
+    assert.match(sql, /NOT IN \('H', 'HH'\)/);
+    assert.match(sql, /FROM facventa fv_historica/);
+    assert.match(sql, /fv_historica\.codclien = av\.codclien/);
+    assert.match(sql, /fv_historica\.nfacventa::text/);
+    assert.match(sql, /fv_historica\.fecha::date < DATE '2026-11-12'/);
+    assert.doesNotMatch(sql, /CURRENT_DATE/);
+    assert.throws(() => buildClientHInvoiceVisibilitySql('av; DROP TABLE facventa'), /no válido/);
 });

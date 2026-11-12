@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { buildOrderHInvoiceExclusionSql } from '../../server/utils/clientInvoiceSeriesAccess.js';
 
 const source = readFileSync(new URL('../../server/models/Postgres/clients.js', import.meta.url), 'utf8');
 
@@ -16,7 +17,7 @@ function loadModel() {
     };
     const code = source.slice(source.indexOf('const buildNormalizedClientSearch ='))
         .replace('export class ClienteModel', 'class ClienteModel');
-    const Model = new Function('pool', 'CLIENT_FIELDS', `${code}\nreturn ClienteModel;`)(pool, []);
+    const Model = new Function('pool', 'CLIENT_FIELDS', 'buildOrderHInvoiceExclusionSql', `${code}\nreturn ClienteModel;`)(pool, [], buildOrderHInvoiceExclusionSql);
     return { Model, queries };
 }
 

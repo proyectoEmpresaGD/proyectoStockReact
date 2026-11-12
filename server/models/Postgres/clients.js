@@ -2,6 +2,7 @@ import { CLIENT_FIELDS } from '../../schemas/clients.js';
 
 
 import pool from '../../db/pool.js';
+import { buildOrderHInvoiceExclusionSql } from '../../utils/clientInvoiceSeriesAccess.js';
 
 const buildNormalizedClientSearch = (fieldName) => `
   regexp_replace(
@@ -401,7 +402,8 @@ export class ClienteModel {
     }
 
     static async getBillingHistory(codclien, { canViewHInvoices = false } = {}) {
-        // Endpoint legado de Clientes: nunca facilitar importes de H/HH por accidente.
+        // Endpoint legado: desde el 12-11-2026 las H/HH requieren permiso.
+        // Las facturas anteriores se mantienen visibles; no mostrar series vacías.
         // Solo se puede filtrar cuando la fuente 'facturacion' expone su serie.
         const allSeries = canViewHInvoices === true;
         try {
@@ -421,7 +423,9 @@ export class ClienteModel {
                 SELECT fecha, importe, dt1, dt2, dt3
                 FROM facturacion f
                 WHERE f.codclien = $1
-                  ${allSeries ? '' : "AND UPPER(BTRIM(COALESCE(f.codserfacventa::text, ''))) NOT IN ('H', 'HH', '')"}
+                  ${allSeries ? '' : `AND (UPPER(BTRIM(COALESCE(f.codserfacventa::text, ''))) NOT IN ('H', 'HH', '')
+                      OR (UPPER(BTRIM(COALESCE(f.codserfacventa::text, ''))) IN ('H', 'HH')
+                          AND f.fecha::date < DATE '2026-11-12'))`}
                 ORDER BY fecha DESC
             `;
             const { rows } = await pool.query(queryText, [codclien]);
@@ -676,7 +680,7 @@ export class ClienteModel {
         }
     }
 
-    static async getClientsWithBilling({ limit, offset, order = 'DESC', codrepres, codclien }) {
+    static async getClientsWithBilling({ limit, offset, order = 'DESC', codrepres, codclien, canViewHInvoices = false }) {
         if (hasEmptyCodrepresFilter(codrepres) || hasEmptyCodclienFilter(codclien)) {
             return [];
         }
@@ -694,6 +698,7 @@ export class ClienteModel {
                              (1 - COALESCE(p.dt3, 0) / 100)), 0) AS total_billing
         FROM clientes c
         LEFT JOIN pedventa p ON c.codclien = p.codclien
+            ${canViewHInvoices ? '' : `AND ${buildOrderHInvoiceExclusionSql('p')}`}
         WHERE ${buildActiveClientFilter('c')}
     `;
 

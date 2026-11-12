@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { canViewClientHInvoices } from '../../server/utils/clientInvoiceSeriesAccess.js';
 
 const read = (name) => readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8');
 const accessSource = read('server/utils/clientPortfolioAccess.js')
@@ -12,9 +13,9 @@ function createController(model) {
     const source = read('server/controllers/clients.js')
         .replace(/^import .*?;\s*$/gm, '')
         .replace('export class ClienteController', 'class ClienteController');
-    return new Function('ClienteModel', 'normalizeUserClientAccess', 'resolveClientDirectoryAccess', 'ensureClientAccess',
+    return new Function('ClienteModel', 'normalizeUserClientAccess', 'resolveClientDirectoryAccess', 'ensureClientAccess', 'canViewClientHInvoices',
         `${source}\nreturn new ClienteController();`)(
-        model, portfolio.normalizeUserClientAccess, portfolio.resolveClientDirectoryAccess, portfolio.ensureClientAccess,
+        model, portfolio.normalizeUserClientAccess, portfolio.resolveClientDirectoryAccess, portfolio.ensureClientAccess, canViewClientHInvoices,
     );
 }
 

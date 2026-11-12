@@ -1,6 +1,7 @@
 
 
 import pool from '../../db/pool.js';
+import { buildOrderHInvoiceExclusionSql } from '../../utils/clientInvoiceSeriesAccess.js';
 
 export class PedVentaModel {
     static async getClientCodeById(id) {
@@ -19,20 +20,21 @@ export class PedVentaModel {
 
 
     // Ejemplo de modificación en el modelo
-    static async getByClient({ codclien, ejercicio }) {
+    static async getByClient({ codclien, ejercicio, canViewHInvoices = false }) {
         let query = `
     SELECT codprodu, fecha, desprodu, cantidad,
            precio, importe, dt1, dt2, dt3, npedventa
-    FROM pedventa 
-    WHERE codclien = $1
+    FROM pedventa p
+    WHERE p.codclien = $1
+    ${canViewHInvoices ? '' : `AND ${buildOrderHInvoiceExclusionSql('p')}`}
   `;
         const params = [codclien];
 
         if (ejercicio && ejercicio.trim() !== '') {
-            query += ` AND ejercicio = $2`;
+            query += ` AND p.ejercicio = $2`;
             params.push(ejercicio);
         }
-        query += ` ORDER BY fecha DESC`;
+        query += ` ORDER BY p.fecha DESC`;
 
         const { rows } = await pool.query(query, params);
         return rows;
