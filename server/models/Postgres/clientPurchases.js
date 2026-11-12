@@ -2,7 +2,7 @@ import pool from '../../db/pool.js';
 
 export class ClientPurchasesModel {
     // Sólo códigos para la clasificación del catálogo: no se descargan líneas históricas.
-    static async getPurchasedCodes(codclien) {
+    static async getPurchasedCodes(codclien, { canViewHInvoices = false } = {}) {
         const { rows } = await pool.query(`
             SELECT DISTINCT TRIM(avl.codprodu) AS codprodu
             FROM albventa av
@@ -13,12 +13,13 @@ export class ClientPurchasesModel {
             WHERE av.codclien = $1
               AND avl.codprodu IS NOT NULL
               AND TRIM(avl.codprodu) <> ''
-        `, [codclien]);
+              AND ($2::boolean OR UPPER(BTRIM(COALESCE(av.codserfacventa::text, ''))) NOT IN ('H', 'HH'))
+        `, [codclien, canViewHInvoices === true]);
         return rows.map((row) => row.codprodu);
     }
 
-    static async getByClient({ codclien, ejercicio }) {
-        const params = [codclien];
+    static async getByClient({ codclien, ejercicio, canViewHInvoices = false }) {
+        const params = [codclien, canViewHInvoices === true];
 
         let query = `
             SELECT
@@ -48,6 +49,7 @@ export class ClientPurchasesModel {
             WHERE av.codclien = $1
                 AND avl.codprodu IS NOT NULL
                 AND TRIM(avl.codprodu) <> ''
+                AND ($2::boolean OR UPPER(BTRIM(COALESCE(av.codserfacventa::text, ''))) NOT IN ('H', 'HH'))
         `;
 
         if (ejercicio && ejercicio.trim() !== '') {

@@ -3,6 +3,7 @@ import { ClientPendingOrdersModel } from '../models/Postgres/clientPendingOrders
 import { UserModel } from '../models/Postgres/usuarios.js';
 import { validateCliente, validatePartialCliente } from '../schemas/clients.js';
 import { normalizeUserClientAccess, resolveClientDirectoryAccess, ensureClientAccess } from '../utils/clientPortfolioAccess.js';
+import { canViewClientHInvoices } from '../utils/clientInvoiceSeriesAccess.js';
 
 const COMMERCIAL_ROLE = 'comercial';
 
@@ -153,9 +154,18 @@ export class ClienteController {
         try {
             const { codclien } = req.params;
             if (!await ensureClientAccess(req, res, codclien)) return;
-            const history = await ClienteModel.getBillingHistory(codclien);
+            const history = await ClienteModel.getBillingHistory(codclien, {
+                canViewHInvoices: canViewClientHInvoices(req.user),
+            });
+            res.setHeader('Cache-Control', 'no-store');
             res.json(history);
         } catch (error) {
+            if (error.code === 'CLIENT_BILLING_SERIES_UNAVAILABLE') {
+                return res.status(503).json({
+                    code: error.code,
+                    message: 'Este histórico no permite filtrar series de facturación de forma segura.',
+                });
+            }
             res.status(500).json({ error: error.message });
         }
     }

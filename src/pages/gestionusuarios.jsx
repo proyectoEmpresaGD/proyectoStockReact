@@ -56,7 +56,7 @@ const normalizeRouteKey = (path) => {
 const routeGroupLabel = (path) => {
     const normalized = normalizeRouteKey(path);
 
-    if (['/clients', '/agenda', '/notas'].includes(normalized)) return 'Clientes y comercial';
+    if (['/clients', '/clients/series-h-hh', '/agenda', '/notas'].includes(normalized)) return 'Clientes y comercial';
     if (['/stock', '/equivalencias', '/stock-alerts', '/fichatecnica', '/reservastejido'].includes(normalized)) return 'Productos y almacén';
     if (['/entradas', '/comprobacionexcel', '/mapas-facturacion', '/mapa-clientes', '/mapa-españa', '/analitica-facturacion', '/intrastat'].includes(normalized)) {
         return 'Ventas, contabilidad y analítica';
@@ -903,12 +903,19 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
                         <div className="space-y-2">
                             {routesInGroup.map((route) => {
                                 const mode = getExactRouteAccessMode(routeAccess, route.path);
-                                const baseAllowed = userCanAccessRoute(normalizedRole, route.path, {});
-                                const effectiveAllowed = userCanAccessRoute(normalizedRole, route.path, routeAccess);
+                                // El permiso de facturas H/HH no hereda el permiso general /clients.
+                                const baseAllowed = route.specialPermission
+                                    ? isAdmin
+                                    : userCanAccessRoute(normalizedRole, route.path, {});
+                                const effectiveAllowed = route.specialPermission
+                                    ? (isAdmin || mode === 'allow')
+                                    : userCanAccessRoute(normalizedRole, route.path, routeAccess);
                                 const individuallyManaged = route.individualAccess !== false;
                                 const disabled = isAdmin || !individuallyManaged;
 
-                                let statusLabel = baseAllowed ? 'Heredado · permitido' : 'Heredado · sin acceso';
+                                let statusLabel = route.specialPermission && !isAdmin
+                                    ? 'Por defecto · ocultas'
+                                    : baseAllowed ? 'Heredado · permitido' : 'Heredado · sin acceso';
                                 if (mode === 'allow') statusLabel = 'Permitido manualmente';
                                 if (mode === 'deny') statusLabel = 'Bloqueado manualmente';
                                 if (!individuallyManaged) statusLabel = route.accessNote || 'Gestión específica';
@@ -925,7 +932,13 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
                                                     {statusLabel}
                                                 </span>
                                             </div>
-                                            <p className="cjm-muted mt-1 break-all font-mono text-[11px] sm:text-xs">{route.path}</p>
+                                            {route.specialPermission ? (
+                                                <p className="cjm-muted mt-1 text-xs leading-5">
+                                                    Solo controla la visualización de las series H y HH en el historial de compras y catálogo de Clientes. Por defecto están ocultas.
+                                                </p>
+                                            ) : (
+                                                <p className="cjm-muted mt-1 break-all font-mono text-[11px] sm:text-xs">{route.path}</p>
+                                            )}
                                         </div>
 
                                         <select
@@ -935,7 +948,7 @@ function RoutePermissionsEditor({ role, routeAccess, onChange, onReset }) {
                                             className="cjm-input min-h-11 w-full rounded-xl px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                             aria-label={`Permiso para ${route.label}`}
                                         >
-                                            <option value="inherit"><TranslatedText>Heredar del rol</TranslatedText></option>
+                                            <option value="inherit">{route.specialPermission ? 'Ocultas (por defecto)' : <TranslatedText>Heredar del rol</TranslatedText>}</option>
                                             <option value="allow"><TranslatedText>Dar acceso</TranslatedText></option>
                                             <option value="deny"><TranslatedText>Bloquear acceso</TranslatedText></option>
                                         </select>

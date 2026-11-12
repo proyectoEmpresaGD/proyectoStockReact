@@ -400,18 +400,34 @@ export class ClienteModel {
         return rows.length > 0;
     }
 
-    static async getBillingHistory(codclien) {
-        const queryText = `
-            SELECT fecha, importe, dt1, dt2, dt3
-            FROM facturacion
-            WHERE codclien = $1
-            ORDER BY fecha DESC
-        `;
-
+    static async getBillingHistory(codclien, { canViewHInvoices = false } = {}) {
+        // Endpoint legado de Clientes: nunca facilitar importes de H/HH por accidente.
+        // Solo se puede filtrar cuando la fuente 'facturacion' expone su serie.
+        const allSeries = canViewHInvoices === true;
         try {
+            if (!allSeries) {
+                const { rows: columns } = await pool.query(`
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_schema = current_schema() AND table_name = 'facturacion'
+                      AND column_name = 'codserfacventa'
+                `);
+                if (columns.length === 0) {
+                    const error = new Error('La fuente de facturación no identifica las series.');
+                    error.code = 'CLIENT_BILLING_SERIES_UNAVAILABLE';
+                    throw error;
+                }
+            }
+            const queryText = `
+                SELECT fecha, importe, dt1, dt2, dt3
+                FROM facturacion f
+                WHERE f.codclien = $1
+                  ${allSeries ? '' : "AND UPPER(BTRIM(COALESCE(f.codserfacventa::text, ''))) NOT IN ('H', 'HH', '')"}
+                ORDER BY fecha DESC
+            `;
             const { rows } = await pool.query(queryText, [codclien]);
             return rows;
         } catch (error) {
+            if (error.code === 'CLIENT_BILLING_SERIES_UNAVAILABLE') throw error;
             console.error('Error fetching billing history:', error);
             throw new Error('Error fetching billing history');
         }

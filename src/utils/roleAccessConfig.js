@@ -17,6 +17,8 @@ export const AVAILABLE_ROUTES = [
     { path: '/gastos-pruebas', label: 'Gastos · Pruebas', individualAccess: false, showInPermissionEditor: false, accessNote: 'Exclusivo de administrador durante las pruebas' },
     { path: '/', label: 'Inicio' },
     { path: '/clients', label: 'Clientes' },
+    // Permiso de datos de Clientes; no representa una página navegable.
+    { path: '/clients/series-h-hh', label: 'Clientes · Ver facturas series H y HH', specialPermission: true },
     { path: '/ferias', label: 'Ferias · Contactos y pedidos' },
     { path: '/agenda', label: 'Agenda' },
     { path: '/notas', label: 'Notas' },
