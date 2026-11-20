@@ -85,15 +85,40 @@ test('CSV y descuentos no truncan porcentajes', () => {
 });
 
 
-test('la ficha comercial muestra la forma de pago real del ERP sin nuevas peticiones', () => {
+test('la ficha del cliente muestra la descripción, no el código interno de la forma de pago', () => {
     const info = read('src/components/clientes/modal/InfoTab.jsx');
     const model = read('server/models/Postgres/clients.js');
     const page = read('src/pages/paginaclients.jsx');
 
-    assert.match(info, /client\?\.codforpago/);
-    assert.match(info, /<Detail title="Forma de pago">\{paymentCode \?/);
-    assert.match(info, /String\(client\?\.codforpago \?\? ''\)\.trim\(\)/);
-    assert.match(info, /<span>\{paymentCode\}<\/span>/);
+    assert.match(info, /<Detail title="Forma de pago">\{getPaymentLabel\(client\?\.codforpago\)\}/);
+    assert.doesNotMatch(info, /<span>\{paymentCode\}<\/span>/);
+    assert.doesNotMatch(info, /Código<\/TranslatedText> ERP/);
     assert.match(model, /static async getById\(\{ codclien \}\)[\s\S]*?SELECT \*[\s\S]*?FROM clientes[\s\S]*?WHERE codclien = \$1/);
     assert.match(page, /\/api\/clients\/\$\{clientCode\}/);
+});
+
+test('las 45 formas de pago coinciden con el catálogo recibido y se normalizan los códigos', () => {
+    const info = read('src/components/clientes/modal/InfoTab.jsx');
+    const mappingSource = info.match(/const PAYMENT_NAMES = Object\.freeze\((\{[\s\S]*?\})\);/);
+    assert.ok(mappingSource, 'Debe existir el catálogo de descripciones');
+    const paymentNames = new Function(`return (${mappingSource[1]});`)();
+    assert.equal(Object.keys(paymentNames).length, 45);
+    assert.equal(paymentNames['@C'], 'Contrareembolso - Entrega');
+    assert.equal(paymentNames['00'], 'CONTADO');
+    assert.equal(paymentNames['04'], 'TT 30 DAYS TO OUR BANK ACCOUNT CAIXA');
+    assert.equal(paymentNames['16'], 'CONFIRMING 90 DÍAS CAIXA');
+    assert.equal(paymentNames['42'], 'TRANSFERENCIA PREVIA LA CAIXA');
+    assert.equal(paymentNames['G1'], 'GIRO 30 DÍAS');
+    assert.equal(paymentNames['TG'], 'TRANSF. 50% ADELANTADO / 50% GIRO 30 DÍAS.');
+
+    const helperSource = info.match(/const getPaymentLabel = \(value\) => \{[\s\S]*?\n\};/);
+    assert.ok(helperSource, 'Debe existir un traductor de códigos');
+    const getPaymentLabel = new Function('PAYMENT_NAMES', `${helperSource[0]}\nreturn getPaymentLabel;`)(paymentNames);
+    assert.equal(getPaymentLabel('G1'), 'GIRO 30 DÍAS');
+    assert.equal(getPaymentLabel(' g1 '), 'GIRO 30 DÍAS');
+    assert.equal(getPaymentLabel(0), 'CONTADO');
+    assert.equal(getPaymentLabel('1'), 'TALON');
+    assert.equal(getPaymentLabel('@c'), 'Contrareembolso - Entrega');
+    assert.equal(getPaymentLabel(null), null);
+    assert.equal(getPaymentLabel('XX'), 'Descripción de forma de pago no disponible');
 });

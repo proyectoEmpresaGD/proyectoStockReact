@@ -1,0 +1,40 @@
+ACTUALIZACIÓN — FORMA DE PAGO DESCRIPTIVA EN FICHA DE CLIENTE
+
+OBJETIVO
+La ficha de clientes (Información > Datos comerciales > Forma de pago)
+muestra la descripción de la forma de pago en lugar del código ERP.
+
+ORIGEN DE LOS DATOS
+Archivo aportado: "formas de pago.xlsx", Hoja1, columnas
+"Forma de Pago" y "Descripción"; 45 equivalencias.
+
+ARCHIVOS INCLUIDOS
+- src/components/clientes/modal/InfoTab.jsx
+- tests/clients/clientModule.test.js
+- LEEME_FORMA_PAGO_DESCRIPCIONES.txt
+
+INSTALACIÓN
+1. Realizar copia de seguridad o commit del proyecto actual.
+2. Descomprimir este ZIP sobre la raíz de proyectoStockReact-main,
+   manteniendo las rutas y reemplazando los archivos homónimos.
+3. Volver a compilar/desplegar el frontend como se hace habitualmente.
+   No se modifican controladores, modelos ni base de datos.
+
+COMPORTAMIENTO
+- El cliente conserva su codforpago del ERP para la búsqueda interna.
+- La ficha muestra solo la descripción; no se enseña el código.
+- Se toleran espacios, minúsculas y códigos numéricos sin 0 inicial.
+- Si no hay forma de pago, se muestra —.
+- Si el código no está en el catálogo, se muestra
+  "Descripción de forma de pago no disponible".
+- Este catálogo es estático. Si las formas de pago cambian en el ERP,
+  habrá que actualizar el listado correspondiente del componente.
+
+PRUEBAS
+node --test --test-name-pattern='la ficha del cliente muestra|las 45 formas de pago' tests/clients/clientModule.test.js
+
+Resultado de las dos pruebas nuevas: 2 correctas.
+La batería completa de clientModule.test.js mantiene 2 fallos anteriores
+ajenos a este cambio; no se han modificado esos módulos.
+
+No se han realizado pruebas de conexión con el ERP real.
