@@ -10,7 +10,7 @@ const DEFAULT_FILTERS = {
     limit: '100',
 };
 
-export function useStockControl({ token }) {
+export function useStockControl({ token, pendingExceedsStock = false }) {
     const [filters, setFilters] = useState(DEFAULT_FILTERS);
     const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
     const [filterOptions, setFilterOptions] = useState({ providers: [], collections: [] });
@@ -72,7 +72,10 @@ export function useStockControl({ token }) {
         try {
             const data = await fetchStockControlRows({
                 token,
-                filters: overrideFilters || appliedFilters,
+                filters: {
+                    ...(overrideFilters || appliedFilters),
+                    ...(pendingExceedsStock ? { pendingExceedsStock: 'true' } : {}),
+                },
                 signal: controller.signal,
                 onRetry: ({ attempt, maxRetries }) => {
                     if (!controller.signal.aborted) {
@@ -94,7 +97,7 @@ export function useStockControl({ token }) {
                 setInitialRowsSettled(true);
             }
         }
-    }, [token, appliedFilters]);
+    }, [token, appliedFilters, pendingExceedsStock]);
 
     // No competir con la consulta inicial de planificación: el desplegable de
     // proveedores usa una consulta pesada sobre el historial de compras.

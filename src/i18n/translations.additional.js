@@ -1697,6 +1697,7 @@ export const additionalEnglish = Object.freeze({
   "Tonalidad": "Shade",
   "Gestión interna": "Internal management",
   "Pendiente de servir": "Pending dispatch",
+  "Pendiente > stock": "Pending > stock",
   "Pedidos": "Orders",
   "Series": "Series",
   "Fecha de trabajo": "Working date",

@@ -58,6 +58,9 @@ export default function InfoTab({ client }) {
     const address = [client?.direccion, client?.localidad, provinceName, client?.codpais]
         .filter(Boolean).join(', ');
     const telephone = String(client?.tlfno || '').trim();
+    // Viene de clientes.codforpago, ya incluido en el detalle que devuelve la API.
+    // El catálogo código -> descripción no está disponible en esta fuente.
+    const paymentCode = String(client?.codforpago ?? '').trim();
 
     return (
         <div className="clients-info">
@@ -69,6 +72,12 @@ export default function InfoTab({ client }) {
                         <LocalizedElement><Detail title="Código">{client?.codclien}</Detail></LocalizedElement>
                         <LocalizedElement><Detail title="Tipo de cliente">{getManagementLabel(client?.codgesti)}</Detail></LocalizedElement>
                         <LocalizedElement><Detail title="Tarifa asignada">{getTariffLabel(client?.codtarifa)}</Detail></LocalizedElement>
+                        <LocalizedElement><Detail title="Forma de pago">{paymentCode ? (
+                            <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                <span>{paymentCode}</span>
+                                <span className="text-xs font-normal text-slate-500"><TranslatedText>Código</TranslatedText> ERP</span>
+                            </span>
+                        ) : null}</Detail></LocalizedElement>
                     </dl>
                 </section></LocalizedElement>
                 <LocalizedElement><section className="clients-info__section" aria-label="Contacto del cliente">

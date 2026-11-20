@@ -599,9 +599,19 @@ export class StockModel {
         }]));
     }
 
-    static async getControlStock({ provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500, onTiming = null }) {
+    static async getControlStock({ provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 500, pendingExceedsStock = false, onTiming = null }) {
         const safeMonthsBack = StockModel.getControlStockMonthsBack(monthsBack);
         const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 500, 1), 2000);
+        const onlyPendingExceedsStock = pendingExceedsStock === true || String(pendingExceedsStock).toLowerCase() === 'true';
+        // Se filtra en PostgreSQL antes del LIMIT, para incluir también las
+        // referencias que no estaban entre las primeras 100 de la consulta normal.
+        // Los productos de tipo 101 obtienen su stock desde stocklotes.
+        const pendingExceedsStockFilter = onlyPendingExceedsStock ? `AND COALESCE(stock_almacen.canpenservir, 0) > (
+            CASE WHEN productos_base.tipo = '101'
+                THEN COALESCE(stock_lotes_tipo_101.stock_lotes_actual, 0)
+                ELSE COALESCE(stock_almacen.stock_stockactual, 0)
+            END
+        )` : '';
 
         const lateFilters = [];
         const earlyFilters = [];
@@ -649,7 +659,7 @@ export class StockModel {
         // en la tabla con sus cálculos reales, aunque NO genere necesidad de compra.
         // El listado general conserva intactos los criterios de alertas.
         const explicitProductSearch = Boolean(String(productCode || '').trim() || String(productName || '').trim());
-        const includeCatalogMatch = explicitProductSearch ? 'TRUE' : 'FALSE';
+        const includeCatalogMatch = (explicitProductSearch || onlyPendingExceedsStock) ? 'TRUE' : 'FALSE';
         const scopeSales = scopedProducts ? `AND EXISTS (
             SELECT 1 FROM productos_base pb
             WHERE pb.codprodu_key = UPPER(REGEXP_REPLACE(TRIM(COALESCE(albventa_linea.codprodu::text, '')), '^([A-Za-z]+)0*([0-9]+)$', '\\1\\2'))
@@ -941,6 +951,7 @@ export class StockModel {
                 ON resumen_consumo.codprodu_key = productos_base.codprodu_key
             WHERE 1 = 1
               ${extraFilters}
+              ${pendingExceedsStockFilter}
               AND (${includeCatalogMatch} OR COALESCE(resumen_consumo.consumo_total_periodo, 0) > 0)
               AND (${includeCatalogMatch} OR (
                     (

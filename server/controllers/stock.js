@@ -87,7 +87,7 @@ export class StockController {
         const traceId = traceEnabled ? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : null;
         if (traceEnabled) console.info(`[control-stock:${traceId}] Inicio de consulta`);
         try {
-            const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 100 } = req.query;
+            const { provider = '', collection = '', productName = '', productCode = '', monthsBack = 12, limit = 100, pendingExceedsStock = false } = req.query;
 
             const data = await StockModel.getControlStock({
                 provider,
@@ -96,6 +96,7 @@ export class StockController {
                 productCode,
                 monthsBack,
                 limit,
+                pendingExceedsStock,
                 onTiming: (stage, ms) => {
                     timings[stage] = ms;
                     if (traceEnabled) console.info(`[control-stock:${traceId}] ${stage}=${Math.round(ms)}ms`);

@@ -83,3 +83,17 @@ test('CSV y descuentos no truncan porcentajes', () => {
     assert.match(bought, /Number\(d\) \/ 100/);
     assert.match(bought, /uFEFF/);
 });
+
+
+test('la ficha comercial muestra la forma de pago real del ERP sin nuevas peticiones', () => {
+    const info = read('src/components/clientes/modal/InfoTab.jsx');
+    const model = read('server/models/Postgres/clients.js');
+    const page = read('src/pages/paginaclients.jsx');
+
+    assert.match(info, /client\?\.codforpago/);
+    assert.match(info, /<Detail title="Forma de pago">\{paymentCode \?/);
+    assert.match(info, /String\(client\?\.codforpago \?\? ''\)\.trim\(\)/);
+    assert.match(info, /<span>\{paymentCode\}<\/span>/);
+    assert.match(model, /static async getById\(\{ codclien \}\)[\s\S]*?SELECT \*[\s\S]*?FROM clientes[\s\S]*?WHERE codclien = \$1/);
+    assert.match(page, /\/api\/clients\/\$\{clientCode\}/);
+});

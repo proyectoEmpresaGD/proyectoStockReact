@@ -4,6 +4,7 @@ export const STOCK_STATUS = {
     upcoming: 'upcoming',
     covered: 'covered',
     missingSupplier: 'missingSupplier',
+    pendingExceedsStock: 'pendingExceedsStock',
     all: 'all',
 };
 
@@ -64,6 +65,12 @@ export const getSuggestedOrder = (product, horizon = HORIZONS.month) => {
         ?? getNetRecommendation(product, horizon)
     );
 };
+
+// Comparar las cantidades numéricamente, como en las columnas de la tabla.
+// stockactual ya incluye el stock por lotes para los productos de tipo 101.
+export const hasPendingServeShortage = (product) => (
+    toNumber(product?.canpenservir) > toNumber(product?.stockactual)
+);
 
 export const getStockStatus = (product) => {
     const oneMonthNeed = getNetRecommendation(product, HORIZONS.month);

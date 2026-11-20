@@ -29,6 +29,7 @@ import {
     compareStockRows,
     getStockStatus,
     getSuggestedOrder,
+    hasPendingServeShortage,
     HORIZONS,
     STOCK_STATUS,
     toNumber,
@@ -42,6 +43,7 @@ const STATUS_OPTIONS = [
     { value: STOCK_STATUS.upcoming, label: 'Planificar' },
     { value: STOCK_STATUS.covered, label: 'Cubiertos' },
     { value: STOCK_STATUS.missingSupplier, label: 'Sin proveedor' },
+    { value: STOCK_STATUS.pendingExceedsStock, label: 'Pendiente > stock' },
 ];
 
 const SORT_OPTIONS = [
@@ -61,6 +63,7 @@ const getPlanStorageKey = (user) => {
 
 function LowStockAlertsPage() {
     const { token, user } = useAuthContext();
+    const [status, setStatus] = useState(STOCK_STATUS.all);
     const {
         filters,
         appliedFilters,
@@ -78,9 +81,7 @@ function LowStockAlertsPage() {
         selectProduct,
         resetFilters,
         reload,
-    } = useStockControl({ token });
-
-    const [status, setStatus] = useState(STOCK_STATUS.all);
+    } = useStockControl({ token, pendingExceedsStock: status === STOCK_STATUS.pendingExceedsStock });
     const selectCatalogProduct = useCallback((code) => {
         // No ocultar la referencia seleccionada bajo un estado «Comprar ahora»
         // que el usuario hubiese aplicado a la consulta anterior.
@@ -187,6 +188,7 @@ function LowStockAlertsPage() {
             .filter((product) => {
                 if (status === STOCK_STATUS.all) return true;
                 if (status === STOCK_STATUS.missingSupplier) return !product.codprove;
+                if (status === STOCK_STATUS.pendingExceedsStock) return hasPendingServeShortage(product);
                 return getStockStatus(product) === status;
             })
             .sort(compareStockRows(sortBy, horizon));
@@ -422,9 +424,10 @@ function LowStockAlertsPage() {
                                     key={option.value}
                                     type="button"
                                     onClick={() => setStatus(option.value)}
+                                    aria-pressed={status === option.value}
                                     className={`min-h-10 shrink-0 rounded-xl px-3 text-sm font-semibold transition ${status === option.value ? 'bg-[#6D8DB3] text-white' : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
                                 >
-                                    {option.label}
+                                    <TranslatedText>{option.label}</TranslatedText>
                                 </button>
                             ))}
                         </div>
