@@ -2,6 +2,19 @@ import { Router, json } from 'express';
 import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
 import { createFairService } from '../services/feriasService.js';
 import { createFairCardOcr } from '../services/feriasOcr.js';
+import { isFairReportAdmin } from '../services/feriasVisitorRegistry.js';
+
+// Restricción específica: solo admin puede consultar y descargar informes.
+// No afecta a los permisos existentes de contactos, visitas o pedidos.
+const requireReportAdministrator = (req,res,next) => {
+  if (!isFairReportAdmin(req.user)) {
+    return res.status(403).json({
+      code:'FERIAS_REPORT_ADMIN_REQUIRED',
+      message:'Solo el administrador puede acceder a los informes de ferias.',
+    });
+  }
+  next();
+};
 
 export function createFeriasRouter({pool, service=createFairService({pool}), ocr=createFairCardOcr()}={}) {
   const router=Router();
@@ -28,8 +41,8 @@ export function createFeriasRouter({pool, service=createFairService({pool}), ocr
   router.get('/solicitudes',wrap(async(req,res)=>res.json({requests:await service.listRecent(req.user)})));
   router.get('/visitas',wrap(async(req,res)=>res.json(await service.listVisitors(req.query, req.user))));
   router.get('/ferias',wrap(async(req,res)=>res.json({fairs:await service.listFairs(req.user)})));
-  router.get('/informes/representantes',wrap(async(req,res)=>res.json({representatives:await service.listReportRepresentatives(req.user)})));
-  router.get('/informes/excel',wrap(async(req,res)=>{
+  router.get('/informes/representantes',requireReportAdministrator,wrap(async(req,res)=>res.json({representatives:await service.listReportRepresentatives(req.user)})));
+  router.get('/informes/excel',requireReportAdministrator,wrap(async(req,res)=>{
     const result=await service.exportFairReport({fair:req.query.feria,representativeCode:req.query.representante},req.user);
     res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition',`attachment; filename="${result.filename}"`);

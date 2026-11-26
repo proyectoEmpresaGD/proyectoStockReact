@@ -466,7 +466,7 @@ async function buildContextFilters(rawFilters = {}) {
     const clienteCol = pickExistingColumn(columns, ['codclien', 'cliente', 'codcliente']);
     const fechaCol = pickExistingColumn(columns, ['fecha', 'fecconta', 'fechafactura']);
     const canalCol = pickExistingColumn(columns, ['canal']);
-    const vendedorCol = pickExistingColumn(columns, ['codvend', 'vendedor']);
+    const vendedorCol = pickExistingColumn(columns, ['codrepre', 'codvend', 'vendedor']);
     const formaPagoCol = pickExistingColumn(columns, ['codforpago', 'forpago', 'forma_pago']);
     const zonaCol = pickExistingColumn(columns, ['codzona', 'zona']);
     const rutaCol = pickExistingColumn(columns, ['codruta', 'ruta']);
@@ -535,6 +535,28 @@ async function buildContextFilters(rawFilters = {}) {
     const baseExpr = metricExpr(baseCol);
     const ivaExpr = metricExpr(ivaCol);
     const totalExpr = metricExpr(totalCol);
+    // En el Centro de informes los filtros son contractuales: jamás debemos
+    // ignorar un filtro porque la columna del ERP no existe, ni sumar ceros
+    // cuando falta el importe principal. Facturación normal queda sin cambios.
+    if (rawFilters.reportStrict === '1') {
+        const missing = [
+            [fechaCol === 'NULL', 'fecha de factura'],
+            [serieCol === 'NULL', 'serie de factura'],
+            [nfacCol === 'NULL', 'número de factura'],
+            [rawFilters.amountMode !== 'total' && brutoCol === '0', 'importe bruto'],
+            [series.length > 0 && serieCol === 'NULL', 'filtro de series'],
+            [cliente.length > 0 && clienteCol === 'NULL', 'filtro de clientes'],
+            [vendedores.length > 0 && vendedorCol === 'NULL', 'filtro de vendedores'],
+            [rawFilters.reportRequireFiscal === '1' && baseCol === '0', 'base imponible'],
+            [rawFilters.reportRequireFiscal === '1' && ivaCol === '0', 'cuota IVA'],
+            [rawFilters.reportRequireFiscal === '1' && totalCol === '0', 'total de factura'],
+        ].filter(([absent]) => absent).map(([, name]) => name);
+        if (missing.length) {
+            const error = new Error(`Faltan campos esenciales en facventa para el informe: ${missing.join(', ')}.`);
+            error.code = 'REPORT_SCHEMA_INCOMPLETE';
+            throw error;
+        }
+    }
     // La opción 'total' usa el importe FINAL contabilizado por el ERP.
     // No se debe volver a sumar IVA/portes: ya están incluidos en imptotal.
     if (rawFilters.amountMode === 'total' && totalCol === '0') {
@@ -2057,6 +2079,45 @@ export class AnalyticsModel {
         return result;
     }
 
+    // Comprobación adicional para exportaciones financieras: un importe NULL
+    // no debe convertirse silenciosamente en cero dentro de un informe.
+    static async getReportSourceIntegrity(rawFilters) {
+        const ctx = await buildContextFilters(rawFilters);
+        const col = ctx.filters.amountMode === 'total' ? ctx.expressions.totalCol : ctx.expressions.brutoCol;
+        if (!col || col === '0' || col === 'NULL') {
+            const error = new Error('El ERP no tiene el campo de importe elegido para el informe.');
+            error.code = 'REPORT_SCHEMA_INCOMPLETE';
+            throw error;
+        }
+        const sql = `SELECT COUNT(*) FILTER (WHERE ${col} IS NULL)::int AS documentos_sin_importe
+                     FROM public.facventa ${ctx.whereSql}`;
+        const { rows } = await pool.query(sql, ctx.values);
+        return { documentos_sin_importe: Number(rows[0]?.documentos_sin_importe || 0) };
+    }
+
+    // Consulta agrupada: no depende del límite de exportación de facturas.
+    // La atribución se realiza por código de cliente de cada factura histórica,
+    // no por la cartera comercial actual.
+    static async getClientSalesAggregates(rawFilters) {
+        const ctx = await buildContextFilters(rawFilters);
+        const { clienteKeyExpr, razentreKeyExpr, facturacionExpr, fechaCol } = ctx.expressions;
+        if (fechaCol === 'NULL' || clienteKeyExpr === 'NULL') {
+            throw new Error('Faltan columnas esenciales para comparar clientes por período.');
+        }
+        const q = `
+            SELECT ${clienteKeyExpr} AS cliente,
+                   MAX(${razentreKeyExpr === 'NULL' ? 'NULL::text' : razentreKeyExpr}) AS razentre,
+                   COUNT(*)::int AS facturas,
+                   COALESCE(SUM(${facturacionExpr}), 0) AS neto
+            FROM public.facventa
+            ${ctx.whereSql}
+            GROUP BY 1
+            ORDER BY neto DESC
+        `;
+        const { rows } = await pool.query(q, ctx.values);
+        return rows;
+    }
+
     static async getInvoices(rawFilters) {
         const ctx = await buildContextFilters(rawFilters);
         const {
@@ -2085,7 +2146,7 @@ export class AnalyticsModel {
         const nomComerCol = pickExistingColumn(ctx.columns, ['nomcomer', 'nombrecomercial', 'nombre_comercial']);
         const nifCol = pickExistingColumn(ctx.columns, ['nifentre', 'nif', 'cif']);
         const formaPagoCol = pickExistingColumn(ctx.columns, ['codforpago', 'forpago', 'forma_pago']);
-        const vendedorCol = pickExistingColumn(ctx.columns, ['codvend', 'vendedor']);
+        const vendedorCol = pickExistingColumn(ctx.columns, ['codrepre', 'codvend', 'vendedor']);
         const zonaCol = pickExistingColumn(ctx.columns, ['codzona', 'zona']);
         const rutaCol = pickExistingColumn(ctx.columns, ['codruta', 'ruta']);
         const departamentoCol = pickExistingColumn(ctx.columns, ['coddpto', 'departamento']);
@@ -2178,11 +2239,16 @@ export class AnalyticsModel {
                 COALESCE(${brutoCol}, 0) AS impbruto,
                 COALESCE(${baseCol}, 0) AS impbase,
                 COALESCE(${ivaCol}, 0) AS impiva,
+                ${ctx.expressions.recargoExpr} AS impre,
+                ${ctx.expressions.irpfExpr} AS impirpf,
+                ${ctx.expressions.portesExpr} AS impportes,
                 COALESCE(${totalCol}, 0) AS imptotal,
                 ${ctx.expressions.facturacionExpr} AS importe_visualizado,
 
                 ${estadoSiiCol} AS estadosii,
                 ${errorSiiCol} AS conerroressii,
+                ${ctx.expressions.fueraPlazoSiiCol} AS fueraplazosii,
+                ${ctx.expressions.errorVeriCol} AS conerroresverifactu,
 
                 ${nomComerCol !== 'NULL' ? textTrimExpr(nomComerCol) : 'NULL'} AS nomcomer,
                 ${nifCol !== 'NULL' ? textTrimExpr(nifCol) : 'NULL'} AS nifentre,
@@ -2224,6 +2290,43 @@ export class AnalyticsModel {
         };
     }
 
+
+    static async getInvoiceIssueRows(rawFilters, limit = 10000) {
+        const ctx = await buildContextFilters(rawFilters);
+        const e = ctx.expressions;
+        if (e.fechaCol === 'NULL' || e.serieKeyExpr === 'NULL' || e.nfacCol === 'NULL') {
+            throw new Error('Faltan columnas esenciales para detallar incidencias de facturas.');
+        }
+        const missing = (expr) => expr === 'NULL' ? 'TRUE' : `(NULLIF(TRIM(CAST(${expr} AS text)), '') IS NULL)`;
+        const diff = `(${e.totalExpr} - (${e.baseExpr} + ${e.ivaExpr} + ${e.recargoExpr} - ${e.irpfExpr} + ${e.portesExpr}))`;
+        const siiError = sqlFlagToInt(e.errorSiiCol);
+        const veriError = sqlFlagToInt(e.errorVeriCol);
+        const lateSii = sqlFlagToInt(e.fueraPlazoSiiCol);
+        const exprFlags = [missing(e.serieCol), missing(e.clienteCol), missing(e.nfacCol),
+            `ABS(${diff}) > 0.05`, `${siiError} > 0`, `${veriError} > 0`, `${lateSii} > 0`];
+        const capped = Math.min(10000, Math.max(1, Math.floor(Number(limit) || 10000)));
+        const q = `
+            SELECT TO_CHAR(${e.fechaCol}::date, 'YYYY-MM-DD') AS fecha,
+                   ${e.serieKeyExpr} AS serie, ${e.nfacCol} AS nfacventa,
+                   ${e.clienteKeyExpr} AS cliente, ${e.razentreKeyExpr} AS razentre,
+                   ${e.baseExpr} AS impbase, ${e.ivaExpr} AS impiva,
+                   ${e.recargoExpr} AS impre, ${e.irpfExpr} AS impirpf,
+                   ${e.portesExpr} AS impportes, ${e.totalExpr} AS imptotal,
+                   ${diff} AS diferencia,
+                   ${missing(e.serieCol)} AS sin_serie,
+                   ${missing(e.clienteCol)} AS sin_cliente,
+                   ${missing(e.nfacCol)} AS sin_numero,
+                   (${siiError} > 0) AS error_sii,
+                   (${lateSii} > 0) AS fuera_plazo_sii,
+                   (${veriError} > 0) AS error_verifactu
+            FROM public.facventa
+            ${ctx.whereSql ? `${ctx.whereSql} AND` : 'WHERE'} (${exprFlags.join(' OR ')})
+            ORDER BY ${e.fechaCol} DESC, ${e.serieKeyExpr} ASC, ${e.nfacCol} DESC
+            LIMIT $${ctx.values.length + 1}
+        `;
+        const { rows } = await pool.query(q, [...ctx.values, capped + 1]);
+        return { rows, truncated: rows.length > capped };
+    }
 
     static async getDataQuality(rawFilters) {
         const ctx = await buildContextFilters(rawFilters);

@@ -1,12 +1,18 @@
 import { Router } from 'express';
 import { AnalyticsController } from '../controllers/analyticsController.js';
 import { requireRouteAccess } from '../middlewares/requireRouteAccess.js';
+import { requireAnalyticsReportsAccess } from '../middlewares/requireAnalyticsReportsAccess.js';
+import { downloadAnalyticsReport, searchAnalyticsReportClientsController } from '../controllers/analyticsReportsController.js';
 
 export const createAnalyticsRouter = () => {
     const router = Router();
     const controller = new AnalyticsController();
     const requireMapAccess = requireRouteAccess('/mapas-facturacion', 'administracion');
-    const requireBillingAccess = requireRouteAccess('/analitica-facturacion', 'administracion', 'administrativo');
+    const requireBillingAccess = requireRouteAccess('/analitica-facturacion', 'administracion', 'administrativo', 'contabilidad');
+
+    // Regla propia y estricta: NO heredamos las excepciones de acceso por ruta.
+    router.get('/reports/download', requireAnalyticsReportsAccess, downloadAnalyticsReport);
+    router.get('/reports/clients', requireAnalyticsReportsAccess, searchAnalyticsReportClientsController);
 
     router.get('/dashboard', requireBillingAccess, controller.getDashboard.bind(controller));
     router.get('/filters', requireBillingAccess, controller.getFilters.bind(controller));

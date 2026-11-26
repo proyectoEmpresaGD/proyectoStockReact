@@ -14,7 +14,7 @@ const modules = [
     ['/notas', ['comercial', 'administracion']],
     ['/stock-alerts', ['compras']],
     ['/equivalencias', ['almacen', 'compras']],
-    ['/analitica-facturacion', ['administracion', 'administrativo']],
+    ['/analitica-facturacion', ['administracion', 'administrativo', 'contabilidad']],
     ['/mapas-facturacion', ['administracion']],
     ['/libro', ['almacen', 'compras', 'user', 'administracion']],
     ['/stock', ['almacen', 'compras', 'ventas', 'user', 'comercial', 'administracion', 'decoandyou']],

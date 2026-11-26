@@ -1,6 +1,9 @@
 /** Datos del captador y del representante, calculados exclusivamente en el backend. */
 const clean = value => String(value ?? '').trim();
 export const isFairAdmin = user => ['admin', 'administracion'].includes(clean(user?.role).toLowerCase());
+// Los informes de feria son exclusivamente para el rol administrador ('admin'),
+// aunque 'administracion' pueda gestionar solicitudes y visitas.
+export const isFairReportAdmin = user => clean(user?.role).toLowerCase() === 'admin';
 
 export function getFairRepresentative(user, client, clientKind) {
   const ownCode = clean(user?.codrepre);
@@ -9,6 +12,13 @@ export function getFairRepresentative(user, client, clientKind) {
   const code = clientKind === 'EXISTENTE' ? clean(client?.representativeCode) : ownCode;
   const ownName = [user?.nombre, user?.apellido1, user?.apellido2].map(clean).filter(Boolean).join(' ') || clean(user?.username);
   return { code: code || null, name: code && code === ownCode ? ownName : null };
+}
+
+/** Los nuevos contactos y pedidos deben tener titular comercial para aparecer en su informe. */
+export function requireFairNewClientRepresentative(clientKind, assigned) {
+  if (clientKind === 'NUEVO' && !assigned?.code) {
+    throw Object.assign(new Error('Tu usuario no tiene representante comercial asignado. Solicita al administrador que lo configure antes de registrar clientes nuevos.'), { status: 422 });
+  }
 }
 
 export function getFairVisitorScope(user, clientAccess) {

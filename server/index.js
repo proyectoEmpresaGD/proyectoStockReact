@@ -8,6 +8,7 @@ import { createStockRouter } from "./routes/stock.js";
 import { createCatalogosRouter } from './routes/catalogos.js';
 import { createStockLotesRouter } from "./routes/stockLotes.js";
 import { createClienteRouter } from "./routes/clients.js";
+import { createCommercialReportsRouter } from "./routes/commercialReports.js";
 import { createPedVentaRouter } from "./routes/pedventa.js";
 import { createEquivalenciasRouter } from "./routes/equivproveRoutes.js";
 import authRouter from "./routes/auth.js";
@@ -148,6 +149,7 @@ app.use("/api/sga/cdi-test", authMiddleware, createSgaCdiTestRouter({ pool }));
 app.use("/api/sga/cdi-logistics", authMiddleware, createSgaCdiLogisticsRouter({ pool }));
 app.use("/api/stocklotes", authMiddleware, createStockLotesRouter({ pool }));
 app.use("/api/clients", authMiddleware, createClienteRouter({ pool }));
+app.use("/api/commercial-reports", authMiddleware, createCommercialReportsRouter({ db: pool }));
 // Ferias: captación y solicitudes de pedido por correo, SIN escritura en ERP.
 app.use("/api/ferias", authMiddleware, createFeriasRouter({ pool }));
 app.use("/api/jornada", authMiddleware, createJornadaRouter({ pool }));

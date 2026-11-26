@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildFairRepresentativeReport,createFairRepresentativeWorkbook} from '../services/feriasReport.js';
-import {getFairVisitorScope, getFairRepresentative} from '../services/feriasVisitorRegistry.js';
+import {getFairVisitorScope, getFairRepresentative, requireFairNewClientRepresentative, isFairReportAdmin} from '../services/feriasVisitorRegistry.js';
+import {readFileSync} from 'node:fs';
 
 const clients=[
   {codigo:'00012',empresa:'ALFA',localidad:'Madrid',pais:'ES',email:'a@alfa.com'},
@@ -50,4 +51,57 @@ test('Solo representantes del usuario comercial y equipo pueden ser autorizados;
   assert.equal(getFairVisitorScope({id:1,role:'administracion'},{}).isAdmin,true);
   assert.deepEqual(getFairRepresentative(user,{representativeCode:'011'},'EXISTENTE'),{code:'011',name:null});
   assert.deepEqual(getFairRepresentative(user,{},'NUEVO'),{code:'010',name:'Marta'});
+});
+
+
+test('informes de ferias: solo admin tiene permiso; administracion y comerciales quedan excluidos',()=>{
+  assert.equal(isFairReportAdmin({role:'admin'}),true);
+  assert.equal(isFairReportAdmin({role:' Admin '}),true);
+  for(const role of ['administracion','comercial','ventas','usuario','']) {
+    assert.equal(isFairReportAdmin({role}),false,`Rol ${role} no debe acceder a informes`);
+  }
+  assert.equal(isFairReportAdmin(null),false);
+});
+
+test('las dos rutas de informes tienen protección y la interfaz solo se muestra a admin',()=>{
+  const routes=readFileSync(new URL('../routes/ferias.js',import.meta.url),'utf8');
+  const service=readFileSync(new URL('../services/feriasService.js',import.meta.url),'utf8');
+  const page=readFileSync(new URL('../../src/pages/FeriasPage.jsx',import.meta.url),'utf8');
+  assert.match(routes,/router\.get\('\/informes\/representantes',requireReportAdministrator,/);
+  assert.match(routes,/router\.get\('\/informes\/excel',requireReportAdministrator,/);
+  assert.match(service,/async function listReportRepresentatives\(user\) \{\s*if \(!isFairReportAdmin\(user\)\)/);
+  assert.match(service,/async function getFairReport\(\{fair,representativeCode\},user\) \{\s*if \(!isFairReportAdmin\(user\)\)/);
+  assert.match(page,/const canDownloadReports=String\(user\?\.role \?\? ''\)\.trim\(\)\.toLowerCase\(\)==='admin'/);
+  assert.match(page,/\{canDownloadReports && <section/);
+});
+
+
+test('la ficha de Ferias muestra al registrador como campo obligatorio de solo lectura',()=>{
+  const page=readFileSync(new URL('../../src/pages/FeriasPage.jsx',import.meta.url),'utf8');
+  assert.match(page,/Comercial que realiza el registro \*/);
+  assert.match(page,/id=\"ferias-registrador\"/);
+  assert.match(page,/value=\{registrarName \|\| 'Usuario no identificado'\} readOnly/);
+  assert.match(page,/kind==='NUEVO'&&!hasAssignedRepresentative/);
+  assert.match(page,/disabled=\{working\|\|checking\|\|!registrarName\|\|\(kind==='NUEVO'&&!hasAssignedRepresentative\)/);
+});
+
+test('contactos nuevos sin representante se rechazan en backend, preservando clientes existentes',()=>{
+  const service=readFileSync(new URL('../services/feriasService.js',import.meta.url),'utf8');
+  assert.match(service,/getFairRepresentative\(user, client, data\.clientKind\)/);
+  assert.match(service,/requireFairNewClientRepresentative\(data\.clientKind, assigned\)/);
+  assert.match(service,/if \(data\.clientKind === 'EXISTENTE'\) client = await selectClient/);
+});
+
+
+test('validación real: nuevos sin representante son bloqueados y clientes existentes siguen permitidos',()=>{
+  for (const invalid of [null, undefined, '', '  ']) {
+    const assigned=getFairRepresentative({username:'comercial',codrepre:invalid}, {}, 'NUEVO');
+    assert.throws(()=>requireFairNewClientRepresentative('NUEVO',assigned),error=>
+      error.status===422 && /representante comercial asignado/.test(error.message));
+  }
+  assert.doesNotThrow(()=>requireFairNewClientRepresentative('NUEVO',
+    getFairRepresentative({username:'comercial',codrepre:'010'}, {}, 'NUEVO')));
+  assert.doesNotThrow(()=>requireFairNewClientRepresentative('EXISTENTE',
+    getFairRepresentative({username:'registrador'}, {representativeCode:'011'}, 'EXISTENTE')));
+  assert.doesNotThrow(()=>requireFairNewClientRepresentative('EXISTENTE', {code:null}));
 });

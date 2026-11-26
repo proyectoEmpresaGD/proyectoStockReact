@@ -38,6 +38,7 @@ const SYSTEM_ROLES = [
     'rrhh',
     'administracion',
     'administrativo',
+    'contabilidad',
 ];
 
 const MAX_ROLE_LENGTH = Number(process.env.MAX_ROLE_LENGTH || 30);
@@ -72,6 +73,11 @@ const WAREHOUSE_ROLE_ROUTES = [
 ];
 
 const SYSTEM_ROLE_DEFINITIONS = {
+    contabilidad: {
+        name: 'contabilidad',
+        permissions: ['analytics.read'],
+        routes: ['/', '/analitica-facturacion', '/centro-informes', '/perfilusuario'],
+    },
     almacen: {
         name: 'almacen',
         permissions: ['stock.read', 'stock.write', 'labels.read'],

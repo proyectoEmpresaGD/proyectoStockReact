@@ -22,13 +22,13 @@ const TARIFF_NAMES = {
     '01': 'TARIFA OFICIAL',
     '02': 'TARIFA STUDIO',
     '03': 'TARIFA PVP',
-    '04': 'TARIFA PARIS +15%',
+    '04': 'TARIFA PARIS ',
     '05': 'TARIFA CLIENTES DECORACIÓN',
     '06': 'TARIFA CLIENTES INGLATERRA Y AMERICA',
     '07': 'TARIFA EMIRATOS ÁRABES',
     '08': 'TARIFA +10% PENDIENTE DE PONER PARA QUE PAIS',
-    '09': 'TARIFA OFICIAL INTERNACIONAL EUROPA +6%',
-    '10': 'TARIFA PARIS +30%',
+    '09': 'TARIFA OFICIAL INTERNACIONAL EUROPA ',
+    '10': 'TARIFA PARIS ',
 };
 
 const PAYMENT_NAMES = Object.freeze({
@@ -108,7 +108,7 @@ function Detail({ title, children }) {
 export default function InfoTab({ client }) {
     const emails = useMemo(() => String(client?.email || '')
         .split(/[,;\s]+/).map((email) => email.trim()).filter((email) => email.includes('@')),
-    [client?.email]);
+        [client?.email]);
     const provinceName = provinces.find((province) => province.value === String(client?.codprovi || ''))?.label
         || client?.codprovi || '—';
     const address = [client?.direccion, client?.localidad, provinceName, client?.codpais]

@@ -23,10 +23,25 @@ export default function SearchBar({
     handleSearchEnter,
     searchScope = 'clientes',
     portfolioView = 'equipo',
+    // Los informes reutilizan exactamente el buscador de Clientes, pero tienen
+    // su propia ruta de consulta, protegida por permisos contables.
+    loadSuggestions,
+    inputId = 'client-search-input',
+    label = 'Buscar cliente',
+    placeholder = 'Nombre o código de cliente',
+    showSearchButton = true,
+    debounceMs = 0,
+    minSearchChars = 2,
+    showOnFocus = false,
+    selectFirstOnEnter = false,
 }) {
     const { token } = useAuthContext();
     const wrapperRef = useRef(null);
     const suggestionAbortRef = useRef(null);
+    const suggestionTimerRef = useRef(null);
+    const [loading, setLoading] = useState(false);
+    const [searchError, setSearchError] = useState(false);
+    const [searchCompleted, setSearchCompleted] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -53,11 +68,15 @@ export default function SearchBar({
         };
     }, []);
 
-    useEffect(() => () => suggestionAbortRef.current?.abort(), []);
+    useEffect(() => () => {
+        suggestionAbortRef.current?.abort();
+        clearTimeout(suggestionTimerRef.current);
+    }, []);
 
     // Evita conservar sugerencias de la cartera anterior tras cambiar el filtro.
     useEffect(() => {
         suggestionAbortRef.current?.abort();
+        clearTimeout(suggestionTimerRef.current);
         setSuggestions([]);
         setShowSuggestions(false);
         setActiveIndex(-1);
@@ -65,13 +84,18 @@ export default function SearchBar({
 
     function fuzzyFilter(client, term) {
         const haystack = normalizeString(`${client.razclien} ${client.codclien}`);
-        return normalizeString(term).split(' ').every((part) => haystack.includes(part));
+        const searched = normalizeString(term);
+        return searched.split(' ').every((part) => haystack.includes(part))
+            || haystack.replaceAll(' ', '').includes(searched.replaceAll(' ', ''));
     }
 
     async function fetchSuggestions(value) {
         suggestionAbortRef.current?.abort();
         const controller = new AbortController();
         suggestionAbortRef.current = controller;
+        setLoading(true);
+        setSearchError(false);
+        setSearchCompleted(false);
 
         // Reservas consulta todos los clientes activos sin abrir permisos de
         // cartera en /api/clients. En Clientes se conserva el endpoint anterior.
@@ -82,28 +106,37 @@ export default function SearchBar({
         else if (portfolioView === 'propia') params.set('cartera', 'propia');
 
         try {
-            const response = await fetch(
-                `${import.meta.env.VITE_API_BASE_URL}${path}?${params.toString()}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    signal: controller.signal,
-                }
-            );
-
-            if (!response.ok) throw new Error(`Error de búsqueda: ${response.status}`);
-            const data = await response.json();
+            let data;
+            if (typeof loadSuggestions === 'function') {
+                // Resultados con el mismo formato que /api/clients/search:
+                // { codclien, razclien }. La carga se cancela al seguir escribiendo.
+                data = await loadSuggestions(value, { signal: controller.signal });
+            } else {
+                const response = await fetch(
+                    `${import.meta.env.VITE_API_BASE_URL}${path}?${params.toString()}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        signal: controller.signal,
+                    }
+                );
+                if (!response.ok) throw new Error(`Error de búsqueda: ${response.status}`);
+                data = await response.json();
+            }
             if (!controller.signal.aborted) {
-                setSuggestions(Array.isArray(data) ? data.filter((client) => fuzzyFilter(client, value)) : []);
+                setSuggestions(Array.isArray(data) ? data.filter((item) => fuzzyFilter(item, value)) : []);
+                setSearchCompleted(true);
             }
         } catch (error) {
             if (!controller.signal.aborted) {
-                console.error('No se han podido cargar las sugerencias de clientes:', error);
+                console.error('No se han podido cargar las sugerencias:', error);
                 setSuggestions([]);
+                setSearchError(true);
             }
         } finally {
+            if (!controller.signal.aborted) setLoading(false);
             if (suggestionAbortRef.current === controller) suggestionAbortRef.current = null;
         }
     }
@@ -112,13 +145,18 @@ export default function SearchBar({
         const value = event.target.value;
         setSearchTerm(value);
 
-        if (normalizeString(value).length > 1) {
+        suggestionAbortRef.current?.abort();
+        clearTimeout(suggestionTimerRef.current);
+        setSearchError(false);
+        setSearchCompleted(false);
+        if (normalizeString(value).length >= minSearchChars) {
             setShowSuggestions(true);
-            fetchSuggestions(value);
+            setSuggestions([]);
+            suggestionTimerRef.current = setTimeout(() => fetchSuggestions(value), Math.max(0, debounceMs));
         } else {
-            suggestionAbortRef.current?.abort();
             setShowSuggestions(false);
             setSuggestions([]);
+            setLoading(false);
         }
 
         setActiveIndex(-1);
@@ -126,10 +164,12 @@ export default function SearchBar({
 
     const selectClient = (client) => {
         suggestionAbortRef.current?.abort();
+        clearTimeout(suggestionTimerRef.current);
         setSearchTerm(client.razclien);
         setShowSuggestions(false);
         setActiveIndex(-1);
         setSuggestions([]);
+        setLoading(false);
         handleSuggestionClick(client);
         handleSearchEnter();
     };
@@ -151,7 +191,8 @@ export default function SearchBar({
             setActiveIndex((index) => Math.max(index - 1, 0));
         } else if (event.key === 'Enter') {
             event.preventDefault();
-            if (activeIndex >= 0) selectClient(suggestions[activeIndex]);
+            if (activeIndex >= 0 && suggestions[activeIndex]) selectClient(suggestions[activeIndex]);
+            else if (selectFirstOnEnter && suggestions.length > 0) selectClient(suggestions[0]);
             else {
                 setShowSuggestions(false);
                 handleSearchEnter();
@@ -161,10 +202,14 @@ export default function SearchBar({
 
     const clearSearch = () => {
         suggestionAbortRef.current?.abort();
+        clearTimeout(suggestionTimerRef.current);
         setSearchTerm('');
         setSuggestions([]);
         setShowSuggestions(false);
         setActiveIndex(-1);
+        setLoading(false);
+        setSearchError(false);
+        setSearchCompleted(false);
         handleSearchEnter();
     };
 
@@ -176,8 +221,8 @@ export default function SearchBar({
             aria-haspopup="listbox"
             aria-expanded={showSuggestions}
         >
-            <label className="cjm-control-label" htmlFor="client-search-input">
-                <TranslatedText>Buscar cliente</TranslatedText>
+            <label className="cjm-control-label" htmlFor={inputId}>
+                {label === 'Buscar cliente' ? <TranslatedText>Buscar cliente</TranslatedText> : label}
             </label>
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -187,12 +232,19 @@ export default function SearchBar({
                         aria-hidden="true"
                     />
                     <LocalizedElement><input
-                        id="client-search-input"
+                        id={inputId}
                         type="search"
-                        placeholder="Nombre o código de cliente"
+                        placeholder={placeholder}
                         value={searchTerm}
                         onChange={handleChange}
                         onKeyDown={handleKeyDown}
+                        onFocus={() => {
+                            if (!showOnFocus) return;
+                            suggestionAbortRef.current?.abort();
+                            clearTimeout(suggestionTimerRef.current);
+                            setShowSuggestions(true);
+                            fetchSuggestions(searchTerm);
+                        }}
                         autoComplete="off"
                         enterKeyHint="search"
                         className="cjm-input min-h-12 rounded-xl py-3 pl-10 pr-11"
@@ -210,22 +262,27 @@ export default function SearchBar({
                     )}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={handleSearchEnter}
-                    className="cjm-primary-button min-h-12 w-full rounded-xl px-5 py-3 text-sm font-semibold sm:w-auto"
-                >
-                    <FiSearch aria-hidden="true" />
-                    Buscar
-                </button>
+                {showSearchButton && (
+                    <button
+                        type="button"
+                        onClick={handleSearchEnter}
+                        className="cjm-primary-button min-h-12 w-full rounded-xl px-5 py-3 text-sm font-semibold sm:w-auto"
+                    >
+                        <FiSearch aria-hidden="true" />
+                        Buscar
+                    </button>
+                )}
             </div>
 
-            {showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && (suggestions.length > 0 || loading || searchError || searchCompleted) && (
                 <ul
                     className="absolute left-0 right-0 z-50 mt-2 max-h-[min(20rem,48dvh)] overflow-y-auto rounded-2xl border border-[var(--cjm-border)] bg-[var(--cjm-surface)] p-1.5 shadow-[var(--cjm-shadow)]"
                     role="listbox"
                 >
-                    {suggestions.map((client, index) => {
+                    {loading && <li className="px-3 py-2 text-sm text-[var(--cjm-muted)]">Buscando coincidencias…</li>}
+                    {!loading && searchError && <li role="alert" className="px-3 py-2 text-sm text-rose-700">No se ha podido buscar. Prueba de nuevo.</li>}
+                    {!loading && !searchError && searchCompleted && suggestions.length === 0 && <li className="px-3 py-2 text-sm text-[var(--cjm-muted)]">Sin coincidencias. Prueba con otro nombre o código.</li>}
+                    {!loading && suggestions.map((client, index) => {
                         const active = index === activeIndex;
                         return (
                             <li

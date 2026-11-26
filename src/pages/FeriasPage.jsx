@@ -45,6 +45,11 @@ async function resizeImage(file) {
 export default function FeriasPage() {
   const {token,user}=useAuthContext();
   const api=useApi(token);
+  const canDownloadReports=String(user?.role ?? '').trim().toLowerCase()==='admin';
+  // Solo lectura: la identidad procede de la sesión autenticada, nunca del formulario.
+  const registrarName=[user?.nombre,user?.apellido1,user?.apellido2]
+    .map(value=>String(value ?? '').trim()).filter(Boolean).join(' ') || String(user?.username ?? '').trim();
+  const hasAssignedRepresentative=Boolean(String(user?.codrepre ?? '').trim());
   const [type,setType]=useState('CONTACTO');
   const [kind,setKind]=useState('NUEVO');
   const [fair,setFair]=useState('');
@@ -126,6 +131,7 @@ export default function FeriasPage() {
     }catch(err){setOcrNotice({error:true,text:err.message});}finally{setWorking(false);}
   };
   const loadReports=async()=>{
+    if(!canDownloadReports)return;
     setReportsOpen(true);setReportMessage('');setReportLoading(true);
     try {
       const [fairs,reps]=await Promise.all([api('/ferias'),api('/informes/representantes')]);
@@ -135,6 +141,7 @@ export default function FeriasPage() {
     } catch(e){setReportMessage(e.message);} finally{setReportLoading(false);}
   };
   const exportReport=async()=>{
+    if(!canDownloadReports)return;
     if(!reportFair || !reportRepresentative) return setReportMessage('Selecciona una feria y un representante.');
     setReportLoading(true);setReportMessage('');
     try {await downloadFeriasReport({fair:reportFair,representative:reportRepresentative,token,
@@ -161,6 +168,8 @@ export default function FeriasPage() {
   };
   const submit=async()=>{
     if(working||receipt)return;
+    if(!registrarName)return warn('No se puede identificar al usuario conectado. Vuelve a iniciar sesión.');
+    if(kind==='NUEVO'&&!hasAssignedRepresentative)return warn('Tu usuario no tiene representante comercial asignado. Solicita al administrador que lo configure antes de registrar clientes nuevos.');
     if(!fair.trim())return warn('Indica en qué feria se realizó el contacto.');
     if(kind==='EXISTENTE'&&!clientCode)return warn('Selecciona un cliente de los resultados del buscador.');
     if(kind==='NUEVO'&&(!client.company.trim()||!client.contact.trim()))return warn('Completa la empresa y la persona de contacto.');
@@ -190,7 +199,7 @@ export default function FeriasPage() {
     {mailTestRecipient&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-base font-semibold text-amber-950">
       Modo prueba de correos activado: todas las notificaciones y agradecimientos se enviarán únicamente a <strong>{mailTestRecipient}</strong>. Ningún cliente recibirá correos de esta prueba.
     </div>}
-    <section className={`${panel} space-y-3`}>
+    {canDownloadReports && <section className={`${panel} space-y-3`}>
       <button type="button" onClick={loadReports} className={`${big} w-full border-2 border-blue-200 bg-blue-50 text-left text-blue-900`}>
         <FiUsers className="mr-2 inline"/> Visitantes por representante · Informe de feria
       </button>
@@ -215,7 +224,7 @@ export default function FeriasPage() {
         <p className="text-sm text-slate-600">Incluye hojas de resumen, cartera (visitó / no visitó / solicitó pedido), nuevos contactos y solicitudes de pedido. Descarga uno por representante para enviárselo sin mezclar carteras.</p>
         {reportMessage&&<p role="status" className="rounded-xl bg-white p-3 text-sm font-semibold">{reportMessage}</p>}
       </div>}
-    </section>
+    </section>}
     <section className={`${panel} space-y-3`}>
       <button onClick={loadRecent} className={`${big} w-full border border-slate-300 bg-slate-50 text-left`}>
         <FiClipboard className="mr-2 inline"/> Mis solicitudes recientes / seguimiento
@@ -248,6 +257,16 @@ export default function FeriasPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button onClick={()=>{setType('CONTACTO');setKind('NUEVO');setClient(blankClient());setClientCode('');setClientQuery('');setAvailability(null);}} className={`${big} flex items-center gap-3 border-2 text-left ${type==='CONTACTO'?'border-blue-700 bg-blue-50':'border-slate-200 bg-white'}`}><FiUsers size={28}/> Registrar visita (cliente nuevo o existente)</button>
           <button onClick={()=>{setType('PEDIDO');setAvailability(null);}} className={`${big} flex items-center gap-3 border-2 text-left ${type==='PEDIDO'?'border-blue-700 bg-blue-50':'border-slate-200 bg-white'}`}><FiClipboard size={28}/> Solicitar pedido</button>
+        </div>
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="ferias-registrador" className="flex items-center gap-2 font-semibold text-slate-900">
+            <FiShield className="shrink-0 text-slate-600" aria-hidden="true" /> Comercial que realiza el registro *
+          </label>
+          <input id="ferias-registrador" className={`${field} mt-2 border-slate-200 bg-slate-100 font-semibold`} value={registrarName || 'Usuario no identificado'} readOnly aria-readonly="true" />
+          <p className="mt-2 text-sm text-slate-600">Se identifica automáticamente con tu sesión y no puede modificarse. Quedará registrado tanto en contactos como en pedidos.</p>
+          {kind==='NUEVO'&&!hasAssignedRepresentative&&<p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+            Tu usuario no tiene representante comercial asignado. Solicita al administrador que lo configure antes de registrar contactos o pedidos de clientes nuevos. Los clientes existentes mantienen el representante asignado en el ERP.
+          </p>}
         </div>
         <label className="mt-5 block font-semibold" htmlFor="fair">Nombre de la feria *</label>
         <input id="fair" className={`${field} mt-2`} placeholder="Ej. Paris Déco Off 2027" value={fair} onChange={e=>setFair(e.target.value)} maxLength={120}/>
@@ -331,7 +350,7 @@ export default function FeriasPage() {
       <section className={panel}>
         <h2 className="mb-2 text-xl font-bold">{type==='CONTACTO'?'3':'4'}. Revisar y enviar</h2>
         <p className="mb-4">La información llegará a <b>pedidos@cjmgroup.es</b>. Administración deberá registrarla en el ERP.</p>
-        <button disabled={working||checking||type==='PEDIDO'&&!availability?.canSubmit} onClick={submit} className={`${big} flex w-full items-center justify-center gap-2 bg-emerald-700 text-white`}><FiMail size={22}/>{working?'Guardando y enviando…':type==='PEDIDO'?'Enviar solicitud de pedido':'Registrar contacto y enviar correo'}</button>
+        <button disabled={working||checking||!registrarName||(kind==='NUEVO'&&!hasAssignedRepresentative)||type==='PEDIDO'&&!availability?.canSubmit} onClick={submit} className={`${big} flex w-full items-center justify-center gap-2 bg-emerald-700 text-white`}><FiMail size={22}/>{working?'Guardando y enviando…':type==='PEDIDO'?'Enviar solicitud de pedido':'Registrar contacto y enviar correo'}</button>
       </section>
     </>}
   </div>;

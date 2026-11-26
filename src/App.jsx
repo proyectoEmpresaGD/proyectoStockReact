@@ -52,6 +52,9 @@ const EtiquetaSinQR = lazy(() => import('./pages/etiquetas/etiquetaSinQR.jsx'));
 const EtiquetaCameo = lazy(() => import('./pages/etiquetas/Etiqueta cameo.jsx'));
 const EtiquetaLibro45Ancho = lazy(() => import('./pages/etiquetas/EtiquetaLibro45AnchoConImagen.jsx'));
 const FacturacionAnalyticsPage = lazy(() => import('./pages/FacturacionAnalyticsPage.jsx'));
+const InformesPage = lazy(() => import('./pages/InformesPage.jsx'));
+const CentroInformesPage = lazy(() => import('./pages/CentroInformesPage.jsx'));
+const InformesComercialesPage = lazy(() => import('./pages/InformesComercialesPage.jsx'));
 const ReservasTejido = lazy(() => import('./pages/reservas.jsx'));
 const FichaTecnicaPage = lazy(() => import('./pages/fichaTecnica/fichaTenica.jsx'));
 const NotFoundPage = lazy(() => import('./common/NotFoundPage.jsx'));
@@ -126,12 +129,15 @@ function AppContent() {
                             <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
                             <Route path="/intrastat" element={<ProtectedRoute requiredRole="admin"><Intrastat /></ProtectedRoute>} />
                             <Route path="/analitica-facturacion" element={<ProtectedRoute><FacturacionAnalyticsPage /></ProtectedRoute>} />
+                            <Route path="/informes" element={<ProtectedRoute allowedRoles={['admin']}><InformesPage /></ProtectedRoute>} />
+                            <Route path="/centro-informes" element={<ProtectedRoute allowedRoles={['admin']}><CentroInformesPage /></ProtectedRoute>} />
                             <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                             <Route path="/catalogos" element={<ProtectedRoute><CatalogosPage /></ProtectedRoute>} />
                             <Route path="/sga" element={<ProtectedRoute><SgaPage /></ProtectedRoute>} />
                             <Route path="/reservasTejido" element={<ProtectedRoute><ReservasTejido /></ProtectedRoute>} />
                             <Route path="/etiquetas-lotes" element={<ProtectedRoute><GeneradorEtiquetasLotes /></ProtectedRoute>} />
                             <Route path="/clients" element={<ProtectedRoute requiredRole="comercial"><Clients /></ProtectedRoute>} />
+                            <Route path="/informes-comerciales" element={<ProtectedRoute allowedRoles={['admin']}><InformesComercialesPage /></ProtectedRoute>} />
                             <Route path="/ferias" element={<ProtectedRoute><FeriasPage /></ProtectedRoute>} />
                             <Route path="/equivalencias" element={<ProtectedRoute requiredRole="almacen"><Equivalencias /></ProtectedRoute>} />
                             <Route

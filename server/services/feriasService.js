@@ -6,7 +6,7 @@ import { StockModel } from '../models/Postgres/stock.js';
 import { normalizeUserClientAccess } from '../utils/clientPortfolioAccess.js';
 import { normalizeFairSubmission, assertAvailability, mailHtml, summarizeFairInventory, FAIR_LOGO_CID, escapeHtml } from './feriasRules.js';
 import { createFeriasMailPolicy, FERIAS_TEST_MAILBOX, isFeriasTestMessage, prepareFeriasMailSubject } from './feriasMailRouting.js';
-import { getFairRepresentative, getFairVisitorScope, isFairAdmin, fairVisitorIdentitySQL } from './feriasVisitorRegistry.js';
+import { getFairRepresentative, requireFairNewClientRepresentative, getFairVisitorScope, isFairAdmin, isFairReportAdmin, fairVisitorIdentitySQL } from './feriasVisitorRegistry.js';
 import { buildFairRepresentativeReport, createFairRepresentativeWorkbook } from './feriasReport.js';
 
 const fairLogoPath = fileURLToPath(new URL('../assets/cjm-marca-negro.png', import.meta.url));
@@ -131,6 +131,9 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
       if (data.clientKind === 'EXISTENTE') client = await selectClient(data.client.code, user);
       // El representante lo fija el servidor desde la sesión o la ficha ERP.
       const assigned = getFairRepresentative(user, client, data.clientKind);
+      // Impide contactos y pedidos de clientes nuevos sin representante; no afecta a clientes existentes.
+      // El código procede del usuario autenticado por el servidor y no puede aportarlo React.
+      requireFairNewClientRepresentative(data.clientKind, assigned);
       let representativeName = assigned.name;
       if (assigned.code && !representativeName) {
         const representative = await db.query(`SELECT nombre,apellido1,apellido2,username
@@ -285,6 +288,7 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
     return rows;
   }
   async function listReportRepresentatives(user) {
+    if (!isFairReportAdmin(user)) throw error('Solo el administrador puede consultar informes de ferias.',403);
     const scope=getFairVisitorScope(user,normalizeUserClientAccess(user));
     const {rows}=await pool.query(`SELECT BTRIM(c.codrepre::text) AS code,
         COUNT(*)::int AS clients,
@@ -308,6 +312,7 @@ export function createFairService({ pool, mailer, stockReader = opts => StockMod
     return rows;
   }
   async function getFairReport({fair,representativeCode},user) {
+    if (!isFairReportAdmin(user)) throw error('Solo el administrador puede descargar informes de ferias.',403);
     const scope=getFairVisitorScope(user,normalizeUserClientAccess(user));
     const code=text(representativeCode).slice(0,60);
     const unassigned=code==='SIN_ASIGNAR';

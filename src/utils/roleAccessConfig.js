@@ -17,6 +17,8 @@ export const AVAILABLE_ROUTES = [
     { path: '/gastos-pruebas', label: 'Gastos · Pruebas', individualAccess: false, showInPermissionEditor: false, accessNote: 'Exclusivo de administrador durante las pruebas' },
     { path: '/', label: 'Inicio' },
     { path: '/clients', label: 'Clientes' },
+    { path: '/informes', label: 'Centro de informes', individualAccess: false, accessNote: 'Exclusivo de administrador durante las pruebas.' },
+    { path: '/informes-comerciales', label: 'Mis informes comerciales', individualAccess: false, accessNote: 'Exclusivo de administrador durante las pruebas.' },
     // Permiso de datos de Clientes; no representa una página navegable.
     { path: '/clients/series-h-hh', label: 'Clientes · Ver facturas series H y HH', specialPermission: true },
     { path: '/ferias', label: 'Ferias · Contactos y pedidos' },
@@ -35,6 +37,7 @@ export const AVAILABLE_ROUTES = [
     { path: '/mapa-clientes', label: 'Mapa clientes', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Mapas de facturación' },
     { path: '/mapa-españa', label: 'Mapa España', individualAccess: false, showInPermissionEditor: false, fallback: false, accessNote: 'Se controla desde Mapas de facturación' },
     { path: '/analitica-facturacion', label: 'Facturación' },
+    { path: '/centro-informes', label: 'Centro de informes · Contabilidad', individualAccess: false, accessNote: 'Exclusivo de administrador durante las pruebas.' },
     { path: '/intrastat', label: 'Intrastat' },
     { path: '/etiquetas', label: 'Etiquetas QUALITY' },
     { path: '/etiquetas-contractalia', label: 'Etiquetas QUALITY Contractalia' },
@@ -116,6 +119,8 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/clients',
+            '/informes',
+            '/informes-comerciales',
             '/ferias',
             '/agenda',
             '/notas',
@@ -134,6 +139,8 @@ const DEFAULT_ROLE_DEFINITIONS = {
         routes: [
             '/',
             '/clients',
+            '/informes',
+            '/informes-comerciales',
             '/stock',
             '/catalogos',
             '/perfilusuario'
@@ -207,6 +214,11 @@ const DEFAULT_ROLE_DEFINITIONS = {
             '/rrhh/vacaciones'
         ]
     },
+    contabilidad: {
+        name: 'contabilidad',
+        permissions: ['analytics.read'],
+        routes: ['/', '/analitica-facturacion', '/informes', '/centro-informes', '/perfilusuario']
+    },
     administrativo: {
         name: 'administrativo',
         permissions: ['analytics.read', 'sales.read'],
@@ -221,7 +233,7 @@ const DEFAULT_ROLE_DEFINITIONS = {
     }
 };
 
-export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'compras', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo'];
+export const SERVER_MANAGED_ROLES = ['admin', 'comercial', 'almacen', 'compras', 'ventas', 'user', 'rrhh', 'administracion', 'administrativo', 'contabilidad'];
 
 let dynamicRoleDefinitions = { ...DEFAULT_ROLE_DEFINITIONS };
 let dynamicRoleOptions = [...SERVER_MANAGED_ROLES];
@@ -423,6 +435,7 @@ const roleCanAccessRoute = (roleName, path) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+    if (['/informes', '/informes-comerciales', '/centro-informes'].some(route => normalizedPath === route || normalizedPath.startsWith(`${route}/`))) return false;
     if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones mantiene su control individual específico en backend.
@@ -452,6 +465,7 @@ export const userCanAccessRoute = (roleName, path, routeAccess = {}) => {
     if (normalizedRoleName === 'admin') return true;
 
     const normalizedPath = normalizePath(path);
+    if (['/informes', '/informes-comerciales', '/centro-informes'].some(route => normalizedPath === route || normalizedPath.startsWith(`${route}/`))) return false;
     if (normalizedPath === '/gastos-pruebas' || normalizedPath.startsWith('/gastos-pruebas/')) return false;
 
     // Vacaciones y Gestión de usuarios tienen reglas propias y no admiten

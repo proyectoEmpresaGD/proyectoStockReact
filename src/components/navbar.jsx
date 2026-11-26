@@ -132,7 +132,15 @@ function Sidebar({ sidebarOpen, closeSidebar }) {
                 dropdown: 'contabilidad',
                 links: [
                     ...(String(user?.role || '').trim().toLowerCase() === 'admin' ? [{ to: '/gastos-pruebas', label: 'Gastos · Pruebas', icon: <FaMoneyBillWave className="mr-3 text-lg" /> }] : []),
-                    { to: '/intrastat', label: 'Intrastat', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] }
+                    { to: '/intrastat', label: 'Intrastat', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin', 'administracion'] },
+                ]
+            },
+            {
+                label: 'Informes',
+                icon: <FaMoneyBillWave className="mr-3 text-lg" />,
+                dropdown: 'informes',
+                links: [
+                    { to: '/informes', label: 'Centro de informes', icon: <FaMoneyBillWave className="mr-3 text-lg" />, roles: ['admin'] }
                 ]
             },
             {
